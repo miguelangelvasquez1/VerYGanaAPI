@@ -1,16 +1,26 @@
 package com.Rifacel.models;
 
-import com.Rifacel.models.Enums.TicketState;
-
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Entity
 @Data
 @AllArgsConstructor
+@NoArgsConstructor
 public class Ticket {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
-    private String userId;
+    @ManyToOne
+    private User user;
     private String number;
-    private String raffleId;
-    private TicketState state; // En revisión.
+    @ManyToOne
+    private Raffle raffle;
+    
 }
