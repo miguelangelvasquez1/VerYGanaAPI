@@ -1,10 +1,17 @@
 package com.Rifacel.repositories;
 
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 
 import com.Rifacel.models.Ticket;
 
+@Repository
 public interface TicketRepository extends JpaRepository<Ticket, String> {
-    // Additional query methods can be defined here if needed
-    
+    List<Ticket> findByUserId (String userId);
+    List<Ticket> findByRaffleId (String raffleId);
+    Optional<Ticket> findByRaffleAndNumber(String raffleId, String number);
+    boolean existsByRaffleAndNumber(String raffleId, String number);
 }

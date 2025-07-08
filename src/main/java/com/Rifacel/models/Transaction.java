@@ -33,6 +33,7 @@ public class Transaction {
     @Column(precision = 10, scale = 2)
     private BigDecimal amount;
     private LocalDateTime date;
+    @Column(unique = true, nullable = false)
     private String referenceCode;
     @Enumerated(EnumType.STRING)
     private TransactionState state; 
