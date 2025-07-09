@@ -31,17 +31,17 @@ public class TicketServiceImpl implements TicketService{
         return ticketRepository.findByRaffleId(raffleId);
     }
 
-    @Override
-    public Ticket findByRaffleAndNumber(String raffleId, String number) {
-        if (raffleId == null || raffleId.isBlank()) {
-            throw new IllegalArgumentException("invalid raffle id");
-        }
-        if (number == null || number.isBlank()) {
-            throw new IllegalArgumentException("invalid ticket number");
-        }
-        return ticketRepository.findByRaffleAndNumber(raffleId, number)
-                .orElseThrow(() -> new IllegalArgumentException("Ticket not found for raffle " + raffleId + " and number " + number));
-    }
+    // @Override
+    // public Ticket findByRaffleAndNumber(String raffleId, String number) {
+    //     if (raffleId == null || raffleId.isBlank()) {
+    //         throw new IllegalArgumentException("invalid raffle id");
+    //     }
+    //     if (number == null || number.isBlank()) {
+    //         throw new IllegalArgumentException("invalid ticket number");
+    //     }
+    //     return ticketRepository.findByRaffleAndNumber(raffleId, number)
+    //             .orElseThrow(() -> new IllegalArgumentException("Ticket not found for raffle " + raffleId + " and number " + number));
+    // }
 
     @Override
     public boolean existsByRaffleAndNumber(String raffleId, String number) {
@@ -51,7 +51,7 @@ public class TicketServiceImpl implements TicketService{
         if (number == null || number.isBlank()) {
             throw new IllegalArgumentException("invalid ticket number");
         }
-        return ticketRepository.existsByRaffleAndNumber(raffleId, number);
+        return ticketRepository.existsByRaffleIdAndNumber(raffleId, number);
     }
     
 }

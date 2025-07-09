@@ -25,5 +25,5 @@ public class Notification {
     private User user;
     private String message;
     private LocalDateTime dateSent;
-    private boolean read;
+    private boolean isRead;
 }

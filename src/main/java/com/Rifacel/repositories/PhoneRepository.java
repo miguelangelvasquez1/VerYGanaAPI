@@ -8,6 +8,6 @@ import com.Rifacel.models.Phone;
 
 public interface PhoneRepository extends JpaRepository<Phone, String> {
     List<Phone> findByStateTrue();
-    List<Phone> findByMarckContainingIfnoreCase(String mark);
+    List<Phone> findByMarkContainingIgnoreCase(String mark);
     List<Phone> findByVersionContainingIgnoreCase(String version);
 }

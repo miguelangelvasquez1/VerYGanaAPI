@@ -12,6 +12,6 @@ import com.Rifacel.models.Ticket;
 public interface TicketRepository extends JpaRepository<Ticket, String> {
     List<Ticket> findByUserId (String userId);
     List<Ticket> findByRaffleId (String raffleId);
-    Optional<Ticket> findByRaffleAndNumber(String raffleId, String number);
-    boolean existsByRaffleAndNumber(String raffleId, String number);
+    // Optional<Ticket> findByRaffleAndNumber(String raffleId, String number);
+    boolean existsByRaffleIdAndNumber(String raffleId, String number);
 }
