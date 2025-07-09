@@ -30,11 +30,14 @@ public class TransactionServiceImpl implements TransactionService {
         if (referenceCode == null || referenceCode.isBlank()) {
             throw new IllegalArgumentException("Reference code cannot be null or empty");
         }
-        return transactionRepository.findByReferenceCode(referenceCode).orElseThrow(() -> new ObjectNotFoundException("Transaction not found", Transaction.class));
+        return transactionRepository.findByReferenceCode(referenceCode).orElseThrow(() -> new ObjectNotFoundException("Transaction", Transaction.class));
     }
 
     @Override
     public List<Transaction> getByState(TransactionState state) {
+        if (state == null || !(state == TransactionState.ACCEPTED || state == TransactionState.PENDING || state == TransactionState.REJECTED)) {
+            throw new IllegalArgumentException("invalid transaction state");
+        }
         return transactionRepository.findByState(state);
     }
 

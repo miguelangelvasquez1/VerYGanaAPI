@@ -38,7 +38,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
         return userRepository.findById(id)
-                .orElseThrow(() -> new ObjectNotFoundException("User not found!", User.class));
+                .orElseThrow(() -> new ObjectNotFoundException("User", User.class));
     }
 
     @Override
@@ -48,7 +48,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Invalid email");
         }
         return userRepository.findByEmail(email)
-                .orElseThrow(() -> new ObjectNotFoundException("User not found!", User.class));
+                .orElseThrow(() -> new ObjectNotFoundException("User", User.class));
     }
 
     @Override

@@ -53,5 +53,4 @@ public class TicketServiceImpl implements TicketService{
         }
         return ticketRepository.existsByRaffleAndNumber(raffleId, number);
     }
-    
 }
