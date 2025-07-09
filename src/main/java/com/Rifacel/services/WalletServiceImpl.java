@@ -1,7 +1,6 @@
 package com.Rifacel.services;
 
-import java.util.Optional;
-
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -18,10 +17,11 @@ public class WalletServiceImpl implements WalletService{
 
     // devuelve la billetera del usuario por su ID
     @Override
-    public Optional<Wallet> getWalletByUserId(String userId) {
+    public Wallet getWalletByUserId(String userId) {
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
-        return walletRepository.findByUserId(userId);
+        return walletRepository.findByUserId(userId).orElseThrow(() -> new ObjectNotFoundException("Wallet", Wallet.class));
     }
+    
 }

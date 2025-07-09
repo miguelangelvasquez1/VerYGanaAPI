@@ -1,30 +1,30 @@
 package com.Rifacel.controllers;
 
-import java.security.Principal;
+import java.net.URI;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
+import com.Rifacel.models.User;
+import com.Rifacel.services.interfaces.UserService;
 
 @RestController
+@RequestMapping("/users")
 public class UserController {
+
+    @Autowired
+    private UserService userService;
 
     @GetMapping
     public String getMethodName() {
-        return "Hello, " +  "! You are authenticated.";
+        return "Hello, " + "! You are authenticated.";
     }
-    
 
     // @PostMapping("/login")
     // public ResponseEntity<?> login(@RequestBody AuthRequest request) {
@@ -43,4 +43,36 @@ public class UserController {
     // }
     // }
 
+    // Registrar un usuario
+    @PostMapping("/register")
+    public ResponseEntity<User> registerUser(@RequestBody User user) {
+        User createdUser = userService.registerUser(user);
+        return ResponseEntity.created(URI.create("/users/" + createdUser.getId())).body(createdUser);
+    }
+
+    // Obtener usuario por id
+    @GetMapping("/{id}")
+    public ResponseEntity<User> getUserById(@PathVariable String id) {
+        User foundUser = userService.getUserById(id);
+        return ResponseEntity.ok(foundUser);
+    }
+
+    // Obtener usuario por email
+    @GetMapping("/{email}")
+    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
+        User foundUser = userService.getUserByEmail(email);
+        return ResponseEntity.ok(foundUser);
+    }
+
+    // Verificar si un email ya existe
+    @GetMapping("/exists/email/{email}")
+    public ResponseEntity<Boolean> emailExists(@PathVariable String email) {
+        return ResponseEntity.ok(userService.emailExists(email));
+    }
+
+    // Verificar si un número de teléfono ya existe
+    @GetMapping("/exists/phone/{phone}")
+    public ResponseEntity<Boolean> phoneExists(@PathVariable String phoneNumber) {
+        return ResponseEntity.ok(userService.phoneExists(phoneNumber));
+    }
 }
