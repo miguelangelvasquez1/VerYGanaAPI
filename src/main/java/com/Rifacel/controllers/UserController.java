@@ -2,8 +2,10 @@ package com.Rifacel.controllers;
 
 import java.net.URI;
 
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -12,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.Rifacel.models.User;
+import com.Rifacel.security.TokenService;
 import com.Rifacel.services.interfaces.UserService;
 
 @RestController
@@ -20,11 +23,23 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+    private final TokenService tokenService;
+
+    public UserController(TokenService tokenService) {
+        this.tokenService = tokenService;
+    }
 
     @GetMapping
     public String getMethodName() {
         return "Hello, " + "! You are authenticated.";
     }
+
+    @PostMapping("/token")
+    public String postMethodName(Authentication authorization) {
+        String token = tokenService.generateToken(authorization);
+        return token;
+    }
+    
 
     // @PostMapping("/login")
     // public ResponseEntity<?> login(@RequestBody AuthRequest request) {
