@@ -20,21 +20,21 @@ public class TicketController {
     private TicketService ticketService;
 
     // Obtener lista de boletas por el id del usuario propietario
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     public ResponseEntity<List<Ticket>> getByUserId (@PathVariable String userId){
         List<Ticket> foundTickets = ticketService.getByUserId(userId);
         return ResponseEntity.ok(foundTickets);
     }
 
     // Obtener lista de boletas por el id de la rifa a la que pertenecen
-    @GetMapping("/{raffleId}")
+    @GetMapping("/raffle/{raffleId}")
     public ResponseEntity<List<Ticket>> getByRaffleId (@PathVariable String raffleId){
         List<Ticket> foundTickets = ticketService.getByUserId(raffleId);
         return ResponseEntity.ok(foundTickets);
     }
 
     // Obtener una boleta con el id de la rifa a la que pertenece y su número de boleta
-    @GetMapping("/{raffleId}/{number}")
+    @GetMapping("/raffle/{raffleId}/number/{number}")
     public ResponseEntity<Ticket> getByRaffleIdAndNumber(@PathVariable String raffleId, @PathVariable String number){
         Ticket foundTicket = ticketService.findByRaffleIdAndNumber(raffleId, number);
         return ResponseEntity.ok(foundTicket);

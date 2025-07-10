@@ -21,21 +21,21 @@ public class TransactionController {
     private TransactionService transactionService;
 
     // Obtener lista de transacciones por el id del usuario
-    @GetMapping("/{userId}")
+    @GetMapping("/user/{userId}")
     public ResponseEntity<List<Transaction>> getByUserIdOrderByDateDesc(@PathVariable String userId){
         List<Transaction> foundTransactions = transactionService.getByUserIdOrderByDateDesc(userId);
         return ResponseEntity.ok(foundTransactions);
     }
 
     // Obtener transaccion por código de referencia
-    @GetMapping("/{referenceCode}")
+    @GetMapping("/reference/{referenceCode}")
     public ResponseEntity<Transaction> getByReferenceCode(@PathVariable String referenceCode){
         Transaction foundTransaction = transactionService.getByReferenceCode(referenceCode);
         return ResponseEntity.ok(foundTransaction);
     }
 
     // Obtener lista de transacciones por su estado
-    @GetMapping("/{state}")
+    @GetMapping("/state/{state}")
     public ResponseEntity<List<Transaction>> getByState (@PathVariable TransactionState state){
         List<Transaction> foundTransaction = transactionService.getByState(state);
         return ResponseEntity.ok(foundTransaction);

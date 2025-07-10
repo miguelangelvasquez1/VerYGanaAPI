@@ -51,14 +51,14 @@ public class UserController {
     }
 
     // Obtener usuario por id
-    @GetMapping("/{id}")
+    @GetMapping("/id/{id}")
     public ResponseEntity<User> getUserById(@PathVariable String id) {
         User foundUser = userService.getUserById(id);
         return ResponseEntity.ok(foundUser);
     }
 
     // Obtener usuario por email
-    @GetMapping("/{email}")
+    @GetMapping("/email/{email}")
     public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
         User foundUser = userService.getUserByEmail(email);
         return ResponseEntity.ok(foundUser);
@@ -71,7 +71,7 @@ public class UserController {
     }
 
     // Verificar si un número de teléfono ya existe
-    @GetMapping("/exists/phone/{phone}")
+    @GetMapping("/exists/phoneNumber/{phoneNumber}")
     public ResponseEntity<Boolean> phoneExists(@PathVariable String phoneNumber) {
         return ResponseEntity.ok(userService.phoneExists(phoneNumber));
     }

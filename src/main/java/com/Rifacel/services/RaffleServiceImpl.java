@@ -20,6 +20,9 @@ public class RaffleServiceImpl implements RaffleService{
 
     @Override
     public List<Raffle> getByState(RaffleState state) {
+        if (state == null || !(state == RaffleState.AVAILABLE || state == RaffleState.PENDING || state == RaffleState.FINISHED)) {
+            throw new IllegalArgumentException("invalid raffle state");
+        }
         return raffleRepository.findByState(state);
     }
 

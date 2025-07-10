@@ -17,6 +17,7 @@ public class WalletController {
     @Autowired
     private WalletService walletService;
 
+    // Obtener la billetera del usuario pasando su id como argumento
     @GetMapping("/{userId}")
     public ResponseEntity<Wallet> getWalletByUserId (@PathVariable String userId){
         Wallet foundWallet = walletService.getWalletByUserId(userId);
