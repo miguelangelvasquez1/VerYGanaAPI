@@ -2,6 +2,8 @@ package com.Rifacel.models;
 
 import java.time.LocalDateTime;
 
+import com.Rifacel.security.auth.UserRegisterRequest;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -42,5 +44,16 @@ public class User {
     private String password;
 
     private LocalDateTime registeredDate;
+
+    public User(UserRegisterRequest userRegisterRequest) {
+        this.name = userRegisterRequest.getName();
+        this.email = userRegisterRequest.getEmail();
+        this.phoneNumber = userRegisterRequest.getPhoneNumber();
+        this.department = userRegisterRequest.getDepartment();
+        this.municipality = userRegisterRequest.getMunicipality();
+        this.address = userRegisterRequest.getAddress();
+        this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
+        this.registeredDate = LocalDateTime.now();
+    }
 }
 

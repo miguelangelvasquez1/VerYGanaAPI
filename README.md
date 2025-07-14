@@ -30,3 +30,4 @@ public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
     // emitir nuevo access token
     return ResponseEntity.ok(new AuthResponse(newAccessToken));
 }
+- Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot

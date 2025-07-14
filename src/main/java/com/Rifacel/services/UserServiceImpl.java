@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 
 import com.Rifacel.models.User;
 import com.Rifacel.repositories.UserRepository;
+import com.Rifacel.security.auth.UserRegisterRequest;
 import com.Rifacel.services.interfaces.UserService;
 
 @Service
@@ -18,17 +19,20 @@ public class UserServiceImpl implements UserService {
     private UserRepository userRepository;
 
     @Override
-    public User registerUser(User user) {
+    public User registerUser(UserRegisterRequest user) {
         if (emailExists(user.getEmail())) {
             throw new IllegalArgumentException("Email already exists");
         }
         if (phoneExists(user.getPhoneNumber())) {
             throw new IllegalArgumentException("Phone number already exists");
         }
-        user.setRegisteredDate(LocalDateTime.now());
+
+        User newUser = new User(user);
+
+        newUser.setRegisteredDate(LocalDateTime.now());
         // encriptar contraseña en el futuro antes de guardar el usuario en la base de
         // datos
-        return userRepository.save(user);
+        return userRepository.save(newUser);
     }
 
     @Override
