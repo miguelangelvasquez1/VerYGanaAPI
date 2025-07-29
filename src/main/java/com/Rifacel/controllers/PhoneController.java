@@ -22,7 +22,7 @@ public class PhoneController {
     // Obtener la lista de teléfonos que tengan estado "true", es decir que estén disponibles para sortear
     @GetMapping("/available")
     public ResponseEntity<List<Phone>> getByState(){
-        List<Phone> foundPhones = phoneService.getByStateTrue();
+        List<Phone> foundPhones = phoneService.getByAvailabilityTrue();
         return ResponseEntity.ok(foundPhones);
     }
 

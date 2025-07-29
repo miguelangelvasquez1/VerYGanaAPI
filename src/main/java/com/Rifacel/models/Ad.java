@@ -1,8 +1,5 @@
 package com.Rifacel.models;
 
-import java.math.BigDecimal;
-
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,15 +12,16 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class Phone {
+
+public class Ad {
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-    private String mark;
-    private String version;
-    @Column(precision = 10, scale = 2)
-    private BigDecimal price;
-    private String image;
-    private String infoURL;
-    private boolean availability;
+    String id;
+    String title;
+    String description;
+    String Advertiser;
+    int minimumViewTime;
+    int creditReward;
+    String url;
 }

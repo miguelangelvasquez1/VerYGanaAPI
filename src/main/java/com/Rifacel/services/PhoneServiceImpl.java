@@ -16,8 +16,8 @@ public class PhoneServiceImpl implements PhoneService{
     private PhoneRepository phoneRepository;
 
     @Override
-    public List<Phone> getByStateTrue() {
-        return phoneRepository.findByStateTrue();
+    public List<Phone> getByAvailabilityTrue() {
+        return phoneRepository.findByAvailabilityTrue();
     }
 
     @Override

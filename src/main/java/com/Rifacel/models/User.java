@@ -2,6 +2,7 @@ package com.Rifacel.models;
 
 import java.time.LocalDateTime;
 
+import com.Rifacel.models.Enums.UserState;
 import com.Rifacel.security.auth.UserRegisterRequest;
 
 import jakarta.persistence.Column;
@@ -43,6 +44,20 @@ public class User {
     @Column(nullable = false) //implementar seguridad con Json ignore
     private String password;
 
+    private int adsWatched;
+
+    private int totalWithDraws;
+
+    private int dailyAdsCount;
+
+    private LocalDateTime adsReset;
+
+    private String bankAccount;
+
+    private String paymentMethod; // e.g. Nequi, Bancolombia, etc.
+
+    private UserState userState;
+
     private LocalDateTime registeredDate;
 
     public User(UserRegisterRequest userRegisterRequest) {
@@ -53,6 +68,10 @@ public class User {
         this.municipality = userRegisterRequest.getMunicipality();
         this.address = userRegisterRequest.getAddress();
         this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
+        this.adsWatched = 0;
+        this.totalWithDraws = 0;
+        this.userState = UserState.ACTIVE;
+        this.adsReset = LocalDateTime.now().plusHours(24);
         this.registeredDate = LocalDateTime.now();
     }
 }
