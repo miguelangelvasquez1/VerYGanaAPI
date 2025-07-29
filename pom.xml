@@ -13,10 +13,10 @@
     </parent>
 
     <groupId>com</groupId>
-    <artifactId>Rifacel</artifactId>
+    <artifactId>VerYGana</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>Rifacel</name>
-    <description>App de rifa de celulares</description>
+    <name>VerYGana</name>
+    <description>App de rifa de celulares, anuncios y marketplace</description>
 
     <properties>
         <java.version>21</java.version>
