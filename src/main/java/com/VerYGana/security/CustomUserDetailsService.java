@@ -17,7 +17,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override // Se llama siempre que alguien intenta autenticarse
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
-        User user = userRepository.findByEmailOrPhone(identifier, identifier)
+        User user = userRepository.findByEmailOrPhoneNumber(identifier, identifier)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email or phone: " + identifier));
 
         return org.springframework.security.core.userdetails.User
