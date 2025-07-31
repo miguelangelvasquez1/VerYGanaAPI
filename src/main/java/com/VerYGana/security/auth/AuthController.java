@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.security.TokenService;
+import com.VerYGana.services.TokenService;
 import com.VerYGana.services.interfaces.UserService;
 
 @RestController
@@ -54,9 +54,8 @@ public class AuthController {
         }
     }
 
-    @PostMapping("register")
+    @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody UserRegisterRequest userRegisterRequest) {
-        
         userService.registerUser(userRegisterRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
     }

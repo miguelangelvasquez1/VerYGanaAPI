@@ -1,20 +1,14 @@
 package com.VerYGana.controllers;
 
-import java.net.URI;
-
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.VerYGana.models.User;
-import com.VerYGana.security.auth.UserRegisterRequest;
 import com.VerYGana.services.interfaces.UserService;
 
 @RestController
@@ -23,13 +17,6 @@ public class UserController {
 
     @Autowired
     private UserService userService;
-
-    // Registrar un usuario
-    @PostMapping("/register")
-    public ResponseEntity<User> registerUser(@RequestBody UserRegisterRequest user) {
-        User createdUser = userService.registerUser(user);
-        return ResponseEntity.created(URI.create("/users/" + createdUser.getId())).body(createdUser);
-    }
 
     // Obtener usuario por id
     @GetMapping("/id/{id}")
@@ -57,6 +44,7 @@ public class UserController {
         return ResponseEntity.ok(userService.phoneExists(phoneNumber));
     }
 
+    // Borrar un usuario por id
     @DeleteMapping("/delete/id/{id}")
     public void deleteById(@PathVariable String id){
         userService.deleteById(id);

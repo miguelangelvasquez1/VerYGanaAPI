@@ -5,9 +5,8 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class UserRegisterRequest {
-    private String name;
-    private String email;
-    private String phoneNumber;
+
+public class UserLoginRequest {
+    private String identifier;
     private String password;
 }

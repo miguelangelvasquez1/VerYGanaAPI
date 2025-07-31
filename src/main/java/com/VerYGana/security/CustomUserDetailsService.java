@@ -15,14 +15,14 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Autowired
     private UserRepository userRepository;
 
-    @Override //Se llama siempre que alguien intenta autenticarse
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+    @Override // Se llama siempre que alguien intenta autenticarse
+    public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {
+        User user = userRepository.findByEmailOrPhone(identifier, identifier)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found with email or phone: " + identifier));
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + email));
         return org.springframework.security.core.userdetails.User
-                .withUsername(user.getEmail())
-                .password("{noop}"+user.getPassword()) //Esto debe coincidir con los datos puestos por el usuario, poner bycript
-                // .roles(user.getRole())
+                .withUsername(user.getEmail()) // o user.getPhone()
+                .password(user.getPassword())
                 .build();
     }
 }

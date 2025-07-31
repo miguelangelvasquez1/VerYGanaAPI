@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,6 +21,9 @@ public class UserServiceImpl implements UserService {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     @Override
     @Transactional
     public User registerUser(UserRegisterRequest user) {
@@ -32,9 +36,8 @@ public class UserServiceImpl implements UserService {
 
         User newUser = new User(user);
 
+        newUser.setPassword(passwordEncoder.encode(user.getPassword())); //Encriptacion de contraseña
         newUser.setRegisteredDate(LocalDateTime.now());
-        // encriptar contraseña en el futuro antes de guardar el usuario en la base de
-        // datos
         return userRepository.save(newUser);
     }
 
