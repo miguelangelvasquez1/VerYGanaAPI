@@ -34,13 +34,6 @@ public class User {
     @Column(unique = true, nullable = false)
     private String phoneNumber;
 
-    private String department;
-
-    private String municipality;
-
-    @Column(nullable = false)
-    private String address;
-
     @Column(nullable = false) //implementar seguridad con Json ignore
     private String password;
 
@@ -64,9 +57,6 @@ public class User {
         this.name = userRegisterRequest.getName();
         this.email = userRegisterRequest.getEmail();
         this.phoneNumber = userRegisterRequest.getPhoneNumber();
-        this.department = userRegisterRequest.getDepartment();
-        this.municipality = userRegisterRequest.getMunicipality();
-        this.address = userRegisterRequest.getAddress();
         this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
         this.adsWatched = 0;
         this.totalWithDraws = 0;
