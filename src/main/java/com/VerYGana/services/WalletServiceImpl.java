@@ -17,8 +17,8 @@ public class WalletServiceImpl implements WalletService{
 
     // devuelve la billetera del usuario por su ID
     @Override
-    public Wallet getWalletByUserId(String userId) {
-        if (userId == null || userId.isBlank()) {
+    public Wallet getWalletByUserId(Long userId) {
+        if (userId == null) {
             throw new IllegalArgumentException("User ID cannot be null or empty");
         }
         return walletRepository.findByUserId(userId).orElseThrow(() -> new ObjectNotFoundException("Wallet", Wallet.class));

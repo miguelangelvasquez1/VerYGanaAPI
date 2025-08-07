@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.VerYGana.exceptions.EmailAlreadyExistsException;
+import com.VerYGana.exceptions.PhoneNumberAlreadyExistsException;
 import com.VerYGana.models.User;
 import com.VerYGana.repositories.UserRepository;
 import com.VerYGana.security.auth.UserRegisterRequest;
@@ -28,10 +30,10 @@ public class UserServiceImpl implements UserService {
     @Transactional
     public User registerUser(UserRegisterRequest user) {
         if (emailExists(user.getEmail())) {
-            throw new IllegalArgumentException("Email already exists");
+            throw new EmailAlreadyExistsException(user.getEmail());
         }
         if (phoneExists(user.getPhoneNumber())) {
-            throw new IllegalArgumentException("Phone number already exists");
+            throw new PhoneNumberAlreadyExistsException(user.getPhoneNumber());
         }
 
         User newUser = new User(user);

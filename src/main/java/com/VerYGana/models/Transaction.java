@@ -2,8 +2,10 @@ package com.VerYGana.models;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import com.VerYGana.models.Enums.TransactionState;
+import com.VerYGana.models.Enums.TransactionType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -12,27 +14,44 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
-import lombok.AllArgsConstructor;
+import jakarta.persistence.PrePersist;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class Transaction {
+public class Transaction { //Future consideration: currency column, hacer esto con stripe
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(unique = true, nullable = false, updatable = false)
+    private String referenceId; //For external reference
+
     @ManyToOne
+    @JoinColumn(name = "user_id")
     private User user;
-    private String methodPayment;
-    @Column(precision = 10, scale = 2)
-    private BigDecimal amount;
-    private LocalDateTime date;
-    @Column(unique = true, nullable = false)
-    private String referenceCode;
+
+    @ManyToOne
+    private PayoutMethod payoutMethod;
+
     @Enumerated(EnumType.STRING)
-    private TransactionState state; 
+    private TransactionType transactionType;
+
+    @Enumerated(EnumType.STRING)
+    private TransactionState transactionState;
+
+    @Column(precision = 15, scale = 2)
+    private BigDecimal amount; //igual a 0, pre persist?
+    private String description;
+    private LocalDateTime createdAt;
+    private LocalDateTime completedAt;
+
+    @PrePersist
+    public void assignReferenceId() {
+        if (this.referenceId == null) {
+            this.referenceId = UUID.randomUUID().toString();
+        }
+    }
 }

@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.VerYGana.models.Raffle;
-import com.VerYGana.models.Enums.RaffleState;
 import com.VerYGana.repositories.RaffleRepository;
 import com.VerYGana.services.interfaces.RaffleService;
 
@@ -18,13 +17,13 @@ public class RaffleServiceImpl implements RaffleService{
     @Autowired
     private RaffleRepository raffleRepository;
 
-    @Override
-    public List<Raffle> getByState(RaffleState state) {
-        if (state == null || !(state == RaffleState.AVAILABLE || state == RaffleState.PENDING || state == RaffleState.FINISHED)) {
-            throw new IllegalArgumentException("invalid raffle state");
-        }
-        return raffleRepository.findByState(state);
-    }
+    // @Override
+    // public List<Raffle> getByState(RaffleState state) {
+    //     if (state == null || !(state == RaffleState.AVAILABLE || state == RaffleState.PENDING || state == RaffleState.FINISHED)) {
+    //         throw new IllegalArgumentException("invalid raffle state");
+    //     }
+    //     return raffleRepository.findByState(state);
+    // }
 
     @Override
     public Raffle getByName(String name) {
@@ -36,7 +35,7 @@ public class RaffleServiceImpl implements RaffleService{
     
     
     @Override
-    public List<Raffle> getByEndDateBefore(LocalDateTime dateTime) {
-        return raffleRepository.findByEndDateBefore(dateTime);
+    public List<Raffle> getByDrawDateBefore(LocalDateTime dateTime) {
+        return raffleRepository.findByDrawDateBefore(dateTime);
     }
 }

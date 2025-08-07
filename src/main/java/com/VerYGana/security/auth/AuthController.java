@@ -50,7 +50,7 @@ public class AuthController {
 
             return ResponseEntity.ok(new AuthResponse(token));
         } catch (AuthenticationException ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
         }
     }
 

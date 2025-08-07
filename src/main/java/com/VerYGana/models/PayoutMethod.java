@@ -1,7 +1,5 @@
 package com.VerYGana.models;
 
-import java.time.LocalDateTime;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,16 +9,16 @@ import lombok.Data;
 
 @Entity
 @Data
-public class Notification {
+public class PayoutMethod {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String title;
-    private String message;
-    private boolean isRead;
-    private LocalDateTime createdAt;
-
     @ManyToOne
-    private User user; //JoinColumn?
+    private User user;
+
+    private String type; // Ej: NEQUI, PAYPAL, BANK
+    private String details;
+    private boolean isDefault;
+    private boolean verified;
 }

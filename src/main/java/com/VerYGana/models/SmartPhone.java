@@ -7,23 +7,19 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class Phone {
+public class SmartPhone {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-    private String mark;
-    private String version;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String name;
+    private String brand;
     @Column(precision = 10, scale = 2)
     private BigDecimal price;
-    private String image;
-    private String infoURL;
-    private boolean availability;
+    private String imageUrl;
+    private boolean isAvailable;
 }

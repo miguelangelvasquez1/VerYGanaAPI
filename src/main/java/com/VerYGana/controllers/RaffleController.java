@@ -11,7 +11,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.VerYGana.models.Raffle;
-import com.VerYGana.models.Enums.RaffleState;
 import com.VerYGana.services.interfaces.RaffleService;
 
 @RestController
@@ -22,11 +21,11 @@ public class RaffleController {
     private RaffleService raffleService;
 
     // Obtener la lista de rifas según el estado que pasen como argumento
-    @GetMapping("/state/{raffleState}")
-    public ResponseEntity<List<Raffle>> getByState(@PathVariable RaffleState raffleState){
-        List<Raffle> foundRaffles = raffleService.getByState(raffleState);
-        return ResponseEntity.ok(foundRaffles);
-    }
+    // @GetMapping("/state/{raffleState}")
+    // public ResponseEntity<List<Raffle>> getByState(@PathVariable RaffleState raffleState){
+    //     List<Raffle> foundRaffles = raffleService.getByState(raffleState);
+    //     return ResponseEntity.ok(foundRaffles);
+    // }
 
     // Obtener la rifa que coincida con el nombre que le pasen por argumento
     @GetMapping("/name/{name}")
@@ -38,7 +37,7 @@ public class RaffleController {
     // Obtener la lista de rifas que hayan ocurrido antes de la fecha que pasen como argumento
     @GetMapping("/dateBefore/{date}")
     public ResponseEntity<List<Raffle>> getByEndDateBefore(@PathVariable LocalDateTime localDateTime){
-        List<Raffle> foundRaffles = raffleService.getByEndDateBefore(localDateTime);
+        List<Raffle> foundRaffles = raffleService.getByDrawDateBefore(localDateTime);
         return ResponseEntity.ok(foundRaffles);
     }  
 

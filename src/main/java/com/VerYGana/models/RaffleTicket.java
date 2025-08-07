@@ -1,26 +1,27 @@
 package com.VerYGana.models;
 
+import java.time.LocalDateTime;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
-public class Ticket {
+public class RaffleTicket {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
-    @ManyToOne
-    private User user;
-    private String number;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private Integer ticketNumber; //Lógica para que sea único por rifa
+    private LocalDateTime purchasedAt;
+
     @ManyToOne
     private Raffle raffle;
-    
+
+    @ManyToOne
+    private User user;
 }

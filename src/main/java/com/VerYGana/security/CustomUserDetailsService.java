@@ -14,6 +14,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Autowired
     private UserRepository userRepository;
+    
 
     @Override // Se llama siempre que alguien intenta autenticarse
     public UserDetails loadUserByUsername(String identifier) throws UsernameNotFoundException {

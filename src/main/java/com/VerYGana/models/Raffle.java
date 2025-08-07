@@ -3,40 +3,33 @@ package com.VerYGana.models;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.VerYGana.models.Enums.RaffleState;
-
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class Raffle {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+    @GeneratedValue(strategy = GenerationType.UUID) //UUID?
     private String id;
+
     private String name;
-    @OneToMany
-    private List<Phone> phones;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
-    private int numberWinner;
-    @OneToMany(mappedBy = "raffle", cascade = CascadeType.ALL)
-    private List<Ticket> ticketsSolds;
-    private boolean prizeDelivered;
+    private String description;
+
     @ManyToOne
-    private User winner;
-    @Enumerated(EnumType.STRING)
-    private RaffleState state;
+    private Reward reward;
+
+    private Double ticketPrice;
+    private Integer totalTickets;
+    private LocalDateTime createdAt;
+    private LocalDateTime drawDate; // Validacion: Must be after createdAt
+    private boolean isClosed;
+
+    @OneToMany(mappedBy = "raffle")
+    private List<RaffleTicket> tickets;
 }

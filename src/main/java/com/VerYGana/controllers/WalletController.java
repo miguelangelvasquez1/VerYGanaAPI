@@ -19,7 +19,7 @@ public class WalletController {
 
     // Obtener la billetera del usuario pasando su id como argumento
     @GetMapping("/{userId}")
-    public ResponseEntity<Wallet> getWalletByUserId (@PathVariable String userId){
+    public ResponseEntity<Wallet> getWalletByUserId (@PathVariable Long userId){
         Wallet foundWallet = walletService.getWalletByUserId(userId);
         return ResponseEntity.ok(foundWallet); 
     }

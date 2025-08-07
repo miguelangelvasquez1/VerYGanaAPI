@@ -20,15 +20,15 @@ public class NotificationController {
     private NotificationService notificationService;
 
     // Obtener la lista de notificaciones de un usuario con su id como argumento y las ordena en orden descendente
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<Notification>> getByUserIdOrderByDateSentDesc (@PathVariable String userId){
-        List<Notification> foundNotifications = notificationService.getByUserIdOrderByDateSentDesc(userId);
-        return ResponseEntity.ok(foundNotifications);
-    }
+    // @GetMapping("/{userId}")
+    // public ResponseEntity<List<Notification>> getByUserIdOrderByDateSentDesc (@PathVariable String userId){
+    //     List<Notification> foundNotifications = notificationService.getByUserIdOrderByDateSentDesc(userId);
+    //     return ResponseEntity.ok(foundNotifications);
+    // }
 
     // Obtener el número de notificaciones no leídas por el usuario pasando su id como argumento
     @GetMapping("/unread/{userId}")
-    public ResponseEntity<Long> getCountByUserIdAndReadFalse(@PathVariable String userId){
+    public ResponseEntity<Long> getCountByUserIdAndReadFalse(@PathVariable Long userId){
         Long count = notificationService.getCountByUserIdAndReadFalse(userId);
         return ResponseEntity.ok(count);
     }

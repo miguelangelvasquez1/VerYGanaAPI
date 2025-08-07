@@ -5,6 +5,6 @@ import java.util.List;
 import com.VerYGana.models.Notification;
 
 public interface NotificationService {
-    List<Notification> getByUserIdOrderByDateSentDesc(String userId);
-    long getCountByUserIdAndReadFalse(String userId);
+    // List<Notification> getByUserIdOrderByDateSentDesc(String userId);
+    long getCountByUserIdAndReadFalse(Long userId);
 }

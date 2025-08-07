@@ -11,8 +11,8 @@ import com.VerYGana.models.Enums.TransactionState;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, String> {
-    List<Transaction> findByUserIdOrderByDateDesc(String userId);
-    Optional<Transaction> findByReferenceCode (String referenceCode);
-    List<Transaction> findByState(TransactionState state);
-    boolean existsByReferenceCode(String referenceCode);
+    // List<Transaction> findByUserIdOrderByDateDesc(String userId);
+    // Optional<Transaction> findByReferenceCode (String referenceCode);
+    // List<Transaction> findByState(TransactionState state);
+    // boolean existsByReferenceCode(String referenceCode);
 }

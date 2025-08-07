@@ -31,3 +31,5 @@ public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
     return ResponseEntity.ok(new AuthResponse(newAccessToken));
 }
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
+- Usar swagger para pruebas
+- Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad.

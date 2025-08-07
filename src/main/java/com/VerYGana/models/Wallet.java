@@ -1,30 +1,31 @@
 package com.VerYGana.models;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
-import lombok.AllArgsConstructor;
 import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Entity
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class Wallet {
-    @Id 
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private String id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id; //UUID?    
+
     @OneToOne
-    @JoinColumn(name = "user_id", unique = true)
+    @MapsId
+    @JoinColumn(name = "user_id")
     private User user;
-    @Column(precision = 10, scale = 2)
+
     private BigDecimal balance;
     private BigDecimal blockedBalance;
+    private LocalDateTime lastUpdated;
 }
+
