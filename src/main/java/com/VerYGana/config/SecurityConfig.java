@@ -1,5 +1,7 @@
 package com.VerYGana.config;
 
+import java.util.List;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -15,7 +17,12 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.VerYGana.security.auth.JwtCookieAuthFilter;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
@@ -32,21 +39,40 @@ public class SecurityConfig {
     public SecurityConfig(RsaKeyProperties rsaKeys) {
         this.rsaKeys = rsaKeys;
     }
-    
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        
-        return http.
-                    csrf(csrf -> csrf.disable()) //Enable when sessionManagement is enabled.
-                    .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**").permitAll().anyRequest().authenticated())
-                    .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())) //Enable JWT authentication for the application. Lambda used to configure the OAuth2 resource server to use JWT tokens.
-                    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //Spring Security will never create an HttpSession and it will never use it to obtain the Security Context.
-                    .httpBasic(Customizer.withDefaults())
-                    .build();
+
+        return http.csrf(csrf -> csrf.disable()) // Enable when sessionManagement is enabled.
+                .authorizeHttpRequests(
+                        auth -> auth.requestMatchers("/auth/**").permitAll().anyRequest().authenticated())
+                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())) // Enable JWT authentication for
+                                                                                       // the application. Lambda used
+                                                                                       // to configure the OAuth2
+                                                                                       // resource server to use JWT
+                                                                                       // tokens.
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Spring
+                                                                                                              // Security
+                                                                                                              // will
+                                                                                                              // never
+                                                                                                              // create
+                                                                                                              // an
+                                                                                                              // HttpSession
+                                                                                                              // and it
+                                                                                                              // will
+                                                                                                              // never
+                                                                                                              // use it
+                                                                                                              // to
+                                                                                                              // obtain
+                                                                                                              // the
+                                                                                                              // Security
+                                                                                                              // Context.
+                .httpBasic(Customizer.withDefaults())
+                .build();
     }
 
     @Bean
-    JwtDecoder jwyDecoder () { //Requests Filter
+    JwtDecoder jwyDecoder() { // Requests Filter
         return NimbusJwtDecoder.withPublicKey(rsaKeys.publicKey()).build();
     }
 
@@ -54,7 +80,7 @@ public class SecurityConfig {
     JwtEncoder jwtEncoder() {
         JWK jwk = new RSAKey.Builder(rsaKeys.publicKey()).privateKey(rsaKeys.privateKey()).build();
         JWKSource<SecurityContext> jwks = new ImmutableJWKSet<>(new JWKSet(jwk));
-        return new NimbusJwtEncoder(jwks);  
+        return new NimbusJwtEncoder(jwks);
     }
 
     @Bean
@@ -65,6 +91,32 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtCookieAuthFilter jwtCookieAuthFilter)
+            throws Exception {
+        return http
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/auth/**").permitAll()
+                        .anyRequest().authenticated())
+                .addFilterBefore(jwtCookieAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true); // Necesario para cookies
+        configuration.setExposedHeaders(List.of("Set-Cookie"));
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
     }
 
 }
