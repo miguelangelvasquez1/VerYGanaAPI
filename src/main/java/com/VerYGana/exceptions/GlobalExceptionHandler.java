@@ -1,11 +1,15 @@
 package com.VerYGana.exceptions;
 
+import java.time.Instant;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.context.request.WebRequest;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -25,6 +29,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<String> emailAlreadyExistsException(EmailAlreadyExistsException ex) {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    // @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
+    // public ResponseEntity<ApiError> handlePhoneExists(PhoneNumberAlreadyExistsException ex, HttpServletRequest request) {
+    //     return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    // }
+
+    // private ResponseEntity<ApiError> buildError(HttpStatus status, String message, HttpServletRequest request) {
+    //     ApiError error = new ApiError(
+    //         status.value(),
+    //         status.getReasonPhrase(),
+    //         message,
+    //         Instant.now().toString(),
+    //         request.getRequestURI()
+    //     );
+    //     return new ResponseEntity<>(error, status);
+    // }
 
     //No defino el phoneexception pero igual sale
 }

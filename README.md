@@ -32,4 +32,5 @@ public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
 }
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
 - Usar swagger para pruebas
-- Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad.
+- Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad., swagger,
+- logs,

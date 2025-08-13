@@ -1,4 +1,4 @@
-package com.VerYGana.services;
+package com.VerYGana.security.auth;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;

@@ -1,21 +1,14 @@
 package com.VerYGana.services;
 
-import java.util.List;
-
-import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.models.Transaction;
-import com.VerYGana.models.Enums.TransactionState;
-import com.VerYGana.repositories.TransactionRepository;
 import com.VerYGana.services.interfaces.TransactionService;
 
 
 @Service
 public class TransactionServiceImpl implements TransactionService {
-    @Autowired
-    private TransactionRepository transactionRepository;
+    // @Autowired
+    // // private TransactionRepository transactionRepository;
 
     // @Override
     // public List<Transaction> getByUserIdOrderByDateDesc(String userId) {

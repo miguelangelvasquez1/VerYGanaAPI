@@ -1,6 +1,8 @@
 package com.VerYGana.security.auth;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -12,8 +14,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.services.TokenService;
 import com.VerYGana.services.interfaces.UserService;
+
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/auth")
@@ -41,16 +44,26 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AuthRequest request) {
+    public ResponseEntity<?> login(@RequestBody AuthRequest request, HttpServletResponse response) throws InterruptedException {
         try {
             Authentication authentication = authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
 
             String token = tokenService.generateToken(authentication);
 
-            return ResponseEntity.ok(new AuthResponse(token));
+            ResponseCookie cookie = ResponseCookie.from("accessToken", token)
+                    .httpOnly(true)
+                    .secure(false) // Set to true if using HTTPS PRODUCTION
+                    .path("/")
+                    .maxAge(24 * 60 * 60) // 1 day or 15 minutes
+                    .sameSite("Strict")
+                    .build();
+
+            response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+            Thread.sleep(3000);
+            return ResponseEntity.ok().body("Login successful: " + token);
         } catch (AuthenticationException ex) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ex.getMessage()); //<-- No devolver
         }
     }
 
