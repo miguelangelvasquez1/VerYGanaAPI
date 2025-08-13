@@ -49,7 +49,7 @@ public class AuthController {
             Authentication authentication = authManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
 
-            String token = tokenService.generateToken(authentication);
+        String token = tokenService.generateToken(authentication);
 
             ResponseCookie cookie = ResponseCookie.from("accessToken", token)
                     .httpOnly(true)
