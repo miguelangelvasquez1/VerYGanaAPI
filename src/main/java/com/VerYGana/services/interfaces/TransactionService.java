@@ -1,10 +1,11 @@
 package com.VerYGana.services.interfaces;
 
-// import com.VerYGana.models.Enums.TransactionState;
+import java.util.List;
+
+import com.VerYGana.models.Transaction;
 
 public interface TransactionService {
-    // List<Transaction> getByUserIdOrderByDateDesc(String userId);
-    // Transaction getByReferenceCode(String referenceCode);
-    // // List<Transaction> getByState(TransactionState state);
-    // boolean existsByReferenceCode(String referenceCode);
+     List<Transaction> getByUserIdOrderByCreatedAtDesc(Long userId);
+     Transaction getByReferenceId(String referenceCode);
+     boolean existsByReferenceId(String referenceCode);
 }

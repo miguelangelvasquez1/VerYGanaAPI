@@ -3,6 +3,8 @@ package com.VerYGana.models;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import org.springframework.data.annotation.Version;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -17,8 +19,9 @@ import lombok.Data;
 public class Wallet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id; //UUID?    
-
+    private Long id;  
+    @Version
+    private Long version;
     @OneToOne
     @MapsId
     @JoinColumn(name = "user_id")

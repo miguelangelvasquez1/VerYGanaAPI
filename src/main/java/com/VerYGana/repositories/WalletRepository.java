@@ -8,6 +8,7 @@ import org.springframework.stereotype.Repository;
 import com.VerYGana.models.Wallet;
 
 @Repository
-public interface WalletRepository extends JpaRepository<Wallet, String> {
+public interface WalletRepository extends JpaRepository<Wallet, Long> {
     Optional<Wallet> findByUserId(Long userId);
+    boolean existsByUserId(Long userId);
 }

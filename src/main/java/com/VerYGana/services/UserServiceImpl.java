@@ -11,9 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 import com.VerYGana.exceptions.EmailAlreadyExistsException;
 import com.VerYGana.exceptions.PhoneNumberAlreadyExistsException;
 import com.VerYGana.models.User;
+import com.VerYGana.models.Wallet;
 import com.VerYGana.repositories.UserRepository;
 import com.VerYGana.security.auth.UserRegisterRequest;
 import com.VerYGana.services.interfaces.UserService;
+import com.VerYGana.services.interfaces.WalletService;
 
 
 @Service
@@ -22,6 +24,9 @@ public class UserServiceImpl implements UserService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private WalletService walletService;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -37,6 +42,7 @@ public class UserServiceImpl implements UserService {
         }
 
         User newUser = new User(user);
+        walletService.createWallet(newUser);
 
         newUser.setPassword(passwordEncoder.encode(user.getPassword())); //Encriptacion de contraseña
         newUser.setRegisteredDate(LocalDateTime.now());

@@ -23,4 +23,7 @@ public class WalletController {
         Wallet foundWallet = walletService.getWalletByUserId(userId);
         return ResponseEntity.ok(foundWallet); 
     }
+
+    //Metodo doIncome, doWithdrawal y doPurchase
+
 }
