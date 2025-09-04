@@ -1,25 +1,20 @@
 package com.VerYGana.services;
 
-import java.time.LocalDateTime;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import com.VerYGana.exceptions.EmailAlreadyExistsException;
-import com.VerYGana.exceptions.PhoneNumberAlreadyExistsException;
 import com.VerYGana.models.User;
-import com.VerYGana.models.Wallet;
 import com.VerYGana.repositories.UserRepository;
 import com.VerYGana.security.auth.UserRegisterRequest;
 import com.VerYGana.services.interfaces.UserService;
 import com.VerYGana.services.interfaces.WalletService;
 
 
+@Transactional
 @Service
-
 public class UserServiceImpl implements UserService {
 
     @Autowired
@@ -32,38 +27,45 @@ public class UserServiceImpl implements UserService {
     private PasswordEncoder passwordEncoder;
 
     @Override
-    @Transactional
-    public User registerUser(UserRegisterRequest user) {
-        if (emailExists(user.getEmail())) {
-            throw new EmailAlreadyExistsException(user.getEmail());
-        }
-        if (phoneExists(user.getPhoneNumber())) {
-            throw new PhoneNumberAlreadyExistsException(user.getPhoneNumber());
+    public User registerUser(UserRegisterRequest userRegisterRequest) {
+
+        if (userRegisterRequest == null) {
+            throw new IllegalArgumentException("Request cannot be null");
         }
 
-        User newUser = new User(user);
-        walletService.createWallet(newUser);
+        if (userRegisterRequest.getEmail() == null || userRegisterRequest.getEmail().isBlank()) {
+            throw new IllegalArgumentException("Email is required");
+        }
 
-        newUser.setPassword(passwordEncoder.encode(user.getPassword())); //Encriptacion de contraseña
-        newUser.setRegisteredDate(LocalDateTime.now());
-        return userRepository.save(newUser);
+        if (userRepository.existsByEmail(userRegisterRequest.getEmail())) {
+            throw new IllegalStateException("Email already registered");
+        }
+
+        String encryptedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
+        userRegisterRequest.setPassword(encryptedPassword);
+
+        User user = new User(userRegisterRequest);
+
+        User savedUser = userRepository.save(user);
+
+        walletService.createWalletForUser(savedUser);
+
+        return savedUser;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public User getUserById(String id) {
-
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("User ID cannot be null or empty");
+    public User getUserById(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("UserId cannot be null or minor than 1");
         }
         return userRepository.findById(id)
-                .orElseThrow(() -> new ObjectNotFoundException("User", User.class));
+                .orElseThrow(() -> new ObjectNotFoundException("User not found for userId: " + id, User.class));
     }
 
     @Override
     @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
-
         if (email == null || email.isBlank() || !email.contains("@")) {
             throw new IllegalArgumentException("Invalid email");
         }
@@ -84,17 +86,17 @@ public class UserServiceImpl implements UserService {
     @Transactional(readOnly = true)
     public boolean phoneExists(String phoneNumber) {
         if (phoneNumber == null || phoneNumber.isBlank() || phoneNumber.length() != 10) {
-            throw new IllegalArgumentException("invalid phone number");
+            throw new IllegalArgumentException("Invalid phone number");
         }
         return userRepository.existsByPhoneNumber(phoneNumber);
     }
 
     @Override
-    @Transactional
-    public void deleteById(String id) {
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("invalid id");
+    public void deleteById(Long id) {
+        if (id == null || id <= 0) {
+            throw new IllegalArgumentException("UserId cannot be null or minor than 1");
         }
         userRepository.deleteById(id);
     }
 }
+

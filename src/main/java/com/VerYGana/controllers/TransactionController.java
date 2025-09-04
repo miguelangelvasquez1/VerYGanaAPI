@@ -19,10 +19,10 @@ public class TransactionController {
     @Autowired
     private TransactionService transactionService;
 
-    // Obtener lista de transacciones por el id del usuario
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<Transaction>> getByUserIdOrderByDateDesc(@PathVariable Long userId){
-        List<Transaction> foundTransactions = transactionService.getByUserIdOrderByCreatedAtDesc(userId);
+    // Obtener lista de transacciones por el id de la billetera
+    @GetMapping("/wallet/{walletId}")
+    public ResponseEntity<List<Transaction>> getByUserIdOrderByDateDesc(@PathVariable Long walletId){
+        List<Transaction> foundTransactions = transactionService.getByWalletId(walletId);
         return ResponseEntity.ok(foundTransactions);
     }
 

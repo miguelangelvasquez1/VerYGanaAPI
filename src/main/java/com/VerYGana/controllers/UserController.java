@@ -20,7 +20,7 @@ public class UserController {
 
     // Obtener usuario por id
     @GetMapping("/id/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable String id) {
+    public ResponseEntity<User> getUserById(@PathVariable Long id) {
         User foundUser = userService.getUserById(id);
         return ResponseEntity.ok(foundUser);
     }
@@ -46,7 +46,7 @@ public class UserController {
 
     // Borrar un usuario por id
     @DeleteMapping("/delete/id/{id}")
-    public void deleteById(@PathVariable String id){
+    public void deleteById(@PathVariable Long id){
         userService.deleteById(id);
     }
 }

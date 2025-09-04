@@ -23,6 +23,11 @@
     </properties>
 
     <dependencies>
+        <!-- starter: Para usar validaciones de jakarta e hibernate -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
         <!-- Web: Para crear una API REST -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

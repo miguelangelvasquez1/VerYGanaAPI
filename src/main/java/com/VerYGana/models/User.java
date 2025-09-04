@@ -1,10 +1,15 @@
 package com.VerYGana.models;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.VerYGana.models.Enums.UserState;
+import com.VerYGana.models.Enums.WalletOwnerType;
+import com.VerYGana.models.Interfaces.WalletOwner;
 import com.VerYGana.security.auth.UserRegisterRequest;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -21,7 +26,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "Users")
 @Data
 @NoArgsConstructor
-public class User {
+public class User implements WalletOwner{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -30,18 +35,16 @@ public class User {
     private String lastName;
     private String email;
     private String phoneNumber;
+    @JsonIgnore
     private String password; //JsonIgnore, encrypt
     private Integer adsWatched;
     private Integer totalWithdraws;
     private Integer dailyAdCount;
     private UserState userState;
-    private LocalDateTime registeredDate;
+    private ZonedDateTime registeredDate;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private Wallet wallet;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Transaction> transactions;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<PayoutMethod> payoutMethods;
@@ -63,7 +66,12 @@ public class User {
         this.adsWatched = 0;
         this.totalWithdraws = 0;
         this.userState = UserState.ACTIVE;
-        this.registeredDate = LocalDateTime.now();
+        this.registeredDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+    }
+
+    @Override
+    public WalletOwnerType getOwnerType() {
+        return WalletOwnerType.USER;
     }
 }
 

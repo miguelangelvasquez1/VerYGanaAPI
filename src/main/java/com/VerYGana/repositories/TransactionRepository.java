@@ -6,10 +6,16 @@
  import org.springframework.data.jpa.repository.JpaRepository;
  import org.springframework.stereotype.Repository;
  import com.VerYGana.models.Transaction;
+import com.VerYGana.models.Enums.TransactionState;
+import com.VerYGana.models.Enums.TransactionType;
 
  @Repository
  public interface TransactionRepository extends JpaRepository<Transaction, Long> {
-     List<Transaction> findByUserIdOrderByCreatedAtDesc(Long userId);
-     Optional<Transaction> findByReferenceId (String referenceCode);    
-     boolean existsByReferenceId(String referenceCode);
+     List<Transaction> findByTransactionTypeOrderByCreatedAtDesc(TransactionType transactionType);
+     List<Transaction> findByTransactionStateOrderByCreatedAtDesc(TransactionState transactionState);
+     List<Transaction> findByWalletIdOrderByCreatedAtDesc(Long walletId);
+     List<Transaction> findByWalletIdAndTransactionType(Long walletId, TransactionType transactionType);
+     List<Transaction> findByWalletIdAndTransactionState(Long walletId, TransactionState transactionState);
+     Optional<Transaction> findByReferenceId (String referenceId);    
+     boolean existsByReferenceId(String referenceId);
  }

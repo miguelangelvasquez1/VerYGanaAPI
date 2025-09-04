@@ -1,34 +1,53 @@
 package com.VerYGana.services.interfaces;
 
 
-import java.math.BigDecimal;
 
-import com.VerYGana.models.Advertiser;
-import com.VerYGana.models.User;
-import com.VerYGana.models.Wallet;
+import com.VerYGana.DTOS.Wallet.Requests.BlockBalanceRequest;
+import com.VerYGana.DTOS.Wallet.Requests.DepositRequest;
+import com.VerYGana.DTOS.Wallet.Requests.ParticipateRaffleRequest;
+import com.VerYGana.DTOS.Wallet.Requests.PointsForAdRequest;
+import com.VerYGana.DTOS.Wallet.Requests.PurchaseRequest;
+import com.VerYGana.DTOS.Wallet.Requests.RafflePrizeRequest;
+import com.VerYGana.DTOS.Wallet.Requests.RechargeDataRequest;
+import com.VerYGana.DTOS.Wallet.Requests.ReferralPointsRequest;
+import com.VerYGana.DTOS.Wallet.Requests.TransferRequest;
+import com.VerYGana.DTOS.Wallet.Requests.UnblockBalanceRequest;
+import com.VerYGana.DTOS.Wallet.Requests.WalletAdvertiserCreateRequest;
+import com.VerYGana.DTOS.Wallet.Requests.WalletUserCreateRequest;
+import com.VerYGana.DTOS.Wallet.Requests.WithdrawalRequest;
+import com.VerYGana.DTOS.Wallet.Responses.BalanceResponse;
+import com.VerYGana.DTOS.Wallet.Responses.TransactionResponse;
+import com.VerYGana.DTOS.Wallet.Responses.WalletResponse;
 
 public interface WalletService {
-    void createWallet(User user);
-    Wallet getWalletByUserId(Long userId);
+    // Creations
+    WalletResponse createWalletForUser(WalletUserCreateRequest walletCreateRequest);
+    WalletResponse createWalletForAdvertiser(WalletAdvertiserCreateRequest walletCreateRequest);
 
-    // add Tpoints
-    void doIncome(User user, BigDecimal Tpoints);
-    void addPointsForWatchingAdAndLike(User user, BigDecimal Tpoints, Advertiser advertiser);
-    void addPointsForReferral(User user, User referredUser, BigDecimal Tpoints);
-    void addRafflePrize(User user, BigDecimal Tpoints);
+    // Get
+    WalletResponse getUserWalletByUserId(Long userId);
+    WalletResponse getAdvertiserWalletByAdvertiserId(Long advertiserId);
+
+    // add Tpoints (users only)
+    TransactionResponse addPointsForWatchingAdAndLike(PointsForAdRequest pointsForAdRequest);
+    TransactionResponse addPointsForReferral(ReferralPointsRequest referralPointsRequest);
+    TransactionResponse addRafflePrize(RafflePrizeRequest rafflePrizeRequest);
 
     // Purchases and others
-    void doWithdrawal(User user, BigDecimal Tpoints);
-    void participateInRaffle (User user, BigDecimal Tpoints);
-    void rechargeData(User user, BigDecimal Tpoints, String phoneNumber);
-    void transferToUser(User sender,  BigDecimal Tpoints, User receiver);
-    void doPurchase(User buyer, BigDecimal Tpoints, User seller);
+    TransactionResponse doDeposit(DepositRequest depositRequest);
+    TransactionResponse doWithdrawal(WithdrawalRequest withdrawalRequest);
+    TransactionResponse participateInRaffle (ParticipateRaffleRequest participateRaffleRequest);
+    TransactionResponse rechargeData(RechargeDataRequest rechargeDataRequest);
+    TransactionResponse transferToUser(TransferRequest transferRequest);
+    TransactionResponse doPurchase(PurchaseRequest purchaseRequest);
 
     // Balance Queries
-    BigDecimal getAvailableBalance(User user);
-    BigDecimal getBlockedBalance(User user);
+    BalanceResponse getAvailableBalance(Long ownerId);
+    BalanceResponse getBlockedBalance(Long ownerId);
 
     // Balance Management
-    void BlockBalance(User user, BigDecimal Tpoints, String reason);
-    void UnBlockBalance(User user, BigDecimal Tpoints);
+    TransactionResponse blockBalance(BlockBalanceRequest blockBalanceRequest);
+    TransactionResponse UnblockBalance(UnblockBalanceRequest unblockBalanceRequest);
+
+
 }
