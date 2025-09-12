@@ -1,4 +1,4 @@
-package com.VerYGana.DTOS.Wallet.Requests;
+package com.VerYGana.dtos.Wallet.Requests;
 
 import java.math.BigDecimal;
 

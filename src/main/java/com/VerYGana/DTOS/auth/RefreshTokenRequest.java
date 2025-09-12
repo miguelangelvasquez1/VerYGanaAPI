@@ -1,4 +1,4 @@
-package com.VerYGana.security.auth;
+package com.VerYGana.dtos.auth;
 
 public class RefreshTokenRequest {
     

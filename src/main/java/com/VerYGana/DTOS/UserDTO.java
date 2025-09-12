@@ -1,4 +1,4 @@
-package com.VerYGana.DTOS;
+package com.VerYGana.dtos;
 
 import lombok.Data;
 

@@ -6,9 +6,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.VerYGana.dtos.auth.UserRegisterRequest;
 import com.VerYGana.models.User;
 import com.VerYGana.repositories.UserRepository;
-import com.VerYGana.security.auth.UserRegisterRequest;
 import com.VerYGana.services.interfaces.UserService;
 import com.VerYGana.services.interfaces.WalletService;
 
@@ -48,7 +49,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        walletService.createWalletForUser(savedUser);
+        // walletService.createWalletForUser(savedUser);
 
         return savedUser;
     }

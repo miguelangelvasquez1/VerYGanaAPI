@@ -27,7 +27,7 @@ public class Ad { //validar register y login, password hash
     private LocalDateTime createdAt;
 
     @ManyToOne
-    private Advertiser advertiser;
+    private User advertiser;
 
     @OneToMany(mappedBy = "ad")
     private List<AdLike> likes;

@@ -1,4 +1,4 @@
-package com.VerYGana.security.auth;
+package com.VerYGana.dtos.auth;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

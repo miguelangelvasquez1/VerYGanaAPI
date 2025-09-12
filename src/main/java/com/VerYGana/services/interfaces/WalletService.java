@@ -2,22 +2,22 @@ package com.VerYGana.services.interfaces;
 
 
 
-import com.VerYGana.DTOS.Wallet.Requests.BlockBalanceRequest;
-import com.VerYGana.DTOS.Wallet.Requests.DepositRequest;
-import com.VerYGana.DTOS.Wallet.Requests.ParticipateRaffleRequest;
-import com.VerYGana.DTOS.Wallet.Requests.PointsForAdRequest;
-import com.VerYGana.DTOS.Wallet.Requests.PurchaseRequest;
-import com.VerYGana.DTOS.Wallet.Requests.RafflePrizeRequest;
-import com.VerYGana.DTOS.Wallet.Requests.RechargeDataRequest;
-import com.VerYGana.DTOS.Wallet.Requests.ReferralPointsRequest;
-import com.VerYGana.DTOS.Wallet.Requests.TransferRequest;
-import com.VerYGana.DTOS.Wallet.Requests.UnblockBalanceRequest;
-import com.VerYGana.DTOS.Wallet.Requests.WalletAdvertiserCreateRequest;
-import com.VerYGana.DTOS.Wallet.Requests.WalletUserCreateRequest;
-import com.VerYGana.DTOS.Wallet.Requests.WithdrawalRequest;
-import com.VerYGana.DTOS.Wallet.Responses.BalanceResponse;
-import com.VerYGana.DTOS.Wallet.Responses.TransactionResponse;
-import com.VerYGana.DTOS.Wallet.Responses.WalletResponse;
+import com.VerYGana.dtos.Wallet.Requests.BlockBalanceRequest;
+import com.VerYGana.dtos.Wallet.Requests.DepositRequest;
+import com.VerYGana.dtos.Wallet.Requests.ParticipateRaffleRequest;
+import com.VerYGana.dtos.Wallet.Requests.PointsForAdRequest;
+import com.VerYGana.dtos.Wallet.Requests.PurchaseRequest;
+import com.VerYGana.dtos.Wallet.Requests.RafflePrizeRequest;
+import com.VerYGana.dtos.Wallet.Requests.RechargeDataRequest;
+import com.VerYGana.dtos.Wallet.Requests.ReferralPointsRequest;
+import com.VerYGana.dtos.Wallet.Requests.TransferRequest;
+import com.VerYGana.dtos.Wallet.Requests.UnblockBalanceRequest;
+import com.VerYGana.dtos.Wallet.Requests.WalletAdvertiserCreateRequest;
+import com.VerYGana.dtos.Wallet.Requests.WalletUserCreateRequest;
+import com.VerYGana.dtos.Wallet.Requests.WithdrawalRequest;
+import com.VerYGana.dtos.Wallet.Responses.BalanceResponse;
+import com.VerYGana.dtos.Wallet.Responses.TransactionResponse;
+import com.VerYGana.dtos.Wallet.Responses.WalletResponse;
 
 public interface WalletService {
     // Creations

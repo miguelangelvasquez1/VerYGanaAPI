@@ -1,18 +1,21 @@
 package com.VerYGana.models;
 
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import com.VerYGana.dtos.auth.UserRegisterRequest;
+import com.VerYGana.models.Enums.Role;
 import com.VerYGana.models.Enums.UserState;
 import com.VerYGana.models.Enums.WalletOwnerType;
 import com.VerYGana.models.Interfaces.WalletOwner;
-import com.VerYGana.security.auth.UserRegisterRequest;
+import com.VerYGana.models.UserDetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -27,19 +30,21 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 public class User implements WalletOwner{
+
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    private UserDetails userDetails;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private String name;
-    private String lastName;
     private String email;
     private String phoneNumber;
     @JsonIgnore
     private String password; //JsonIgnore, encrypt
-    private Integer adsWatched;
-    private Integer totalWithdraws;
-    private Integer dailyAdCount;
     private UserState userState;
     private ZonedDateTime registeredDate;
 
@@ -59,12 +64,9 @@ public class User implements WalletOwner{
     private UserVerification verification;
 
     public User(UserRegisterRequest userRegisterRequest) {
-        this.name = userRegisterRequest.getName();
         this.email = userRegisterRequest.getEmail();
         this.phoneNumber = userRegisterRequest.getPhoneNumber();
         this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
-        this.adsWatched = 0;
-        this.totalWithdraws = 0;
         this.userState = UserState.ACTIVE;
         this.registeredDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
     }

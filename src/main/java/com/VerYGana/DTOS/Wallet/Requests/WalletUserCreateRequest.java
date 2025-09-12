@@ -1,4 +1,4 @@
-package com.VerYGana.DTOS.Wallet.Requests;
+package com.VerYGana.dtos.Wallet.Requests;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;

@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.VerYGana.dtos.auth.AuthRequest;
+import com.VerYGana.dtos.auth.UserRegisterRequest;
 import com.VerYGana.services.interfaces.UserService;
 
 import jakarta.servlet.http.HttpServletResponse;
@@ -53,7 +55,7 @@ public class AuthController {
 
             ResponseCookie cookie = ResponseCookie.from("accessToken", token)
                     .httpOnly(true)
-                    .secure(false) // Set to true if using HTTPS PRODUCTION
+                    .secure(false) // Set to true if using HTTPS in PRODUCTION
                     .path("/")
                     .maxAge(24 * 60 * 60) // 1 day or 15 minutes
                     .sameSite("Strict")

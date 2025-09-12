@@ -1,8 +1,8 @@
 package com.VerYGana.services.interfaces;
 
 
+import com.VerYGana.dtos.auth.UserRegisterRequest;
 import com.VerYGana.models.User;
-import com.VerYGana.security.auth.UserRegisterRequest;
 
 public interface UserService {
     User registerUser(UserRegisterRequest userRegisterRequest);
