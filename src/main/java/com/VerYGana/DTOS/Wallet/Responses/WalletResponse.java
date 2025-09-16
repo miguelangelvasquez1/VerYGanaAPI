@@ -2,17 +2,16 @@ package com.VerYGana.dtos.Wallet.Responses;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.List;
 
-import com.VerYGana.models.Enums.WalletOwnerType;
+import com.VerYGana.models.Transaction;
 
 
 public record WalletResponse (
-    Long id,
-    Long ownerId,
-    WalletOwnerType ownerType,
     BigDecimal balance,
     BigDecimal blockedBalance,
-    ZonedDateTime lastUpdated
+    ZonedDateTime lastUpDateTime,
+    List<Transaction> walleTransactions
 ){
     
 }

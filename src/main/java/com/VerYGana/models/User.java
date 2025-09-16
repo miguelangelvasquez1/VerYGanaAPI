@@ -7,8 +7,6 @@ import java.util.List;
 import com.VerYGana.dtos.auth.UserRegisterRequest;
 import com.VerYGana.models.Enums.Role;
 import com.VerYGana.models.Enums.UserState;
-import com.VerYGana.models.Enums.WalletOwnerType;
-import com.VerYGana.models.Interfaces.WalletOwner;
 import com.VerYGana.models.UserDetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -29,7 +27,7 @@ import lombok.NoArgsConstructor;
 @Table(name = "Users")
 @Data
 @NoArgsConstructor
-public class User implements WalletOwner{
+public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserDetails userDetails;
@@ -65,15 +63,11 @@ public class User implements WalletOwner{
 
     public User(UserRegisterRequest userRegisterRequest) {
         this.email = userRegisterRequest.getEmail();
+        this.role = userRegisterRequest.getRole();
         this.phoneNumber = userRegisterRequest.getPhoneNumber();
         this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
         this.userState = UserState.ACTIVE;
         this.registeredDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-    }
-
-    @Override
-    public WalletOwnerType getOwnerType() {
-        return WalletOwnerType.USER;
     }
 }
 

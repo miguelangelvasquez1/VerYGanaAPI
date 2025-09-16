@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 public record BlockBalanceRequest(
-        @NotNull(message = "The ownerId cannot be null") @Positive(message = "The ownerId must be positive") Long ownerId,
+        @NotNull(message = "The userId cannot be null") @Positive(message = "The userId must be positive") Long userId,
 
         @NotNull(message = "The amount cannot be null") @DecimalMin(value = "0.01", inclusive = false, message = "The amount to block must be greater than zero") BigDecimal amount,
 

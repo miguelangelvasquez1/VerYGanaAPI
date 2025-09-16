@@ -9,13 +9,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.data.annotation.Version;
 
 import com.VerYGana.exceptions.InsufficientFundsException;
-import com.VerYGana.models.Enums.WalletOwnerType;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -31,10 +28,6 @@ public class Wallet {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;  
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private WalletOwnerType ownerType;
 
     @Version
     private Long version;
@@ -58,19 +51,10 @@ public class Wallet {
     private List<Transaction> transactions;
 
 
-    public static Wallet createWallet(Long OwnerId, WalletOwnerType walletOwnerType){
+    public static Wallet createWallet(Long OwnerId){
         Wallet wallet = new Wallet();
         wallet.setOwnerId(OwnerId);
-        wallet.setOwnerType(walletOwnerType);
         return wallet;
-    }
-
-    public boolean isUserWallet() {
-        return WalletOwnerType.USER.equals(this.ownerType);
-    }
-    
-    public boolean isAdvertiserWallet() {
-        return WalletOwnerType.ADVERTISER.equals(this.ownerType);
     }
     
     public boolean hasSufficientBalance(BigDecimal amount) {

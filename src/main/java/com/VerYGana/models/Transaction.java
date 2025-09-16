@@ -7,7 +7,6 @@ import java.util.UUID;
 
 import com.VerYGana.models.Enums.TransactionState;
 import com.VerYGana.models.Enums.TransactionType;
-import com.VerYGana.models.Enums.WalletOwnerType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -33,9 +32,6 @@ public class Transaction { // Future consideration: currency column, hacer esto 
     @Column(name = "wallet_id", nullable = false)
     private Long walletId;
 
-    @Column(nullable = false)
-    private Long ownerId;
-
     @ManyToOne
     private PayoutMethod payoutMethod;
 
@@ -47,7 +43,6 @@ public class Transaction { // Future consideration: currency column, hacer esto 
 
     @Column(precision = 15, scale = 2)
     private BigDecimal amount;
-    private String description;
     @Column(name= "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
     private ZonedDateTime createdAt;
     @Column(name= "completed_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
@@ -65,10 +60,9 @@ public class Transaction { // Future consideration: currency column, hacer esto 
     }
 
 
-    public static Transaction createDepositTransaction(Long walletId, Long ownerId, BigDecimal amount) {
+    public static Transaction createDepositTransaction(Long walletId, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.DEPOSIT);
         tx.setPayoutMethod(null);
@@ -76,32 +70,24 @@ public class Transaction { // Future consideration: currency column, hacer esto 
         return tx;
     }
 
-    public static Transaction createAdLikeRewardTransaction(Long walletId, Long ownerId, BigDecimal amount, WalletOwnerType walletOwnerType,
+    public static Transaction createAdLikeRewardTransaction(Long walletId, BigDecimal amount,
             String mutualReferenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.POINTS_AD_LIKE_REWARD);
-        if (walletOwnerType == WalletOwnerType.USER) {
-            tx.setDescription("Payment received to user for view and like an ad");
-        } else{
-            tx.setDescription("Payment sent by advertiser for view and like his ad");
-        }
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(mutualReferenceId);
         return tx;
     }
 
-    public static Transaction createReferralRewardTransaction(Long walletId, Long ownerId, BigDecimal amount,
+    public static Transaction createReferralRewardTransaction(Long walletId, BigDecimal amount,
             String mutualReferenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.POINTS_REFERRAL_BONUS);
-        tx.setDescription("Referral bonus delivered");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(mutualReferenceId);
@@ -111,101 +97,85 @@ public class Transaction { // Future consideration: currency column, hacer esto 
     public static Transaction createRafflePrizeTransaction(Long walletId, Long ownerId, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.RAFFLE_PRIZE);
-        tx.setDescription("Raffle Prize delivered");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         return tx;
     }
 
-    public static Transaction createWithdrawalTransaction(Long walletId, Long ownerId, BigDecimal amount) {
+    public static Transaction createWithdrawalTransaction(Long walletId, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.WITHDRAWAL);
-        tx.setDescription("Witdrawal done");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         return tx;
     }
 
-    public static Transaction createProductPurchaseTransaction(Long walletId, Long ownerId, BigDecimal amount,
+    public static Transaction createProductPurchaseTransaction(Long walletId, BigDecimal amount,
             String mutualReferenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.PRODUCT_PURCHASE);
-        tx.setDescription("Product purchase done");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(mutualReferenceId);
         return tx;
     }
 
-    public static Transaction createProductSaleTransaction(Long walletId, Long ownerId, BigDecimal amount,
+    public static Transaction createProductSaleTransaction(Long walletId, BigDecimal amount,
             String referenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.PRODUCT_SALE);
-        tx.setDescription("Product sale done");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(referenceId);
         return tx;
     }
 
-    public static Transaction createRaffleParticipationTransaction(Long walletId, Long ownerId, BigDecimal amount) {
+    public static Transaction createRaffleParticipationTransaction(Long walletId, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.RAFFLE_PARTICIPATION);
-        tx.setDescription("Raffle participation done");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         return tx;
     }
 
-    public static Transaction createDataRechargeTransaction(Long walletId, Long ownerId, BigDecimal amount) {
+    public static Transaction createDataRechargeTransaction(Long walletId, BigDecimal amount) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.DATA_RECHARGE);
-        tx.setDescription("Data recharge done");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         return tx;
     }
 
-    public static Transaction createGiftSentTransaction(Long walletId, Long ownerId, BigDecimal amount,
+    public static Transaction createGiftSentTransaction(Long walletId, BigDecimal amount,
             String mutualReferenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.GIFT_TRANSFER_SENT);
-        tx.setDescription("Gift sent");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(mutualReferenceId);
         return tx;
     }
 
-    public static Transaction createGiftReceivedTransaction(Long walletId, Long ownerId, BigDecimal amount,
+    public static Transaction createGiftReceivedTransaction(Long walletId, BigDecimal amount,
             String mutualReferenceId) {
         Transaction tx = new Transaction();
         tx.setWalletId(walletId);
-        tx.setOwnerId(ownerId);
         tx.setAmount(amount);
         tx.setTransactionType(TransactionType.GIFT_TRANSFER_RECEIVED);
-        tx.setDescription("Gift received");
         tx.setPayoutMethod(null);
         tx.setTransactionState(TransactionState.COMPLETED);
         tx.setReferenceId(mutualReferenceId);

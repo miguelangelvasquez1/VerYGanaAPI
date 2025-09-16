@@ -1,11 +1,10 @@
 package com.VerYGana.dtos.Wallet.Responses;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
 
-public record BalanceResponse (
+public record WalletCreateResponse (
     BigDecimal balance,
-    ZonedDateTime timeStamp
+    BigDecimal blockedBalance
 ){
     
 }
