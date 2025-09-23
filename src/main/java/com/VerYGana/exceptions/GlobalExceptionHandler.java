@@ -13,7 +13,7 @@ public class GlobalExceptionHandler {
     //Predetermined exception handler for IllegalArgumentException
     @ExceptionHandler(Exception.class)
     public ResponseEntity<String> handleGlobalException(Exception ex, WebRequest request) {
-        return new ResponseEntity<>("Ocurrió un error inesperado: " + ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+        return new ResponseEntity<>("Ocurrió un error inesperado: " + ex.getMessage() + ex.getClass(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     @ExceptionHandler(UsernameNotFoundException.class)

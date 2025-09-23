@@ -17,7 +17,9 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import lombok.Data;
@@ -32,8 +34,9 @@ public class Wallet {
     @Version
     private Long version;
 
-    @Column(nullable = false)
-    private Long ownerId;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false) //Si se usa long se quitaria el mappedBy en User
+    private User user; // Cambiado de Long a User
 
     @Column(precision = 15, scale = 2, nullable = false)
     private BigDecimal balance = BigDecimal.ZERO;
@@ -47,13 +50,13 @@ public class Wallet {
     @CreationTimestamp
     private ZonedDateTime createdAt;
 
-    @OneToMany(mappedBy = "wallet", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @OneToMany(cascade = CascadeType.ALL, fetch = FetchType.LAZY) //Se quito el mappedBy
     private List<Transaction> transactions;
 
 
     public static Wallet createWallet(Long OwnerId){
         Wallet wallet = new Wallet();
-        wallet.setOwnerId(OwnerId);
+        // wallet.setUser(OwnerId);
         return wallet;
     }
     

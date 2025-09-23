@@ -42,6 +42,10 @@ public class UserServiceImpl implements UserService {
             throw new IllegalStateException("Email already registered");
         }
 
+        if (userRepository.existsByPhoneNumber(userRegisterRequest.getPhoneNumber())) {
+            throw new IllegalStateException("Phone number already registered");
+        }
+
         String encryptedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
         userRegisterRequest.setPassword(encryptedPassword);
 

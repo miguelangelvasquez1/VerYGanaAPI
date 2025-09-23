@@ -10,6 +10,6 @@ import com.VerYGana.models.Wallet;
 
 @Repository
 public interface WalletRepository extends JpaRepository<Wallet, Long> {
-    Optional<Wallet> findByOwnerId(Long ownerId);
-    boolean existsByOwnerId(Long ownerId);
+    Optional<Wallet> findByUserId(Long ownerId);
+    boolean existsByUserId(Long ownerId);
 }

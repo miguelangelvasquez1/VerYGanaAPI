@@ -8,7 +8,7 @@
 - Lombok
 
 ## Observations:
-- Implement Nimbus for JWT
+- Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
 - El usuario ingresa su correo y clave, luego CustomUserDetailsService valida si coinciden con un usuario de la base de datos, si no coinciden lanza 401
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
 - API de info Colombia: https://api-colombia.com
@@ -24,13 +24,16 @@ public ResponseEntity<?> login(@RequestBody AuthRequest request) {
     return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken));
 }
 
-@PostMapping("/refresh")
-public ResponseEntity<?> refresh(@RequestBody RefreshTokenRequest request) {
-    // validar refresh token
-    // emitir nuevo access token
-    return ResponseEntity.ok(new AuthResponse(newAccessToken));
-}
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
 - Usar swagger para pruebas
 - Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad., swagger,
 - logs,
+- Ver los preauthorize, ver donde mandar el accesstoken, ver lo que dijo claude
+Mejoras Implementadas en tokens:
+
+Índices optimizados para queries rápidas
+Limpieza automática con schedulers
+Tracking de sesiones detallado con IP, UserAgent, Device ID
+Límite de sesiones por usuario (anti-spam)
+Queries estadísticas para monitoreo y reportes
+Detección de actividad sospechosa

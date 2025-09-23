@@ -43,7 +43,7 @@ public class WalletServiceImpl implements WalletService {
     // Creation
     @Override
     public WalletCreateResponse createWallet(WalletCreateRequest walletUserCreateRequest) {
-        if (walletRepository.existsByOwnerId(walletUserCreateRequest.ownerId())) {
+        if (walletRepository.existsByUserId(walletUserCreateRequest.ownerId())) {
             throw new IllegalArgumentException("Wallet has already been registered for this user");
         }
 
@@ -60,7 +60,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public WalletResponse getWalletByOwnerId(Long ownerId) {
 
-        Wallet wallet = walletRepository.findByOwnerId(ownerId)
+        Wallet wallet = walletRepository.findByUserId(ownerId)
                 .orElseThrow(
                         () -> new ObjectNotFoundException("Wallet not found for userId: " + ownerId, Wallet.class));
 
@@ -82,7 +82,7 @@ public class WalletServiceImpl implements WalletService {
             throw new IllegalArgumentException("UserId must be positive");
         }
 
-        Wallet wallet = walletRepository.findByOwnerId(userId)
+        Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(
                         () -> new ObjectNotFoundException("Wallet not found for ownerId: " + userId, Wallet.class));
 
@@ -108,7 +108,7 @@ public class WalletServiceImpl implements WalletService {
             throw new InvalidAmountException("The amount must be between 20.000 and 1.000.000");
         }
 
-        Wallet wallet = walletRepository.findByOwnerId(userId)
+        Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId,
                         Wallet.class));
 
@@ -138,14 +138,14 @@ public class WalletServiceImpl implements WalletService {
             throw new IllegalArgumentException("senderId and receiverId cannot be the same");
         }
 
-        Wallet senderWallet = walletRepository.findByOwnerId(senderId).orElseThrow(
+        Wallet senderWallet = walletRepository.findByUserId(senderId).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for userId: " + senderId, Wallet.class));
 
         if (!senderWallet.hasSufficientBalance(transferRequest.amount())) {
             throw new InsufficientFundsException();
         }
 
-        Wallet receiverWallet = walletRepository.findByOwnerId(transferRequest.receiverId())
+        Wallet receiverWallet = walletRepository.findByUserId(transferRequest.receiverId())
                 .orElseThrow(
                         () -> new ObjectNotFoundException(
                                 "Wallet not found for userId: " + transferRequest.receiverId(), Wallet.class));
@@ -183,7 +183,7 @@ public class WalletServiceImpl implements WalletService {
             throw new IllegalArgumentException("UserId cannot be null or empty");
         }
 
-        return walletRepository.findByOwnerId(userId)
+        return walletRepository.findByUserId(userId)
                 .orElseThrow(
                         () -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class))
                 .getBalance();
@@ -197,7 +197,7 @@ public class WalletServiceImpl implements WalletService {
             throw new IllegalArgumentException("UserId cannot be null or empty");
         }
 
-        return walletRepository.findByOwnerId(userId)
+        return walletRepository.findByUserId(userId)
                 .orElseThrow(
                         () -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class))
                 .getBlockedBalance();
@@ -208,7 +208,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public TransactionResponse blockBalance(BlockBalanceRequest blockBalanceRequest) {
 
-        Wallet wallet = walletRepository.findByOwnerId(blockBalanceRequest.userId()).orElseThrow(
+        Wallet wallet = walletRepository.findByUserId(blockBalanceRequest.userId()).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for userId: " + blockBalanceRequest.userId(),
                         Wallet.class));
 
@@ -225,7 +225,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public TransactionResponse UnblockBalance(UnblockBalanceRequest unblockBalanceRequest) {
 
-        Wallet wallet = walletRepository.findByOwnerId(unblockBalanceRequest.userId()).orElseThrow(
+        Wallet wallet = walletRepository.findByUserId(unblockBalanceRequest.userId()).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for userId: " + unblockBalanceRequest.userId(),
                         Wallet.class));
 
@@ -248,10 +248,10 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long advertiserId) {
 
-        Wallet userWallet = walletRepository.findByOwnerId(userId)
+        Wallet userWallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
 
-        Wallet advertiserWallet = walletRepository.findByOwnerId(advertiserId).orElseThrow(
+        Wallet advertiserWallet = walletRepository.findByUserId(advertiserId).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for advertiserId: " + advertiserId, Wallet.class));
 
         advertiserWallet.subtractBalance(reward);
@@ -276,9 +276,9 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public void addPointsForReferral(Long userId, BigDecimal amount, Long referredUserId) {
 
-        Wallet userWallet = walletRepository.findByOwnerId(userId)
+        Wallet userWallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
-        Wallet referredUserWallet = walletRepository.findByOwnerId(referredUserId)
+        Wallet referredUserWallet = walletRepository.findByUserId(referredUserId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
 
         userWallet.addBalance(amount);
@@ -308,7 +308,7 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public void participateInRaffle(Long userId, BigDecimal amount) {
 
-        Wallet wallet = walletRepository.findByOwnerId(userId)
+        Wallet wallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
 
         if (!wallet.hasSufficientBalance(amount)) {
@@ -327,14 +327,14 @@ public class WalletServiceImpl implements WalletService {
     @Override
     public void doPurchase(Long buyerId, BigDecimal amount, Long sellerId) {
 
-        Wallet buyerWallet = walletRepository.findByOwnerId(buyerId).orElseThrow(
+        Wallet buyerWallet = walletRepository.findByUserId(buyerId).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for userId: " + buyerId, Wallet.class));
 
         if (!buyerWallet.hasSufficientBalance(amount)) {
             throw new InsufficientFundsException();
         }
 
-        Wallet sellerWallet = walletRepository.findByOwnerId(sellerId).orElseThrow(
+        Wallet sellerWallet = walletRepository.findByUserId(sellerId).orElseThrow(
                 () -> new ObjectNotFoundException("Wallet not found for userId: " + sellerId, Wallet.class));
 
         buyerWallet.subtractBalance(amount);

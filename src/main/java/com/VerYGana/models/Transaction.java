@@ -43,9 +43,9 @@ public class Transaction { // Future consideration: currency column, hacer esto 
 
     @Column(precision = 15, scale = 2)
     private BigDecimal amount;
-    @Column(name= "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    @Column(name= "created_at", columnDefinition = "DATETIME")
     private ZonedDateTime createdAt;
-    @Column(name= "completed_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+    @Column(name= "completed_at", columnDefinition = "DATETIME")
     private ZonedDateTime completedAt;
 
     @PrePersist

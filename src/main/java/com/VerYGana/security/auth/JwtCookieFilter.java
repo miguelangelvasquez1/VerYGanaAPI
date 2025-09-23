@@ -1,14 +1,16 @@
 package com.VerYGana.security.auth;
 
 import java.io.IOException;
-import java.util.List;
+import java.util.Collection;
 
 import org.springframework.lang.NonNull;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -29,8 +31,8 @@ public class JwtCookieFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String token = null;
 
@@ -45,11 +47,18 @@ public class JwtCookieFilter extends OncePerRequestFilter {
         if (token != null) {
             try {
                 Jwt jwt = jwtDecoder.decode(token);
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(jwt.getSubject(), null, List.of());
+
+                // Extraer authorities desde el claim "scope" (espacios separados)
+                Collection<GrantedAuthority> authorities = AuthorityUtils.commaSeparatedStringToAuthorityList(
+                        jwt.getClaimAsString("scope").replace(" ", ","));
+
+                // Crear JwtAuthenticationToken con el JWT completo
+                JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
+
             } catch (JwtException e) {
-                // token inválido o expirado
+                e.printStackTrace();
+                // token inválido o expirado, aqui se manda para luego activar el refresh
             }
         }
 
