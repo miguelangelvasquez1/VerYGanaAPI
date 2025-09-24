@@ -2,6 +2,9 @@ package com.VerYGana.controllers;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +20,20 @@ public class UserController {
 
     @Autowired
     private UserService userService;
+
+    //Borrrar
+    @GetMapping
+    public ResponseEntity<String> getAllUsers() {
+        return ResponseEntity.ok("Hello, Users! This endpoint is under construction.");
+    }
+    @GetMapping("/me")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN2')")
+    public String me(@AuthenticationPrincipal Jwt jwt) {
+        String subject = jwt.getSubject(); // el "sub"
+        String scope = jwt.getClaim("scope"); // tu claim personalizado
+        Long id = jwt.getClaim("userId");
+        return "User: " + subject + ", Roles: " + scope + " Id: " + id;
+    }
 
     // Obtener usuario por id
     @GetMapping("/id/{id}")

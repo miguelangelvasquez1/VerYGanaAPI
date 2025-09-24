@@ -8,12 +8,9 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -28,7 +25,6 @@ import com.VerYGana.services.interfaces.UserService;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 @RestController
@@ -56,33 +52,15 @@ public class AuthController {
         return "Hello, " + "! You are authenticated.";
     }
 
-    @GetMapping("/me")
-    @PreAuthorize("hasRole('ADMIN2')")
-    public String me(@AuthenticationPrincipal Jwt jwt) {
-        String subject = jwt.getSubject(); // el "sub"
-        String scope = jwt.getClaim("scope"); // tu claim personalizado
-        Long id = jwt.getClaim("userId");
-        return "User: " + subject + ", Roles: " + scope + " Id: " + id;
-    }
-
-    // @PostMapping("/token")
-    // public String postMethodName(Authentication authorization) {
-    // String token = tokenService.generateAccessToken(authorization);
-    // return token + authorization.getName();
-    // }
-
     /**
      * Login: Autentica al usuario y genera un par de tokens (access + refresh)
      */
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request, HttpServletResponse response)
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request)
             throws InterruptedException {
 
         Authentication authentication = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí
-                                                                                                          // se
-                                                                                                          // llama a
-                                                                                                          // UserDetailsService
+                new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
 
         AuthResponse token = tokenService.generateTokenPair(authentication);
 
@@ -98,8 +76,8 @@ public class AuthController {
     /**
      * Refresh: Usa el refresh token para generar un nuevo par de tokens
      */
-    @PostMapping("/refresh")
-    public ResponseEntity<AuthResponse> refresh(HttpServletRequest request, HttpServletResponse response) {
+    @PostMapping("/refresh") //Proteger contra CSRF
+    public ResponseEntity<AuthResponse> refresh(HttpServletRequest request) {
         // Leer refresh token desde la cookie
         String refreshToken = Arrays.stream(Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]))
                 .filter(c -> "refreshToken".equals(c.getName()))
@@ -131,11 +109,9 @@ public class AuthController {
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
                 .secure(false) // Set to true if using HTTPS in PRODUCTION
-                .path("/")
-                .maxAge((name.equals("accessToken") ? accessTokenExpiration : refreshTokenExpiration) / 1000) // 1 day
-                                                                                                              // or 15
-                                                                                                              // minutes
-                .sameSite("Lax") //Strict
+                .path("/auth/**")
+                .maxAge((name.equals("accessToken") ? accessTokenExpiration : refreshTokenExpiration) / 1000)
+                .sameSite("Strict")
                 .build()
                 .toString();
     }
