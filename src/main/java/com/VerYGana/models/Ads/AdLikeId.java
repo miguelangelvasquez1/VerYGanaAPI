@@ -1,4 +1,4 @@
-package com.VerYGana.models;
+package com.VerYGana.models.Ads;
 
 import java.io.Serializable;
 import java.util.Objects;

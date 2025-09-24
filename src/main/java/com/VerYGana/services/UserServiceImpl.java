@@ -53,7 +53,7 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        // walletService.createWalletForUser(savedUser);
+        walletService.createWallet(savedUser.getId());
 
         return savedUser;
     }

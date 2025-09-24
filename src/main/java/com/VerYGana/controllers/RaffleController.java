@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.models.Raffle;
+import com.VerYGana.models.raffles.Raffle;
 import com.VerYGana.services.interfaces.RaffleService;
 
 @RestController

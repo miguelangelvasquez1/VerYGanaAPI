@@ -8,6 +8,7 @@ import com.VerYGana.dtos.auth.UserRegisterRequest;
 import com.VerYGana.models.Enums.Role;
 import com.VerYGana.models.Enums.UserState;
 import com.VerYGana.models.UserDetails.UserDetails;
+import com.VerYGana.models.raffles.RaffleTicket;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;

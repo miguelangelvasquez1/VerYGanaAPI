@@ -1,4 +1,4 @@
-package com.VerYGana.models;
+package com.VerYGana.models.mobilePlans;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,10 +8,14 @@ import lombok.Data;
 
 @Entity
 @Data
-public class ProductCategory {
-    
+public class MobilePlan {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private String name;
+
+    private String provider;
+    private Double price;
+    private Integer dataAmount;
+    private Integer validityDays;
+    private boolean isActive;
 }

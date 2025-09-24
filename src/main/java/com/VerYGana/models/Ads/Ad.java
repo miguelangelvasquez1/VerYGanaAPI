@@ -1,7 +1,10 @@
-package com.VerYGana.models;
+package com.VerYGana.models.Ads;
 
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.VerYGana.models.User;
+import com.VerYGana.models.marketplace.Product;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

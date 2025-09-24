@@ -1,24 +1,19 @@
 package com.VerYGana.services;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.LocalDateTime;
 import java.util.UUID;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.VerYGana.dtos.Wallet.Requests.BlockBalanceRequest;
 import com.VerYGana.dtos.Wallet.Requests.DepositRequest;
 import com.VerYGana.dtos.Wallet.Requests.RafflePrizeRequest;
 import com.VerYGana.dtos.Wallet.Requests.RechargeDataRequest;
 import com.VerYGana.dtos.Wallet.Requests.TransferRequest;
-import com.VerYGana.dtos.Wallet.Requests.UnblockBalanceRequest;
-import com.VerYGana.dtos.Wallet.Requests.WalletCreateRequest;
 import com.VerYGana.dtos.Wallet.Requests.WithdrawalRequest;
 import com.VerYGana.dtos.Wallet.Responses.TransactionResponse;
-import com.VerYGana.dtos.Wallet.Responses.WalletCreateResponse;
 import com.VerYGana.dtos.Wallet.Responses.WalletResponse;
 import com.VerYGana.exceptions.InsufficientFundsException;
 import com.VerYGana.exceptions.InvalidAmountException;
@@ -38,21 +33,18 @@ public class WalletServiceImpl implements WalletService {
     @Autowired
     private TransactionRepository transactionRepository;
 
+
     // Internal wallet methods
 
     // Creation
     @Override
-    public WalletCreateResponse createWallet(WalletCreateRequest walletUserCreateRequest) {
-        if (walletRepository.existsByUserId(walletUserCreateRequest.ownerId())) {
+    public void createWallet(Long userId) {
+        if (walletRepository.existsByUserId(userId)) {
             throw new IllegalArgumentException("Wallet has already been registered for this user");
         }
 
-        Wallet wallet = Wallet.createWallet(walletUserCreateRequest.ownerId());
+        Wallet wallet = Wallet.createWallet(userId);
         walletRepository.save(wallet);
-
-        WalletCreateResponse response = new WalletCreateResponse(wallet.getBalance(), wallet.getBlockedBalance());
-
-        return response;
     }
     
     // Get
@@ -90,7 +82,7 @@ public class WalletServiceImpl implements WalletService {
 
         wallet.addBalance(depositRequest.amount());
         Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount());
-        transaction.setCompletedAt(ZonedDateTime.now(ZoneId.of("America/Bogota")));
+        transaction.setCompletedAt(LocalDateTime.now());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
@@ -122,7 +114,7 @@ public class WalletServiceImpl implements WalletService {
         transactionRepository.save(transaction);
 
         TransactionResponse response = new TransactionResponse("Retiro exitoso", withdrawalRequest.amount(),
-                transaction.getReferenceId(), ZonedDateTime.now(ZoneId.of("America/Bogota")));
+                transaction.getReferenceId(), LocalDateTime.now());
 
         return response;
     }
@@ -168,7 +160,7 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(receiverWallet);
 
         TransactionResponse response = new TransactionResponse("Transferencia exitosa", transferRequest.amount(),
-                mutualReferenceId, ZonedDateTime.now(ZoneId.of("America/Bogota")));
+                mutualReferenceId, LocalDateTime.now());
 
         return response;
     }
@@ -201,40 +193,6 @@ public class WalletServiceImpl implements WalletService {
                 .orElseThrow(
                         () -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class))
                 .getBlockedBalance();
-    }
-
-    // Balance Management
-
-    @Override
-    public TransactionResponse blockBalance(BlockBalanceRequest blockBalanceRequest) {
-
-        Wallet wallet = walletRepository.findByUserId(blockBalanceRequest.userId()).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + blockBalanceRequest.userId(),
-                        Wallet.class));
-
-        wallet.blockBalance(blockBalanceRequest.amount());
-        walletRepository.save(wallet);
-        // I think that create a new entity for save amount management reports instead
-        // of using transactions would be a good idea, these reports would be used for
-        // the admin.
-        TransactionResponse response = new TransactionResponse(blockBalanceRequest.reason(),
-                blockBalanceRequest.amount(), "", ZonedDateTime.now(ZoneId.of("America/Bogota")));
-        return response;
-    }
-
-    @Override
-    public TransactionResponse UnblockBalance(UnblockBalanceRequest unblockBalanceRequest) {
-
-        Wallet wallet = walletRepository.findByUserId(unblockBalanceRequest.userId()).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + unblockBalanceRequest.userId(),
-                        Wallet.class));
-
-        wallet.unblockBalance(unblockBalanceRequest.amount());
-        walletRepository.save(wallet);
-        // create a new entity for reports.
-        TransactionResponse response = new TransactionResponse("Amount unblocked", unblockBalanceRequest.amount(), "",
-                ZonedDateTime.now(ZoneId.of("America/Bogota")));
-        return response;
     }
 
     // we does not know how we can make this method yet due to we need more
