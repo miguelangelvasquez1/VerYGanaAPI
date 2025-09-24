@@ -7,7 +7,7 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.models.Raffle;
+import com.VerYGana.models.raffles.Raffle;
 import com.VerYGana.repositories.RaffleRepository;
 import com.VerYGana.services.interfaces.RaffleService;
 

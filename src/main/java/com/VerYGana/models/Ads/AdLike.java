@@ -1,7 +1,9 @@
-package com.VerYGana.models;
+package com.VerYGana.models.Ads;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+
+import com.VerYGana.models.User;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;

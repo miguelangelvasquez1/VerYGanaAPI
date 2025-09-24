@@ -1,6 +1,8 @@
-package com.VerYGana.models;
+package com.VerYGana.models.raffles;
 
 import java.time.LocalDateTime;
+
+import com.VerYGana.models.User;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

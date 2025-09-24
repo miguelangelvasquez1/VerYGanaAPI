@@ -2,17 +2,13 @@ package com.VerYGana.services.interfaces;
 
 import java.math.BigDecimal;
 
-import com.VerYGana.dtos.Wallet.Requests.BlockBalanceRequest;
 import com.VerYGana.dtos.Wallet.Requests.DepositRequest;
 
 import com.VerYGana.dtos.Wallet.Requests.RafflePrizeRequest;
 import com.VerYGana.dtos.Wallet.Requests.RechargeDataRequest;
 import com.VerYGana.dtos.Wallet.Requests.TransferRequest;
-import com.VerYGana.dtos.Wallet.Requests.UnblockBalanceRequest;
-import com.VerYGana.dtos.Wallet.Requests.WalletCreateRequest;
 import com.VerYGana.dtos.Wallet.Requests.WithdrawalRequest;
 import com.VerYGana.dtos.Wallet.Responses.TransactionResponse;
-import com.VerYGana.dtos.Wallet.Responses.WalletCreateResponse;
 import com.VerYGana.dtos.Wallet.Responses.WalletResponse;
 
 public interface WalletService {
@@ -20,7 +16,7 @@ public interface WalletService {
     // Internal wallet methods
 
     // Creation
-    WalletCreateResponse createWallet(WalletCreateRequest walletCreateRequest);
+    void createWallet(Long userId);
 
     // Get
     WalletResponse getWalletByOwnerId(Long ownerId);
@@ -33,10 +29,6 @@ public interface WalletService {
     // Balance Queries
     BigDecimal getAvailableBalance(Long ownerId);
     BigDecimal getBlockedBalance(Long ownerId);
-
-    // Balance Management
-    TransactionResponse blockBalance(BlockBalanceRequest blockBalanceRequest);
-    TransactionResponse UnblockBalance(UnblockBalanceRequest unblockBalanceRequest);
 
     TransactionResponse rechargeData(RechargeDataRequest rechargeDataRequest);
 
