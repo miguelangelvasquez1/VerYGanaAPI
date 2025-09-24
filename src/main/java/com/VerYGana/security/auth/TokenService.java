@@ -137,7 +137,7 @@ public class TokenService {
         JwtClaimsSet claims = JwtClaimsSet.builder()
                 .issuer(issuer)
                 .subject(username)
-                .audience(List.of("rifas-app"))
+                .audience(List.of("verygana-frontend"))
                 .issuedAt(issuedAt)
                 .expiresAt(expiresAt)
                 .id(UUID.randomUUID().toString()) // JTI único para tracking

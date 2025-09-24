@@ -65,7 +65,7 @@ public class User{
         this.email = userRegisterRequest.getEmail();
         this.role = userRegisterRequest.getRole();
         this.phoneNumber = userRegisterRequest.getPhoneNumber();
-        this.password = userRegisterRequest.getPassword(); // Encriptar la contraseña en el futuro
+        this.password = userRegisterRequest.getPassword();
         this.userState = UserState.ACTIVE;
         this.registeredDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
     }

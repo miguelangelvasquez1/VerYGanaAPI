@@ -14,21 +14,12 @@
 - API de info Colombia: https://api-colombia.com
 - Si se introducen refresh tokens, los self-signed JWTs pueden no ser lo mejor
 - Article for JWTs: https://www.danvega.dev/blog/spring-security-jwt
-- Refresh token flow:
-@PostMapping("/login")
-public ResponseEntity<?> login(@RequestBody AuthRequest request) {
-    // validar usuario y contraseña
-    // generar access token
-    // generar refresh token
-    // guardar refresh token en BD o memoria
-    return ResponseEntity.ok(new AuthResponse(accessToken, refreshToken));
-}
 
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
 - Usar swagger para pruebas
 - Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad., swagger,
 - logs,
-- Ver los preauthorize, ver donde mandar el accesstoken, ver lo que dijo claude
+- Ver los preauthorize, ver mensajes de error para autenticaciones
 Mejoras Implementadas en tokens:
 
 Índices optimizados para queries rápidas
