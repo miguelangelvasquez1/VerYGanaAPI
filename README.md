@@ -28,3 +28,18 @@ Tracking de sesiones detallado con IP, UserAgent, Device ID
 Límite de sesiones por usuario (anti-spam)
 Queries estadísticas para monitoreo y reportes
 Detección de actividad sospechosa
+
+CREATE TABLE audit_log (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    event_timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    username VARCHAR(100),              -- usuario que hizo la acción
+    action VARCHAR(50) NOT NULL,        -- CREATE, UPDATE, DELETE, LOGIN, etc.
+    entity_name VARCHAR(100) NOT NULL,  -- nombre de la entidad (User, Ad, etc.)
+    entity_id BIGINT,                   -- id de la entidad afectada
+    old_values TEXT,                    -- valores antes (JSON)
+    new_values TEXT,                    -- valores después (JSON)
+    ip_address VARCHAR(50),             -- IP del cliente (opcional)
+    user_agent VARCHAR(255),            -- navegador/cliente (opcional)
+    status VARCHAR(20) DEFAULT 'SUCCESS', -- SUCCESS / FAILURE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,16 +1,19 @@
-package com.VerYGana.models.Ads;
+package com.VerYGana.models.ads;
 
 import java.io.Serializable;
 import java.util.Objects;
 
 import jakarta.persistence.Embeddable;
 import lombok.AllArgsConstructor;
+import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @AllArgsConstructor
 @NoArgsConstructor
+@Data
 @Embeddable
 public class AdLikeId implements Serializable { //Porque el usuario solo puede dar like una vez por anuncio
+
     private Long userId;
     private Long adId;
 
