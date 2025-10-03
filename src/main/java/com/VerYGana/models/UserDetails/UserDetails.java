@@ -22,6 +22,6 @@ public abstract class UserDetails {
     private Long id;
 
     @OneToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id") //MapId
     private User user;
 }
