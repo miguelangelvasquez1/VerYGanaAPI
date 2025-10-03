@@ -6,8 +6,8 @@
  import org.springframework.data.jpa.repository.JpaRepository;
  import org.springframework.stereotype.Repository;
  import com.VerYGana.models.Transaction;
-import com.VerYGana.models.enums.TransactionState;
-import com.VerYGana.models.enums.TransactionType;
+import com.VerYGana.models.enums2.TransactionState;
+import com.VerYGana.models.enums2.TransactionType;
 
  @Repository
  public interface TransactionRepository extends JpaRepository<Transaction, Long> {

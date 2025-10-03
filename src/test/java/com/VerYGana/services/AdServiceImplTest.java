@@ -15,19 +15,19 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.VerYGana.dtos.ad.requests.AdCreateDTO;
-import com.VerYGana.dtos.ad.responses.AdResponseDTO;
+import com.VerYGana.dtos2.ad2.requests2.AdCreateDTO;
+import com.VerYGana.dtos2.ad2.responses2.AdResponseDTO;
 import com.VerYGana.exceptions.adsExceptions.AdNotFoundException;
 import com.VerYGana.exceptions.adsExceptions.DuplicateLikeException;
 import com.VerYGana.exceptions.adsExceptions.InsufficientBudgetException;
 import com.VerYGana.exceptions.adsExceptions.InvalidAdStateException;
 import com.VerYGana.mappers.AdMapper;
 import com.VerYGana.models.User;
-import com.VerYGana.models.ads.Ad;
-import com.VerYGana.models.enums.AdStatus;
-import com.VerYGana.models.enums.Preference;
-import com.VerYGana.models.userDetails.AdvertiserDetails;
-import com.VerYGana.models.userDetails.ConsumerDetails;
+import com.VerYGana.models.ads2.Ad;
+import com.VerYGana.models.enums2.AdStatus;
+import com.VerYGana.models.enums2.Preference;
+import com.VerYGana.models.userDetails2.AdvertiserDetails;
+import com.VerYGana.models.userDetails2.ConsumerDetails;
 import com.VerYGana.repositories.AdLikeRepository;
 import com.VerYGana.repositories.AdRepository;
 import com.VerYGana.repositories.TransactionRepository;
@@ -91,7 +91,7 @@ class AdServiceImplTest {
             .build();
 
         // Configurar DTO de creación
-        AdCreateDTO = com.VerYGana.dtos.ad.requests.AdCreateDTO.builder()
+        AdCreateDTO = com.VerYGana.dtos2.ad2.requests2.AdCreateDTO.builder()
             .title("Test Ad")
             .description("Test Description")
             .rewardPerLike(BigDecimal.valueOf(0.50))

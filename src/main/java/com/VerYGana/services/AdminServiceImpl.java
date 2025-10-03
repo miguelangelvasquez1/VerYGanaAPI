@@ -9,12 +9,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.dtos.Wallet.requests.BlockBalanceRequest;
-import com.VerYGana.dtos.Wallet.requests.UnblockBalanceRequest;
-import com.VerYGana.dtos.admin.responses.AdminReportResponse;
+import com.VerYGana.dtos2.admin2.responses2.AdminReportResponse;
+import com.VerYGana.dtos2.wallet2.requests2.BlockBalanceRequest;
+import com.VerYGana.dtos2.wallet2.requests2.UnblockBalanceRequest;
 import com.VerYGana.models.AdminReport;
 import com.VerYGana.models.Wallet;
-import com.VerYGana.models.enums.AdminActionType;
+import com.VerYGana.models.enums2.AdminActionType;
 import com.VerYGana.repositories.AdminReportRepository;
 import com.VerYGana.repositories.WalletRepository;
 import com.VerYGana.services.interfaces.AdminService;

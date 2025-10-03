@@ -3,7 +3,7 @@ package com.VerYGana.models;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.VerYGana.models.enums.AdminActionType;
+import com.VerYGana.models.enums2.AdminActionType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

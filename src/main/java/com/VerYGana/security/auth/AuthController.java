@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.dtos.auth.AuthRequest;
-import com.VerYGana.dtos.auth.AuthResponse;
-import com.VerYGana.dtos.auth.UserRegisterRequest;
+import com.VerYGana.dtos2.auth.AuthRequest;
+import com.VerYGana.dtos2.auth.AuthResponse;
+import com.VerYGana.dtos2.auth.UserRegisterRequest;
 import com.VerYGana.exceptions.authExceptions.InvalidTokenException;
 import com.VerYGana.services.interfaces.UserService;
 

@@ -2,13 +2,13 @@ package com.VerYGana.services.interfaces;
 
 import java.math.BigDecimal;
 
-import com.VerYGana.dtos.Wallet.requests.DepositRequest;
-import com.VerYGana.dtos.Wallet.requests.RafflePrizeRequest;
-import com.VerYGana.dtos.Wallet.requests.RechargeDataRequest;
-import com.VerYGana.dtos.Wallet.requests.TransferRequest;
-import com.VerYGana.dtos.Wallet.requests.WithdrawalRequest;
-import com.VerYGana.dtos.Wallet.responses.TransactionResponse;
-import com.VerYGana.dtos.Wallet.responses.WalletResponse;
+import com.VerYGana.dtos2.wallet2.requests2.DepositRequest;
+import com.VerYGana.dtos2.wallet2.requests2.RafflePrizeRequest;
+import com.VerYGana.dtos2.wallet2.requests2.RechargeDataRequest;
+import com.VerYGana.dtos2.wallet2.requests2.TransferRequest;
+import com.VerYGana.dtos2.wallet2.requests2.WithdrawalRequest;
+import com.VerYGana.dtos2.wallet2.responses2.TransactionResponse;
+import com.VerYGana.dtos2.wallet2.responses2.WalletResponse;
 
 public interface WalletService {
 

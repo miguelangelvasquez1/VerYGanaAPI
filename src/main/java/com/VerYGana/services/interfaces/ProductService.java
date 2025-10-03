@@ -4,9 +4,9 @@ import java.math.BigDecimal;
 
 import org.springframework.data.domain.Page;
 
-import com.VerYGana.dtos.generic.EntityCreatedResponse;
-import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
+import com.VerYGana.dtos2.generic.EntityCreatedResponse;
+import com.VerYGana.dtos2.products.requests2.CreateOrEditProductRequest;
+import com.VerYGana.dtos2.products.responses2.ProductSummaryResponse;
 
 public interface ProductService {
 

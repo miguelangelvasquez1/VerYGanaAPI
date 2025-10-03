@@ -5,7 +5,7 @@ import java.util.Locale.Category;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.dtos.products.requests.CreateProductCategoryRequest;
+import com.VerYGana.dtos2.products.requests2.CreateProductCategoryRequest;
 import com.VerYGana.mappers.products.ProductCategoryMapper;
 import com.VerYGana.models.products.ProductCategory;
 import com.VerYGana.repositories.ProductCategoryRepository;
