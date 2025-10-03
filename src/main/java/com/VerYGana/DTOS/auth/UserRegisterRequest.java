@@ -2,7 +2,7 @@ package com.VerYGana.dtos.auth;
 
 
 
-import com.VerYGana.models.Enums.Role;
+import com.VerYGana.models.enums.Role;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

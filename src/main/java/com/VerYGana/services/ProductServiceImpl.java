@@ -12,8 +12,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import com.VerYGana.dtos.generic.EntityCreatedResponse;
-import com.VerYGana.dtos.products.Requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.Responses.ProductSummaryResponse;
+import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
+import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
 import com.VerYGana.mappers.products.ProductMapper;
 import com.VerYGana.models.products.Product;
 import com.VerYGana.models.products.ProductCategory;

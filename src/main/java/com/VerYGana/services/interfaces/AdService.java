@@ -7,13 +7,13 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
-import com.VerYGana.dtos.ad.Requests.AdCreateDTO;
-import com.VerYGana.dtos.ad.Requests.AdUpdateDTO;
-import com.VerYGana.dtos.ad.Responses.AdResponseDTO;
-import com.VerYGana.dtos.ad.Responses.AdStatsDTO;
-import com.VerYGana.models.Enums.AdStatus;
-import com.VerYGana.models.Enums.Preference;
+import com.VerYGana.dtos.ad.requests.AdCreateDTO;
+import com.VerYGana.dtos.ad.requests.AdUpdateDTO;
+import com.VerYGana.dtos.ad.responses.AdResponseDTO;
+import com.VerYGana.dtos.ad.responses.AdStatsDTO;
 import com.VerYGana.models.ads.Ad;
+import com.VerYGana.models.enums.AdStatus;
+import com.VerYGana.models.enums.Preference;
 
 public interface AdService {
     

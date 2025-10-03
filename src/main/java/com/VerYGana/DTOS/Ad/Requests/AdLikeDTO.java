@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.ad.Requests;
+package com.VerYGana.dtos.ad.requests;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

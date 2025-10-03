@@ -1,9 +1,9 @@
-package com.VerYGana.dtos.ad.Requests;
+package com.VerYGana.dtos.ad.requests;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.VerYGana.models.Enums.Preference;
+import com.VerYGana.models.enums.Preference;
 
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;

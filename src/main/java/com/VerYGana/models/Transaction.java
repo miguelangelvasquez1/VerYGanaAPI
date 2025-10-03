@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import com.VerYGana.models.Enums.TransactionState;
-import com.VerYGana.models.Enums.TransactionType;
+import com.VerYGana.models.enums.TransactionState;
+import com.VerYGana.models.enums.TransactionType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

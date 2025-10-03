@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.ad.Requests;
+package com.VerYGana.dtos.ad.requests;
 
 
 

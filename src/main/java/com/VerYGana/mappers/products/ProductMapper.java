@@ -3,9 +3,9 @@ package com.VerYGana.mappers.products;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import com.VerYGana.dtos.products.Requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.Responses.ProductResponse;
-import com.VerYGana.dtos.products.Responses.ProductSummaryResponse;
+import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
+import com.VerYGana.dtos.products.responses.ProductResponse;
+import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
 import com.VerYGana.models.products.Product;
 
 import java.math.BigDecimal;

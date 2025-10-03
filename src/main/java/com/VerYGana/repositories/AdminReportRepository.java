@@ -6,7 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.VerYGana.models.AdminReport;
-import com.VerYGana.models.Enums.AdminActionType;
+import com.VerYGana.models.enums.AdminActionType;
 
 @Repository
 public interface AdminReportRepository extends JpaRepository<AdminReport, Long>{

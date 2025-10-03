@@ -20,13 +20,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.dtos.ad.Requests.AdApprovalDTO;
-import com.VerYGana.dtos.ad.Requests.AdCreateDTO;
-import com.VerYGana.dtos.ad.Requests.AdUpdateDTO;
-import com.VerYGana.dtos.ad.Responses.AdResponseDTO;
-import com.VerYGana.dtos.ad.Responses.AdStatsDTO;
-import com.VerYGana.models.Enums.AdStatus;
-import com.VerYGana.models.Enums.Preference;
+import com.VerYGana.dtos.ad.requests.AdApprovalDTO;
+import com.VerYGana.dtos.ad.requests.AdCreateDTO;
+import com.VerYGana.dtos.ad.requests.AdUpdateDTO;
+import com.VerYGana.dtos.ad.responses.AdResponseDTO;
+import com.VerYGana.dtos.ad.responses.AdStatsDTO;
+import com.VerYGana.models.enums.AdStatus;
+import com.VerYGana.models.enums.Preference;
 import com.VerYGana.services.interfaces.AdService;
 
 import jakarta.servlet.http.HttpServletRequest;

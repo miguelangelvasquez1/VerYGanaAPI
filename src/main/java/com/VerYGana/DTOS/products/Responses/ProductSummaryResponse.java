@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.products.Responses;
+package com.VerYGana.dtos.products.responses;
 
 import java.math.BigDecimal;
 

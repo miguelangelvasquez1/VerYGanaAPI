@@ -5,8 +5,8 @@ import java.math.BigDecimal;
 import org.springframework.data.domain.Page;
 
 import com.VerYGana.dtos.generic.EntityCreatedResponse;
-import com.VerYGana.dtos.products.Requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.Responses.ProductSummaryResponse;
+import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
+import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
 
 public interface ProductService {
 

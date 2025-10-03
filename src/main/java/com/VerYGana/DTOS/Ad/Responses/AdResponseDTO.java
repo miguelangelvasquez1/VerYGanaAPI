@@ -1,10 +1,10 @@
-package com.VerYGana.dtos.ad.Responses;
+package com.VerYGana.dtos.ad.responses;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.VerYGana.models.Enums.AdStatus;
-import com.VerYGana.models.Enums.Preference;
+import com.VerYGana.models.enums.AdStatus;
+import com.VerYGana.models.enums.Preference;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,4 +1,4 @@
-package com.VerYGana.models.Enums;
+package com.VerYGana.models.enums;
 
 public enum Preference {
     TECHNOLOGY("Tecnología"),
