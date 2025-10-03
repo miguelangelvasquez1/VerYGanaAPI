@@ -7,7 +7,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.VerYGana.dtos.auth.UserRegisterRequest;
+import com.VerYGana.dtos2.auth.UserRegisterRequest;
 import com.VerYGana.models.User;
 import com.VerYGana.repositories.UserRepository;
 import com.VerYGana.services.interfaces.UserService;

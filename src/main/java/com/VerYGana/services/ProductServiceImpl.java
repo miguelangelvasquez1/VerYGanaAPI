@@ -11,9 +11,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.dtos.generic.EntityCreatedResponse;
-import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
+import com.VerYGana.dtos2.generic.EntityCreatedResponse;
+import com.VerYGana.dtos2.products.requests2.CreateOrEditProductRequest;
+import com.VerYGana.dtos2.products.responses2.ProductSummaryResponse;
 import com.VerYGana.mappers.products.ProductMapper;
 import com.VerYGana.models.products.Product;
 import com.VerYGana.models.products.ProductCategory;

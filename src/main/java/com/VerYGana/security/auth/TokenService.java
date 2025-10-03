@@ -18,7 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 
-import com.VerYGana.dtos.auth.AuthResponse;
+import com.VerYGana.dtos2.auth.AuthResponse;
 import com.VerYGana.exceptions.authExceptions.InvalidTokenException;
 import com.VerYGana.exceptions.authExceptions.TokenBlacklistedException;
 import com.VerYGana.security.CustomUserDetails;

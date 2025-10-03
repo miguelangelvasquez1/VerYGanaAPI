@@ -11,8 +11,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.VerYGana.models.ads.AdLike;
-import com.VerYGana.models.ads.AdLikeId;
+import com.VerYGana.models.ads2.AdLike;
+import com.VerYGana.models.ads2.AdLikeId;
 
 @Repository
 public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {

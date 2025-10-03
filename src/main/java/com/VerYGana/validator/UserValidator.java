@@ -3,7 +3,7 @@ package com.VerYGana.validator;
 import org.springframework.lang.NonNull;
 import org.springframework.validation.Validator;
 
-import com.VerYGana.dtos.UserDTO;
+import com.VerYGana.dtos2.UserDTO;
 
 public class UserValidator implements Validator {
 

@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.dtos.generic.EntityCreatedResponse;
-import com.VerYGana.dtos.products.requests.CreateOrEditProductRequest;
-import com.VerYGana.dtos.products.responses.ProductSummaryResponse;
+import com.VerYGana.dtos2.generic.EntityCreatedResponse;
+import com.VerYGana.dtos2.products.requests2.CreateOrEditProductRequest;
+import com.VerYGana.dtos2.products.responses2.ProductSummaryResponse;
 import com.VerYGana.services.interfaces.ProductService;
 
 @RestController

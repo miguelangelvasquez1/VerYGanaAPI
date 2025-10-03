@@ -13,9 +13,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.VerYGana.models.ads.Ad;
-import com.VerYGana.models.enums.AdStatus;
-import com.VerYGana.models.enums.Preference;
+import com.VerYGana.models.ads2.Ad;
+import com.VerYGana.models.enums2.AdStatus;
+import com.VerYGana.models.enums2.Preference;
 
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long> {

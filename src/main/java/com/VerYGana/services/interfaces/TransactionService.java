@@ -3,8 +3,8 @@ package com.VerYGana.services.interfaces;
 import java.util.List;
 
 import com.VerYGana.models.Transaction;
-import com.VerYGana.models.enums.TransactionState;
-import com.VerYGana.models.enums.TransactionType;
+import com.VerYGana.models.enums2.TransactionState;
+import com.VerYGana.models.enums2.TransactionType;
 
 public interface TransactionService {
      List<Transaction> getByTransactionType(TransactionType transactionType);

@@ -1,7 +1,7 @@
 package com.VerYGana.services.interfaces;
 
 
-import com.VerYGana.dtos.auth.UserRegisterRequest;
+import com.VerYGana.dtos2.auth.UserRegisterRequest;
 import com.VerYGana.models.User;
 
 public interface UserService {
