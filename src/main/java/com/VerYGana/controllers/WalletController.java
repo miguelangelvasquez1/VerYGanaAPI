@@ -11,11 +11,12 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import com.VerYGana.dtos.Wallet.Requests.DepositRequest;
-import com.VerYGana.dtos.Wallet.Requests.TransferRequest;
-import com.VerYGana.dtos.Wallet.Requests.WithdrawalRequest;
-import com.VerYGana.dtos.Wallet.Responses.TransactionResponse;
-import com.VerYGana.dtos.Wallet.Responses.WalletResponse;
+
+import com.VerYGana.dtos.Wallet.requests.DepositRequest;
+import com.VerYGana.dtos.Wallet.requests.TransferRequest;
+import com.VerYGana.dtos.Wallet.requests.WithdrawalRequest;
+import com.VerYGana.dtos.Wallet.responses.TransactionResponse;
+import com.VerYGana.dtos.Wallet.responses.WalletResponse;
 import com.VerYGana.services.interfaces.WalletService;
 
 import jakarta.validation.Valid;

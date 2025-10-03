@@ -1,10 +1,10 @@
-package com.VerYGana.mapper;
+package com.VerYGana.mappers;
 
 import org.springframework.stereotype.Component;
 
-import com.VerYGana.dtos.ad.Requests.AdCreateDTO;
-import com.VerYGana.dtos.ad.Requests.AdUpdateDTO;
-import com.VerYGana.dtos.ad.Responses.AdResponseDTO;
+import com.VerYGana.dtos.ad.requests.AdCreateDTO;
+import com.VerYGana.dtos.ad.requests.AdUpdateDTO;
+import com.VerYGana.dtos.ad.responses.AdResponseDTO;
 import com.VerYGana.models.ads.Ad;
 
 @Component

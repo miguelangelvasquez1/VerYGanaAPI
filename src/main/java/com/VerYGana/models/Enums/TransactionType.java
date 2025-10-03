@@ -1,4 +1,4 @@
-package com.VerYGana.models.Enums;
+package com.VerYGana.models.enums;
 
 public enum TransactionType {
     // Review

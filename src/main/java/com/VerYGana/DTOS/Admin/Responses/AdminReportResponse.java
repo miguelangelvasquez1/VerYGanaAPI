@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.admin.Responses;
+package com.VerYGana.dtos.admin.responses;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;

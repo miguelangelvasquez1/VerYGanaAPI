@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.VerYGana.models.Transaction;
-import com.VerYGana.models.Enums.TransactionState;
-import com.VerYGana.models.Enums.TransactionType;
+import com.VerYGana.models.enums.TransactionState;
+import com.VerYGana.models.enums.TransactionType;
 import com.VerYGana.repositories.TransactionRepository;
 import com.VerYGana.services.interfaces.TransactionService;
 

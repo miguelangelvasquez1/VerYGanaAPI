@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.products.Requests;
+package com.VerYGana.dtos.products.requests;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

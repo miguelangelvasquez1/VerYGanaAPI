@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.Wallet.Responses;
+package com.VerYGana.dtos.Wallet.responses;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;

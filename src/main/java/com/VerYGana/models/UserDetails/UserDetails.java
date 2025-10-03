@@ -1,4 +1,4 @@
-package com.VerYGana.models.UserDetails;
+package com.VerYGana.models.userDetails;
 
 import com.VerYGana.models.User;
 

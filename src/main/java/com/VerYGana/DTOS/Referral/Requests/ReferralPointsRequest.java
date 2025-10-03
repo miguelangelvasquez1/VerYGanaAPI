@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.Referral.Requests;
+package com.VerYGana.dtos.referral.requests;
 
 
 import jakarta.validation.constraints.NotNull;

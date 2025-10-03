@@ -5,10 +5,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.VerYGana.dtos.auth.UserRegisterRequest;
-import com.VerYGana.models.Enums.Role;
-import com.VerYGana.models.Enums.UserState;
-import com.VerYGana.models.UserDetails.UserDetails;
+import com.VerYGana.models.enums.Role;
+import com.VerYGana.models.enums.UserState;
 import com.VerYGana.models.raffles.RaffleTicket;
+import com.VerYGana.models.userDetails.UserDetails;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import jakarta.persistence.CascadeType;

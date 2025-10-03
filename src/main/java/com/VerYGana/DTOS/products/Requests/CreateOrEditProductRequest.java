@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.products.Requests;
+package com.VerYGana.dtos.products.requests;
 
 import java.math.BigDecimal;
 import java.util.List;

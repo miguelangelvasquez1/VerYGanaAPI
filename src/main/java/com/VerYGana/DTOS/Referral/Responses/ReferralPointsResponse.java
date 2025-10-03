@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.Referral.Responses;
+package com.VerYGana.dtos.referral.responses;
 
 public class ReferralPointsResponse {
     
