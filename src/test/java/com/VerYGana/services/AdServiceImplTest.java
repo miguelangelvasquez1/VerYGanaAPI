@@ -15,23 +15,24 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.VerYGana.dtos2.ad2.requests2.AdCreateDTO;
-import com.VerYGana.dtos2.ad2.responses2.AdResponseDTO;
-import com.VerYGana.exceptions.adsExceptions.AdNotFoundException;
-import com.VerYGana.exceptions.adsExceptions.DuplicateLikeException;
-import com.VerYGana.exceptions.adsExceptions.InsufficientBudgetException;
-import com.VerYGana.exceptions.adsExceptions.InvalidAdStateException;
-import com.VerYGana.mappers.AdMapper;
-import com.VerYGana.models.User;
-import com.VerYGana.models.ads2.Ad;
-import com.VerYGana.models.enums2.AdStatus;
-import com.VerYGana.models.enums2.Preference;
-import com.VerYGana.models.userDetails2.AdvertiserDetails;
-import com.VerYGana.models.userDetails2.ConsumerDetails;
-import com.VerYGana.repositories.AdLikeRepository;
-import com.VerYGana.repositories.AdRepository;
-import com.VerYGana.repositories.TransactionRepository;
-import com.VerYGana.repositories.UserRepository;
+import com.verygana2.dtos.ad.requests.AdCreateDTO;
+import com.verygana2.dtos.ad.responses.AdResponseDTO;
+import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
+import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
+import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
+import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
+import com.verygana2.mappers.AdMapper;
+import com.verygana2.models.User;
+import com.verygana2.models.ads.Ad;
+import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.Preference;
+import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.repositories.AdLikeRepository;
+import com.verygana2.repositories.AdRepository;
+import com.verygana2.repositories.TransactionRepository;
+import com.verygana2.repositories.UserRepository;
+import com.verygana2.services.AdServiceImpl;
 
 @ExtendWith(MockitoExtension.class)
 class AdServiceImplTest {
@@ -91,7 +92,7 @@ class AdServiceImplTest {
             .build();
 
         // Configurar DTO de creación
-        AdCreateDTO = com.VerYGana.dtos2.ad2.requests2.AdCreateDTO.builder()
+        AdCreateDTO = com.verygana2.dtos.ad.requests.AdCreateDTO.builder()
             .title("Test Ad")
             .description("Test Description")
             .rewardPerLike(BigDecimal.valueOf(0.50))

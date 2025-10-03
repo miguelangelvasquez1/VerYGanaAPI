@@ -1,0 +1,21 @@
+package com.verygana2.models.mobilePlans;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import lombok.Data;
+
+@Entity
+@Data
+public class MobilePlan {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    private String provider;
+    private Double price;
+    private Integer dataAmount;
+    private Integer validityDays;
+    private boolean isActive;
+}
