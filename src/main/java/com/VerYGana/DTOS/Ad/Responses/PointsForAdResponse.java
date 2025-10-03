@@ -1,4 +1,4 @@
-package com.VerYGana.dtos.Ad.Responses;
+package com.VerYGana.dtos.ad.Responses;
 
 public class PointsForAdResponse {
     

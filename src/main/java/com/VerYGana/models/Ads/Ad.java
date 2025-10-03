@@ -4,7 +4,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 import com.VerYGana.models.User;
-import com.VerYGana.models.marketplace.Product;
+import com.VerYGana.models.products.Product;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;

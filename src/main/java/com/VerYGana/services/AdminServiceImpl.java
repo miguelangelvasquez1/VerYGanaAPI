@@ -7,10 +7,11 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
 
-import com.VerYGana.dtos.Admin.Responses.AdminReportResponse;
 import com.VerYGana.dtos.Wallet.Requests.BlockBalanceRequest;
 import com.VerYGana.dtos.Wallet.Requests.UnblockBalanceRequest;
+import com.VerYGana.dtos.admin.Responses.AdminReportResponse;
 import com.VerYGana.models.AdminReport;
 import com.VerYGana.models.Wallet;
 import com.VerYGana.models.Enums.AdminActionType;
@@ -18,6 +19,7 @@ import com.VerYGana.repositories.AdminReportRepository;
 import com.VerYGana.repositories.WalletRepository;
 import com.VerYGana.services.interfaces.AdminService;
 
+@Service
 public class AdminServiceImpl implements AdminService{
 
     @Autowired
