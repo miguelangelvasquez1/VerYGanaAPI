@@ -1,4 +1,4 @@
-package com.VerYGana.mapper;
+package com.VerYGana.mappers;
 
 public class UserMapper {
     

@@ -1,4 +1,4 @@
-package com.VerYGana.models.marketplace;
+package com.VerYGana.models.products;
 
 import java.time.LocalDateTime;
 
@@ -13,25 +13,29 @@ import lombok.Data;
 @Entity
 @Data
 public class ProductCategory {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
+
     @Column(nullable = false, unique = true, length = 100)
     private String name;
-    
+
     @Column(length = 500)
     private String description;
-    
+
     @Column(name = "is_active", nullable = false)
-    private boolean isActive = true;
-    
+    private boolean isActive;
+
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
-    
+
+    @Column(name = "image_url", nullable = false)
+    private String imageUrl;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        isActive = true;
     }
 }

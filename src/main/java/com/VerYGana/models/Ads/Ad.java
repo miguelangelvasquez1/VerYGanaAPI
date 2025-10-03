@@ -5,9 +5,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.VerYGana.models.Enums.AdStatus;
-import com.VerYGana.models.Enums.Preference;
-import com.VerYGana.models.UserDetails.AdvertiserDetails;
+import com.VerYGana.models.User;
+import com.VerYGana.models.products.Product;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;

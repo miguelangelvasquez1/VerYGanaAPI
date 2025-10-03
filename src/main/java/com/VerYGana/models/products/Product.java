@@ -1,7 +1,9 @@
-package com.VerYGana.models.marketplace;
+package com.VerYGana.models.products;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -26,8 +28,8 @@ public class Product {
     @Column(nullable = false, length = 255)
     private String name;
     
-    @Column(name = "image_url", nullable = false, length = 500)
-    private String imageUrl;
+    @Column(name = "images_urls", nullable = false, length = 500)
+    private List<String> imagesUrls;
     
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal price;

@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.VerYGana.dtos.Admin.Responses.AdminReportResponse;
 import com.VerYGana.dtos.Wallet.Requests.BlockBalanceRequest;
 import com.VerYGana.dtos.Wallet.Requests.UnblockBalanceRequest;
+import com.VerYGana.dtos.admin.Responses.AdminReportResponse;
 import com.VerYGana.services.interfaces.AdminService;
 
 import jakarta.validation.Valid;
