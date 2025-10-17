@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.verygana2.models.userDetails.SellerDetails;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -22,8 +24,9 @@ public class Product {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(name = "seller_id", nullable = false)
-    private Long sellerId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "seller_id", nullable = false)
+    private SellerDetails seller;
     
     @Column(nullable = false, length = 255)
     private String name;

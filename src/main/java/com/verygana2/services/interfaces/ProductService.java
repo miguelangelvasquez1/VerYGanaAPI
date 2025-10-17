@@ -6,6 +6,7 @@ import org.springframework.data.domain.Page;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.products.responses.ProductResponse;
 import com.verygana2.dtos.products.responses.ProductSummaryResponse;
 
 public interface ProductService {
@@ -23,4 +24,6 @@ public interface ProductService {
             Integer page,
             String sortBy,
             String sortDirection);
+
+    ProductResponse detailProduct(Long productId);
 }
