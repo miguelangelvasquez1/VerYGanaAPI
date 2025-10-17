@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.products.responses.ProductResponse;
 import com.verygana2.dtos.products.responses.ProductSummaryResponse;
 import com.verygana2.services.interfaces.ProductService;
 
@@ -69,6 +70,12 @@ public class ProductController {
 
         Page<ProductSummaryResponse> response = productService.searchProducts(searchQuery, categoryId, minRating,
                 maxPrice, page, sortBy, sortDirection);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{productId}")
+    public ResponseEntity<ProductResponse> detailProduct(@PathVariable Long productId){
+        ProductResponse response = productService.detailProduct(productId);
         return ResponseEntity.ok(response);
     }
 
