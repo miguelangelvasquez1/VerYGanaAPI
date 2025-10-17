@@ -60,7 +60,7 @@ public class AdServiceImpl implements AdService {
             .orElseThrow(() -> new AdNotFoundException("Advertiser not found"));
         
         // Validar que no exista un anuncio activo con el mismo título
-        if (adRepository.existsByAdvertiserIdAndTitleAndIsActiveTrue(advertiserId, createDto.getTitle())) {
+        if (adRepository.existsByAdvertiserIdAndTitle(advertiserId, createDto.getTitle())) {
             throw new InvalidAdStateException("Ya existe un anuncio activo con ese título");
         }
         
@@ -422,7 +422,6 @@ public class AdServiceImpl implements AdService {
             .remainingBudget(ad.getRemainingBudget())
             .rewardPerLike(ad.getRewardPerLike())
             .status(ad.getStatus())
-            .isActive(ad.getStatus() == AdStatus.ACTIVE)
             .createdAt(ad.getCreatedAt())
             .startDate(ad.getStartDate())
             .endDate(ad.getEndDate())

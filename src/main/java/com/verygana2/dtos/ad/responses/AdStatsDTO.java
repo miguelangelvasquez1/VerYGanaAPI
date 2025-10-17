@@ -27,7 +27,6 @@ public class AdStatsDTO {
     private BigDecimal remainingBudget;
     private BigDecimal rewardPerLike;
     private AdStatus status;
-    private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime startDate;
     private LocalDateTime endDate;
