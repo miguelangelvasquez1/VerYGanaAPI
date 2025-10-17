@@ -44,8 +44,6 @@ public interface ProductMapper {
 
     List<ProductResponse> toProductResponseList(List<Product> products);
     List<ProductSummaryResponse> tProductSummaryResponseList (List<Product> products);
-
-
     
     default String buildSellerName(Long sellerId) {
         if (sellerId == null) {
