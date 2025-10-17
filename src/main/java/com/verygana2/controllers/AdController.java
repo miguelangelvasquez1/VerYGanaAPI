@@ -26,7 +26,7 @@ import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 import com.verygana2.services.interfaces.AdService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,7 +66,7 @@ public class AdController {
 
     @GetMapping("/available/category/{category}")
     public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsByCategory(
-            @PathVariable Preference category,
+            @PathVariable Category category,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         

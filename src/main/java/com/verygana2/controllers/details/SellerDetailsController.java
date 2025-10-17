@@ -26,6 +26,5 @@ public class SellerDetailsController {
     public ResponseEntity<SellerDetails> getSellerById (@PathVariable Long sellerId){
         SellerDetails seller = sellerDetailsService.getSellerById(sellerId);
         return ResponseEntity.ok(seller);
-
     }
 }

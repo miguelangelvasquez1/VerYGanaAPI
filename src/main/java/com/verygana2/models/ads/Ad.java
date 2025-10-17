@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
 import jakarta.persistence.*;
@@ -97,7 +97,7 @@ public class Ad {
 
     @Enumerated(EnumType.STRING)
     @Column(length = 50)
-    private Preference category;
+    private Category category;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason; //Si el anuncio es rechazado, se puede guardar la razón aquí

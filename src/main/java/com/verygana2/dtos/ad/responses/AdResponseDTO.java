@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,7 +35,7 @@ public class AdResponseDTO {
     private Double completionPercentage;
     private String contentUrl;
     private String targetUrl;
-    private Preference category;
+    private Category category;
     private String rejectionReason;
     
     // Información del anunciante

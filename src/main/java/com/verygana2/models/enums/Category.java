@@ -1,6 +1,6 @@
 package com.verygana2.models.enums;
 
-public enum Preference {
+public enum Category {
     TECHNOLOGY("Tecnología"),
     FASHION("Moda"),
     FOOD("Comida"),
@@ -16,7 +16,7 @@ public enum Preference {
 
     private final String description;
 
-    Preference(String description) {
+    Category(String description) {
         this.description = description;
     }
 
