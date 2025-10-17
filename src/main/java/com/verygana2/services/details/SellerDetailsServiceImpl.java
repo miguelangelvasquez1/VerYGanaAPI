@@ -21,7 +21,7 @@ public class SellerDetailsServiceImpl implements SellerDetailsService{
         if (sellerId == null || sellerId <= 0) {
             throw new IllegalArgumentException("The seller id must be positive");
         }
-        return sellerDetailsRepository.findBySellerId(sellerId).orElseThrow(() -> new ObjectNotFoundException("The seller with id: " + sellerId + " not found", SellerDetails.class));
+        return sellerDetailsRepository.findByUser_Id(sellerId).orElseThrow(() -> new ObjectNotFoundException("The seller with id: " + sellerId + " not found", SellerDetails.class));
     }
 
     @Override
