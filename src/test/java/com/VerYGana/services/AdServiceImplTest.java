@@ -106,7 +106,7 @@ class AdServiceImplTest {
     void testCreateAd_Success() {
         // Arrange
         when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitleAndIsActiveTrue(1L, "Test Ad"))
+        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
             .thenReturn(false);
         when(adMapper.toEntity(AdCreateDTO)).thenReturn(ad);
         when(adRepository.save(any(Ad.class))).thenReturn(ad);
@@ -139,7 +139,7 @@ class AdServiceImplTest {
     void testCreateAd_DuplicateTitle() {
         // Arrange
         when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitleAndIsActiveTrue(1L, "Test Ad"))
+        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
             .thenReturn(true);
 
         // Act & Assert
@@ -153,7 +153,7 @@ class AdServiceImplTest {
         // Arrange
         AdCreateDTO.setTotalBudget(BigDecimal.valueOf(10)); // Menor al necesario
         when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitleAndIsActiveTrue(1L, "Test Ad"))
+        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
             .thenReturn(false);
 
         // Act & Assert

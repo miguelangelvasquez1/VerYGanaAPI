@@ -32,26 +32,24 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
     
     Page<Ad> findByStatus(AdStatus status, Pageable pageable);
     
-    List<Ad> findByIsActiveTrue();
-    
     // Anuncios disponibles para mostrar a usuarios
-    @Query("SELECT a FROM Ad a WHERE a.isActive = true " +
-           "AND a.status = 'APPROVED' " +
+    @Query("SELECT a FROM Ad a WHERE" +
+           " a.status = 'ACTIVE' " +
            "AND a.currentLikes < a.maxLikes " +
            "AND (a.endDate IS NULL OR a.endDate > :now) " +
            "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
     List<Ad> findAvailableAds(@Param("now") LocalDateTime now);
     
-    @Query("SELECT a FROM Ad a WHERE a.isActive = true " +
-           "AND a.status = 'APPROVED' " +
+    @Query("SELECT a FROM Ad a WHERE " +
+           "a.status = 'ACTIVE' " +
            "AND a.currentLikes < a.maxLikes " +
            "AND (a.endDate IS NULL OR a.endDate > :now) " +
            "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
     Page<Ad> findAvailableAds(@Param("now") LocalDateTime now, Pageable pageable);
     
     // Anuncios disponibles por categoría
-    @Query("SELECT a FROM Ad a WHERE a.isActive = true " +
-           "AND a.status = 'APPROVED' " +
+    @Query("SELECT a FROM Ad a WHERE " +
+           "a.status = 'APPROVED' " +
            "AND a.currentLikes < a.maxLikes " +
            "AND a.category = :category " +
            "AND (a.endDate IS NULL OR a.endDate > :now) " +
@@ -63,8 +61,8 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
     );
     
     // Anuncios que el usuario NO ha visto
-    @Query("SELECT a FROM Ad a WHERE a.isActive = true " +
-           "AND a.status = 'APPROVED' " +
+    @Query("SELECT a FROM Ad a WHERE " +
+           "a.status = 'APPROVED' " +
            "AND a.currentLikes < a.maxLikes " +
            "AND (a.endDate IS NULL OR a.endDate > :now) " +
            "AND a.spentBudget + a.rewardPerLike <= a.totalBudget " +
@@ -92,8 +90,8 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
     Long sumLikesByAdvertiserId(@Param("advertiserId") Long advertiserId);
     
     // Anuncios que necesitan ser desactivados automáticamente
-    @Query("SELECT a FROM Ad a WHERE a.isActive = true " +
-           "AND (a.currentLikes >= a.maxLikes " +
+    @Query("SELECT a FROM Ad a WHERE " +
+           "(a.currentLikes >= a.maxLikes " +
            "OR a.spentBudget + a.rewardPerLike > a.totalBudget " +
            "OR (a.endDate IS NOT NULL AND a.endDate < :now))")
     List<Ad> findAdsToAutoDeactivate(@Param("now") LocalDateTime now);
@@ -114,7 +112,7 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
     
     // Actualización masiva de estado
     @Modifying
-    @Query("UPDATE Ad a SET a.isActive = false, a.status = 'COMPLETED', a.updatedAt = :now " +
+    @Query("UPDATE Ad a SET a.status = 'COMPLETED', a.updatedAt = :now " +
            "WHERE a.id IN :ids")
     int deactivateAds(@Param("ids") List<Long> ids, @Param("now") LocalDateTime now);
     
@@ -138,6 +136,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
     );
     
     // Verificar si existe un anuncio activo con el mismo título para un advertiser
-    boolean existsByAdvertiserIdAndTitleAndIsActiveTrue(Long advertiserId, String title);
+    boolean existsByAdvertiserIdAndTitle(Long advertiserId, String title);
 
 }

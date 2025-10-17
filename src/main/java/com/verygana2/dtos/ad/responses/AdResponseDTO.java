@@ -23,7 +23,6 @@ public class AdResponseDTO {
     private BigDecimal rewardPerLike;
     private Integer maxLikes;
     private Integer currentLikes;
-    private Boolean isActive;
     private AdStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
