@@ -25,7 +25,7 @@ import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
@@ -88,7 +88,7 @@ class AdServiceImplTest {
             .status(AdStatus.APPROVED)
             .advertiser((AdvertiserDetails)advertiser.getUserDetails())
             .createdAt(LocalDateTime.now())
-            .category(Preference.TECHNOLOGY)
+            .category(Category.TECHNOLOGY)
             .build();
 
         // Configurar DTO de creación
@@ -98,7 +98,7 @@ class AdServiceImplTest {
             .rewardPerLike(BigDecimal.valueOf(0.50))
             .maxLikes(100)
             .totalBudget(BigDecimal.valueOf(50))
-            .category(Preference.TECHNOLOGY)
+            .category(Category.TECHNOLOGY)
             .build();
     }
 

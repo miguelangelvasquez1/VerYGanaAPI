@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long> {
@@ -57,7 +57,7 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
            "AND (a.endDate IS NULL OR a.endDate > :now) " +
            "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
     Page<Ad> findAvailableAdsByCategory(
-        @Param("category") Preference category,
+        @Param("category") Category category,
         @Param("now") LocalDateTime now,
         Pageable pageable
     );

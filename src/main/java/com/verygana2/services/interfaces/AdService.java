@@ -13,7 +13,7 @@ import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Preference;
+import com.verygana2.models.enums.Category;
 
 public interface AdService {
     
@@ -52,7 +52,7 @@ public interface AdService {
     // Consultas para usuarios (ver anuncios disponibles)
     Page<AdResponseDTO> getAvailableAds(Pageable pageable);
     
-    Page<AdResponseDTO> getAvailableAdsByCategory(Preference category, Pageable pageable);
+    Page<AdResponseDTO> getAvailableAdsByCategory(Category category, Pageable pageable);
     
     Page<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable);
     
