@@ -6,6 +6,7 @@ import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -22,10 +23,10 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
+import com.verygana2.models.Category;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Category;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
@@ -75,7 +76,7 @@ class AdServiceImplTest {
         ((ConsumerDetails) user.getUserDetails()).setName("Test User");
         user.getWallet().setBalance(BigDecimal.ZERO);
 
-        // Configurar anuncio
+        // Configurar anuncio, hay que inyectar el service de categorias para crear un anuncio con al menos una categoria
         ad = Ad.builder()
             .id(1L)
             .title("Test Ad")
@@ -88,17 +89,17 @@ class AdServiceImplTest {
             .status(AdStatus.APPROVED)
             .advertiser((AdvertiserDetails)advertiser.getUserDetails())
             .createdAt(LocalDateTime.now())
-            .category(Category.TECHNOLOGY)
+            .categories(List.of(new Category()))
             .build();
 
-        // Configurar DTO de creación
+        // Configurar DTO de creación, hay que inyectar el service de categorias para crear un anuncio con al menos una categoria
         AdCreateDTO = com.verygana2.dtos.ad.requests.AdCreateDTO.builder()
             .title("Test Ad")
             .description("Test Description")
             .rewardPerLike(BigDecimal.valueOf(0.50))
             .maxLikes(100)
             .totalBudget(BigDecimal.valueOf(50))
-            .category(Category.TECHNOLOGY)
+            .categories(List.of(new Category()))
             .build();
     }
 

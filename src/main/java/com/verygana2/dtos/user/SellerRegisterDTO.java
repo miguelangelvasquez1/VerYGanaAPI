@@ -1,32 +1,31 @@
 package com.verygana2.dtos.user;
 
 import jakarta.validation.constraints.*;
+import lombok.Data;
 
-public record SellerRegisterDTO(
+@Data
+public class SellerRegisterDTO {
 
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")
-    String email,
+    private String email;
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must have at least 6 characters")
-    String password,
+    private String password;
 
     @NotBlank(message = "Phone number is required")
-    String phoneNumber,
+    private String phoneNumber;
 
     @NotBlank(message = "Shop name is required")
-    String shopName,
+    private String shopName;
 
     @NotBlank(message = "Tax ID is required")
-    String taxId,
+    private String taxId;
 
     @PositiveOrZero(message = "Total products must be zero or positive")
-    int totalProducts,
-
-    @PositiveOrZero(message = "Earnings must be zero or positive")
-    double earnings,
+    private int totalProducts;
 
     @NotBlank(message = "Delivery region is required")
-    String deliveryRegion
-) {}
+    private String deliveryRegion;
+}

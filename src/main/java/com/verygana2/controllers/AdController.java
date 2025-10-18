@@ -1,5 +1,7 @@
 package com.verygana2.controllers;
 
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -25,8 +27,8 @@ import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
+import com.verygana2.models.Category;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Category;
 import com.verygana2.services.interfaces.AdService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,12 +68,12 @@ public class AdController {
 
     @GetMapping("/available/category/{category}")
     public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsByCategory(
-            @PathVariable Category category,
+            @PathVariable List<Category> categories,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<AdResponseDTO> ads = adService.getAvailableAdsByCategory(category, pageable);
+        Page<AdResponseDTO> ads = adService.getAvailableAdsByCategory(categories, pageable);
         
         return ResponseEntity.ok(ads);
     }

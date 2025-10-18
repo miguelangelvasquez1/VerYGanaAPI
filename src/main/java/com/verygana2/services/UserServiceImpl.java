@@ -33,7 +33,7 @@ public class UserServiceImpl implements UserService {
 
     public User registerSeller(SellerRegisterDTO dto) {
         User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.password()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         SellerDetails details = userMapper.toSellerDetails(dto);
         details.setUser(user);
@@ -47,7 +47,7 @@ public class UserServiceImpl implements UserService {
 
     public User registerAdvertiser(AdvertiserRegisterDTO dto) {
         User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.password()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         AdvertiserDetails details = userMapper.toAdvertiserDetails(dto);
         details.setUser(user);
@@ -61,10 +61,10 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
-        validateEmailAndPhoneNumber(dto.email(), dto.phoneNumber());
+        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.password()));
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
         details.setUser(user);

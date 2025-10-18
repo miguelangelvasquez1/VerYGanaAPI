@@ -25,7 +25,7 @@ public class AdMapper {
             .endDate(dto.getEndDate())
             .contentUrl(dto.getContentUrl())
             .targetUrl(dto.getTargetUrl())
-            .category(dto.getCategory())
+            .categories(dto.getCategories())
             .build();
     }
 
@@ -53,7 +53,7 @@ public class AdMapper {
             .completionPercentage(entity.getCompletionPercentage())
             .contentUrl(entity.getContentUrl())
             .targetUrl(entity.getTargetUrl())
-            .category(entity.getCategory())
+            .categories(entity.getCategories())
             .rejectionReason(entity.getRejectionReason())
             .advertiserId(entity.getAdvertiser() != null ? entity.getAdvertiser().getId() : null)
             .advertiserName(entity.getAdvertiser() != null ? entity.getAdvertiser().getCompanyName() : null)
@@ -93,8 +93,8 @@ public class AdMapper {
         if (dto.getTargetUrl() != null) {
             entity.setTargetUrl(dto.getTargetUrl());
         }
-        if (dto.getCategory() != null) {
-            entity.setCategory(dto.getCategory());
+        if (dto.getCategories() != null) {
+            entity.setCategories(dto.getCategories());
         }
     }
 }
