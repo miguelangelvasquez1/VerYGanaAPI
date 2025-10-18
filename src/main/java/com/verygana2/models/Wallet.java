@@ -54,9 +54,9 @@ public class Wallet {
     private List<Transaction> transactions;
 
 
-    public static Wallet createWallet(Long OwnerId){
+    public static Wallet createWallet(User user){
         Wallet wallet = new Wallet();
-        // wallet.setUser(OwnerId);
+        wallet.setUser(user);
         return wallet;
     }
     

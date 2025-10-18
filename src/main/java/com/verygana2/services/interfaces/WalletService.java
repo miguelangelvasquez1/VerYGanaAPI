@@ -9,13 +9,14 @@ import com.verygana2.dtos.wallet.requests.TransferRequest;
 import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
 import com.verygana2.dtos.wallet.responses.WalletResponse;
+import com.verygana2.models.User;
 
 public interface WalletService {
 
     // Internal wallet methods
 
     // Creation
-    void createWallet(Long userId);
+    void createWallet(User user);
 
     // Get
     WalletResponse getWalletByOwnerId(Long ownerId);

@@ -9,5 +9,5 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper=false)
 public class AdminDetails extends UserDetails {
     
-
+    private String adminCode;
 }
