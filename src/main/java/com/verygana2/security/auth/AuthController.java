@@ -19,7 +19,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
-import com.verygana2.dtos.auth.UserRegisterRequest;
+import com.verygana2.dtos.user.AdvertiserRegisterDTO;
+import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.services.interfaces.UserService;
 
@@ -96,15 +98,6 @@ public class AuthController {
             .body(new AuthResponse(tokenResponse.getAccessToken(), tokenResponse.getRefreshToken()));
     }
 
-    /**
-     * Register: Crea un nuevo usuario
-     */
-    @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody UserRegisterRequest userRegisterRequest) {
-        userService.registerUser(userRegisterRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully");
-    }
-
     private String generateCookie(String token, String name) {
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
@@ -114,5 +107,23 @@ public class AuthController {
                 .sameSite("Strict")
                 .build()
                 .toString();
+    }
+
+    @PostMapping("/register/consumer") //Devolver UserResponse o ConsumerRespone
+    public ResponseEntity<?> registerConsumer(@Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
+        userService.registerConsumer(consumerRegisterRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Consumer registered successfully");
+    }
+
+    @PostMapping("/register/advertiser") //Devolver UserResponse o ConsumerRespone
+    public ResponseEntity<?> registerAdvertiser(@Valid @RequestBody AdvertiserRegisterDTO consumerRegisterRequest) {
+        userService.registerAdvertiser(consumerRegisterRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Advertiser registered successfully");
+    }
+
+    @PostMapping("/register/seller") //Devolver UserResponse o ConsumerRespone
+    public ResponseEntity<?> registerSeller(@Valid @RequestBody SellerRegisterDTO consumerRegisterRequest) {
+        userService.registerSeller(consumerRegisterRequest);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Seller registered successfully");
     }
 }

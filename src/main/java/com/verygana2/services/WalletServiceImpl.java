@@ -18,6 +18,7 @@ import com.verygana2.dtos.wallet.responses.WalletResponse;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.Transaction;
+import com.verygana2.models.User;
 import com.verygana2.models.Wallet;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.WalletRepository;
@@ -38,12 +39,12 @@ public class WalletServiceImpl implements WalletService {
 
     // Creation
     @Override
-    public void createWallet(Long userId) {
-        if (walletRepository.existsByUserId(userId)) {
+    public void createWallet(User user) {
+        if (walletRepository.existsByUserId(user.getId())) {
             throw new IllegalArgumentException("Wallet has already been registered for this user");
         }
 
-        Wallet wallet = Wallet.createWallet(userId);
+        Wallet wallet = Wallet.createWallet(user);
         walletRepository.save(wallet);
     }
     

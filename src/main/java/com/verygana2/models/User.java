@@ -1,11 +1,9 @@
 package com.verygana2.models;
 
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.verygana2.dtos.auth.UserRegisterRequest;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserState;
 import com.verygana2.models.raffles.RaffleTicket;
@@ -30,7 +28,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class User{
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, optional = false)
     private UserDetails userDetails;
 
     @Enumerated(EnumType.STRING)
@@ -61,14 +59,5 @@ public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;
-
-    public User(UserRegisterRequest userRegisterRequest) {
-        this.email = userRegisterRequest.getEmail();
-        this.role = userRegisterRequest.getRole();
-        this.phoneNumber = userRegisterRequest.getPhoneNumber();
-        this.password = userRegisterRequest.getPassword();
-        this.userState = UserState.ACTIVE;
-        this.registeredDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-    }
 }
 

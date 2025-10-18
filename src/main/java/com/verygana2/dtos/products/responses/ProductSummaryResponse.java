@@ -5,7 +5,7 @@ import java.math.BigDecimal;
 public record ProductSummaryResponse (
     Long id,
     String name,
-    String imageUrl,
+    String imagesUrl,
     BigDecimal price,
     Double averageRate,
     Integer stock
