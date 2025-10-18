@@ -21,9 +21,6 @@ public class ProductCategory {
     @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column(length = 500)
-    private String description;
-
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 

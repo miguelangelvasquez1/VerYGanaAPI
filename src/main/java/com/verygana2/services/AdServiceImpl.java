@@ -19,13 +19,13 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
+import com.verygana2.models.Category;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdLikeId;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Category;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
 import com.verygana2.models.userDetails.AdvertiserDetails;
@@ -192,10 +192,10 @@ public class AdServiceImpl implements AdService {
     @Override
     @Transactional(readOnly = true)
     public Page<AdResponseDTO> getAvailableAdsByCategory(
-            Category category, Pageable pageable) {
+            List<Category> categories, Pageable pageable) {
         
-        Page<Ad> ads = adRepository.findAvailableAdsByCategory(
-            category, LocalDateTime.now(), pageable
+        Page<Ad> ads = adRepository.findAvailableAdsByCategories(
+            categories, LocalDateTime.now(), pageable
         );
         return ads.map(adMapper::toDto);
     }

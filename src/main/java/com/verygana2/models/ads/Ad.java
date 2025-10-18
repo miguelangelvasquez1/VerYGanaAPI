@@ -5,8 +5,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.Category;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Category;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
 import jakarta.persistence.*;
@@ -66,19 +66,19 @@ public class Ad {
     private LocalDateTime updatedAt;
 
     @Column(name = "start_date")
-    private LocalDateTime startDate; //Could be null, meaning it starts immediately
+    private LocalDateTime startDate; // Could be null, meaning it starts immediately
 
     @Column(name = "end_date")
-    private LocalDateTime endDate; //Could be null, meaning it runs indefinitely until maxLikes is reached
+    private LocalDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
 
     @NotNull(message = "El presupuesto total es obligatorio")
     @DecimalMin(value = "1.00", message = "El presupuesto debe ser mayor a 0")
     @Column(name = "total_budget", nullable = false, precision = 19, scale = 2)
-    private BigDecimal totalBudget; //Se puede calcular como rewardPerLike * maxLikes
+    private BigDecimal totalBudget; // Se puede calcular como rewardPerLike * maxLikes
 
     @Column(name = "spent_budget", nullable = false, precision = 19, scale = 2)
     @Builder.Default
-    private BigDecimal spentBudget = BigDecimal.ZERO; //Se puede calcular como rewardPerLike * currentLikes
+    private BigDecimal spentBudget = BigDecimal.ZERO; // Se puede calcular como rewardPerLike * currentLikes
 
     @NotNull(message = "El anunciante es obligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -93,14 +93,16 @@ public class Ad {
     private String contentUrl;
 
     @Column(name = "target_url", length = 500)
-    private String targetUrl; //When de user clicks the ad, where to redirect
+    private String targetUrl; // When de user clicks the ad, where to redirect
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 50)
-    private Category category;
+    @ManyToMany
+    @JoinTable(name = "ad_categories", joinColumns = @JoinColumn(name = "ad_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @NotNull(message = "Preferences are required")
+    @Size(min = 1, message = "At least one category must be selected")
+    private List<Category> categories;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
-    private String rejectionReason; //Si el anuncio es rechazado, se puede guardar la razón aquí
+    private String rejectionReason; // Si el anuncio es rechazado, se puede guardar la razón aquí
 
     @PrePersist
     protected void onCreate() {
@@ -125,10 +127,10 @@ public class Ad {
 
     // Métodos de utilidad
     public boolean canReceiveLike() {
-        return status == AdStatus.ACTIVE && 
-               currentLikes < maxLikes &&
-               (endDate == null || endDate.isAfter(LocalDateTime.now())) &&
-               hasRemainingBudget();
+        return status == AdStatus.ACTIVE &&
+                currentLikes < maxLikes &&
+                (endDate == null || endDate.isAfter(LocalDateTime.now())) &&
+                hasRemainingBudget();
     }
 
     public boolean hasRemainingBudget() {
@@ -138,7 +140,7 @@ public class Ad {
     public void incrementLike(BigDecimal rewardAmount) {
         this.currentLikes++;
         this.spentBudget = this.spentBudget.add(rewardAmount);
-        
+
         // Auto-desactivar si se alcanza el límite
         if (this.currentLikes >= this.maxLikes || !hasRemainingBudget()) {
             this.status = AdStatus.COMPLETED;

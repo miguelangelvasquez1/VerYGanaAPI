@@ -1,26 +1,28 @@
 package com.verygana2.dtos.user;
 
 import jakarta.validation.constraints.*;
+import lombok.Data;
 
-public record AdvertiserRegisterDTO(
+@Data
+public class AdvertiserRegisterDTO {
 
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")
-    String email,
+    private String email;
 
     @NotBlank(message = "Password is required")
     @Size(min = 6, message = "Password must have at least 6 characters")
-    String password,
+    private String password;
 
     @NotBlank(message = "Phone number is required")
-    String phoneNumber,
+    private String phoneNumber;
 
     @NotBlank(message = "Company name is required")
-    String companyName,
+    private String companyName;
 
     @NotBlank(message = "NIT is required")
-    String nit,
+    private String nit;
 
     @PositiveOrZero(message = "Ad budget must be zero or positive")
-    Double adBuget
-) {}
+    private Double adBuget;
+}

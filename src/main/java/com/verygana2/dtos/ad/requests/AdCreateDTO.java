@@ -2,8 +2,9 @@ package com.verygana2.dtos.ad.requests;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
-import com.verygana2.models.enums.Category;
+import com.verygana2.models.Category;
 
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -49,5 +50,5 @@ public class AdCreateDTO {
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;
     
-    private Category category;
+    private List<Category> categories;
 }

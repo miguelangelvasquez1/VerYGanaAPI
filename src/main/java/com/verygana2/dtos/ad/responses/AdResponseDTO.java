@@ -2,9 +2,10 @@ package com.verygana2.dtos.ad.responses;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
+import com.verygana2.models.Category;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.Category;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -35,7 +36,7 @@ public class AdResponseDTO {
     private Double completionPercentage;
     private String contentUrl;
     private String targetUrl;
-    private Category category;
+    private List<Category> categories;
     private String rejectionReason;
     
     // Información del anunciante
