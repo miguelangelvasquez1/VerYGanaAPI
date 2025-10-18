@@ -1,61 +1,90 @@
 package com.verygana2.services;
 
-
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.dtos.auth.UserRegisterRequest;
+import com.verygana2.dtos.user.AdvertiserRegisterDTO;
+import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.SellerRegisterDTO;
+import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
+import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.WalletService;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Transactional
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final WalletService walletService;
+    private final PasswordEncoder passwordEncoder;
+    private final UserMapper userMapper;
 
-    @Autowired
-    private WalletService walletService;
+    public User registerSeller(SellerRegisterDTO dto) {
+        User user = userMapper.toUser(dto);
+        user.setPassword(passwordEncoder.encode(dto.password()));
 
-    @Autowired
-    private PasswordEncoder passwordEncoder;
+        SellerDetails details = userMapper.toSellerDetails(dto);
+        details.setUser(user);
+        user.setUserDetails(details);
+
+        User savedUser = userRepository.save(user);
+        walletService.createWallet(savedUser);
+
+        return savedUser;
+    }
+
+    public User registerAdvertiser(AdvertiserRegisterDTO dto) {
+        User user = userMapper.toUser(dto);
+        user.setPassword(passwordEncoder.encode(dto.password()));
+
+        AdvertiserDetails details = userMapper.toAdvertiserDetails(dto);
+        details.setUser(user);
+        user.setUserDetails(details);
+
+        User savedUser = userRepository.save(user);
+        walletService.createWallet(savedUser);
+
+        return savedUser;
+    }
 
     @Override
-    public User registerUser(UserRegisterRequest userRegisterRequest) {
+    public User registerConsumer(ConsumerRegisterDTO dto) {
+        validateEmailAndPhoneNumber(dto.email(), dto.phoneNumber());
 
-        if (userRegisterRequest == null) {
-            throw new IllegalArgumentException("Request cannot be null");
-        }
+        User user = userMapper.toUser(dto);
+        user.setPassword(passwordEncoder.encode(dto.password()));
 
-        if (userRegisterRequest.getEmail() == null || userRegisterRequest.getEmail().isBlank()) {
-            throw new IllegalArgumentException("Email is required");
-        }
+        ConsumerDetails details = userMapper.toConsumerDetails(dto);
+        details.setUser(user);
+        user.setUserDetails(details);
 
-        if (userRepository.existsByEmail(userRegisterRequest.getEmail())) {
+        User savedUser = userRepository.save(user);
+        walletService.createWallet(savedUser);
+
+        return savedUser;
+    }
+
+    private void validateEmailAndPhoneNumber(String email, String phoneNumber) {
+
+        if (userRepository.existsByEmail(email)) {
             throw new IllegalStateException("Email already registered");
         }
 
-        if (userRepository.existsByPhoneNumber(userRegisterRequest.getPhoneNumber())) {
+        if (userRepository.existsByPhoneNumber(phoneNumber)) {
             throw new IllegalStateException("Phone number already registered");
         }
-
-        String encryptedPassword = passwordEncoder.encode(userRegisterRequest.getPassword());
-        userRegisterRequest.setPassword(encryptedPassword);
-
-        User user = new User(userRegisterRequest);
-
-        User savedUser = userRepository.save(user);
-
-        walletService.createWallet(savedUser.getId());
-
-        return savedUser;
     }
 
     @Override
@@ -104,4 +133,3 @@ public class UserServiceImpl implements UserService {
         userRepository.deleteById(id);
     }
 }
-

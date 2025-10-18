@@ -29,7 +29,7 @@ public interface ProductMapper {
     @Mapping(target = "priceFormatted", expression = "java(formatPrice(product.getPrice()))")
     ProductResponse toProductResponse(Product product);
 
-    @Mapping(target = "imageUrl", expression = "java(getFirstImageUrl(product.getImageUrls()))")
+    @Mapping(target = "imagesUrl", expression = "java(getFirstImageUrl(product.getImagesUrls()))")
     ProductSummaryResponse toProductSummaryResponse(Product product);
 
     default String getFirstImageUrl(List<String> imageUrls) {
