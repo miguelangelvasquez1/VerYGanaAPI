@@ -35,5 +35,5 @@ public class ConsumerRegisterDTO {
 
     @Size(min = 1, message = "At least one preference must be selected")
     @NotNull(message = "Preferences are required")
-    private List<Category> preferences;
+    private List<Category> categories;
 }

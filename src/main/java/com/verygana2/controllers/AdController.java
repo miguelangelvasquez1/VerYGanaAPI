@@ -39,7 +39,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
-@RequestMapping("/api/ads")
+@RequestMapping("/ads")
 @RequiredArgsConstructor
 @Validated
 @Slf4j
@@ -51,16 +51,15 @@ public class AdController {
 
     @GetMapping("/available")
     public ResponseEntity<Page<AdResponseDTO>> getAvailableAds(
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            Pageable pag) {
         
         Sort sort = sortDir.equalsIgnoreCase("ASC") 
             ? Sort.by(sortBy).ascending() 
             : Sort.by(sortBy).descending();
         
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageRequest.of(pag.getPageNumber(), pag.getPageSize(), sort);
         Page<AdResponseDTO> ads = adService.getAvailableAds(pageable);
         
         return ResponseEntity.ok(ads);
@@ -98,7 +97,7 @@ public class AdController {
     // ==================== ENDPOINTS PARA USUARIOS AUTENTICADOS ====================
 
     @PostMapping("/{id}/like")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('USER')") // Cambiar rol a consumer
     public ResponseEntity<AdResponseDTO> likeAd(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt,
@@ -119,7 +118,7 @@ public class AdController {
 
     @GetMapping("/user/available")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsForUser(
+    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsForUser( //Probar y ver lo del rol
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") @Min(0) int page,
             @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {

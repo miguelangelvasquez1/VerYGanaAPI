@@ -67,5 +67,6 @@ public interface UserMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
+    @Mapping(target = "earnings", ignore = true)
     SellerDetails toSellerDetails(SellerRegisterDTO dto);
 }

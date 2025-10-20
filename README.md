@@ -20,6 +20,8 @@
 - Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad., swagger,
 - logs,
 - Ver los preauthorize, ver mensajes de error para autenticaciones
+- Validar que 
+
 Mejoras Implementadas en tokens:
 
 Índices optimizados para queries rápidas
