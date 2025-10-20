@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Entity
@@ -19,6 +20,7 @@ public class ProductCategory {
     private Long id;
 
     @Column(nullable = false, unique = true, length = 100)
+    @NotBlank(message = "Product category name cannot be empty")
     private String name;
 
     @Column(name = "is_active", nullable = false)
@@ -28,6 +30,7 @@ public class ProductCategory {
     private LocalDateTime createdAt;
 
     @Column(name = "image_url", nullable = false)
+    @NotBlank(message = "Product category image url cannot be empty")
     private String imageUrl;
 
     @PrePersist

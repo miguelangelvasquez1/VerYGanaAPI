@@ -10,10 +10,7 @@ public class CreateProductCategoryRequest {
     @Size(max = 100, message = "The product category name cannot exceed 100 characters")
     private String name;
 
-    @NotBlank(message = "Product category description cannot be empty")
-    @Size(max = 200, message = "The product category description cannot exceed 200 characters")
-    private String description;
-    
+    @NotBlank(message = "Image url cannot be empty")
     private String imageUrl;
    
 }
