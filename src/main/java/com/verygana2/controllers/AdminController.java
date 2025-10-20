@@ -1,6 +1,6 @@
 package com.verygana2.controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.admin.responses.AdminReportResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.products.requests.CreateProductCategoryRequest;
 import com.verygana2.dtos.wallet.requests.BlockBalanceRequest;
 import com.verygana2.dtos.wallet.requests.UnblockBalanceRequest;
 import com.verygana2.services.interfaces.AdminService;
+import com.verygana2.services.interfaces.ProductCategoryService;
 
 import jakarta.validation.Valid;
 
@@ -20,8 +23,13 @@ import jakarta.validation.Valid;
 @RequestMapping("/admin")
 public class AdminController {
     
-    @Autowired
-    private AdminService adminService;
+    private final AdminService adminService;
+    private final ProductCategoryService productCategoryService;
+
+    public AdminController(AdminService adminService, ProductCategoryService productCategoryService){
+        this.adminService = adminService;
+        this.productCategoryService = productCategoryService;
+    }
 
     // findByUserId
     // findByActionType
@@ -38,6 +46,13 @@ public class AdminController {
     public ResponseEntity<AdminReportResponse> unblockBalance (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid UnblockBalanceRequest request){
         Long userId = jwt.getClaim("userId");
         AdminReportResponse response = adminService.unblockBalance(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/create/productCategory")
+    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    public ResponseEntity<EntityCreatedResponse> createProductCategory(@RequestBody CreateProductCategoryRequest request){
+        EntityCreatedResponse response = productCategoryService.create(request);
         return ResponseEntity.ok(response);
     }
     

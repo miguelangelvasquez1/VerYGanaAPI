@@ -23,9 +23,6 @@ public class SellerRegisterDTO {
     @NotBlank(message = "Tax ID is required")
     private String taxId;
 
-    @PositiveOrZero(message = "Total products must be zero or positive")
-    private int totalProducts;
-
-    @NotBlank(message = "Delivery region is required")
-    private String deliveryRegion;
+    @NotBlank(message = "City is required")
+    private String city;
 }
