@@ -23,8 +23,9 @@ public class GlobalExceptionHandler {
     
     //Predetermined exception handler for IllegalArgumentException
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<String> handleGlobalException(Exception ex, WebRequest request) {
-        return new ResponseEntity<>("Ocurrió un error inesperado: " + ex.getMessage() + ex.getClass(), HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+        ex.printStackTrace();
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
     //*For error 403 with no scope */

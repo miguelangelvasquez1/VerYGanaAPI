@@ -23,6 +23,7 @@ import lombok.Data;
 @Entity
 @Builder
 @Data
+@Table(name = "ads")
 public class Ad {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
