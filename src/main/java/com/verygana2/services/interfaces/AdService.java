@@ -49,12 +49,12 @@ public interface AdService {
         LocalDateTime endDate
     );
     
-    // Consultas para usuarios (ver anuncios disponibles)
-    Page<AdResponseDTO> getAvailableAds(Pageable pageable);
-    
+    // Consultas para usuarios (ver anuncios disponibles)    
     Page<AdResponseDTO> getAvailableAdsByCategory(List<Category> categories, Pageable pageable);
     
     Page<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable);
+
+    long countAvailableAdsForUser(Long userId);
     
     // Acciones sobre anuncios
     AdResponseDTO activateAd(Long adId, Long advertiserId);

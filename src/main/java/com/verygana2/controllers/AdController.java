@@ -22,8 +22,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.verygana2.dtos.ad.requests.AdApprovalDTO;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
+import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
@@ -48,22 +48,6 @@ public class AdController {
     private final AdService adService;
 
     // ==================== ENDPOINTS PÚBLICOS ====================
-
-    @GetMapping("/available")
-    public ResponseEntity<Page<AdResponseDTO>> getAvailableAds(
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir,
-            Pageable pag) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("ASC") 
-            ? Sort.by(sortBy).ascending() 
-            : Sort.by(sortBy).descending();
-        
-        Pageable pageable = PageRequest.of(pag.getPageNumber(), pag.getPageSize(), sort);
-        Page<AdResponseDTO> ads = adService.getAvailableAds(pageable);
-        
-        return ResponseEntity.ok(ads);
-    }
 
     @GetMapping("/available/category/{category}")
     public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsByCategory(
@@ -94,10 +78,10 @@ public class AdController {
         return ResponseEntity.ok(ads);
     }
 
-    // ==================== ENDPOINTS PARA USUARIOS AUTENTICADOS ====================
+    // ==================== ENDPOINTS PARA USUARIOS CONSUMER ====================
 
     @PostMapping("/{id}/like")
-    @PreAuthorize("hasRole('USER')") // Cambiar rol a consumer
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<AdResponseDTO> likeAd(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt,
@@ -117,17 +101,25 @@ public class AdController {
     }
 
     @GetMapping("/user/available")
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsForUser( //Probar y ver lo del rol
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsForUser(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+            @RequestParam(defaultValue = "createdAt") String sortBy, //Puede ser por currentLikes para equilibrar
+            @RequestParam(defaultValue = "DESC") Sort.Direction sortDir,
+            Pageable pag) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<AdResponseDTO> ads = adService.getAvailableAdsForUser(
-            jwt.getClaim("userId"), 
-            pageable
+        Long userId = jwt.getClaim("userId");
+        
+        Pageable pageable = PageRequest.of(
+            pag.getPageNumber(), 
+            pag.getPageSize(), 
+            Sort.by(sortDir, sortBy)
         );
+        
+        Page<AdResponseDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
+        
+        log.info("Se retornaron {} anuncios de {} totales para usuario {}", 
+                 ads.getNumberOfElements(), ads.getTotalElements(), userId);
         
         return ResponseEntity.ok(ads);
     }
@@ -141,6 +133,20 @@ public class AdController {
         boolean hasLiked = adService.hasUserLikedAd(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(hasLiked);
     }
+
+    @GetMapping("/user/available/count")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<Long> countAvailableAdsForUser(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long userId = jwt.getClaim("userId");
+        long count = adService.countAvailableAdsForUser(userId);
+        
+        log.debug("Usuario {} tiene {} anuncios disponibles", userId, count);
+        
+        return ResponseEntity.ok(count);
+    }
+
 
     // ==================== ENDPOINTS PARA ANUNCIANTES ====================
 
@@ -319,12 +325,12 @@ public class AdController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdResponseDTO> rejectAd(
             @PathVariable Long id,
-            @RequestBody @Valid AdApprovalDTO approvalDto,
+            @RequestBody @Valid AdRejectDTO rejectDto,
             @AuthenticationPrincipal Jwt jwt) {
         
         AdResponseDTO ad = adService.rejectAd(
             id, 
-            approvalDto.getReason(), 
+            rejectDto.getReason(), 
             jwt.getClaim("userId")
         );
         return ResponseEntity.ok(ad);

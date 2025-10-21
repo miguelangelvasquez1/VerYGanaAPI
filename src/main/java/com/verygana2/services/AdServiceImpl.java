@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class AdServiceImpl implements AdService {
     private final TransactionRepository transactionRepository;
     private final AdMapper adMapper;
 
-    // ==================== CRUD Básico ====================
+    // ==================== Consultas para Anunciantes ====================
 
     @Override
     public AdResponseDTO createAd(AdCreateDTO createDto, Long advertiserId) {
@@ -140,8 +141,6 @@ public class AdServiceImpl implements AdService {
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado con ID: " + adId));
     }
 
-    // ==================== Consultas para Anunciantes ====================
-
     @Override
     @Transactional(readOnly = true)
     public Page<AdResponseDTO> getAdsByAdvertiser(Long advertiserId, Pageable pageable) {
@@ -179,37 +178,6 @@ public class AdServiceImpl implements AdService {
             .map(adMapper::toDto)
             .collect(Collectors.toList());
     }
-
-    // ==================== Consultas para Usuarios ====================
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AdResponseDTO> getAvailableAds(Pageable pageable) {
-        Page<Ad> ads = adRepository.findAvailableAds(LocalDateTime.now(), pageable);
-        return ads.map(adMapper::toDto);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AdResponseDTO> getAvailableAdsByCategory(
-            List<Category> categories, Pageable pageable) {
-        
-        Page<Ad> ads = adRepository.findAvailableAdsByCategories(
-            categories, LocalDateTime.now(), pageable
-        );
-        return ads.map(adMapper::toDto);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable) {
-        Page<Ad> ads = adRepository.findAvailableAdsNotSeenByUser(
-            userId, LocalDateTime.now(), pageable
-        );
-        return ads.map(adMapper::toDto);
-    }
-
-    // ==================== Acciones sobre Anuncios ====================
 
     @Override
     public AdResponseDTO activateAd(Long adId, Long advertiserId) {
@@ -280,6 +248,80 @@ public class AdServiceImpl implements AdService {
         return adMapper.toDto(savedAd);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AdResponseDTO> getAvailableAdsByCategory(
+            List<Category> categories, Pageable pageable) {
+        
+        Page<Ad> ads = adRepository.findAvailableAdsByCategories(
+            categories, LocalDateTime.now(), pageable
+        );
+        return ads.map(adMapper::toDto);
+    }
+
+    // ==================== Consultas para UsuariosConsumer ====================
+
+    /**
+     * Obtiene anuncios disponibles para un usuario con filtrado por categorías.
+     * Los resultados se ordenan por fecha de creación (más recientes primero).
+     * 
+     * @param userId ID del usuario
+     * @param pageable Parámetros de paginación
+     * @return Página de DTOs de anuncios disponibles
+     * @throws UserNotFoundException si el usuario no existe
+     */
+    @Transactional(readOnly = true)
+    public Page<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable) {
+        log.debug("Buscando anuncios disponibles para usuario: {}", userId);
+
+        // Validar que el usuario existe
+        if (!userRepository.existsById(userId)) {
+            log.error("Usuario no encontrado: {}", userId);
+            throw new ObjectNotFoundException("Usuario con ID " + userId + " no encontrado", User.class);
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        
+        // Intentar obtener anuncios con filtro de categorías
+        Page<Ad> adsPage = adRepository.findAvailableAdsForUser(
+            userId,
+            AdStatus.ACTIVE,
+            now,
+            pageable
+        );
+
+        // Si no hay resultados con categorías, intentar sin filtro de categorías
+        if (adsPage.isEmpty() && pageable.getPageNumber() == 0) {
+            log.debug("No se encontraron anuncios con filtro de categorías, intentando sin filtro");
+            adsPage = adRepository.findAvailableAdsForUserWithoutCategoryFilter(
+                userId,
+                AdStatus.ACTIVE,
+                now,
+                pageable
+            );
+        }
+
+        log.info("Se encontraron {} anuncios disponibles para usuario {}", 
+                 adsPage.getTotalElements(), userId);
+
+        return adsPage.map(adMapper::toDto);
+    }
+
+    /**
+     * Cuenta los anuncios disponibles para un usuario.
+     * 
+     * @param userId ID del usuario
+     * @return Cantidad de anuncios disponibles
+     */
+    @Transactional(readOnly = true)
+    // @Cacheable(value = "availableAdsCount", key = "#userId")
+    @Override
+    public long countAvailableAdsForUser(Long userId) {
+        LocalDateTime now = LocalDateTime.now();
+        return adRepository.countAvailableAdsForUser(userId, AdStatus.ACTIVE, now);
+    }
+
+
     // ==================== Procesamiento de Likes ====================
 
     @Override
@@ -348,7 +390,7 @@ public class AdServiceImpl implements AdService {
     @Override
     @Transactional(readOnly = true)
     public boolean hasUserLikedAd(Long adId, Long userId) {
-        return adRepository.hasUserLikedAd(adId, userId);
+        return adRepository.hasUserSeenAd(userId, adId);
     }
 
     // ==================== Gestión de Estado (Admin) ====================

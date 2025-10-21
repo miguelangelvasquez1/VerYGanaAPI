@@ -1,6 +1,7 @@
 package com.verygana2.exceptions;
 
 import java.time.Instant;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 
@@ -18,4 +19,5 @@ public class ErrorResponse {
     private String message;
     private Instant timestamp;
     private String path;
+    private Map<String, String> details; // <- For validation errors or additional info
 }

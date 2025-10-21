@@ -168,7 +168,7 @@ class AdServiceImplTest {
         // Arrange
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
         when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserLikedAd(1L, 2L)).thenReturn(false);
+        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
         when(adRepository.save(any(Ad.class))).thenReturn(ad);
         when(userRepository.save(any(User.class))).thenReturn(user);
         
@@ -191,7 +191,7 @@ class AdServiceImplTest {
         // Arrange
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
         when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserLikedAd(1L, 2L)).thenReturn(true);
+        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(true);
 
         // Act & Assert
         assertThrows(DuplicateLikeException.class, () -> {
@@ -204,7 +204,7 @@ class AdServiceImplTest {
         // Arrange
         when(userRepository.findById(2L)).thenReturn(Optional.of(user));
         when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserLikedAd(1L, 2L)).thenReturn(false);
+        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
 
         // Act & Assert
         assertThrows(InvalidAdStateException.class, () -> {

@@ -47,8 +47,7 @@ public class Product {
     @JoinColumn(name = "category_id", nullable = false)
     private ProductCategory category;
     
-
-    @Column(name = "average_rate", nullable = false, columnDefinition = "DECIMAL(3,2) DEFAULT 0.00")
+    @Column(name = "average_rate")
     private Double averageRate;
     
     // Campos adicionales recomendados
