@@ -1,6 +1,6 @@
 package com.verygana2.dtos.ad.requests;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -11,11 +11,9 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdApprovalDTO {
+public class AdRejectDTO {
     
-    @NotNull(message = "La decisión de aprobación es obligatoria")
-    private Boolean isApproved;
-    
+    @NotBlank(message = "La razón de rechazo es obligatoria")
     @Size(max = 500, message = "La razón no puede exceder 500 caracteres")
     private String reason; // Requerido si approved = false
 }

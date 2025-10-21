@@ -23,7 +23,29 @@ import lombok.Data;
 @Entity
 @Builder
 @Data
-@Table(name = "ads")
+@Table(
+    name = "ads",
+    indexes = {
+        // Índice compuesto para búsqueda de anuncios activos disponibles
+        @Index(
+            name = "idx_ads_availability",
+            columnList = "status, current_likes, max_likes, end_date, created_at"
+        ),
+        // Índice para verificar presupuesto restante
+        @Index(
+            name = "idx_ads_budget",
+            columnList = "spent_budget, reward_per_like, total_budget"
+        ),
+        // Índice para búsqueda por fecha de inicio
+        @Index(name = "idx_ads_start_date", columnList = "start_date"),
+        // Índice por anunciante
+        @Index(name = "idx_ads_advertiser", columnList = "advertiser_id"),
+        // Índice para anuncios activos ordenados por fecha de creación
+        @Index(name = "idx_ads_active_created", columnList = "status, created_at"),
+        // Índice para anuncios completados
+        @Index(name = "idx_ads_completed", columnList = "status, updated_at")
+    }
+)
 public class Ad {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

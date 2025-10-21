@@ -17,7 +17,6 @@
 
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
 - Usar swagger para pruebas
-- Usar validators, mapper, dtos, excpetions personalizadas. --> Dejar la estructura con almenos una entidad., swagger,
 - logs,
 - Ver los preauthorize, ver mensajes de error para autenticaciones
 - Validar que 

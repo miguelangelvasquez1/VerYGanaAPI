@@ -20,32 +20,14 @@ import com.verygana2.models.enums.AdStatus;
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long> {
 
-       // Consultas básicas
-       List<Ad> findByAdvertiserId(Long advertiserId);
-
+       // Consultas para el anunciante
        Page<Ad> findByAdvertiserId(Long advertiserId, Pageable pageable);
 
        Optional<Ad> findByIdAndAdvertiserId(Long id, Long advertiserId);
 
-       // Consultas por estado
        List<Ad> findByStatus(AdStatus status);
 
        Page<Ad> findByStatus(AdStatus status, Pageable pageable);
-
-       // Anuncios disponibles para mostrar a usuarios
-       @Query("SELECT a FROM Ad a WHERE" +
-                     " a.status = 'ACTIVE' " +
-                     "AND a.currentLikes < a.maxLikes " +
-                     "AND (a.endDate IS NULL OR a.endDate > :now) " +
-                     "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
-       List<Ad> findAvailableAds(@Param("now") LocalDateTime now);
-
-       @Query("SELECT a FROM Ad a WHERE " +
-                     "a.status = 'ACTIVE' " +
-                     "AND a.currentLikes < a.maxLikes " +
-                     "AND (a.endDate IS NULL OR a.endDate > :now) " +
-                     "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
-       Page<Ad> findAvailableAds(@Param("now") LocalDateTime now, Pageable pageable);
 
        // Anuncios disponibles por categoría
        @Query("SELECT DISTINCT a FROM Ad a JOIN a.categories c WHERE " +
@@ -56,18 +38,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
                      "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
        Page<Ad> findAvailableAdsByCategories(
                      @Param("categories") List<Category> categories,
-                     @Param("now") LocalDateTime now,
-                     Pageable pageable);
-
-       // Anuncios que el usuario NO ha visto
-       @Query("SELECT a FROM Ad a WHERE " +
-                     "a.status = 'APPROVED' " +
-                     "AND a.currentLikes < a.maxLikes " +
-                     "AND (a.endDate IS NULL OR a.endDate > :now) " +
-                     "AND a.spentBudget + a.rewardPerLike <= a.totalBudget " +
-                     "AND NOT EXISTS (SELECT 1 FROM AdLike al WHERE al.ad.id = a.id AND al.user.id = :userId)")
-       Page<Ad> findAvailableAdsNotSeenByUser(
-                     @Param("userId") Long userId,
                      @Param("now") LocalDateTime now,
                      Pageable pageable);
 
@@ -112,11 +82,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
                      "WHERE a.id IN :ids")
        int deactivateAds(@Param("ids") List<Long> ids, @Param("now") LocalDateTime now);
 
-       // Verificar si un usuario ya dio like a un anuncio
-       @Query("SELECT CASE WHEN COUNT(al) > 0 THEN true ELSE false END " +
-                     "FROM AdLike al WHERE al.ad.id = :adId AND al.user.id = :userId")
-       boolean hasUserLikedAd(@Param("adId") Long adId, @Param("userId") Long userId);
-
        // Top anuncios por engagement
        @Query("SELECT a FROM Ad a WHERE a.status = 'APPROVED' " +
                      "ORDER BY a.currentLikes DESC")
@@ -133,4 +98,111 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        // Verificar si existe un anuncio activo con el mismo título para un advertiser
        boolean existsByAdvertiserIdAndTitle(Long advertiserId, String title);
 
+       // Consultas para usuarios consumer
+
+       /**
+        * Encuentra anuncios disponibles para un usuario específico.
+        * 
+        * Un anuncio es elegible si:
+        * - Está en estado ACTIVE
+        * - No ha alcanzado el máximo de likes
+        * - No ha expirado (o no tiene fecha de expiración)
+        * - Tiene presupuesto restante
+        * - El usuario no lo ha visto antes (no existe un AdLike)
+        * - Las categorías del anuncio coinciden con las preferencias del usuario
+        * 
+        * @param userId ID del usuario
+        * @param now Fecha y hora actual
+        * @param pageable Parámetros de paginación
+        * @return Página de anuncios disponibles
+        */
+       @Query("""
+              SELECT DISTINCT a FROM Ad a
+              LEFT JOIN FETCH a.categories
+              WHERE a.status = :status
+              AND a.currentLikes < a.maxLikes
+              AND (a.startDate IS NULL OR a.startDate <= :now)
+              AND (a.endDate IS NULL OR a.endDate > :now)
+              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
+              AND NOT EXISTS (
+                     SELECT 1 FROM AdLike al 
+                     WHERE al.ad.id = a.id 
+                     AND al.user.id = :userId
+              )
+              AND EXISTS (
+                     SELECT 1 FROM ConsumerDetails cd
+                     JOIN cd.categories pref
+                     JOIN cd.user u
+                     WHERE u.id = :userId
+                     AND pref IN (SELECT cat FROM a.categories cat)
+              )
+              ORDER BY a.createdAt DESC
+       """)
+       Page<Ad> findAvailableAdsForUser(
+              @Param("userId") Long userId,
+              @Param("status") AdStatus status,
+              @Param("now") LocalDateTime now,
+              Pageable pageable
+       );
+
+       /**
+        * Versión sin filtro de categorías para casos donde el usuario no tiene preferencias
+        */
+       @Query("""
+              SELECT DISTINCT a FROM Ad a
+              LEFT JOIN FETCH a.categories
+              WHERE a.status = :status
+              AND a.currentLikes < a.maxLikes
+              AND (a.startDate IS NULL OR a.startDate <= :now)
+              AND (a.endDate IS NULL OR a.endDate > :now)
+              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
+              AND NOT EXISTS (
+              SELECT 1 FROM AdLike al 
+              WHERE al.ad.id = a.id 
+              AND al.user.id = :userId
+              )
+              ORDER BY a.createdAt DESC
+       """)
+       Page<Ad> findAvailableAdsForUserWithoutCategoryFilter(
+              @Param("userId") Long userId,
+              @Param("status") AdStatus status,
+              @Param("now") LocalDateTime now,
+              Pageable pageable
+       );
+
+       /**
+        * Verifica si un usuario ya ha visto un anuncio específico
+        */
+       @Query("""
+              SELECT CASE WHEN COUNT(al) > 0 THEN true ELSE false END
+              FROM AdLike al
+              WHERE al.ad.id = :adId
+              AND al.user.id = :userId
+       """)
+       boolean hasUserSeenAd(
+              @Param("userId") Long userId,
+              @Param("adId") Long adId
+       );
+
+       /**
+        * Cuenta los anuncios disponibles para un usuario
+        */
+       @Query("""
+              SELECT COUNT(DISTINCT a) FROM Ad a
+              WHERE a.status = :status
+              AND a.currentLikes < a.maxLikes
+              AND (a.startDate IS NULL OR a.startDate <= :now)
+              AND (a.endDate IS NULL OR a.endDate > :now)
+              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
+              AND NOT EXISTS (
+              SELECT 1 FROM AdLike al 
+              WHERE al.ad.id = a.id 
+              AND al.user.id = :userId
+              )
+       """)
+       long countAvailableAdsForUser(
+              @Param("userId") Long userId,
+              @Param("status") AdStatus status,
+              @Param("now") LocalDateTime now
+       );
 }
