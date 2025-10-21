@@ -4,10 +4,11 @@ import java.util.List;
 
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
+import com.verygana2.dtos.generic.EntityCreatedResponse;
 
 public interface CategoryService {
 
-    CategoryResponseDTO create(CategoryRequestDTO dto);
+    EntityCreatedResponse create(CategoryRequestDTO dto);
 
     CategoryResponseDTO getById(Long id);
 

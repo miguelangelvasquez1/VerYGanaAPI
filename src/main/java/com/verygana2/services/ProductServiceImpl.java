@@ -25,27 +25,20 @@ import com.verygana2.services.interfaces.ProductCategoryService;
 import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.details.SellerDetailsService;
 
-
+import lombok.RequiredArgsConstructor;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class ProductServiceImpl implements ProductService {
 
-    
     private final ProductRepository productRepository;
-    
+
     private final ProductCategoryService productCategoryService;
 
     private final ProductMapper productMapper;
 
     private final SellerDetailsService sellerDetailsService;
-
-    public ProductServiceImpl(ProductRepository productRepository, ProductCategoryService productCategoryService, ProductMapper productMapper, SellerDetailsService sellerDetailsService){
-        this.productRepository = productRepository;
-        this.productCategoryService = productCategoryService;
-        this.productMapper = productMapper;
-        this.sellerDetailsService = sellerDetailsService;
-    }
 
     @Override
     public EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId) {
@@ -55,26 +48,45 @@ public class ProductServiceImpl implements ProductService {
         product.setSeller(seller);
         product.setCategory(category);
         productRepository.save(product);
-        EntityCreatedResponse response = new EntityCreatedResponse("Product created succesfully", Instant.now());
-
-        return response;
+        return new EntityCreatedResponse("Product created succesfully", Instant.now());
     }
 
     @Override
-    public void delete (Long productId, Long sellerId){
+    public Product getById(Long productId) {
+        return productRepository.findById(productId).orElseThrow(
+                () -> new ObjectNotFoundException("Product with id: " + productId + " not found", Product.class));
+    }
+
+    @Override
+    public void delete(Long productId, Long sellerId) {
         if (!productRepository.existsByIdAndSellerId(productId, sellerId)) {
-            throw new ObjectNotFoundException("Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
+            throw new ObjectNotFoundException(
+                    "Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
         }
-        productRepository.deleteById(productId);
+        Product product = getById(productId);
+        product.setActive(false);
+        productRepository.save(product);
+    }
+
+    @Override
+    public void deleteForAdmin(Long productId) {
+        // send a notification to product's owner with the reason of product elimination
+        Product product = getById(productId);
+        product.setActive(false);
+        productRepository.save(product);
     }
 
     @Override
     public void edit(Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest) {
         if (!productRepository.existsByIdAndSellerId(productId, sellerId)) {
-            throw new ObjectNotFoundException("Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
+            throw new ObjectNotFoundException(
+                    "Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
         }
-        Product product = productMapper.toProduct(createOrEditProductRequest);
-        product.setId(productId);
+        Product product = getById(productId);
+        productMapper.updateProductFromRequest(createOrEditProductRequest, product);
+
+        ProductCategory category = productCategoryService.getById(createOrEditProductRequest.getCategoryId());
+        product.setCategory(category);
         productRepository.save(product);
     }
 
@@ -105,7 +117,7 @@ public class ProductServiceImpl implements ProductService {
                 "price",
                 "averageRate",
                 "createdAt");
-                
+
         if (sortBy != null && allowedFields.contains(sortBy)) {
             return sortBy;
         }
@@ -115,13 +127,13 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResponse detailProduct(Long productId) {
-        if(productId == null || productId <= 0){
+        if (productId == null || productId <= 0) {
             throw new IllegalArgumentException("the product id must be positive");
         }
-        Product product = productRepository.findById(productId).orElseThrow(() -> new ObjectNotFoundException("the product with id: " + productId + " not found", Product.class));
+        Product product = productRepository.findById(productId).orElseThrow(
+                () -> new ObjectNotFoundException("the product with id: " + productId + " not found", Product.class));
         ProductResponse response = productMapper.toProductResponse(product);
         return response;
     }
-
 
 }

@@ -41,10 +41,10 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public AdminReportResponse blockBalance(Long userId, BlockBalanceRequest blockBalanceRequest) {
+    public AdminReportResponse blockBalance(BlockBalanceRequest blockBalanceRequest) {
         
-        Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + userId,
+        Wallet wallet = walletRepository.findByUserId(blockBalanceRequest.userId()).orElseThrow(
+                () -> new ObjectNotFoundException("Wallet not found for userId: " + blockBalanceRequest.userId(),
                         Wallet.class));
 
         BigDecimal previousBalance = wallet.getBalance();
@@ -56,7 +56,7 @@ public class AdminServiceImpl implements AdminService{
         BigDecimal newBalance = wallet.getBalance();
         BigDecimal newBlockedBalance = wallet.getBlockedBalance();
 
-        AdminReport report = AdminReport.createBlockBalanceReport(userId, blockBalanceRequest.amount(), blockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
+        AdminReport report = AdminReport.createBlockBalanceReport(blockBalanceRequest.userId(), blockBalanceRequest.amount(), blockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
         
         adminReportRepository.save(report);
 
@@ -66,9 +66,9 @@ public class AdminServiceImpl implements AdminService{
     }
 
     @Override
-    public AdminReportResponse unblockBalance(Long userId, UnblockBalanceRequest unblockBalanceRequest) {
-        Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + userId,
+    public AdminReportResponse unblockBalance(UnblockBalanceRequest unblockBalanceRequest) {
+        Wallet wallet = walletRepository.findByUserId(unblockBalanceRequest.userId()).orElseThrow(
+                () -> new ObjectNotFoundException("Wallet not found for userId: " + unblockBalanceRequest.userId(),
                         Wallet.class));
 
         BigDecimal previousBalance = wallet.getBalance();
@@ -80,7 +80,7 @@ public class AdminServiceImpl implements AdminService{
         BigDecimal newBalance = wallet.getBalance();
         BigDecimal newBlockedBalance = wallet.getBlockedBalance();
 
-        AdminReport report = AdminReport.createUnblockBalanceReport(userId, unblockBalanceRequest.amount(), unblockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
+        AdminReport report = AdminReport.createUnblockBalanceReport(unblockBalanceRequest.userId(), unblockBalanceRequest.amount(), unblockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
         adminReportRepository.save(report);
 
         AdminReportResponse response = new AdminReportResponse("Balance unblocked", unblockBalanceRequest.amount(), newBalance, LocalDateTime.now());

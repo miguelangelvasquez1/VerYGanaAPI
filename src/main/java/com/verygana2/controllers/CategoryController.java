@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
+import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.services.interfaces.CategoryService;
 
 import lombok.RequiredArgsConstructor;
@@ -20,7 +21,7 @@ public class CategoryController {
     private final CategoryService service;
 
     @PostMapping
-    public ResponseEntity<CategoryResponseDTO> create(@Validated @RequestBody CategoryRequestDTO dto) {
+    public ResponseEntity<EntityCreatedResponse> create(@Validated @RequestBody CategoryRequestDTO dto) {
         return ResponseEntity.ok(service.create(dto));
     }
 

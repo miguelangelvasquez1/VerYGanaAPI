@@ -51,7 +51,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService{
             throw new IllegalArgumentException("The categoryId must be positive");
         }
         
-        ProductCategory productCategory = productCategoryRepository.findById(categoryId).orElseThrow(() -> new ObjectNotFoundException("ProductCategory not found for categoryId: " + categoryId, ProductCategory.class));
+        ProductCategory productCategory = productCategoryRepository.findById(categoryId).orElseThrow(() -> new ObjectNotFoundException("ProductCategory with id: " + categoryId + " not found", ProductCategory.class));
         
         return productCategory;
     }
