@@ -2,6 +2,7 @@ package com.verygana2.mappers.products;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
 
 import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
 import com.verygana2.dtos.products.responses.ProductResponse;
@@ -14,7 +15,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
 
-    @Mapping(target = "category.id", ignore = true)
+    @Mapping(target = "category", ignore = true)
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "averageRate", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -22,6 +23,15 @@ public interface ProductMapper {
     @Mapping(target = "seller", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Product toProduct(CreateOrEditProductRequest request);
+
+    @Mapping(target = "category", ignore = true)
+    @Mapping(target = "active", ignore = true)
+    @Mapping(target = "averageRate", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "seller", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    void updateProductFromRequest(CreateOrEditProductRequest request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponse (completed) =====
     @Mapping(target = "categoryName", source = "category.name")
@@ -34,16 +44,15 @@ public interface ProductMapper {
 
     default String getFirstImageUrl(List<String> imageUrls) {
         if (imageUrls == null || imageUrls.isEmpty()) {
-        
+
             return "https://placeholder.com/default-product.jpg"; // Default URL
         }
         return imageUrls.get(0);
     }
 
     List<ProductResponse> toProductResponseList(List<Product> products);
-    List<ProductSummaryResponse> tProductSummaryResponseList (List<Product> products);
 
-
+    List<ProductSummaryResponse> tProductSummaryResponseList(List<Product> products);
 
     default String formatPrice(BigDecimal price) {
         if (price == null) {
