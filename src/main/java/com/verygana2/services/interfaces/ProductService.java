@@ -8,12 +8,18 @@ import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
 import com.verygana2.dtos.products.responses.ProductResponse;
 import com.verygana2.dtos.products.responses.ProductSummaryResponse;
+import com.verygana2.models.products.Product;
 
 public interface ProductService {
 
     EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId);
 
+    Product getById(Long productId);
+
     void delete (Long productId, Long sellerId);
+
+    // send a notification to product's owner with the reason of product elimination 
+    void deleteForAdmin(Long productId);
 
     void edit (Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest);
     

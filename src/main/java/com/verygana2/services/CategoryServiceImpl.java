@@ -1,13 +1,16 @@
 package com.verygana2.services;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
+import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.mappers.CategoryMapper;
 import com.verygana2.models.Category;
 import com.verygana2.repositories.CategoryRepository;
@@ -24,18 +27,19 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryMapper mapper;
 
     @Override
-    public CategoryResponseDTO create(CategoryRequestDTO dto) {
+    public EntityCreatedResponse create(CategoryRequestDTO dto) {
         if (repository.existsByName(dto.getName())) {
-            throw new IllegalArgumentException("La categoría con ese nombre ya existe");
+            throw new IllegalArgumentException("Already exists a category with that name");
         }
         Category category = mapper.toEntity(dto);
-        return mapper.toDTO(repository.save(category));
+        repository.save(category);
+        return new EntityCreatedResponse("Category created succesfully", Instant.now());
     }
 
     @Override
     public CategoryResponseDTO getById(Long id) {
         Category category = repository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
+            .orElseThrow(() -> new ObjectNotFoundException("Category with id: " + id + " not found", Category.class));
         return mapper.toDTO(category);
     }
 
@@ -50,10 +54,10 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public CategoryResponseDTO update(Long id, CategoryRequestDTO dto) {
         Category category = repository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("Categoría no encontrada"));
+            .orElseThrow(() -> new ObjectNotFoundException("Category with id: " + id + " not found", Category.class));
         
         if (repository.existsByName(dto.getName()) && !category.getName().equalsIgnoreCase(dto.getName())) {
-            throw new IllegalArgumentException("Ya existe otra categoría con ese nombre");
+            throw new IllegalArgumentException("Already exists a category with that name");
         }
         
         category.setName(dto.getName());
@@ -63,7 +67,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     public void delete(Long id) {
         if (!repository.existsById(id)) {
-            throw new IllegalArgumentException("Categoría no encontrada");
+            throw new ObjectNotFoundException("Category with id: " + id + " not found", Category.class);
         }
         repository.deleteById(id);
     }

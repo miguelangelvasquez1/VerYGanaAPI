@@ -14,8 +14,8 @@ public interface AdminService {
 
     Page<AdminReport> findByUserId (Long userId, Pageable pageable);
     Page<AdminReport> findByActionType(AdminActionType actionType, Pageable pageable);
-    AdminReportResponse blockBalance(Long userId, BlockBalanceRequest blockBalanceRequest);
-    AdminReportResponse unblockBalance(Long userId, UnblockBalanceRequest unblockBalanceRequest);
+    AdminReportResponse blockBalance(BlockBalanceRequest blockBalanceRequest);
+    AdminReportResponse unblockBalance(UnblockBalanceRequest unblockBalanceRequest);
 
     
 }

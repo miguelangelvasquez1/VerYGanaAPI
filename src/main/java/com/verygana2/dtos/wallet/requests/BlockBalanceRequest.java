@@ -9,7 +9,7 @@ import jakarta.validation.constraints.Size;
 
 public record BlockBalanceRequest(
 
+        @NotNull(message = "The user id cannot be null") Long userId,
         @NotNull(message = "The amount cannot be null") @DecimalMin(value = "0.01", inclusive = false, message = "The amount to block must be greater than zero") BigDecimal amount,
-
-        @NotNull(message = "The reason cannot be null") @NotBlank(message = "The reason cannot be empty") @Size(max = 255, message = "The reason cannot exceed 250 characters") String reason) {
+        @NotBlank(message = "The reason cannot be empty") @Size(max = 255, message = "The reason cannot exceed 250 characters") String reason) {
 }

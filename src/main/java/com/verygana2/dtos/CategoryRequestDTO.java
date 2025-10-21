@@ -7,7 +7,7 @@ import lombok.Data;
 @Data
 public class CategoryRequestDTO {
 
-    @NotBlank(message = "El nombre de la categoría es obligatorio")
-    @Size(max = 50, message = "El nombre no puede tener más de 50 caracteres")
+    @NotBlank(message = "The category name is required")
+    @Size(max = 50, message = "The category name cannot exceed 50 characters")
     private String name;
 }
