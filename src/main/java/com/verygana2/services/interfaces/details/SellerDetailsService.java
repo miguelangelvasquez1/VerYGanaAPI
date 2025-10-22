@@ -5,4 +5,5 @@ import com.verygana2.models.userDetails.SellerDetails;
 public interface SellerDetailsService {
     SellerDetails getSellerById (Long sellerId);
     SellerDetails getSellerByShopName(String shopName);
+    void getSellerStats(Long sellerId); // pending
 }

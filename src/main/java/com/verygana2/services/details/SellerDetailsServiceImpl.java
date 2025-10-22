@@ -31,5 +31,11 @@ public class SellerDetailsServiceImpl implements SellerDetailsService{
         }
         return sellerDetailsRepository.findByShopName(shopName).orElseThrow(() -> new ObjectNotFoundException("The seller with shop name: " + shopName + " not found", SellerDetails.class));
     }
+
+    @Override
+    public void getSellerStats(Long sellerId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getSellerStats'");
+    }
     
 }
