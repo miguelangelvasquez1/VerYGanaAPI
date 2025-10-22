@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.data.domain.Page;
 
@@ -22,8 +23,12 @@ public interface ProductService {
     void deleteForAdmin(Long productId);
 
     void edit (Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest);
+
+    Page<ProductSummaryResponse> getAllProducts(Integer page);
+
+    Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page); // pending
     
-    Page<ProductSummaryResponse> searchProducts(String searchQuery,
+    Page<ProductSummaryResponse> filterProducts(String searchQuery,
             Long categoryId,
             Double minRating,
             BigDecimal maxPrice,
@@ -32,4 +37,15 @@ public interface ProductService {
             String sortDirection);
 
     ProductResponse detailProduct(Long productId);
+
+    void updateStock(Long productId, Long sellerId, Integer newStock); // pending
+
+    void getProductStats(Long productId, Long userId); // pending
+
+    List<String> getBestSellers (); // pending
+
+    Page<ProductSummaryResponse> getfavorites (Long userId); // pending
+    void addFavorite (Long userId); // pending
+    void removeFavorite(Long userId); // pending
+
 }

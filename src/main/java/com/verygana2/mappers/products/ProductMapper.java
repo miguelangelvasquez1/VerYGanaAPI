@@ -10,6 +10,7 @@ import com.verygana2.dtos.products.responses.ProductSummaryResponse;
 import com.verygana2.models.products.Product;
 
 import java.math.BigDecimal;
+import java.text.DecimalFormat;
 import java.util.List;
 
 @Mapper(componentModel = "spring")
@@ -50,15 +51,12 @@ public interface ProductMapper {
         return imageUrls.get(0);
     }
 
-    List<ProductResponse> toProductResponseList(List<Product> products);
-
-    List<ProductSummaryResponse> tProductSummaryResponseList(List<Product> products);
-
     default String formatPrice(BigDecimal price) {
         if (price == null) {
-            return "$0.00";
+            return "$0";
         }
-        return String.format("$%.2f", price);
+        DecimalFormat formatter = new DecimalFormat("#,###");
+        return "$" + formatter.format(price);
     }
 
 }

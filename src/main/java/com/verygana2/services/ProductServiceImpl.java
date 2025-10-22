@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Set;
 
 import org.hibernate.ObjectNotFoundException;
@@ -9,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,7 +46,7 @@ public class ProductServiceImpl implements ProductService {
     public EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId) {
         SellerDetails seller = sellerDetailsService.getSellerById(sellerId);
         Product product = productMapper.toProduct(request);
-        ProductCategory category = productCategoryService.getById(sellerId);
+        ProductCategory category = productCategoryService.getById(request.getCategoryId());
         product.setSeller(seller);
         product.setCategory(category);
         productRepository.save(product);
@@ -92,7 +94,15 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponse> searchProducts(String searchQuery, Long categoryId, Double minRating,
+    public Page<ProductSummaryResponse> getAllProducts(Integer page){
+        Pageable pageable = PageRequest.of(page, 20, Direction.DESC, "createdAt");
+        Page<Product> activeProducts = productRepository.findAllActiveProducts(pageable);
+        return activeProducts.map(productMapper::toProductSummaryResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProductSummaryResponse> filterProducts(String searchQuery, Long categoryId, Double minRating,
             BigDecimal maxPrice, Integer page,
             String sortBy, String sortDirection) {
 
@@ -105,10 +115,8 @@ public class ProductServiceImpl implements ProductService {
 
         Page<Product> productPage = productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
                 pageable);
-        Page<ProductSummaryResponse> productSummaryResponsePage = productPage
-                .map(productMapper::toProductSummaryResponse);
 
-        return productSummaryResponsePage;
+        return productPage.map(productMapper::toProductSummaryResponse);
 
     }
 
@@ -134,6 +142,48 @@ public class ProductServiceImpl implements ProductService {
                 () -> new ObjectNotFoundException("the product with id: " + productId + " not found", Product.class));
         ProductResponse response = productMapper.toProductResponse(product);
         return response;
+    }
+
+    @Override
+    public Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getSellerProducts'");
+    }
+
+    @Override
+    public void updateStock(Long productId, Long sellerId, Integer newStock) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'updateStock'");
+    }
+
+    @Override
+    public void getProductStats(Long productId, Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getProductStats'");
+    }
+
+    @Override
+    public List<String> getBestSellers() {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getBestSellers'");
+    }
+
+    @Override
+    public Page<ProductSummaryResponse> getfavorites(Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'getfavorites'");
+    }
+
+    @Override
+    public void addFavorite(Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'addFavorite'");
+    }
+
+    @Override
+    public void removeFavorite(Long userId) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'removeFavorite'");
     }
 
 }
