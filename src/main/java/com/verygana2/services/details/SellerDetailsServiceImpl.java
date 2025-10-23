@@ -37,5 +37,10 @@ public class SellerDetailsServiceImpl implements SellerDetailsService{
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getSellerStats'");
     }
+
+    @Override
+    public boolean existsSellerById(Long sellerId) {
+        return sellerDetailsRepository.existsById(sellerId);
+    }
     
 }

@@ -26,7 +26,7 @@ public interface ProductService {
 
     Page<ProductSummaryResponse> getAllProducts(Integer page);
 
-    Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page); // pending
+    Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page);
     
     Page<ProductSummaryResponse> filterProducts(String searchQuery,
             Long categoryId,
@@ -38,14 +38,12 @@ public interface ProductService {
 
     ProductResponse detailProduct(Long productId);
 
-    void updateStock(Long productId, Long sellerId, Integer newStock); // pending
-
     void getProductStats(Long productId, Long userId); // pending
 
     List<String> getBestSellers (); // pending
 
-    Page<ProductSummaryResponse> getfavorites (Long userId); // pending
-    void addFavorite (Long userId); // pending
-    void removeFavorite(Long userId); // pending
+    Page<ProductSummaryResponse> getFavorites(Long userId, Integer page); // pending
+    void addFavorite (Long userId, Long productId); // pending
+    void removeFavorite(Long userId, Long productId); // pending
 
 }

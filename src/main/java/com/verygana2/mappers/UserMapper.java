@@ -33,6 +33,7 @@ public interface UserMapper {
     @Mapping(target = "dailyAdCount", ignore = true)
     @Mapping(target = "referralCode", ignore = true)
     @Mapping(target = "totalWithdraws", ignore = true)
+    @Mapping(target = "favoriteProducts", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----
