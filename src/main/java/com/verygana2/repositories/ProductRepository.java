@@ -35,4 +35,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
             @Param("maxPrice") BigDecimal maxPrice,
             Pageable pageable);
 
+    Page<Product> findBySellerId(Long sellerId, Pageable pageable);
+
+    @Query("SELECT p FROM ConsumerDetails c " +
+            "JOIN c.favoriteProducts p " +
+            "WHERE c.id = :userId " +
+            "AND p.isActive = true")
+    Page<Product> findFavoriteProductsByUserId(
+            @Param("userId") Long userId,
+            Pageable pageable);
+
 }
+ 

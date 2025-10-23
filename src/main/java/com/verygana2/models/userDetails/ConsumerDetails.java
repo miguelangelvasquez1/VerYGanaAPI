@@ -3,6 +3,7 @@ package com.verygana2.models.userDetails;
 import java.util.List;
 
 import com.verygana2.models.Category;
+import com.verygana2.models.products.Product;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
@@ -50,4 +51,8 @@ public class ConsumerDetails extends UserDetails {
     @NotNull(message = "Preferences are required")
     @Size(min = 1, message = "At least one category must be selected")
     private List<Category> categories;
+
+    @ManyToMany
+    @JoinTable(name = "consumer_favorites_products", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "product_id"))
+    private List<Product> favoriteProducts;
 }
