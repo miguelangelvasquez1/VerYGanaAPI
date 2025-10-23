@@ -1,10 +1,8 @@
 package com.verygana2.dtos.ad.requests;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
-
-import com.verygana2.models.Category;
 
 import jakarta.validation.constraints.*;
 import lombok.AllArgsConstructor;
@@ -36,13 +34,9 @@ public class AdCreateDTO {
     @Max(value = 10000, message = "No puede exceder 10,000 likes")
     private Integer maxLikes;
     
-    @NotNull(message = "El presupuesto total es obligatorio")
-    @DecimalMin(value = "1.00", message = "El presupuesto debe ser mayor a 0")
-    private BigDecimal totalBudget;
+    private ZonedDateTime startDate;
     
-    private LocalDateTime startDate;
-    
-    private LocalDateTime endDate;
+    private ZonedDateTime endDate;
     
     @Size(max = 500, message = "La URL de imagen no puede exceder 500 caracteres")
     private String contentUrl;
@@ -50,5 +44,5 @@ public class AdCreateDTO {
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;
     
-    private List<Category> categories;
+    private List<Long> categoryIds;
 }

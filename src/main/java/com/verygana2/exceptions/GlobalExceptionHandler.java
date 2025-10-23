@@ -3,6 +3,7 @@ package com.verygana2.exceptions;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,8 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
@@ -84,6 +87,21 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    //DataIntegrityViolation
+
+    // Jakarta Validation
+    @ExceptionHandler(ConstraintViolationException.class)
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException ex) {
+        // Extraer todos los mensajes de validación
+        String messages = ex.getConstraintViolations()
+                .stream()
+                .map(ConstraintViolation::getMessage)
+                .collect(Collectors.joining("; "));
+
+        return buildError(HttpStatus.BAD_REQUEST, messages);
+    }
+
+    // @Valid for DTOs
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();

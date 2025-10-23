@@ -5,6 +5,7 @@ import java.util.List;
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.models.Category;
 
 public interface CategoryService {
 
@@ -12,7 +13,7 @@ public interface CategoryService {
 
     CategoryResponseDTO getById(Long id);
 
-    List<CategoryResponseDTO> getAll();
+    List<Category> getAllCategories();
 
     CategoryResponseDTO update(Long id, CategoryRequestDTO dto);
 

@@ -5,7 +5,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +20,6 @@ import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
-import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
@@ -88,7 +87,7 @@ class AdServiceImplTest {
             .spentBudget(BigDecimal.ZERO)
             .status(AdStatus.APPROVED)
             .advertiser((AdvertiserDetails)advertiser.getUserDetails())
-            .createdAt(LocalDateTime.now())
+            .createdAt(ZonedDateTime.now())
             .categories(List.of(new Category()))
             .build();
 
@@ -98,8 +97,7 @@ class AdServiceImplTest {
             .description("Test Description")
             .rewardPerLike(BigDecimal.valueOf(0.50))
             .maxLikes(100)
-            .totalBudget(BigDecimal.valueOf(50))
-            .categories(List.of(new Category()))
+            .categoryIds(List.of(1L))
             .build();
     }
 
@@ -145,20 +143,6 @@ class AdServiceImplTest {
 
         // Act & Assert
         assertThrows(InvalidAdStateException.class, () -> {
-            adService.createAd(AdCreateDTO, 1L);
-        });
-    }
-
-    @Test
-    void testCreateAd_InsufficientBudget() {
-        // Arrange
-        AdCreateDTO.setTotalBudget(BigDecimal.valueOf(10)); // Menor al necesario
-        when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
-            .thenReturn(false);
-
-        // Act & Assert
-        assertThrows(InsufficientBudgetException.class, () -> {
             adService.createAd(AdCreateDTO, 1L);
         });
     }

@@ -1,8 +1,9 @@
 package com.verygana2.services;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
@@ -35,7 +36,10 @@ import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
+import com.verygana2.services.interfaces.CategoryService;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -44,12 +48,16 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Transactional
 public class AdServiceImpl implements AdService {
+
+    @PersistenceContext
+    private EntityManager entityManager;
     
     private final AdRepository adRepository;
     private final AdLikeRepository adLikeRepository;
     private final UserRepository userRepository;
     private final TransactionRepository transactionRepository;
     private final AdMapper adMapper;
+    private final CategoryService categoryService;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -57,31 +65,31 @@ public class AdServiceImpl implements AdService {
     public AdResponseDTO createAd(AdCreateDTO createDto, Long advertiserId) {
         log.info("Creating ad for advertiser: {}", advertiserId);
         
-        User advertiser = userRepository.findById(advertiserId)
-            .orElseThrow(() -> new AdNotFoundException("Advertiser not found"));
-        
         // Validar que no exista un anuncio activo con el mismo título
         if (adRepository.existsByAdvertiserIdAndTitle(advertiserId, createDto.getTitle())) {
             throw new InvalidAdStateException("Ya existe un anuncio activo con ese título");
         }
-        
-        // Validar presupuesto
-        BigDecimal minimumBudget = createDto.getRewardPerLike()
-            .multiply(BigDecimal.valueOf(createDto.getMaxLikes()));
-        
-        if (createDto.getTotalBudget().compareTo(minimumBudget) < 0) {
-            throw new InsufficientBudgetException(
-                "El presupuesto total debe ser al menos: " + minimumBudget
-            );
+
+        //Caché
+        List<Category> allCategories = categoryService.getAllCategories();
+
+        // Filtrar las que coinciden con los IDs enviados
+        Map<Long, Category> categoryMap = allCategories.stream()
+                .collect(Collectors.toMap(Category::getId, c -> c));
+
+        List<Category> selectedCategories = new ArrayList<>();
+        for (Long id : createDto.getCategoryIds()) {
+            Category category = categoryMap.get(id);
+            if (category == null) {
+                throw new IllegalArgumentException("La categoría con ID " + id + " no existe o fue eliminada.");
+            }
+            selectedCategories.add(category);
         }
         
         Ad ad = adMapper.toEntity(createDto);
-        ad.setAdvertiser((AdvertiserDetails)advertiser.getUserDetails());
-        ad.setCreatedAt(LocalDateTime.now());
-        ad.setStatus(AdStatus.PENDING);
-        ad.setCurrentLikes(0);
-        ad.setSpentBudget(BigDecimal.ZERO);
-        
+        ad.setAdvertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId));
+        ad.setCategories(selectedCategories);
+
         Ad savedAd = adRepository.save(ad);
         log.info("Ad created successfully with ID: {}", savedAd.getId());
         
@@ -103,7 +111,7 @@ public class AdServiceImpl implements AdService {
         }
         
         adMapper.updateEntityFromDto(updateDto, ad);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad updatedAd = adRepository.save(ad);
         return adMapper.toDto(updatedAd);
@@ -169,7 +177,7 @@ public class AdServiceImpl implements AdService {
     @Override
     @Transactional(readOnly = true)
     public List<AdResponseDTO> getAdsByAdvertiserAndDateRange(
-            Long advertiserId, LocalDateTime startDate, LocalDateTime endDate) {
+            Long advertiserId, ZonedDateTime startDate, ZonedDateTime endDate) {
         
         List<Ad> ads = adRepository.findByAdvertiserIdAndDateRange(
             advertiserId, startDate, endDate
@@ -191,10 +199,10 @@ public class AdServiceImpl implements AdService {
         }
         
         ad.setStatus(AdStatus.ACTIVE);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         if (ad.getStartDate() == null) {
-            ad.setStartDate(LocalDateTime.now());
+            ad.setStartDate(ZonedDateTime.now());
         }
         
         Ad savedAd = adRepository.save(ad);
@@ -208,7 +216,7 @@ public class AdServiceImpl implements AdService {
         Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} deactivated", adId);
@@ -222,7 +230,7 @@ public class AdServiceImpl implements AdService {
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
         ad.setStatus(AdStatus.PAUSED);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} paused", adId);
@@ -240,7 +248,7 @@ public class AdServiceImpl implements AdService {
         }
         
         ad.setStatus(AdStatus.ACTIVE);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} resumed", adId);
@@ -254,7 +262,7 @@ public class AdServiceImpl implements AdService {
             List<Category> categories, Pageable pageable) {
         
         Page<Ad> ads = adRepository.findAvailableAdsByCategories(
-            categories, LocalDateTime.now(), pageable
+            categories, ZonedDateTime.now(), pageable
         );
         return ads.map(adMapper::toDto);
     }
@@ -280,7 +288,7 @@ public class AdServiceImpl implements AdService {
             throw new ObjectNotFoundException("Usuario con ID " + userId + " no encontrado", User.class);
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now();
         
         // Intentar obtener anuncios con filtro de categorías
         Page<Ad> adsPage = adRepository.findAvailableAdsForUser(
@@ -317,7 +325,7 @@ public class AdServiceImpl implements AdService {
     // @Cacheable(value = "availableAdsCount", key = "#userId")
     @Override
     public long countAvailableAdsForUser(Long userId) {
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now();
         return adRepository.countAvailableAdsForUser(userId, AdStatus.ACTIVE, now);
     }
 
@@ -355,7 +363,7 @@ public class AdServiceImpl implements AdService {
             .user(user)
             .ad(ad)
             .rewardAmount(ad.getRewardPerLike())
-            .createdAt(LocalDateTime.now())
+            .createdAt(ZonedDateTime.now())
             .build();
         
         // Crear la transacción
@@ -364,8 +372,8 @@ public class AdServiceImpl implements AdService {
             .amount(ad.getRewardPerLike())
             .transactionType(TransactionType.POINTS_AD_LIKE_REWARD)
             .transactionState(TransactionState.COMPLETED)
-            .createdAt(LocalDateTime.now())
-            .completedAt(LocalDateTime.now())
+            .createdAt(ZonedDateTime.now())
+            .completedAt(ZonedDateTime.now())
             .build();
         
         transaction = transactionRepository.save(transaction);
@@ -408,7 +416,7 @@ public class AdServiceImpl implements AdService {
         }
         
         ad.setStatus(AdStatus.APPROVED);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} approved successfully", adId);
@@ -430,7 +438,7 @@ public class AdServiceImpl implements AdService {
         
         ad.setStatus(AdStatus.REJECTED);
         ad.setRejectionReason(reason);
-        ad.setUpdatedAt(LocalDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now());
         
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} rejected", adId);
@@ -475,13 +483,13 @@ public class AdServiceImpl implements AdService {
     public AdStatsDTO getAdvertiserStats(Long advertiserId) {
         Long totalAds = countAdsByAdvertiser(advertiserId);
         Long activeAds = countAdsByAdvertiserAndStatus(advertiserId, AdStatus.ACTIVE);
-        BigDecimal totalSpent = getTotalSpentByAdvertiser(advertiserId);
+        // BigDecimal totalSpent = getTotalSpentByAdvertiser(advertiserId);
         Long totalLikes = getTotalLikesByAdvertiser(advertiserId);
         
         return AdStatsDTO.builder()
             .totalAds(totalAds.intValue())
             .activeAds(activeAds.intValue())
-            .totalSpent(totalSpent)
+            // .totalSpent(totalSpent)
             .totalLikesReceived(totalLikes)
             .build();
     }
@@ -499,7 +507,7 @@ public class AdServiceImpl implements AdService {
     public void autoDeactivateCompletedAds() {
         log.info("Running auto-deactivation task for completed ads");
         
-        List<Ad> adsToDeactivate = adRepository.findAdsToAutoDeactivate(LocalDateTime.now());
+        List<Ad> adsToDeactivate = adRepository.findAdsToAutoDeactivate(ZonedDateTime.now());
         
         if (adsToDeactivate.isEmpty()) {
             log.info("No ads to deactivate");
@@ -508,7 +516,7 @@ public class AdServiceImpl implements AdService {
         
         for (Ad ad : adsToDeactivate) {
             ad.setStatus(AdStatus.COMPLETED);
-            ad.setUpdatedAt(LocalDateTime.now());
+            ad.setUpdatedAt(ZonedDateTime.now());
             adRepository.save(ad);
             
             log.info("Ad {} auto-deactivated. Reason: {} likes of {}, Budget: {} of {}",
@@ -524,12 +532,12 @@ public class AdServiceImpl implements AdService {
     public void checkExpiredAds() {
         log.info("Checking for expired ads");
         
-        List<Ad> expiredAds = adRepository.findAdsToAutoDeactivate(LocalDateTime.now());
+        List<Ad> expiredAds = adRepository.findAdsToAutoDeactivate(ZonedDateTime.now());
         
         for (Ad ad : expiredAds) {
-            if (ad.getEndDate() != null && ad.getEndDate().isBefore(LocalDateTime.now())) {
+            if (ad.getEndDate() != null && ad.getEndDate().isBefore(ZonedDateTime.now())) {
                 ad.setStatus(AdStatus.EXPIRED);
-                ad.setUpdatedAt(LocalDateTime.now());
+                ad.setUpdatedAt(ZonedDateTime.now());
                 adRepository.save(ad);
                 
                 log.info("Ad {} marked as expired", ad.getId());
@@ -574,12 +582,12 @@ public class AdServiceImpl implements AdService {
         return adRepository.countByAdvertiserIdAndStatus(advertiserId, status);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public BigDecimal getTotalSpentByAdvertiser(Long advertiserId) {
-        BigDecimal total = adRepository.sumSpentBudgetByAdvertiserId(advertiserId);
-        return total != null ? total : BigDecimal.ZERO;
-    }
+    // @Override
+    // @Transactional(readOnly = true)
+    // public BigDecimal getTotalSpentByAdvertiser(Long advertiserId) {
+    //     BigDecimal total = adRepository.sumSpentBudgetByAdvertiserId(advertiserId);
+    //     return total != null ? total : BigDecimal.ZERO;
+    // }
 
     @Override
     @Transactional(readOnly = true)

@@ -1,7 +1,7 @@
 package com.verygana2.models.ads;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -32,11 +32,6 @@ import lombok.NoArgsConstructor;
         @Index(
             name = "idx_ads_availability",
             columnList = "status, current_likes, max_likes, end_date, created_at"
-        ),
-        // Índice para verificar presupuesto restante
-        @Index(
-            name = "idx_ads_budget",
-            columnList = "spent_budget, reward_per_like, total_budget"
         ),
         // Índice para búsqueda por fecha de inicio
         @Index(name = "idx_ads_start_date", columnList = "start_date"),
@@ -87,24 +82,22 @@ public class Ad {
     private AdStatus status = AdStatus.PENDING;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
 
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private ZonedDateTime updatedAt;
 
     @Column(name = "start_date")
-    private LocalDateTime startDate; // Could be null, meaning it starts immediately
+    private ZonedDateTime startDate; // Could be null, meaning it starts immediately
 
     @Column(name = "end_date")
-    private LocalDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
+    private ZonedDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
 
-    @NotNull(message = "El presupuesto total es obligatorio")
-    @DecimalMin(value = "1.00", message = "El presupuesto debe ser mayor a 0")
-    @Column(name = "total_budget", nullable = false, precision = 19, scale = 2)
+    @Transient
     private BigDecimal totalBudget; // Se puede calcular como rewardPerLike * maxLikes
 
-    @Column(name = "spent_budget", nullable = false, precision = 19, scale = 2)
     @Builder.Default
+    @Transient
     private BigDecimal spentBudget = BigDecimal.ZERO; // Se puede calcular como rewardPerLike * currentLikes
 
     @NotNull(message = "El anunciante es obligatorio")
@@ -123,7 +116,11 @@ public class Ad {
     private String targetUrl; // When de user clicks the ad, where to redirect
 
     @ManyToMany
-    @JoinTable(name = "ad_categories", joinColumns = @JoinColumn(name = "ad_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
+    @JoinTable(
+        name = "ad_categories",
+        joinColumns = @JoinColumn(name = "ad_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
     @NotNull(message = "Preferences are required")
     @Size(min = 1, message = "At least one category must be selected")
     private List<Category> categories;
@@ -134,7 +131,7 @@ public class Ad {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = ZonedDateTime.now();
         }
         if (currentLikes == null) {
             currentLikes = 0;
@@ -149,24 +146,23 @@ public class Ad {
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = ZonedDateTime.now();
     }
 
     // Métodos de utilidad
     public boolean canReceiveLike() {
         return status == AdStatus.ACTIVE &&
                 currentLikes < maxLikes &&
-                (endDate == null || endDate.isAfter(LocalDateTime.now())) &&
+                (endDate == null || endDate.isAfter(ZonedDateTime.now())) &&
                 hasRemainingBudget();
     }
 
     public boolean hasRemainingBudget() {
-        return spentBudget.add(rewardPerLike).compareTo(totalBudget) <= 0;
+        return getSpentBudget().add(rewardPerLike).compareTo(getTotalBudget()) <= 0;
     }
 
     public void incrementLike(BigDecimal rewardAmount) {
         this.currentLikes++;
-        this.spentBudget = this.spentBudget.add(rewardAmount);
 
         // Auto-desactivar si se alcanza el límite
         if (this.currentLikes >= this.maxLikes || !hasRemainingBudget()) {
@@ -175,7 +171,7 @@ public class Ad {
     }
 
     public BigDecimal getRemainingBudget() {
-        return totalBudget.subtract(spentBudget);
+        return getTotalBudget().subtract(getSpentBudget());
     }
 
     public int getRemainingLikes() {
@@ -184,5 +180,19 @@ public class Ad {
 
     public double getCompletionPercentage() {
         return (currentLikes * 100.0) / maxLikes;
+    }
+
+    public BigDecimal getSpentBudget() {
+        if (rewardPerLike == null || currentLikes == null) {
+            return BigDecimal.ZERO;
+        }
+        return rewardPerLike.multiply(BigDecimal.valueOf(currentLikes));
+    }
+
+    public BigDecimal getTotalBudget() {
+        if (rewardPerLike == null || maxLikes == null) {
+            return BigDecimal.ZERO;
+        }
+        return rewardPerLike.multiply(BigDecimal.valueOf(maxLikes));
     }
 }

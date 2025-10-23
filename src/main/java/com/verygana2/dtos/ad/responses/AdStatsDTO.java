@@ -1,7 +1,7 @@
 package com.verygana2.dtos.ad.responses;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.AdStatus;
 
@@ -27,9 +27,9 @@ public class AdStatsDTO {
     private BigDecimal remainingBudget;
     private BigDecimal rewardPerLike;
     private AdStatus status;
-    private LocalDateTime createdAt;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
+    private ZonedDateTime createdAt;
+    private ZonedDateTime startDate;
+    private ZonedDateTime endDate;
     
     // Estadísticas generales de un anunciante
     private Integer totalAds;

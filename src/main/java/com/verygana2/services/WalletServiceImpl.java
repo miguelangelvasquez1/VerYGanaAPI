@@ -1,7 +1,7 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -91,7 +91,7 @@ public class WalletServiceImpl implements WalletService {
 
         wallet.addBalance(depositRequest.amount());
         Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount());
-        transaction.setCompletedAt(LocalDateTime.now());
+        transaction.setCompletedAt(ZonedDateTime.now());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
@@ -123,7 +123,7 @@ public class WalletServiceImpl implements WalletService {
         transactionRepository.save(transaction);
 
         TransactionResponse response = new TransactionResponse("Retiro exitoso", withdrawalRequest.amount(),
-                transaction.getReferenceId(), LocalDateTime.now());
+                transaction.getReferenceId(), ZonedDateTime.now());
 
         return response;
     }
@@ -169,7 +169,7 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(receiverWallet);
 
         TransactionResponse response = new TransactionResponse("Transferencia exitosa", transferRequest.amount(),
-                mutualReferenceId, LocalDateTime.now());
+                mutualReferenceId, ZonedDateTime.now());
 
         return response;
     }
