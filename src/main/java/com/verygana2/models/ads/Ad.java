@@ -17,8 +17,10 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Builder
@@ -46,6 +48,8 @@ import lombok.Data;
         @Index(name = "idx_ads_completed", columnList = "status, updated_at")
     }
 )
+@NoArgsConstructor
+@AllArgsConstructor
 public class Ad {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

@@ -1,6 +1,5 @@
 package com.verygana2.controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -14,12 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.models.User;
 import com.verygana2.services.interfaces.UserService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/users")
+@RequiredArgsConstructor
 public class UserController {
 
-    @Autowired
-    private UserService userService;
+    private final UserService userService;
 
     //Borrrar
     @GetMapping

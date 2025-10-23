@@ -32,6 +32,8 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
 
     public User registerSeller(SellerRegisterDTO dto) {
+        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
+
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
@@ -46,6 +48,8 @@ public class UserServiceImpl implements UserService {
     }
 
     public User registerAdvertiser(AdvertiserRegisterDTO dto) {
+        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
+
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
