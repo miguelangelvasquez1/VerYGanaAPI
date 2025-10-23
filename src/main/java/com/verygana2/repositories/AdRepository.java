@@ -1,7 +1,6 @@
 package com.verygana2.repositories;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,11 +33,10 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
                      "a.status = 'APPROVED' " +
                      "AND a.currentLikes < a.maxLikes " +
                      "AND c IN :categories " +
-                     "AND (a.endDate IS NULL OR a.endDate > :now) " +
-                     "AND a.spentBudget + a.rewardPerLike <= a.totalBudget")
+                     "AND (a.endDate IS NULL OR a.endDate > :now) ")
        Page<Ad> findAvailableAdsByCategories(
                      @Param("categories") List<Category> categories,
-                     @Param("now") LocalDateTime now,
+                     @Param("now") ZonedDateTime now,
                      Pageable pageable);
 
        // Consultas de estadísticas
@@ -50,8 +48,8 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
                      @Param("advertiserId") Long advertiserId,
                      @Param("status") AdStatus status);
 
-       @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.advertiser.id = :advertiserId")
-       BigDecimal sumSpentBudgetByAdvertiserId(@Param("advertiserId") Long advertiserId);
+       // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.advertiser.id = :advertiserId")
+       // BigDecimal sumSpentBudgetByAdvertiserId(@Param("advertiserId") Long advertiserId);
 
        @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.advertiser.id = :advertiserId")
        Long sumLikesByAdvertiserId(@Param("advertiserId") Long advertiserId);
@@ -59,9 +57,8 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        // Anuncios que necesitan ser desactivados automáticamente
        @Query("SELECT a FROM Ad a WHERE " +
                      "(a.currentLikes >= a.maxLikes " +
-                     "OR a.spentBudget + a.rewardPerLike > a.totalBudget " +
                      "OR (a.endDate IS NOT NULL AND a.endDate < :now))")
-       List<Ad> findAdsToAutoDeactivate(@Param("now") LocalDateTime now);
+       List<Ad> findAdsToAutoDeactivate(@Param("now") ZonedDateTime now);
 
        // Anuncios pendientes de aprobación
        @Query("SELECT a FROM Ad a WHERE a.status = 'PENDING' ORDER BY a.createdAt ASC")
@@ -80,7 +77,7 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        @Modifying
        @Query("UPDATE Ad a SET a.status = 'COMPLETED', a.updatedAt = :now " +
                      "WHERE a.id IN :ids")
-       int deactivateAds(@Param("ids") List<Long> ids, @Param("now") LocalDateTime now);
+       int deactivateAds(@Param("ids") List<Long> ids, @Param("now") ZonedDateTime now);
 
        // Top anuncios por engagement
        @Query("SELECT a FROM Ad a WHERE a.status = 'APPROVED' " +
@@ -92,8 +89,8 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
                      "AND a.createdAt BETWEEN :startDate AND :endDate")
        List<Ad> findByAdvertiserIdAndDateRange(
                      @Param("advertiserId") Long advertiserId,
-                     @Param("startDate") LocalDateTime startDate,
-                     @Param("endDate") LocalDateTime endDate);
+                     @Param("startDate") ZonedDateTime startDate,
+                     @Param("endDate") ZonedDateTime endDate);
 
        // Verificar si existe un anuncio activo con el mismo título para un advertiser
        boolean existsByAdvertiserIdAndTitle(Long advertiserId, String title);
@@ -123,7 +120,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
               AND a.currentLikes < a.maxLikes
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
-              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
               AND NOT EXISTS (
                      SELECT 1 FROM AdLike al 
                      WHERE al.ad.id = a.id 
@@ -141,7 +137,7 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        Page<Ad> findAvailableAdsForUser(
               @Param("userId") Long userId,
               @Param("status") AdStatus status,
-              @Param("now") LocalDateTime now,
+              @Param("now") ZonedDateTime now,
               Pageable pageable
        );
 
@@ -155,7 +151,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
               AND a.currentLikes < a.maxLikes
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
-              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
               AND NOT EXISTS (
               SELECT 1 FROM AdLike al 
               WHERE al.ad.id = a.id 
@@ -166,7 +161,7 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        Page<Ad> findAvailableAdsForUserWithoutCategoryFilter(
               @Param("userId") Long userId,
               @Param("status") AdStatus status,
-              @Param("now") LocalDateTime now,
+              @Param("now") ZonedDateTime now,
               Pageable pageable
        );
 
@@ -193,7 +188,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
               AND a.currentLikes < a.maxLikes
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
-              AND a.spentBudget + a.rewardPerLike <= a.totalBudget
               AND NOT EXISTS (
               SELECT 1 FROM AdLike al 
               WHERE al.ad.id = a.id 
@@ -203,6 +197,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
        long countAvailableAdsForUser(
               @Param("userId") Long userId,
               @Param("status") AdStatus status,
-              @Param("now") LocalDateTime now
+              @Param("now") ZonedDateTime now
        );
 }

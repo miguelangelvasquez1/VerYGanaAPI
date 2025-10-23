@@ -2,9 +2,10 @@ package com.verygana2.services;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +28,7 @@ public class CategoryServiceImpl implements CategoryService {
     private final CategoryMapper mapper;
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public EntityCreatedResponse create(CategoryRequestDTO dto) {
         if (repository.existsByName(dto.getName())) {
             throw new IllegalArgumentException("Already exists a category with that name");
@@ -44,14 +46,13 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public List<CategoryResponseDTO> getAll() { //Hacer dto en el repository
-        return repository.findAll()
-                .stream()
-                .map(mapper::toDTO)
-                .collect(Collectors.toList());
+    @Cacheable("categories")
+    public List<Category> getAllCategories() {
+        return repository.findAll();
     }
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public CategoryResponseDTO update(Long id, CategoryRequestDTO dto) {
         Category category = repository.findById(id)
             .orElseThrow(() -> new ObjectNotFoundException("Category with id: " + id + " not found", Category.class));
@@ -65,6 +66,7 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
+    @CacheEvict(value = "categories", allEntries = true)
     public void delete(Long id) {
         if (!repository.existsById(id)) {
             throw new ObjectNotFoundException("Category with id: " + id + " not found", Category.class);

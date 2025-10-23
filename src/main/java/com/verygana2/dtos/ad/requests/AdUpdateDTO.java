@@ -1,7 +1,7 @@
 package com.verygana2.dtos.ad.requests;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.verygana2.models.Category;
@@ -39,9 +39,9 @@ public class AdUpdateDTO {
     @DecimalMin(value = "1.00", message = "El presupuesto debe ser mayor a 0")
     private BigDecimal totalBudget;
     
-    private LocalDateTime startDate;
+    private ZonedDateTime startDate;
     
-    private LocalDateTime endDate;
+    private ZonedDateTime endDate;
     
     @Size(max = 500, message = "La URL de imagen no puede exceder 500 caracteres")
     private String contentUrl;

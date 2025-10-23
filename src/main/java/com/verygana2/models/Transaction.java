@@ -1,7 +1,7 @@
 package com.verygana2.models;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import com.verygana2.models.enums.TransactionState;
@@ -49,9 +49,9 @@ public class Transaction { // Future consideration: currency column, hacer esto 
     @Column(precision = 15, scale = 2)
     private BigDecimal amount;
     @Column(name= "created_at")
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
     @Column(name= "completed_at")
-    private LocalDateTime completedAt;
+    private ZonedDateTime completedAt;
 
     @PrePersist
     public void prePersist() {
@@ -60,7 +60,7 @@ public class Transaction { // Future consideration: currency column, hacer esto 
         }
 
         if (this.createdAt == null) {
-            this.createdAt = LocalDateTime.now();
+            this.createdAt = ZonedDateTime.now();
         }
     }
 

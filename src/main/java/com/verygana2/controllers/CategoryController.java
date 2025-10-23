@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.models.Category;
 import com.verygana2.services.interfaces.CategoryService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,8 +32,8 @@ public class CategoryController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CategoryResponseDTO>> getAll() {
-        return ResponseEntity.ok(service.getAll());
+    public ResponseEntity<List<Category>> getAll() {
+        return ResponseEntity.ok(service.getAllCategories());
     }
 
     @PutMapping("/{id}")

@@ -1,7 +1,7 @@
 package com.verygana2.models.ads;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.User;
 
@@ -51,12 +51,12 @@ public class AdLike {
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal rewardAmount;
     @Column(nullable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
     
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = ZonedDateTime.now();
         }
         if (id == null) {
             id = new AdLikeId();
@@ -75,6 +75,6 @@ public class AdLike {
         this.ad = ad;
         this.rewardAmount = rewardAmount;
         this.id = new AdLikeId(user.getId(), ad.getId());
-        this.createdAt = LocalDateTime.now();
+        this.createdAt = ZonedDateTime.now();
     }
 }

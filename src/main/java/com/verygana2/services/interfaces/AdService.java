@@ -1,7 +1,6 @@
 package com.verygana2.services.interfaces;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -45,8 +44,8 @@ public interface AdService {
     
     List<AdResponseDTO> getAdsByAdvertiserAndDateRange(
         Long advertiserId, 
-        LocalDateTime startDate, 
-        LocalDateTime endDate
+        ZonedDateTime startDate, 
+        ZonedDateTime endDate
     );
     
     // Consultas para usuarios (ver anuncios disponibles)    
@@ -99,7 +98,7 @@ public interface AdService {
     
     Long countAdsByAdvertiserAndStatus(Long advertiserId, AdStatus status);
     
-    BigDecimal getTotalSpentByAdvertiser(Long advertiserId);
+    // BigDecimal getTotalSpentByAdvertiser(Long advertiserId);
     
     Long getTotalLikesByAdvertiser(Long advertiserId);
 }

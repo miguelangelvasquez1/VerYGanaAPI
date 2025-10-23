@@ -19,7 +19,9 @@
 - Usar swagger para pruebas
 - logs,
 - Ver los preauthorize, ver mensajes de error para autenticaciones
-- Validar que 
+- Implementar redis en vez de caché?
+- Usar OffsetDateTime
+- Añadir caché de usuarios?
 
 Mejoras Implementadas en tokens:
 

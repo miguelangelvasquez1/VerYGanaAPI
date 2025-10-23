@@ -3,11 +3,13 @@ package com.verygana2;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.cache.annotation.EnableCaching;
 
 import com.verygana2.config.RsaKeyProperties;
 
 @SpringBootApplication
 @EnableConfigurationProperties(RsaKeyProperties.class)
+@EnableCaching
 public class RifacelApplication {
 
 	public static void main(String[] args) {
