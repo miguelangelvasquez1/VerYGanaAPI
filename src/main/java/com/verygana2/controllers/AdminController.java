@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.admin.responses.AdminReportResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.products.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
 import com.verygana2.dtos.wallet.requests.BlockBalanceRequest;
 import com.verygana2.dtos.wallet.requests.UnblockBalanceRequest;
 import com.verygana2.services.interfaces.AdminService;

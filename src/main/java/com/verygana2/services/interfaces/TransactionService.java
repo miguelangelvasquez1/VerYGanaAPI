@@ -12,6 +12,6 @@ public interface TransactionService {
      List<Transaction> getByWalletIdAndTransactionType(Long walletId, TransactionType transactionType);
      List<Transaction> getByWalletIdAndTransactionState(Long walletId, TransactionState transactionState);
      List<Transaction> getByWalletId(Long walletId);
-     Transaction getByReferenceId(String referenceId);
+     List<Transaction> getByReferenceId(String referenceId);
      boolean existsByReferenceId(String referenceId);
 }

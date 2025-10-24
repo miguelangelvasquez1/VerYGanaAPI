@@ -51,6 +51,27 @@ public class WalletServiceImpl implements WalletService {
     // Get
     @Transactional(readOnly = true)
     @Override
+    public Wallet getByOwnerId(Long ownerId) {
+
+         if (ownerId == null) {
+            throw new IllegalArgumentException("UserId cannot be null");
+        }
+
+        if (ownerId <= 0) {
+            throw new IllegalArgumentException("UserId must be positive");
+        }
+
+        Wallet wallet = walletRepository.findByUserId(ownerId)
+                .orElseThrow(
+                        () -> new ObjectNotFoundException("Wallet not found for userId: " + ownerId, Wallet.class));
+
+
+        return wallet;
+    }
+
+    
+    @Transactional(readOnly = true)
+    @Override
     public WalletResponse getWalletByOwnerId(Long ownerId) {
 
          if (ownerId == null) {
@@ -70,6 +91,7 @@ public class WalletServiceImpl implements WalletService {
 
         return response;
     }
+
 
     // Operations
     @Override

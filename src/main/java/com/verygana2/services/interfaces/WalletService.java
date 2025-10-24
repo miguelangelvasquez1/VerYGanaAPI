@@ -10,6 +10,7 @@ import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
 import com.verygana2.dtos.wallet.responses.WalletResponse;
 import com.verygana2.models.User;
+import com.verygana2.models.Wallet;
 
 public interface WalletService {
 
@@ -19,6 +20,7 @@ public interface WalletService {
     void createWallet(User user);
 
     // Get
+    Wallet getByOwnerId(Long ownerId);
     WalletResponse getWalletByOwnerId(Long ownerId);
 
     // Operations

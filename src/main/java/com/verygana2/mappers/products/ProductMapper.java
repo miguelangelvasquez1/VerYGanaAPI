@@ -4,9 +4,9 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
-import com.verygana2.dtos.products.responses.ProductResponse;
-import com.verygana2.dtos.products.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.product.responses.ProductResponse;
+import com.verygana2.dtos.product.responses.ProductSummaryResponse;
 import com.verygana2.models.products.Product;
 
 import java.math.BigDecimal;
