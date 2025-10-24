@@ -22,22 +22,19 @@ public class TransactionController {
     // Obtener lista de transacciones por el id de la billetera
     @GetMapping("/wallet/{walletId}")
     public ResponseEntity<List<Transaction>> getByUserIdOrderByDateDesc(@PathVariable Long walletId){
-        List<Transaction> foundTransactions = transactionService.getByWalletId(walletId);
-        return ResponseEntity.ok(foundTransactions);
+        return ResponseEntity.ok(transactionService.getByWalletId(walletId));
     }
 
     // Obtener transacción por código de referencia
     @GetMapping("/reference/{referenceCode}")
-    public ResponseEntity<Transaction> getByReferenceCode(@PathVariable String referenceCode){
-        Transaction foundTransaction = transactionService.getByReferenceId(referenceCode);
-        return ResponseEntity.ok(foundTransaction);
+    public ResponseEntity<List<Transaction>> getByReferenceCode(@PathVariable String referenceCode){
+        return ResponseEntity.ok(transactionService.getByReferenceId(referenceCode));
     }
 
     // Verificar si un código de referencia ya existe
     @GetMapping("/exists/referenceCode/{referenceCode}")
     public ResponseEntity<Boolean> existsByReferenceCode(@PathVariable String referenceCode){
-        boolean exists = transactionService.existsByReferenceId(referenceCode);
-        return ResponseEntity.ok(exists);
+        return ResponseEntity.ok(transactionService.existsByReferenceId(referenceCode));
     }
 }
 

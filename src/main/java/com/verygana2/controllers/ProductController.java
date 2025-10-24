@@ -21,9 +21,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
-import com.verygana2.dtos.products.responses.ProductResponse;
-import com.verygana2.dtos.products.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.product.responses.ProductResponse;
+import com.verygana2.dtos.product.responses.ProductSummaryResponse;
 import com.verygana2.services.interfaces.ProductService;
 
 import jakarta.validation.Valid;

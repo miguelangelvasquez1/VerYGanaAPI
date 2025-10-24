@@ -2,7 +2,6 @@ package com.verygana2.services;
 
 import java.util.List;
 
-import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -67,13 +66,11 @@ public class TransactionServiceImpl implements TransactionService {
    }
 
    @Override
-   public Transaction getByReferenceId(String referenceId) {
+   public List<Transaction> getByReferenceId(String referenceId) {
       if (referenceId == null || referenceId.isBlank()) {
          throw new IllegalArgumentException("ReferenceId null or not valid");
       }
-      return transactionRepository.findByReferenceId(referenceId)
-            .orElseThrow(() -> new ObjectNotFoundException("Transaction not found for referenceId: " + referenceId,
-                  Transaction.class));
+      return transactionRepository.findByReferenceId(referenceId);
    }
 
    @Override

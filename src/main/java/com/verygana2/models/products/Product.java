@@ -73,4 +73,15 @@ public class Product {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    public String getPrincipalImageUrl(){
+        return this.imagesUrls.get(0);
+    }
+
+    public void decrementStock(Integer quantity){
+        if (this.stock < quantity) {
+            throw new IllegalArgumentException("quantity to decrement is higher than current stock");
+        }
+        setStock(this.stock - quantity);
+    }
 }

@@ -3,7 +3,7 @@ package com.verygana2.mappers.products;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import com.verygana2.dtos.products.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
 import com.verygana2.models.products.ProductCategory;
 
 @Mapper(componentModel = "spring")

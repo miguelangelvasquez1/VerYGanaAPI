@@ -7,7 +7,7 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.products.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
 import com.verygana2.mappers.products.ProductCategoryMapper;
 import com.verygana2.models.products.ProductCategory;
 import com.verygana2.repositories.ProductCategoryRepository;

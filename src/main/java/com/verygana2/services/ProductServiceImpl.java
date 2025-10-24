@@ -16,9 +16,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.products.requests.CreateOrEditProductRequest;
-import com.verygana2.dtos.products.responses.ProductResponse;
-import com.verygana2.dtos.products.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.product.responses.ProductResponse;
+import com.verygana2.dtos.product.responses.ProductSummaryResponse;
 import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.mappers.products.ProductMapper;
 import com.verygana2.models.products.Product;
