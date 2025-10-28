@@ -4,8 +4,6 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import com.verygana2.models.Category;
-
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -36,9 +34,6 @@ public class AdUpdateDTO {
     @Max(value = 10000, message = "No puede exceder 10,000 likes")
     private Integer maxLikes;
     
-    @DecimalMin(value = "1.00", message = "El presupuesto debe ser mayor a 0")
-    private BigDecimal totalBudget;
-    
     private ZonedDateTime startDate;
     
     private ZonedDateTime endDate;
@@ -49,5 +44,5 @@ public class AdUpdateDTO {
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;
     
-    private List<Category> categories;
+    private List<Long> categoryIds;
 }

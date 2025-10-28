@@ -22,6 +22,7 @@
 - Implementar redis en vez de caché?
 - Usar OffsetDateTime
 - Añadir caché de usuarios?
+- Mirar lo del cache de categorias
 
 Mejoras Implementadas en tokens:
 

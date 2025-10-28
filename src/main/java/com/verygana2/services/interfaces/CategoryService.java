@@ -18,4 +18,6 @@ public interface CategoryService {
     CategoryResponseDTO update(Long id, CategoryRequestDTO dto);
 
     void delete(Long id);
+
+    List<Category> getValidatedCategories(List<Long> categoryIds);
 }

@@ -1,7 +1,10 @@
 package com.verygana2.services;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.cache.annotation.CacheEvict;
@@ -18,7 +21,9 @@ import com.verygana2.repositories.CategoryRepository;
 import com.verygana2.services.interfaces.CategoryService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -48,6 +53,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @Cacheable("categories")
     public List<Category> getAllCategories() {
+        log.info("Fetching categories from repository...");
         return repository.findAll();
     }
 
@@ -72,5 +78,60 @@ public class CategoryServiceImpl implements CategoryService {
             throw new ObjectNotFoundException("Category with id: " + id + " not found", Category.class);
         }
         repository.deleteById(id);
+    }
+
+    /**
+     * Valida y obtiene las categorías por sus IDs.
+     * Si el caché no las tiene todas, las consulta directamente en la base de datos.
+     */
+    @Override
+    public List<Category> getValidatedCategories(List<Long> categoryIds) {
+        if (categoryIds == null || categoryIds.isEmpty()) {
+            throw new IllegalArgumentException("Debe seleccionar al menos una categoría.");
+        }
+
+        // 1️ Intentar usar el caché
+        List<Category> allCached = getAllCategories();
+        Map<Long, Category> cachedMap = allCached.stream()
+                .collect(Collectors.toMap(Category::getId, c -> c));
+
+        List<Category> selected = new ArrayList<>();
+        List<Long> missingIds = new ArrayList<>();
+
+        // 2️ Buscar en el caché primero
+        for (Long id : categoryIds) {
+            Category c = cachedMap.get(id);
+            if (c != null) {
+                selected.add(c);
+            } else {
+                missingIds.add(id);
+            }
+        }
+
+        // 3️ Si faltan categorías, ir a la BD directamente
+        if (!missingIds.isEmpty()) {
+            log.info("Buscando en BD");
+            List<Category> dbCategories = repository.findAllById(missingIds);
+
+            if (dbCategories.size() != missingIds.size()) {
+                // Encontrar cuál ID no existe realmente
+                List<Long> foundIds = dbCategories.stream()
+                        .map(Category::getId)
+                        .toList();
+
+                Long missing = missingIds.stream()
+                        .filter(id -> !foundIds.contains(id))
+                        .findFirst()
+                        .orElse(null);
+
+                throw new IllegalArgumentException(
+                    "La categoría con ID " + missing + " no existe o fue eliminada."
+                );
+            }
+
+            selected.addAll(dbCategories);
+        }
+
+        return selected;
     }
 }

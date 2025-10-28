@@ -19,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
-import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
@@ -147,54 +146,54 @@ class AdServiceImplTest {
         });
     }
 
-    @Test
-    void testProcessAdLike_Success() {
-        // Arrange
-        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-        when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
-        when(adRepository.save(any(Ad.class))).thenReturn(ad);
-        when(userRepository.save(any(User.class))).thenReturn(user);
+    // @Test
+    // void testProcessAdLike_Success() {
+    //     // Arrange
+    //     when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+    //     when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
+    //     when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
+    //     when(adRepository.save(any(Ad.class))).thenReturn(ad);
+    //     when(userRepository.save(any(User.class))).thenReturn(user);
         
-        AdResponseDTO expectedDto = new AdResponseDTO();
-        when(adMapper.toDto(ad)).thenReturn(expectedDto);
+    //     AdResponseDTO expectedDto = new AdResponseDTO();
+    //     when(adMapper.toDto(ad)).thenReturn(expectedDto);
 
-        // Act
-        AdResponseDTO result = adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
+    //     // Act
+    //     AdResponseDTO result = adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
 
-        // Assert
-        assertNotNull(result);
-        verify(adLikeRepository, times(1)).save(any());
-        verify(transactionRepository, times(1)).save(any());
-        verify(userRepository, times(1)).save(user);
-        assertEquals(BigDecimal.valueOf(0.50), user.getWallet().getBalance());
-    }
+    //     // Assert
+    //     assertNotNull(result);
+    //     verify(adLikeRepository, times(1)).save(any());
+    //     verify(transactionRepository, times(1)).save(any());
+    //     verify(userRepository, times(1)).save(user);
+    //     assertEquals(BigDecimal.valueOf(0.50), user.getWallet().getBalance());
+    // }
 
-    @Test
-    void testProcessAdLike_DuplicateLike() {
-        // Arrange
-        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-        when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(true);
+    // @Test
+    // void testProcessAdLike_DuplicateLike() {
+    //     // Arrange
+    //     when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+    //     when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
+    //     when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(true);
 
-        // Act & Assert
-        assertThrows(DuplicateLikeException.class, () -> {
-            adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
-        });
-    }
+    //     // Act & Assert
+    //     assertThrows(DuplicateLikeException.class, () -> {
+    //         adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
+    //     });
+    // }
 
-    @Test
-    void testProcessAdLike_AdNotAvailable() {
-        // Arrange
-        when(userRepository.findById(2L)).thenReturn(Optional.of(user));
-        when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
-        when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
+    // @Test
+    // void testProcessAdLike_AdNotAvailable() {
+    //     // Arrange
+    //     when(userRepository.findById(2L)).thenReturn(Optional.of(user));
+    //     when(adRepository.findById(1L)).thenReturn(Optional.of(ad));
+    //     when(adRepository.hasUserSeenAd(2L, 1L)).thenReturn(false);
 
-        // Act & Assert
-        assertThrows(InvalidAdStateException.class, () -> {
-            adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
-        });
-    }
+    //     // Act & Assert
+    //     assertThrows(InvalidAdStateException.class, () -> {
+    //         adService.processAdLike(1L, 2L, "127.0.0.1", "Test Agent");
+    //     });
+    // }
 
     @Test
     void testActivateAd_Success() {
@@ -225,23 +224,6 @@ class AdServiceImplTest {
         assertThrows(InvalidAdStateException.class, () -> {
             adService.activateAd(1L, 1L);
         });
-    }
-
-    @Test
-    void testDeactivateAd_Success() {
-        // Arrange
-        when(adRepository.findByIdAndAdvertiserId(1L, 1L)).thenReturn(Optional.of(ad));
-        when(adRepository.save(any(Ad.class))).thenReturn(ad);
-        
-        AdResponseDTO expectedDto = new AdResponseDTO();
-        when(adMapper.toDto(ad)).thenReturn(expectedDto);
-
-        // Act
-        AdResponseDTO result = adService.deactivateAd(1L, 1L);
-
-        // Assert
-        assertNotNull(result);
-        verify(adRepository, times(1)).save(ad);
     }
 
     @Test

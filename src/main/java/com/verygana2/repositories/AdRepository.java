@@ -7,6 +7,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +18,7 @@ import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 
 @Repository
-public interface AdRepository extends JpaRepository<Ad, Long> {
+public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationExecutor<Ad> {
 
        // Consultas para el anunciante
        Page<Ad> findByAdvertiserId(Long advertiserId, Pageable pageable);
@@ -163,20 +164,6 @@ public interface AdRepository extends JpaRepository<Ad, Long> {
               @Param("status") AdStatus status,
               @Param("now") ZonedDateTime now,
               Pageable pageable
-       );
-
-       /**
-        * Verifica si un usuario ya ha visto un anuncio específico
-        */
-       @Query("""
-              SELECT CASE WHEN COUNT(al) > 0 THEN true ELSE false END
-              FROM AdLike al
-              WHERE al.ad.id = :adId
-              AND al.user.id = :userId
-       """)
-       boolean hasUserSeenAd(
-              @Param("userId") Long userId,
-              @Param("adId") Long adId
        );
 
        /**
