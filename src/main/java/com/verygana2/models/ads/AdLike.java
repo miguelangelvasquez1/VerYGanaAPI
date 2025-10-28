@@ -43,7 +43,7 @@ public class AdLike {
     @JoinColumn(nullable = false)
     private User user;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("adId")
     @JoinColumn(nullable = false)
     private Ad ad;

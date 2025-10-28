@@ -47,10 +47,13 @@ public interface AdMapper {
     @Mapping(target = "likes", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "updatedAt", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "spentBudget", ignore = true)
     @Mapping(target = "currentLikes", ignore = true)
-    void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity);
+    @Mapping(target = "rejectionReason", ignore = true)
+    @Mapping(target = "categories", ignore = true)
+    @Mapping(target = "totalBudget", ignore = true)
+    void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)
     List<AdResponseDTO> toDtoList(List<Ad> entities);

@@ -1,40 +1,32 @@
 package com.verygana2.controllers;
 
-import java.util.List;
-
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
+import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
-import com.verygana2.models.Category;
-import com.verygana2.models.enums.AdStatus;
 import com.verygana2.services.interfaces.AdService;
 
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,107 +38,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AdController {
 
     private final AdService adService;
-
-    // ==================== ENDPOINTS PÚBLICOS ====================
-
-    @GetMapping("/available/category/{category}")
-    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsByCategory(
-            @PathVariable List<Category> categories,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<AdResponseDTO> ads = adService.getAvailableAdsByCategory(categories, pageable);
-        
-        return ResponseEntity.ok(ads);
-    }
-
-    @GetMapping("/{id}")
-    public ResponseEntity<AdResponseDTO> getAdById(@PathVariable Long id) {
-        AdResponseDTO ad = adService.getAdById(id);
-        return ResponseEntity.ok(ad);
-    }
-
-    @GetMapping("/top")
-    public ResponseEntity<Page<AdResponseDTO>> getTopAds(
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(50) int size) {
-        
-        Pageable pageable = PageRequest.of(page, size);
-        Page<AdResponseDTO> ads = adService.getTopAdsByLikes(pageable);
-        
-        return ResponseEntity.ok(ads);
-    }
-
-    // ==================== ENDPOINTS PARA USUARIOS CONSUMER ====================
-
-    @PostMapping("/{id}/like")
-    @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<AdResponseDTO> likeAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt,
-            HttpServletRequest request) {
-        
-        String ipAddress = getClientIpAddress(request);
-        String userAgent = request.getHeader("User-Agent");
-        
-        AdResponseDTO ad = adService.processAdLike(
-            id, 
-            jwt.getClaim("userId"), 
-            ipAddress, 
-            userAgent
-        );
-        
-        return ResponseEntity.ok(ad);
-    }
-
-    @GetMapping("/user/available")
-    @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<Page<AdResponseDTO>> getAvailableAdsForUser(
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "createdAt") String sortBy, //Puede ser por currentLikes para equilibrar
-            @RequestParam(defaultValue = "DESC") Sort.Direction sortDir,
-            Pageable pag) {
-        
-        Long userId = jwt.getClaim("userId");
-        
-        Pageable pageable = PageRequest.of(
-            pag.getPageNumber(), 
-            pag.getPageSize(), 
-            Sort.by(sortDir, sortBy)
-        );
-        
-        Page<AdResponseDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
-        
-        log.info("Se retornaron {} anuncios de {} totales para usuario {}", 
-                 ads.getNumberOfElements(), ads.getTotalElements(), userId);
-        
-        return ResponseEntity.ok(ads);
-    }
-
-    @GetMapping("/{id}/has-liked")
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Boolean> hasUserLikedAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        boolean hasLiked = adService.hasUserLikedAd(id, jwt.getClaim("userId"));
-        return ResponseEntity.ok(hasLiked);
-    }
-
-    @GetMapping("/user/available/count")
-    @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<Long> countAvailableAdsForUser(
-            @AuthenticationPrincipal Jwt jwt
-    ) {
-        Long userId = jwt.getClaim("userId");
-        long count = adService.countAvailableAdsForUser(userId);
-        
-        log.debug("Usuario {} tiene {} anuncios disponibles", userId, count);
-        
-        return ResponseEntity.ok(count);
-    }
-
 
     // ==================== ENDPOINTS PARA ANUNCIANTES ====================
 
@@ -173,68 +64,14 @@ public class AdController {
         return ResponseEntity.ok(ad);
     }
 
-    @DeleteMapping("/{id}")
+    @GetMapping("/my-ads/filter")
     @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<Void> deleteAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        adService.deleteAd(id, jwt.getClaim("userId"));
-        return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/my-ads")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<Page<AdResponseDTO>> getMyAds(
+    public ResponseEntity<PagedResponse<AdResponseDTO>> getFilteredAds(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
-        
-        Sort sort = sortDir.equalsIgnoreCase("ASC") 
-            ? Sort.by(sortBy).ascending() 
-            : Sort.by(sortBy).descending();
-        
-        Pageable pageable = PageRequest.of(page, size, sort);
-        Page<AdResponseDTO> ads = adService.getAdsByAdvertiser(jwt.getClaim("userId"), pageable);
-        
-        return ResponseEntity.ok(ads);
-    }
+            @ModelAttribute AdFilterDTO filters,
+            Pageable pageable) {
 
-    @GetMapping("/my-ads/status/{status}")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<Page<AdResponseDTO>> getMyAdsByStatus(
-            @PathVariable AdStatus status,
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<AdResponseDTO> ads = adService.getAdsByAdvertiserAndStatus(
-            jwt.getClaim("userId"), 
-            status, 
-            pageable
-        );
-        
-        return ResponseEntity.ok(ads);
-    }
-
-    @GetMapping("/my-ads/search")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<Page<AdResponseDTO>> searchMyAds(
-            @RequestParam String query,
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<AdResponseDTO> ads = adService.searchAdvertiserAds(
-            jwt.getClaim("userId"), 
-            query, 
-            pageable
-        );
-        
+        PagedResponse<AdResponseDTO> ads = adService.getFilteredAds(jwt.getClaim("userId"), filters, pageable);
         return ResponseEntity.ok(ads);
     }
 
@@ -248,16 +85,6 @@ public class AdController {
         return ResponseEntity.ok(ad);
     }
 
-    @PostMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> deactivateAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        AdResponseDTO ad = adService.deactivateAd(id, jwt.getClaim("userId"));
-        return ResponseEntity.ok(ad);
-    }
-
     @PostMapping("/{id}/pause")
     @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdResponseDTO> pauseAd(
@@ -268,15 +95,37 @@ public class AdController {
         return ResponseEntity.ok(ad);
     }
 
-    @PostMapping("/{id}/resume")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> resumeAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
+    // ==================== ENDPOINTS PARA USUARIOS CONSUMER ====================
+
+    @GetMapping("/user/available")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<PagedResponse<AdResponseDTO>> getAvailableAdsForUser(
+            @AuthenticationPrincipal Jwt jwt,
+            Pageable pageable) { //sortBy puede ser por currentLikes para equilibrar
         
-        AdResponseDTO ad = adService.resumeAd(id, jwt.getClaim("userId"));
-        return ResponseEntity.ok(ad);
+        Long userId = jwt.getClaim("userId");
+        PagedResponse<AdResponseDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
+        
+        log.info("Se retornaron {} anuncios de {} totales para usuario {}", 
+                 ads.getMeta().getTotalElements(), ads.getMeta().getTotalElements(), userId);
+        
+        return ResponseEntity.ok(ads);
     }
+
+    @GetMapping("/user/available/count")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<Long> countAvailableAdsForUser(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long userId = jwt.getClaim("userId");
+        long count = adService.countAvailableAdsForUser(userId);
+        
+        log.debug("Usuario {} tiene {} anuncios disponibles", userId, count);
+        
+        return ResponseEntity.ok(count);
+    }
+
+    //Stats anunciantes
 
     @GetMapping("/{id}/stats")
     @PreAuthorize("hasRole('ADVERTISER')")
@@ -302,12 +151,9 @@ public class AdController {
     @GetMapping("/admin/pending")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<AdResponseDTO>> getPendingAds(
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+            Pageable pageable) {
         
-        Pageable pageable = PageRequest.of(page, size);
         Page<AdResponseDTO> ads = adService.getPendingApprovalAds(pageable);
-        
         return ResponseEntity.ok(ads);
     }
 
@@ -338,30 +184,30 @@ public class AdController {
 
     // ==================== UTILIDADES ====================
 
-    private String getClientIpAddress(HttpServletRequest request) {
-        String[] headerNames = {
-            "X-Forwarded-For",
-            "X-Real-IP",
-            "Proxy-Client-IP",
-            "WL-Proxy-Client-IP",
-            "HTTP_X_FORWARDED_FOR",
-            "HTTP_X_FORWARDED",
-            "HTTP_X_CLUSTER_CLIENT_IP",
-            "HTTP_CLIENT_IP",
-            "HTTP_FORWARDED_FOR",
-            "HTTP_FORWARDED",
-            "HTTP_VIA",
-            "REMOTE_ADDR"
-        };
+    // private String getClientIpAddress(HttpServletRequest request) {
+    //     String[] headerNames = {
+    //         "X-Forwarded-For",
+    //         "X-Real-IP",
+    //         "Proxy-Client-IP",
+    //         "WL-Proxy-Client-IP",
+    //         "HTTP_X_FORWARDED_FOR",
+    //         "HTTP_X_FORWARDED",
+    //         "HTTP_X_CLUSTER_CLIENT_IP",
+    //         "HTTP_CLIENT_IP",
+    //         "HTTP_FORWARDED_FOR",
+    //         "HTTP_FORWARDED",
+    //         "HTTP_VIA",
+    //         "REMOTE_ADDR"
+    //     };
 
-        for (String header : headerNames) {
-            String ip = request.getHeader(header);
-            if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
-                // Tomar la primera IP si hay múltiples
-                return ip.split(",")[0].trim();
-            }
-        }
+    //     for (String header : headerNames) {
+    //         String ip = request.getHeader(header);
+    //         if (ip != null && !ip.isEmpty() && !"unknown".equalsIgnoreCase(ip)) {
+    //             // Tomar la primera IP si hay múltiples
+    //             return ip.split(",")[0].trim();
+    //         }
+    //     }
 
-        return request.getRemoteAddr();
-    }
+    //     return request.getRemoteAddr();
+    // }
 }

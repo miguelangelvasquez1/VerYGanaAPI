@@ -12,8 +12,8 @@ public class PageableConfig {
     public PageableHandlerMethodArgumentResolverCustomizer customize() {
         return resolver -> {
             resolver.setOneIndexedParameters(false); // false = el page empieza en 0
-            resolver.setMaxPageSize(10);             // límite de size máximo permitido
+            resolver.setMaxPageSize(50);             // límite de size máximo permitido
             resolver.setFallbackPageable(PageRequest.of(0, 10)); // page=0, size=10 por defecto
         };
     }
-}
+}   

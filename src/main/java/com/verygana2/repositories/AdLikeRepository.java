@@ -17,6 +17,20 @@ import com.verygana2.models.ads.AdLikeId;
 @Repository
 public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
 
+    /**
+    * Verifica si un usuario ya ha visto un anuncio específico
+    */
+    @Query("""
+         SELECT CASE WHEN COUNT(al) > 0 THEN true ELSE false END
+           FROM AdLike al
+           WHERE al.ad.id = :adId
+           AND al.user.id = :userId
+    """)
+    boolean hasUserSeenAd(
+           @Param("userId") Long userId,
+           @Param("adId") Long adId
+    );
+
     // Buscar likes por usuario
     List<AdLike> findByUserId(Long userId);
     
