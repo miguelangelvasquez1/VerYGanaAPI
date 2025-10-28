@@ -68,9 +68,6 @@ public class Purchase {
     private BigDecimal taxAmount; // IVA u otros impuestos
 
     @Column(precision = 10, scale = 2)
-    private BigDecimal shippingCost; // Costo de envío (si aplica)
-
-    @Column(precision = 10, scale = 2)
     private BigDecimal discount; // Descuentos aplicados (cupones, promociones)
 
     @Column(nullable = false, precision = 10, scale = 2)
@@ -91,21 +88,12 @@ public class Purchase {
     private String deliveryPhone;
 
     @Column
-    private String deliveryNotes; // Instrucciones especiales de entrega
+    private String deliveryNotes; // Instrucciones especiales de entrega Ej: "Horario disponible 2-5pm"
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentMethod paymentMethod; // Siempre será WALLET por ahora
     // ===== TRACKING =====
-
-    @Column
-    private String trackingNumber; // Número de guía de envío
-
-    @Column
-    private LocalDateTime shippedDate;
-
-    @Column
-    private LocalDateTime deliveredDate;
 
     @Column
     private LocalDateTime cancelledDate;
@@ -150,7 +138,6 @@ public class Purchase {
 
         this.totalAmount = subtotal
                 .add(taxAmount)
-                .add(shippingCost != null ? shippingCost : BigDecimal.ZERO)
                 .subtract(discount != null ? discount : BigDecimal.ZERO);
     }
 

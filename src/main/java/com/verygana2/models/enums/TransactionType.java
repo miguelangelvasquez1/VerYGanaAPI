@@ -18,5 +18,5 @@ public enum TransactionType {
     // Transferencias
     GIFT_TRANSFER_SENT,     // Envío entre usuarios
     GIFT_TRANSFER_RECEIVED,  // Recepción entre usuarios
-    
+
 }

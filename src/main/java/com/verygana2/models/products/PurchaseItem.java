@@ -2,10 +2,13 @@ package com.verygana2.models.products;
 
 import java.math.BigDecimal;
 
+import com.verygana2.models.enums.PurchaseItemStatus;
 import com.verygana2.models.userDetails.SellerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -54,6 +57,10 @@ public class PurchaseItem {
     
     @Column
     private String productImageUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
     
     @PrePersist
     @PreUpdate

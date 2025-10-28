@@ -50,7 +50,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         // 1. Crear la compra
         Purchase purchase = new Purchase();
         purchase.setConsumer(consumerDetailsService.getConsumerById(consumerId));
-        purchase.setStatus(PurchaseStatus.PENDING);
+        purchase.setStatus(PurchaseStatus.IN_PROGRESS);
         purchase.setPaymentMethod(PaymentMethod.WALLET);
         purchase.setDeliveryAddress(request.getDeliveryAddress());
         // ... set otros campos
@@ -88,11 +88,11 @@ public class PurchaseServiceImpl implements PurchaseService {
         // 6. Procesar pago (desbloquear y transferir)
         try {
             processPurchasePayment(purchase, buyerWallet);
-            purchase.setStatus(PurchaseStatus.CONFIRMED);
+            purchase.setStatus(PurchaseStatus.PAID);
         } catch (Exception e) {
             // Si falla, desbloquear el saldo
             buyerWallet.unblockBalance(purchase.getTotalAmount());
-            purchase.setStatus(PurchaseStatus.PAYMENT_FAILED);
+            purchase.setStatus(PurchaseStatus.CANCELLED);
             throw e;
         }
 
