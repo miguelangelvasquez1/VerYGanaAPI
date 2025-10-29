@@ -44,25 +44,31 @@ public class PlatformTransaction {
     @Column(length = 500)
     private String description;
     
-    // Balance de la plataforma después de esta transacción
-    @Column(precision = 15, scale = 2, nullable = false)
-    private BigDecimal balance;
+    @Column(name = "balance_after", precision = 15, scale = 2, nullable = false)
+    private BigDecimal balanceAfter;
     
+    @Column(name = "available_balance_after", precision = 15, scale = 2)
+    private BigDecimal availableBalanceAfter;
+
     @Column(nullable = false)
     private ZonedDateTime createdAt;
 
     /**
      * Comisión por venta de producto
      */
-    public static PlatformTransaction createProductSaleCommission(
+    public static PlatformTransaction createPurchaseCommission(
             BigDecimal amount, 
-            String referenceId, 
-            String description) {
+            String referenceId,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.COMMISSION_PRODUCT_SALE)
             .amount(amount)
             .referenceId(referenceId)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -71,13 +77,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createRaffleCommission(
             BigDecimal amount, 
-            String referenceId, 
-            String description) {
+            String referenceId,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.COMMISSION_RAFFLE)
             .amount(amount)
             .referenceId(referenceId)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -86,13 +96,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createAdCommission(
             BigDecimal amount, 
-            String referenceId, 
-            String description) {
+            String referenceId,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.COMMISSION_AD)
             .amount(amount)
             .referenceId(referenceId)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -101,13 +115,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createRealMoneyDeposit(
             BigDecimal amount, 
-            String paymentReference, 
-            String description) {
+            String paymentReference,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.REAL_MONEY_DEPOSIT)
             .amount(amount)
             .referenceId(paymentReference)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -116,13 +134,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createWithdrawalReservation(
             BigDecimal amount, 
-            String withdrawalReference, 
-            String description) {
+            String withdrawalReference,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.WITHDRAWAL_RESERVED)
             .amount(amount.negate())  // ⚠️ Negativo porque es reserva
             .referenceId(withdrawalReference)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -131,13 +153,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createWithdrawalCompleted(
             BigDecimal amount, 
-            String withdrawalReference, 
-            String description) {
+            String withdrawalReference,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.WITHDRAWAL_COMPLETED)
             .amount(amount.negate())  // ⚠️ Negativo porque sale dinero
             .referenceId(withdrawalReference)
             .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -146,28 +172,17 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createWithdrawalCancellation(
             BigDecimal amount, 
-            String withdrawalReference, 
-            String description) {
+            String withdrawalReference,
+            String description,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.WITHDRAWAL_CANCELLED)
             .amount(amount)  // ⚠️ Positivo porque se libera la reserva
             .referenceId(withdrawalReference)
             .description(description)
-            .build();
-    }
-    
-    /**
-     * Comisión por suscripción premium
-     */
-    public static PlatformTransaction createPremiumSubscriptionCommission(
-            BigDecimal amount, 
-            String referenceId, 
-            String description) {
-        return PlatformTransaction.builder()
-            .type(PlatformTransactionType.COMMISSION_PREMIUM_SUBSCRIPTION)
-            .amount(amount)
-            .referenceId(referenceId)
-            .description(description)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
     
@@ -176,12 +191,16 @@ public class PlatformTransaction {
      */
     public static PlatformTransaction createManualAdjustment(
             BigDecimal amount, 
-            String reason) {
+            String reason,
+            BigDecimal updatedBalance,
+            BigDecimal updatedAvailableBalance) {
         return PlatformTransaction.builder()
             .type(PlatformTransactionType.MANUAL_ADJUSTMENT)
             .amount(amount)
             .referenceId("MANUAL-" + UUID.randomUUID())
             .description(reason)
+            .balanceAfter(updatedBalance)
+            .availableBalanceAfter(updatedAvailableBalance)
             .build();
     }
 }
