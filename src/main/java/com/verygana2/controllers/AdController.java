@@ -150,11 +150,11 @@ public class AdController {
 
     @GetMapping("/admin/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Page<AdResponseDTO>> getPendingAds(
+    public ResponseEntity<PagedResponse<AdResponseDTO>> getPendingAds(
             Pageable pageable) {
         
         Page<AdResponseDTO> ads = adService.getPendingApprovalAds(pageable);
-        return ResponseEntity.ok(ads);
+        return ResponseEntity.ok(PagedResponse.from(ads));
     }
 
     @PostMapping("/admin/{id}/approve")
