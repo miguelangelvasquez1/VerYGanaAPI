@@ -1,0 +1,109 @@
+spring:
+  application:
+    name: VerYGanaAPI
+  config:
+    import: optional:file:.env[.properties]
+
+  # =====================
+  # DATABASE CONFIGURATION
+  # =====================
+  datasource:
+    # POSTGRESQL RENDER (Production)
+    url: ${DB_URL:jdbc:postgresql://dpg-d3shcb8dl3ps73de54c0-a.oregon-postgres.render.com:5432/veryganadb}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: org.postgresql.Driver
+
+  # MYSQL LOCAL (Commented - for reference)
+    # url: jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota
+    # username: root
+    # password: 1234
+    # driver-class-name: com.mysql.cj.jdbc.Driver
+
+  # =====================
+  # JPA/HIBERNATE CONFIGURATION
+  # =====================
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        # dialect: org.hibernate.dialect.MySQL8Dialect  # Para MySQL
+        jdbc:
+          time_zone: America/Bogota
+
+  # =====================
+  # MULTIPART/FILE UPLOAD
+  # =====================
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+      file-size-threshold: 2MB
+
+# ============================================
+# JWT CONFIGURATION
+# ============================================
+rsa:
+  private-key: classpath:certs/private.pem
+  public-key: classpath:certs/public.pem
+
+jwt:
+  access-token:
+    expiration: 86400      # 1 day (in seconds)
+  refresh-token:
+    expiration: 604800     # 7 days (in seconds)
+
+# ============================================
+# STORAGE CONFIGURATION
+# ============================================
+storage:
+  provider: cloudinary  # Options: cloudinary, r2
+
+# =====================
+# CLOUDINARY (Development)
+# =====================
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+# =====================
+# CLOUDFLARE R2 (Production - Future)
+# =====================
+# cloudflare:
+#   r2:
+#     account-id: ${CLOUDFLARE_ACCOUNT_ID:}
+#     access-key-id: ${CLOUDFLARE_R2_ACCESS_KEY_ID:}
+#     secret-access-key: ${CLOUDFLARE_R2_SECRET_ACCESS_KEY:}
+#     bucket-name: ${CLOUDFLARE_R2_BUCKET_NAME:verygana-ads}
+#     public-domain: ${CLOUDFLARE_R2_PUBLIC_DOMAIN:}
+
+# ============================================
+# CACHE CONFIGURATION
+# ============================================
+spring.cache:
+  type: caffeine
+  caffeine:
+    spec: maximumSize=500,expireAfterWrite=5m
+  cache-names:
+    - availableAdsCount
+    - userPreferences
+
+# ============================================
+# LOGGING CONFIGURATION
+# ============================================
+logging:
+  level:
+    root: INFO
+    com.verygana2: DEBUG
+    com.verygana2.repositories: DEBUG
+    com.verygana2.services: INFO
+    com.verygana2.services.storage: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.springframework.security: DEBUG

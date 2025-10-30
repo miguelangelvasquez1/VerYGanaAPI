@@ -23,11 +23,11 @@ public interface AdService {
     
     AdResponseDTO getAdById(Long adId);
 
+    Ad getAdEntityById(Long adId);
+
     AdResponseDTO activateAd(Long adId, Long advertiserId);
         
     AdResponseDTO pauseAd(Long adId, Long advertiserId);
-    
-    Ad getAdEntityById(Long adId);
     
     // Consultas para consumers
     PagedResponse<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable);

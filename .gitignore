@@ -1,6 +1,9 @@
 # Claves privadas
 src/main/resources/certs/private.pem
 
+# Variables de entorno
+.env
+
 HELP.md
 target/
 .mvn/wrapper/maven-wrapper.jar
