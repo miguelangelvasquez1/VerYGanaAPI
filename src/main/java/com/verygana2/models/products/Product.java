@@ -78,9 +78,16 @@ public class Product {
         return this.imagesUrls.get(0);
     }
 
+    public void incrementStock(Integer quantity){
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity to increment must be positive");
+        }
+        setStock(this.stock + quantity);
+    }
+
     public void decrementStock(Integer quantity){
         if (this.stock < quantity) {
-            throw new IllegalArgumentException("quantity to decrement is higher than current stock");
+            throw new IllegalArgumentException("Quantity to decrement is higher than current stock");
         }
         setStock(this.stock - quantity);
     }

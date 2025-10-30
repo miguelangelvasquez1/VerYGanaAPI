@@ -112,7 +112,7 @@ public class WalletServiceImpl implements WalletService {
         // Payment gateway logic
 
         wallet.addBalance(depositRequest.amount());
-        Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount());
+        Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount(), depositRequest.paymentMethod());
         transaction.setCompletedAt(ZonedDateTime.now());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
@@ -140,7 +140,7 @@ public class WalletServiceImpl implements WalletService {
         }
 
         wallet.subtractBalance(withdrawalRequest.amount());
-        Transaction transaction = Transaction.createWithdrawalTransaction(wallet.getId(), withdrawalRequest.amount());
+        Transaction transaction = Transaction.createWithdrawalTransaction(wallet.getId(), withdrawalRequest.amount(), withdrawalRequest.paymentMethod());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
@@ -247,9 +247,9 @@ public class WalletServiceImpl implements WalletService {
         userWallet.addBalance(reward);
 
         String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
-        Transaction advertiserTransaction = Transaction.createAdLikeRewardTransaction(advertiserWallet.getId(), reward,
+        Transaction advertiserTransaction = Transaction.createAdLikeRewardSentTransaction(advertiserWallet.getId(), reward,
                 mutualReferenceId);
-        Transaction userTransaction = Transaction.createAdLikeRewardTransaction(userWallet.getId(), reward,
+        Transaction userTransaction = Transaction.createAdLikeRewardReceivedTransaction(userWallet.getId(), reward,
                 mutualReferenceId);
 
         transactionRepository.save(advertiserTransaction);
@@ -330,7 +330,7 @@ public class WalletServiceImpl implements WalletService {
         sellerWallet.addBalance(amount);
 
         String mutualReferenceId = UUID.randomUUID().toString();
-        Transaction buyerTransaction = Transaction.createProductPurchaseTransaction(buyerWallet.getId(), amount,
+        Transaction buyerTransaction = Transaction.createWholePurchaseTransaction(buyerWallet.getId(), amount,
                 mutualReferenceId);
         Transaction sellerTransaction = Transaction.createProductSaleTransaction(sellerWallet.getId(), amount,
                 mutualReferenceId);

@@ -56,6 +56,19 @@ public class PlatformTreasury {
         this.balance = this.balance.add(amount);
         updateAvailableBalance();
     }
+
+    public void substractBalance(BigDecimal amount){
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+
+        if (amount.compareTo(availableBalance) > 0) {
+            throw new IllegalArgumentException("Insufficient available balance in treasury");
+        }
+
+        this.balance = this.balance.subtract(amount);
+        updateAvailableBalance();
+    }
     
     public void addRealMoneyDeposit(BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
