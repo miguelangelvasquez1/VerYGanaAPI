@@ -30,10 +30,10 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
     }
 
     @Override
-    public void addProductSaleCommission(BigDecimal amount, String referenceId, String description) {
+    public void addProductsSaleCommission(BigDecimal amount, String referenceId, String description) {
         PlatformTreasury treasury = getTreasury();
         treasury.addCommission(amount);
-        PlatformTransaction platformTransaction = PlatformTransaction.createPurchaseCommission(amount, referenceId,
+        PlatformTransaction platformTransaction = PlatformTransaction.createProductsSaleCommission(amount, referenceId,
                 description, treasury.getBalance(), treasury.getAvailableBalance());
 
         platformTreasuryRepository.save(treasury);
@@ -50,6 +50,15 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
 
+    }
+
+    @Override
+    public void recordProductSaleRefund(BigDecimal amount, String refundReferenceId, String reason) {
+        PlatformTreasury treasury = getTreasury();
+        treasury.substractBalance(amount);
+        PlatformTransaction platformTransaction = PlatformTransaction.createProductSaleRefund(amount, refundReferenceId, reason, treasury.getBalance(), treasury.getAvailableBalance());
+        platformTreasuryRepository.save(treasury);
+        platformTransactionRepository.save(platformTransaction);
     }
 
     @Override

@@ -1,10 +1,12 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
@@ -14,6 +16,8 @@ import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
+import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.UnauthorizedException;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.Wallet;
 import com.verygana2.models.enums.PurchaseItemStatus;
@@ -31,6 +35,7 @@ import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.PurchaseService;
 import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.dtos.generic.EntityCreatedResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -50,7 +55,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private static final BigDecimal COMMISSION_RATE = new BigDecimal("0.10"); // 10%
 
     @Override
-    public Purchase createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
+    public EntityCreatedResponse createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
 
         // 1. Crear la compra
         Purchase purchase = new Purchase();
@@ -112,8 +117,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         // 7. Actualizar inventarios
         updateInventories(purchase);
+        purchaseRepository.save(purchase);
 
-        return purchaseRepository.save(purchase);
+        return new EntityCreatedResponse("Purchase registered succesfully", Instant.now());
     }
 
     private void processPurchasePayment(Purchase purchase, Wallet buyerWallet) {
@@ -125,7 +131,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         buyerWallet.subtractBalance(totalAmount);
 
         // 2. Crear transacción del comprador (débito)
-        Transaction buyerTx = Transaction.createProductPurchaseTransaction(
+        Transaction buyerTx = Transaction.createWholePurchaseTransaction(
             buyerWallet.getId(),
             totalAmount.negate(), // Negativo porque es débito
             referenceId
@@ -171,7 +177,7 @@ public class PurchaseServiceImpl implements PurchaseService {
             sellerAmounts.size()
         );
         
-        platformTreasuryService.addProductSaleCommission(
+        platformTreasuryService.addProductsSaleCommission(
             totalCommission, 
             referenceId,
             description
@@ -214,7 +220,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     public void cancelPurchase(Long purchaseId, Long userId, String reason) {
         Purchase purchase = purchaseRepository.findById(purchaseId)
             .orElseThrow(() -> new ObjectNotFoundException(
-                "Purchase not found", 
+                "Purchase with id: " + purchaseId + " not found", 
                 Purchase.class
             ));
         
@@ -300,7 +306,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         Wallet buyerWallet = walletService.getByOwnerId(purchase.getConsumer().getUser().getId());
         buyerWallet.addBalance(totalAmount);
         
-        Transaction buyerRefundTx = Transaction.createProductPurchaseRefundTransaction(
+        Transaction buyerRefundTx = Transaction.createWholePurchaseRefundTransaction(
             buyerWallet.getId(),
             totalAmount,  // Positivo = crédito
             refundReferenceId
@@ -333,17 +339,17 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
         
         // 3. ✅ Restar comisión de la tesorería (transacción de ajuste)
-        platformTreasuryService.recordPurchaseRefund(
+        platformTreasuryService.recordProductSaleRefund(
             totalCommissionToRefund,
             refundReferenceId,
-            "Refund commission from cancelled purchase #" + purchase.getId() + ". Reason: " + reason
+            "Refund commission from cancelled purchase with id: " + purchase.getId() + ". Reason: " + reason
         );
         
         // 4. Devolver stock
         for (PurchaseItem item : purchase.getItems()) {
             Product product = item.getProduct();
             product.incrementStock(item.getQuantity());
-            productService.save(product);
+            productRepository.save(product);
         }
     }
     
@@ -352,7 +358,6 @@ public class PurchaseServiceImpl implements PurchaseService {
      */
     @Transactional
     protected void refundPurchaseItem(Purchase purchase, PurchaseItem item, String reason) {
-        String referenceId = purchase.getReferenceId();
         String refundReferenceId = "REFUND-ITEM-" + item.getId() + "-" + UUID.randomUUID();
         
         BigDecimal itemSubtotal = item.getSubtotal();
@@ -382,7 +387,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         transactionRepository.save(sellerRefundTx);
         
         // 3. ✅ Restar comisión de la tesorería
-        platformTreasuryService.recordPurchaseRefund(
+        platformTreasuryService.recordProductSaleRefund(
             commission,
             refundReferenceId,
             "Refund commission from cancelled item #" + item.getId() + 
@@ -392,6 +397,6 @@ public class PurchaseServiceImpl implements PurchaseService {
         // 4. Devolver stock
         Product product = item.getProduct();
         product.incrementStock(item.getQuantity());
-        productService.save(product);
+        productRepository.save(product);
     }
 }

@@ -11,7 +11,7 @@ import lombok.Data;
 
 @Entity
 @Data
-public class PayoutMethod {
+public class PaymentInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

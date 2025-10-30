@@ -49,7 +49,7 @@ public class User{
     private Wallet wallet;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<PayoutMethod> payoutMethods;
+    private List<PaymentInfo> paymentMethodsInfo;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<Notification> notifications;
