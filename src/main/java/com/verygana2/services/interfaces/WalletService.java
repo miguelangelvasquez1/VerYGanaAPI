@@ -3,8 +3,6 @@ package com.verygana2.services.interfaces;
 import java.math.BigDecimal;
 
 import com.verygana2.dtos.wallet.requests.DepositRequest;
-import com.verygana2.dtos.wallet.requests.RafflePrizeRequest;
-import com.verygana2.dtos.wallet.requests.RechargeDataRequest;
 import com.verygana2.dtos.wallet.requests.TransferRequest;
 import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
@@ -32,13 +30,6 @@ public interface WalletService {
     BigDecimal getAvailableBalance(Long ownerId);
     BigDecimal getBlockedBalance(Long ownerId);
 
-    TransactionResponse rechargeData(RechargeDataRequest rechargeDataRequest);
-
     // auxiliar wallet methods for others app sections
     void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long advertiserId);
-    void addPointsForReferral(Long userId, BigDecimal amount, Long userReferiedId);
-    void addRafflePrize(RafflePrizeRequest rafflePrizeRequest);
-    void participateInRaffle(Long userId, BigDecimal amount);
-    void doPurchase(Long buyerId, BigDecimal amount, Long sellerId);
-
 }
