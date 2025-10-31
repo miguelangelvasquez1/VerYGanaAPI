@@ -4,13 +4,11 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.wallet.requests.DepositRequest;
-import com.verygana2.dtos.wallet.requests.RafflePrizeRequest;
-import com.verygana2.dtos.wallet.requests.RechargeDataRequest;
 import com.verygana2.dtos.wallet.requests.TransferRequest;
 import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
@@ -22,18 +20,23 @@ import com.verygana2.models.User;
 import com.verygana2.models.Wallet;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.WalletRepository;
+import com.verygana2.services.interfaces.PlatformTreasuryService;
 import com.verygana2.services.interfaces.WalletService;
 
-@Transactional
+import lombok.RequiredArgsConstructor;
+
+
 @Service
+@Transactional
+@RequiredArgsConstructor
 public class WalletServiceImpl implements WalletService {
 
-    @Autowired
-    private WalletRepository walletRepository;
+    private final WalletRepository walletRepository;
+    private final TransactionRepository transactionRepository;
+    private final PlatformTreasuryService platformTreasuryServiceImpl;
 
-    @Autowired
-    private TransactionRepository transactionRepository;
-
+    @Value("${commissions.ad-commission}")
+    private Double adCommission;
 
     // Internal wallet methods
 
@@ -111,16 +114,20 @@ public class WalletServiceImpl implements WalletService {
 
         // Payment gateway logic
 
+        // Simulate gateway commission (3%)
+        BigDecimal gatewayFee = depositRequest.amount().multiply(new BigDecimal("0.03"));
+        BigDecimal netAmount = depositRequest.amount().subtract(gatewayFee);
+
         wallet.addBalance(depositRequest.amount());
         Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount(), depositRequest.paymentMethod());
         transaction.setCompletedAt(ZonedDateTime.now());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
-        TransactionResponse response = new TransactionResponse("Transacción exitosa", transaction.getAmount(),
-                transaction.getReferenceId(), transaction.getCompletedAt());
+        platformTreasuryServiceImpl.recordRealMoneyDeposit(netAmount, transaction.getReferenceId(), String.format("Deposit from user %d. Gateway fee: %s", userId, gatewayFee));
 
-        return response;
+        return new TransactionResponse("Deposit succesful", transaction.getAmount(),
+                transaction.getReferenceId(), transaction.getCompletedAt());
     }
 
     @Override
@@ -144,7 +151,9 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
-        TransactionResponse response = new TransactionResponse("Retiro exitoso", withdrawalRequest.amount(),
+        platformTreasuryServiceImpl.completeWithdrawal(withdrawalRequest.amount(), transaction.getReferenceId(), String.format("Withdrawal from user %d", userId));
+
+        TransactionResponse response = new TransactionResponse("Witdrawal succesful", withdrawalRequest.amount(),
                 transaction.getReferenceId(), ZonedDateTime.now());
 
         return response;
@@ -226,13 +235,6 @@ public class WalletServiceImpl implements WalletService {
                 .getBlockedBalance();
     }
 
-    // we does not know how we can make this method yet due to we need more
-    // information
-    @Override
-    public TransactionResponse rechargeData(RechargeDataRequest rechargeDataRequest) {
-        throw new UnsupportedOperationException("Unimplemented method 'rechargeData'");
-    }
-
     // method used by user, this method is gonna be called by Adservice
     @Override
     public void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long advertiserId) {
@@ -244,7 +246,8 @@ public class WalletServiceImpl implements WalletService {
                 () -> new ObjectNotFoundException("Wallet not found for advertiserId: " + advertiserId, Wallet.class));
 
         advertiserWallet.subtractBalance(reward);
-        userWallet.addBalance(reward);
+        BigDecimal platformCommission = reward.multiply(new BigDecimal(adCommission));
+        userWallet.addBalance(reward.subtract(platformCommission));
 
         String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
         Transaction advertiserTransaction = Transaction.createAdLikeRewardSentTransaction(advertiserWallet.getId(), reward,
@@ -258,87 +261,8 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(advertiserWallet);
         walletRepository.save(userWallet);
 
-    }
-
-    // method used by user, this method is gonna be called by userService or
-    // ReferralService
-    @Override
-    public void addPointsForReferral(Long userId, BigDecimal amount, Long referredUserId) {
-
-        Wallet userWallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
-        Wallet referredUserWallet = walletRepository.findByUserId(referredUserId)
-                .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
-
-        userWallet.addBalance(amount);
-        referredUserWallet.addBalance(amount);
-
-        String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
-        Transaction userTransaction = Transaction.createReferralRewardTransaction(userWallet.getId(), amount,
-                mutualReferenceId);
-        Transaction referredUseTransaction = Transaction.createReferralRewardTransaction(referredUserWallet.getId(),
-                amount,
-                mutualReferenceId);
-
-        transactionRepository.save(userTransaction);
-        transactionRepository.save(referredUseTransaction);
-
-        walletRepository.save(userWallet);
-        walletRepository.save(referredUserWallet);
-    }
-
-    // so far, we does not have the algorithm for raffle system
-    @Override
-    public void addRafflePrize(RafflePrizeRequest rafflePrizeRequest) {
+        platformTreasuryServiceImpl.addAdCommission(platformCommission, mutualReferenceId, String.format("Ad commission from advertiser id: %d ", advertiserId));
 
     }
 
-    // this method will be used for other service that manage the raffles section
-    @Override
-    public void participateInRaffle(Long userId, BigDecimal amount) {
-
-        Wallet wallet = walletRepository.findByUserId(userId)
-                .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
-
-        if (!wallet.hasSufficientBalance(amount)) {
-            throw new InsufficientFundsException();
-        }
-
-        wallet.subtractBalance(amount);
-        Transaction transaction = Transaction.createRaffleParticipationTransaction(wallet.getId(), amount);
-        transactionRepository.save(transaction);
-        walletRepository.save(wallet);
-
-    }
-
-    // This method will be used for other service that manage the marketplace
-    // section
-    @Override
-    public void doPurchase(Long buyerId, BigDecimal amount, Long sellerId) {
-
-        Wallet buyerWallet = walletRepository.findByUserId(buyerId).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + buyerId, Wallet.class));
-
-        if (!buyerWallet.hasSufficientBalance(amount)) {
-            throw new InsufficientFundsException();
-        }
-
-        Wallet sellerWallet = walletRepository.findByUserId(sellerId).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for userId: " + sellerId, Wallet.class));
-
-        buyerWallet.subtractBalance(amount);
-        sellerWallet.addBalance(amount);
-
-        String mutualReferenceId = UUID.randomUUID().toString();
-        Transaction buyerTransaction = Transaction.createWholePurchaseTransaction(buyerWallet.getId(), amount,
-                mutualReferenceId);
-        Transaction sellerTransaction = Transaction.createProductSaleTransaction(sellerWallet.getId(), amount,
-                mutualReferenceId);
-
-        transactionRepository.save(buyerTransaction);
-        transactionRepository.save(sellerTransaction);
-
-        walletRepository.save(buyerWallet);
-        walletRepository.save(sellerWallet);
-    }
 }

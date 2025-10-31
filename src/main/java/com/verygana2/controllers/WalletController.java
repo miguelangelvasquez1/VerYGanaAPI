@@ -30,7 +30,7 @@ public class WalletController {
 
     // These methods uses GlobalExceptionHandler
 
-    @GetMapping
+    @GetMapping("/myWallet")
     public ResponseEntity<WalletResponse> getWalletByOwnerId (@AuthenticationPrincipal Jwt jwt){
         Long userId = jwt.getClaim("userId");
         WalletResponse response = walletService.getWalletByOwnerId(userId);

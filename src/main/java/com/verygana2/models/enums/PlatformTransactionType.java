@@ -20,7 +20,10 @@ public enum PlatformTransactionType {
     MANUAL_ADJUSTMENT("Manual adjustment by admin"),
 
     // Reembolsos
-    PRODUCT_SALE_CANCELED("Product sale canceled");
+    PRODUCT_SALE_CANCELED("Product sale canceled"),
+
+    // Referidos
+    REFERRAL_PROMOTION("Referral promotion");
 
     private final String description;
     

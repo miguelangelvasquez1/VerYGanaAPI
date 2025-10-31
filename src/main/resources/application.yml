@@ -52,6 +52,10 @@ rsa:
   private-key: classpath:certs/private.pem
   public-key: classpath:certs/public.pem
 
+commissions:
+  ad-commission: 0.1
+  product-commission: 0.3
+
 jwt:
   access-token:
     expiration: 86400      # 1 day (in seconds)

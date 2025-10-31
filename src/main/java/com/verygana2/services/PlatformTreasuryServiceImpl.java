@@ -129,4 +129,11 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         return getTreasury().getReservedForWithdrawals();
     }
 
+    @Override
+    public void recordReferralBonusPayout(BigDecimal amount, String referenceId, String description) {
+        PlatformTreasury treasury = getTreasury();
+        PlatformTransaction platformTransaction = PlatformTransaction.createRefferalPromotion(amount, referenceId, description, treasury.getBalance(), treasury.getAvailableBalance());
+        platformTransactionRepository.save(platformTransaction);
+    }
+
 }
