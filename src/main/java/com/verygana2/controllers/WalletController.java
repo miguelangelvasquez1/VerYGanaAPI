@@ -73,7 +73,4 @@ public class WalletController {
         BigDecimal blockedBalance = walletService.getBlockedBalance(userId); 
         return ResponseEntity.ok(blockedBalance);
     }
-
-    
-
 }

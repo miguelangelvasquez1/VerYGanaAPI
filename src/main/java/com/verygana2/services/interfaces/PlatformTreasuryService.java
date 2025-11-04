@@ -10,8 +10,9 @@ public interface PlatformTreasuryService {
     void recordRealMoneyDeposit(BigDecimal amount, String paymentReference, String description);
     void recordProductSaleRefund(BigDecimal amount, String refundReferenceId, String reason);
     void recordReferralBonusPayout(BigDecimal amount, String referenceId, String description);
-    void reserveForWithdrawal (BigDecimal amount, String withdrawalReference, String description);
+    void addForWithdrawals (BigDecimal amount, String description);
     void completeWithdrawal (BigDecimal amount, String withdrawalReference, String description);
+    void requestWithdrawal(BigDecimal amount, String withdrawalReference, String description);
     void cancelWithdrawalReservation(BigDecimal amount, String withdrawalReference, String description);
     void addRaffleCommission(BigDecimal amount, String referenceId, String description);
     void addAdCommission(BigDecimal amount, String referenceId, String description);

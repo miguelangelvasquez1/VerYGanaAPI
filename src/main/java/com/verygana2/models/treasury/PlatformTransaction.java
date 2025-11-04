@@ -46,17 +46,20 @@ public class PlatformTransaction {
         @Column(length = 500)
         private String description;
 
-        @Column(name = "balance_after", precision = 15, scale = 2, nullable = false)
+        @Column(name = "balance_after", precision = 15, scale = 2)
         private BigDecimal balanceAfter;
 
         @Column(name = "available_balance_after", precision = 15, scale = 2)
         private BigDecimal availableBalanceAfter;
 
+        @Column(name = "reserved_balance_after", precision = 15, scale = 2)
+        private BigDecimal reservedBalanceAfter;
+
         @Column(nullable = false)
         private ZonedDateTime createdAt;
 
         @PrePersist
-        public void onCreate(){
+        public void onCreate() {
                 this.createdAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
         }
 
@@ -68,7 +71,8 @@ public class PlatformTransaction {
                         String referenceId,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.COMMISSION_PRODUCTS_SALE)
                                 .amount(amount)
@@ -76,16 +80,19 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
         public static PlatformTransaction createProductSaleRefund(
                         BigDecimal totalCommissionToRefund, String RefundReferenceId, String reason,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder().type(PlatformTransactionType.PRODUCT_SALE_CANCELED)
                                 .amount(totalCommissionToRefund).referenceId(RefundReferenceId).description(reason)
-                                .balanceAfter(updatedBalance).availableBalanceAfter(updatedAvailableBalance).build();
+                                .balanceAfter(updatedBalance).availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance).build();
         }
 
         /**
@@ -96,7 +103,8 @@ public class PlatformTransaction {
                         String referenceId,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.COMMISSION_RAFFLE)
                                 .amount(amount)
@@ -104,6 +112,7 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
@@ -115,7 +124,8 @@ public class PlatformTransaction {
                         String referenceId,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.COMMISSION_AD)
                                 .amount(amount)
@@ -123,6 +133,7 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
@@ -134,7 +145,8 @@ public class PlatformTransaction {
                         String paymentReference,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.REAL_MONEY_DEPOSIT)
                                 .amount(amount)
@@ -142,25 +154,40 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
+        }
+
+        public static PlatformTransaction createAddForWithdrawals(
+                        BigDecimal amount,
+                        String description,
+                        BigDecimal updatedBalance,
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
+                return PlatformTransaction.builder().amount(amount).description(description)
+                                .balanceAfter(updatedBalance).availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance).build();
+
         }
 
         /**
          * Reserva para retiro pendiente
          */
-        public static PlatformTransaction createWithdrawalReservation(
+        public static PlatformTransaction createWithdrawalRequest(
                         BigDecimal amount,
                         String withdrawalReference,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
-                                .type(PlatformTransactionType.WITHDRAWAL_RESERVED)
-                                .amount(amount.negate()) // ⚠️ Negativo porque es reserva
+                                .type(PlatformTransactionType.WITHDRAWAL_REQUESTED)
+                                .amount(amount.negate()) // ⚠️ Negativo porque es solicitud
                                 .referenceId(withdrawalReference)
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
@@ -172,7 +199,8 @@ public class PlatformTransaction {
                         String withdrawalReference,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.WITHDRAWAL_COMPLETED)
                                 .amount(amount.negate()) // ⚠️ Negativo porque sale dinero
@@ -180,6 +208,7 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
@@ -191,7 +220,8 @@ public class PlatformTransaction {
                         String withdrawalReference,
                         String description,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.WITHDRAWAL_CANCELLED)
                                 .amount(amount) // ⚠️ Positivo porque se libera la reserva
@@ -199,6 +229,7 @@ public class PlatformTransaction {
                                 .description(description)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
@@ -209,7 +240,8 @@ public class PlatformTransaction {
                         BigDecimal amount,
                         String reason,
                         BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance) {
+                        BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder()
                                 .type(PlatformTransactionType.MANUAL_ADJUSTMENT)
                                 .amount(amount)
@@ -217,13 +249,17 @@ public class PlatformTransaction {
                                 .description(reason)
                                 .balanceAfter(updatedBalance)
                                 .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance)
                                 .build();
         }
 
-        public static PlatformTransaction createRefferalPromotion(BigDecimal amount, String referenceId, String description,
-                        BigDecimal updatedBalance, BigDecimal updatedAvailableBalance) {
+        public static PlatformTransaction createRefferalPromotion(BigDecimal amount, String referenceId,
+                        String description,
+                        BigDecimal updatedBalance, BigDecimal updatedAvailableBalance,
+                        BigDecimal updatedReservedBalance) {
                 return PlatformTransaction.builder().type(PlatformTransactionType.REFERRAL_PROMOTION).amount(amount)
                                 .referenceId(referenceId).description(description).balanceAfter(updatedBalance)
-                                .availableBalanceAfter(updatedAvailableBalance).build();
+                                .availableBalanceAfter(updatedAvailableBalance)
+                                .reservedBalanceAfter(updatedReservedBalance).build();
         }
 }
