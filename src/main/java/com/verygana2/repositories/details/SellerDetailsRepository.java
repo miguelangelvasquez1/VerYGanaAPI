@@ -11,5 +11,4 @@ import com.verygana2.models.userDetails.SellerDetails;
 public interface SellerDetailsRepository extends JpaRepository<SellerDetails, Long>{
     Optional<SellerDetails> findByShopName(String shopName);
     Optional<SellerDetails> findByUser_Id(Long userId);
-    boolean existsById(Long sellerId);
 }

@@ -57,11 +57,11 @@ public class CloudinaryStorageService implements CloudStorageService {
     }
 
     @Override
-    public boolean deleteFile(String publicId) {
+    public boolean deleteFile(String publicId, String resource_type) {
         log.info("Eliminando archivo de Cloudinary: {}", publicId);
-        
+
         try {
-            Map<?, ?> result = cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+            Map<?, ?> result = cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", resource_type));
             String resultStatus = (String) result.get("result");
             
             boolean success = "ok".equals(resultStatus);
