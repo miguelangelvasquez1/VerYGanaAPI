@@ -32,7 +32,7 @@ public class Transaction { // Future consideration: currency column, hacer esto 
         @GeneratedValue(strategy = GenerationType.IDENTITY)
         private Long id;
 
-        @Column(unique = true, nullable = false, updatable = false)
+        @Column(nullable = false, updatable = false)
         private String referenceId; // For external reference
 
         @Column(name = "wallet_id", nullable = false)

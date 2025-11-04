@@ -182,6 +182,8 @@ public class PurchaseServiceImpl implements PurchaseService {
             referenceId,
             description
         );
+        String description2 = String.format("Amount reserved from purchase #%d - Total reserved: %s from %d seller(s)", purchase.getId(), totalPaidToSellers, sellerAmounts.size());
+        platformTreasuryService.addForWithdrawals(totalPaidToSellers, description2);
     }
 
     private Map<SellerDetails, BigDecimal> groupItemsBySeller(Purchase purchase) {

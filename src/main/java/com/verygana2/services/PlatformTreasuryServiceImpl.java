@@ -34,7 +34,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.addCommission(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createProductsSaleCommission(amount, referenceId,
-                description, treasury.getBalance(), treasury.getAvailableBalance());
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
 
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
@@ -46,7 +47,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.addCommission(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createRealMoneyDeposit(amount, paymentReference,
-                description, treasury.getBalance(), treasury.getAvailableBalance());
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
 
@@ -56,19 +58,33 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
     public void recordProductSaleRefund(BigDecimal amount, String refundReferenceId, String reason) {
         PlatformTreasury treasury = getTreasury();
         treasury.substractBalance(amount);
-        PlatformTransaction platformTransaction = PlatformTransaction.createProductSaleRefund(amount, refundReferenceId, reason, treasury.getBalance(), treasury.getAvailableBalance());
+        PlatformTransaction platformTransaction = PlatformTransaction.createProductSaleRefund(amount, refundReferenceId,
+                reason, treasury.getBalance(), treasury.getAvailableBalance(), treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
     }
 
     @Override
-    public void reserveForWithdrawal(BigDecimal amount, String withdrawalReference, String description) {
+    public void addForWithdrawals(BigDecimal amount, String description) {
         PlatformTreasury treasury = getTreasury();
-        treasury.reserveForWithdrawal(amount);
-        PlatformTransaction platformTransaction = PlatformTransaction.createWithdrawalReservation(amount,
-                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance());
+        treasury.addForWithdrawals(amount);
+        PlatformTransaction platformTransaction = PlatformTransaction.createAddForWithdrawals(amount,
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
+    }
+
+    @Override
+    public void requestWithdrawal(BigDecimal amount, String withdrawalReference, String description) {
+        PlatformTreasury treasury = getTreasury();
+        treasury.requestWithdrawal(amount);
+        PlatformTransaction platformTransaction = PlatformTransaction.createWithdrawalRequest(amount,
+                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
+        platformTreasuryRepository.save(treasury);
+        platformTransactionRepository.save(platformTransaction);
+
     }
 
     @Override
@@ -76,7 +92,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.completeWithdrawal(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createWithdrawalCompleted(amount,
-                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance());
+                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
     }
@@ -86,7 +103,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.cancelWithdrawalReservation(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createWithdrawalCancellation(amount,
-                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance());
+                withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
     }
@@ -96,7 +114,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.addCommission(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createRaffleCommission(amount, referenceId,
-                description, treasury.getBalance(), treasury.getAvailableBalance());
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
     }
@@ -106,7 +125,8 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTreasury treasury = getTreasury();
         treasury.addCommission(amount);
         PlatformTransaction platformTransaction = PlatformTransaction.createAdCommission(amount, referenceId,
-                description, treasury.getBalance(), treasury.getAvailableBalance());
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
         platformTransactionRepository.save(platformTransaction);
     }
@@ -132,7 +152,9 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
     @Override
     public void recordReferralBonusPayout(BigDecimal amount, String referenceId, String description) {
         PlatformTreasury treasury = getTreasury();
-        PlatformTransaction platformTransaction = PlatformTransaction.createRefferalPromotion(amount, referenceId, description, treasury.getBalance(), treasury.getAvailableBalance());
+        PlatformTransaction platformTransaction = PlatformTransaction.createRefferalPromotion(amount, referenceId,
+                description, treasury.getBalance(), treasury.getAvailableBalance(),
+                treasury.getReservedForWithdrawals());
         platformTransactionRepository.save(platformTransaction);
     }
 

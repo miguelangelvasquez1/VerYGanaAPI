@@ -57,6 +57,13 @@ public class PlatformTreasury {
         updateAvailableBalance();
     }
 
+    public void addForWithdrawals(BigDecimal amount){
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        this.reservedForWithdrawals = this.reservedForWithdrawals.add(amount);
+    }
+
     public void substractBalance(BigDecimal amount){
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
@@ -78,15 +85,14 @@ public class PlatformTreasury {
         updateAvailableBalance();
     }
     
-    public void reserveForWithdrawal(BigDecimal amount) {
+    public void requestWithdrawal(BigDecimal amount) {
         if (amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be positive");
         }
-        if (amount.compareTo(this.availableBalance) > 0) {
-            throw new InsufficientFundsException("Insufficient available balance in treasury");
+        if (amount.compareTo(this.reservedForWithdrawals) > 0) {
+            throw new InsufficientFundsException("Insufficient reserved balance for withdrawals");
         }
         this.reservedForWithdrawals = this.reservedForWithdrawals.add(amount);
-        updateAvailableBalance();
     }
     
     public void completeWithdrawal(BigDecimal amount) {

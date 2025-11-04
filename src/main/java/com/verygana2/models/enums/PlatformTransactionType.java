@@ -12,7 +12,7 @@ public enum PlatformTransactionType {
     REAL_MONEY_WITHDRAWAL("Real money withdrawal"),
     
     // Reservas y liberaciones
-    WITHDRAWAL_RESERVED("Withdrawal reserved"),
+    WITHDRAWAL_REQUESTED("Withdrawal requested"),
     WITHDRAWAL_COMPLETED("Withdrawal completed"),
     WITHDRAWAL_CANCELLED("Withdrawal canceled"),
     
