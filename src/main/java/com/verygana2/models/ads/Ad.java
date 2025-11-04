@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.models.Category;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
@@ -124,6 +125,10 @@ public class Ad {
     @NotNull(message = "Preferences are required")
     @Size(min = 1, message = "At least one category must be selected")
     private List<Category> categories;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "municipality_id", foreignKey = @ForeignKey(name = "fk_ad_municipality"))
+    private Municipality municipality;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason; // Si el anuncio es rechazado, se puede guardar la razón aquí

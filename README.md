@@ -23,6 +23,7 @@
 - Usar OffsetDateTime
 - Añadir caché de usuarios?
 - Mirar lo del cache de categorias
+- https://www.datos.gov.co/api/v3/views/gdxc-w37w/export.csv?accessType=DOWNLOAD&app_token=bHWsGtRFRP9x8Hl8lYivqM1hQ -> Municipalitys and Departments
 
 Mejoras Implementadas en tokens:
 
