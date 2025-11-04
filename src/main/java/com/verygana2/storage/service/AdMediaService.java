@@ -55,6 +55,14 @@ public class AdMediaService {
         
         // Subir archivo (funciona igual con Cloudinary o R2)
         UploadResult result = storageService.uploadFile(file, folder, options);
+
+        //Si hay un media previo, eliminarlo de la nube
+        if (ad.getContentUrl() != null) {
+            String previousPublicId = extractPublicIdFromUrl(ad.getContentUrl());
+            String resourceType = getResourceType(ad.getContentUrl());
+            boolean deleted = storageService.deleteFile(previousPublicId, resourceType);
+            if (deleted) log.info("Media previo eliminado: {}", previousPublicId);
+        }
         
         // Actualizar entidad Ad
         ad.setContentUrl(result.getSecureUrl());
@@ -78,9 +86,10 @@ public class AdMediaService {
         if (ad.getContentUrl() != null) {
             // Extraer publicId de la URL
             String publicId = extractPublicIdFromUrl(ad.getContentUrl());
+            String resourceType = getResourceType(ad.getContentUrl());
             
             // Eliminar del storage
-            boolean deleted = storageService.deleteFile(publicId);
+            boolean deleted = storageService.deleteFile(publicId, resourceType);
             
             if (deleted) {
                 ad.setContentUrl(null);
@@ -88,6 +97,7 @@ public class AdMediaService {
                 log.info("Media eliminado exitosamente");
             } else {
                 log.warn("No se pudo eliminar el media del storage");
+                throw new RuntimeException("No se pudo eliminar el media del storage");
             }
         }
     }
@@ -174,5 +184,17 @@ public class AdMediaService {
         }
         
         return url;
+    }
+
+    public static String getResourceType(String cloudinaryUrl) {
+        if (cloudinaryUrl == null) return null;
+        // Divide la URL en partes
+        String[] parts = cloudinaryUrl.split("/");
+        for (int i = 0; i < parts.length; i++) {
+            if (parts[i].equals("upload") && i > 0) {
+                return parts[i - 1]; // palabra anterior a "upload"
+            }
+        }
+        return null;
     }
 }

@@ -10,5 +10,4 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 @Repository
 public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails, Long> {
     Optional<ConsumerDetails> findByUser_Id(Long userId);
-    boolean existsById(Long consumerId);
 }

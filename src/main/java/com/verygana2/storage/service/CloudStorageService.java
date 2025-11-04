@@ -29,9 +29,10 @@ public interface CloudStorageService {
      * Elimina un archivo del almacenamiento
      * 
      * @param publicId ID público del archivo
+     * @param resource_type Tipo de recurso ("image", "video")
      * @return true si se eliminó exitosamente
      */
-    boolean deleteFile(String publicId);
+    boolean deleteFile(String publicId, String resource_type);
 
     /**
      * Genera una URL pública para un archivo
