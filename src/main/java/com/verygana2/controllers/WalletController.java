@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -45,6 +46,7 @@ public class WalletController {
     }
 
     @PostMapping("/withdraw")
+    @PreAuthorize("hasAuthority('ROLE_SELLER')")
     public ResponseEntity<TransactionResponse> doWithdrawal (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid WithdrawalRequest request){
         Long userId = jwt.getClaim("userId");
         TransactionResponse response = walletService.doWithdrawal(userId, request);
@@ -52,6 +54,7 @@ public class WalletController {
     }
 
     @PostMapping("/transfer")
+    @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
     public ResponseEntity<TransactionResponse> transferToUser (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid TransferRequest request){
         Long userId = jwt.getClaim("userId");
         TransactionResponse response = walletService.transferToUser(userId, request);

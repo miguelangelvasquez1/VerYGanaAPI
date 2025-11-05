@@ -132,7 +132,7 @@ public class ProductController {
     public ResponseEntity<Void> removeFromFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId){
         Long userId = jwt.getClaim("userId");
         productService.removeFavorite(userId, productId);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
 }
