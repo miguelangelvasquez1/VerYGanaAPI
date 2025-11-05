@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.PurchaseService;
 import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -400,5 +402,10 @@ public class PurchaseServiceImpl implements PurchaseService {
         Product product = item.getProduct();
         product.incrementStock(item.getQuantity());
         productRepository.save(product);
+    }
+
+    @Override
+    public PagedResponse<Purchase> getPurchases(Long consumerId, Pageable pageable) {
+        return PagedResponse.from(purchaseRepository.findByConsumerId(consumerId, pageable));
     }
 }
