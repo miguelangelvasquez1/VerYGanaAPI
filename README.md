@@ -24,6 +24,8 @@
 - Añadir caché de usuarios?
 - Mirar lo del cache de categorias
 - https://www.datos.gov.co/api/v3/views/gdxc-w37w/export.csv?accessType=DOWNLOAD&app_token=bHWsGtRFRP9x8Hl8lYivqM1hQ -> Municipalitys and Departments
+- Añadir generos y edad en consumerDetails
+- Mapper ad
 
 Mejoras Implementadas en tokens:
 

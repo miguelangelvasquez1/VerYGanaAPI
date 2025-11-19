@@ -45,4 +45,10 @@ public class AdCreateDTO {
     private String targetUrl;
     
     private List<Long> categoryIds;
+
+    private List<String> targetMunicipalitiesCodes;
+
+    private Integer minAge;
+
+    private Integer maxAge;
 }

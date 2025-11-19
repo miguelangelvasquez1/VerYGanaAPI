@@ -21,6 +21,9 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class ConsumerDetails extends UserDetails {
+
+    //Agregar edad y genero si es necesario
+
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)
     private String name;
