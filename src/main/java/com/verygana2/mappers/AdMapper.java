@@ -28,6 +28,8 @@ public interface AdMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
+    @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
+    @Mapping(target = "targetGender", ignore = true) // Mapeo manual en el servicio
     Ad toEntity(AdCreateDTO dto);
 
     // 🔹 Mapear entidad a DTO de respuesta
@@ -53,6 +55,8 @@ public interface AdMapper {
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
+    @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
+    @Mapping(target = "targetGender", ignore = true) // Mapeo manual en el servicio
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

@@ -8,6 +8,7 @@ import java.util.List;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
 import jakarta.persistence.*;
@@ -126,9 +127,26 @@ public class Ad {
     @Size(min = 1, message = "At least one category must be selected")
     private List<Category> categories;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "municipality_id", foreignKey = @ForeignKey(name = "fk_ad_municipality"))
-    private Municipality municipality;
+    @ManyToMany
+    @JoinTable(
+        name = "ad_municipalities",
+        joinColumns = @JoinColumn(name = "ad_id"),
+        inverseJoinColumns = @JoinColumn(name = "municipality_code")
+    )
+    @Builder.Default
+    private List<Municipality> targetMunicipalities = new ArrayList<>();
+
+    @Column(name = "min_age")
+    @Min(value = 13, message = "La edad mínima debe ser 13")
+    private Integer minAge;
+
+    @Column(name = "max_age")
+    @Max(value = 100, message = "La edad máxima debe ser 100")
+    private Integer maxAge;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_gender", length = 10)
+    private TargetGender targetGender;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason; // Si el anuncio es rechazado, se puede guardar la razón aquí
