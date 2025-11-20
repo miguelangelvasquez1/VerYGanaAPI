@@ -21,7 +21,7 @@ public class CategoryController {
 
     private final CategoryService service;
 
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<EntityCreatedResponse> create(@Validated @RequestBody CategoryRequestDTO dto) {
         return ResponseEntity.ok(service.create(dto));
     }
@@ -31,7 +31,7 @@ public class CategoryController {
         return ResponseEntity.ok(service.getById(id));
     }
 
-    @GetMapping
+    @GetMapping("/all")
     public ResponseEntity<List<Category>> getAll() {
         return ResponseEntity.ok(service.getAllCategories());
     }

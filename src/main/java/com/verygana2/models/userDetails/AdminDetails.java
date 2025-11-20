@@ -8,6 +8,5 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper=false)
 public class AdminDetails extends UserDetails {
-    
     private String adminCode;
 }

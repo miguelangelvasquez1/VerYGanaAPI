@@ -41,6 +41,7 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import com.verygana2.security.PublicPaths;
 import com.verygana2.security.auth.JwtBearerFilter;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,7 +64,7 @@ public class SecurityConfig {
         return http
                     .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                     .csrf(csrf -> csrf.disable()) //Put csrf for refresh token endpoint
-                    .authorizeHttpRequests(auth -> auth.requestMatchers("/auth/**", "/users/**").permitAll().anyRequest().authenticated())
+                    .authorizeHttpRequests(auth -> auth.requestMatchers(PublicPaths.PATHS).permitAll().anyRequest().authenticated())
                     .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //Spring Security will never create an HttpSession and it will never use it to obtain the Security Context.
                     .addFilterBefore(new JwtBearerFilter(jwtDecoder()), UsernamePasswordAuthenticationFilter.class) //Filter to extract JWT from cookies and set authentication in the security context.
                     // .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())) //Enable JWT authentication for the application. Lambda used to configure the OAuth2 resource server to use JWT tokens.

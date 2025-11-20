@@ -9,16 +9,16 @@ spring:
   # =====================
   datasource:
     # POSTGRESQL RENDER (Production)
-    url: ${DB_URL:jdbc:postgresql://dpg-d3shcb8dl3ps73de54c0-a.oregon-postgres.render.com:5432/veryganadb}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:1234}
-    driver-class-name: org.postgresql.Driver
+     #url: ${DB_URL:jdbc:postgresql://dpg-d3shcb8dl3ps73de54c0-a.oregon-postgres.render.com:5432/veryganadb}
+     # username: ${DB_USERNAME:root}
+     # password: ${DB_PASSWORD:1234}
+     # driver-class-name: org.postgresql.Driver
 
   # MYSQL LOCAL (Commented - for reference)
-    # url: jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota
-    # username: root
-    # password: 1234
-    # driver-class-name: com.mysql.cj.jdbc.Driver
+     url: jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota
+     username: root
+     password: Admin2025
+     driver-class-name: com.mysql.cj.jdbc.Driver
 
   # =====================
   # JPA/HIBERNATE CONFIGURATION
@@ -30,8 +30,8 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        # dialect: org.hibernate.dialect.MySQL8Dialect  # Para MySQL
+        # dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.MySQL8Dialect  # Para MySQL
         jdbc:
           time_zone: America/Bogota
 
@@ -93,10 +93,11 @@ cloudinary:
 spring.cache:
   type: caffeine
   caffeine:
-    spec: maximumSize=500,expireAfterWrite=5m
+    spec: maximumSize=500,expireAfterWrite=24h
   cache-names:
     - availableAdsCount
     - userPreferences
+    - categories
 
 # ============================================
 # LOGGING CONFIGURATION
