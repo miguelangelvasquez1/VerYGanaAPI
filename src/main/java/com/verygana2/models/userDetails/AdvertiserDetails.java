@@ -8,8 +8,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper=false)
 public class AdvertiserDetails extends UserDetails {
-    
     private String companyName;
     private String nit;
-    private Double adBuget;
 }

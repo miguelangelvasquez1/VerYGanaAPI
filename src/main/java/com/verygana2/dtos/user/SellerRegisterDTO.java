@@ -20,9 +20,7 @@ public class SellerRegisterDTO {
     @NotBlank(message = "Shop name is required")
     private String shopName;
 
-    @NotBlank(message = "Tax ID is required")
-    private String taxId;
+    @NotBlank(message = "NIT is required")
+    private String nit;
 
-    @NotBlank(message = "City is required")
-    private String city;
 }

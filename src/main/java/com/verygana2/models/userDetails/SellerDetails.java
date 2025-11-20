@@ -8,8 +8,6 @@ import lombok.EqualsAndHashCode;
 @Data
 @EqualsAndHashCode(callSuper=false)
 public class SellerDetails extends UserDetails {
-    
-    private String shopName;         // Nombre de la tienda
-    private String taxId;            // Identificación tributaria
-    private String city;   // Región de entregas
+    private String shopName;  
+    private String nit; 
 }

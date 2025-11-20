@@ -23,6 +23,4 @@ public class AdvertiserRegisterDTO {
     @NotBlank(message = "NIT is required")
     private String nit;
 
-    @PositiveOrZero(message = "Ad budget must be zero or positive")
-    private Double adBuget;
 }

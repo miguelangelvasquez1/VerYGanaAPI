@@ -47,7 +47,7 @@ public class ConsumerDetails extends UserDetails {
     private String department;
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
-    private String municipio;
+    private String municipality;
     
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
