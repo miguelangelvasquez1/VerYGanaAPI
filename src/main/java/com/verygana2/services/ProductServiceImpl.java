@@ -153,6 +153,7 @@ public class ProductServiceImpl implements ProductService {
         return response;
     }
 
+    // Métodos para Seller
     @Override
     public Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page) {
 
@@ -164,6 +165,11 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         Page<Product> products = productRepository.findBySellerId(sellerId, pageable);
         return products.map(productMapper::toProductSummaryResponse);
+    }
+
+    @Override
+    public Long getTotalSellerProducts (Long sellerId){
+        return productRepository.countSellerProducts(sellerId);
     }
 
     @Override
