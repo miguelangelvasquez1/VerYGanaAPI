@@ -4,6 +4,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
 import com.verygana2.models.products.ProductCategory;
 
 @Mapper(componentModel = "spring")
@@ -12,5 +13,7 @@ public interface ProductCategoryMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     ProductCategory toProductCategory (CreateProductCategoryRequest request);
+
+    ProductCategoryResponseDTO toProductCategoryResponseDTO (ProductCategory productCategory);
     
 }
