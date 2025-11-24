@@ -28,6 +28,8 @@ public interface ProductService {
 
     Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page);
     
+    Long getTotalSellerProducts (Long sellerId);
+
     Page<ProductSummaryResponse> filterProducts(String searchQuery,
             Long categoryId,
             Double minRating,

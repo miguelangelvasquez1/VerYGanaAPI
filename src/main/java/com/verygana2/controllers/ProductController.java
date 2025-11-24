@@ -94,6 +94,7 @@ public class ProductController {
         return ResponseEntity.ok(productService.detailProduct(productId));
     }
 
+    // Métodos para Seller
     @GetMapping("/{sellerId}")
     public ResponseEntity<Page<ProductSummaryResponse>> getSellerProducts(@PathVariable Long sellerId,
             @RequestParam(defaultValue = "0") Integer page) {
@@ -106,6 +107,13 @@ public class ProductController {
             @RequestParam(defaultValue = "0") Integer page) {
         Long sellerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));
+    }
+
+    @GetMapping("/totalProducts")
+    @PreAuthorize("hasAuthority('ROLE_SELLER')")
+    public ResponseEntity<Long> getTotalSellerProducts (@AuthenticationPrincipal Jwt jwt){
+        Long sellerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.getTotalSellerProducts(sellerId));
     }
 
     @GetMapping("/favorites")
