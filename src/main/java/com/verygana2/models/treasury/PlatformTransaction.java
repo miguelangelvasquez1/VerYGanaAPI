@@ -84,16 +84,6 @@ public class PlatformTransaction {
                                 .build();
         }
 
-        public static PlatformTransaction createProductSaleRefund(
-                        BigDecimal totalCommissionToRefund, String RefundReferenceId, String reason,
-                        BigDecimal updatedBalance,
-                        BigDecimal updatedAvailableBalance,
-                        BigDecimal updatedReservedBalance) {
-                return PlatformTransaction.builder().type(PlatformTransactionType.PRODUCT_SALE_CANCELED)
-                                .amount(totalCommissionToRefund).referenceId(RefundReferenceId).description(reason)
-                                .balanceAfter(updatedBalance).availableBalanceAfter(updatedAvailableBalance)
-                                .reservedBalanceAfter(updatedReservedBalance).build();
-        }
 
         /**
          * Comisión por creación de rifa

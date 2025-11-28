@@ -55,16 +55,6 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
     }
 
     @Override
-    public void recordProductSaleRefund(BigDecimal amount, String refundReferenceId, String reason) {
-        PlatformTreasury treasury = getTreasury();
-        treasury.substractBalance(amount);
-        PlatformTransaction platformTransaction = PlatformTransaction.createProductSaleRefund(amount, refundReferenceId,
-                reason, treasury.getBalance(), treasury.getAvailableBalance(), treasury.getReservedForWithdrawals());
-        platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
-    }
-
-    @Override
     public void addForWithdrawals(BigDecimal amount, String description) {
         PlatformTreasury treasury = getTreasury();
         treasury.addForWithdrawals(amount);

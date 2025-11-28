@@ -7,9 +7,8 @@ public enum AdminActionType {
     ACCOUNT_FREEZE("Account Freeze"),
     ACCOUNT_UNFREEZE("Account Unfreeze"),
     PENALTY_APPLICATION("Penalty Applied"),
-    BONUS_GRANT("Bonus Granted"),
-    REFUND_PROCESSING("Refund Processed");
-
+    BONUS_GRANT("Bonus Granted");
+   
     private final String description;
 
     AdminActionType(String description) {

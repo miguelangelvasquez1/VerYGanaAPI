@@ -14,13 +14,10 @@ public enum PlatformTransactionType {
     // Reservas y liberaciones
     WITHDRAWAL_REQUESTED("Withdrawal requested"),
     WITHDRAWAL_COMPLETED("Withdrawal completed"),
-    WITHDRAWAL_CANCELLED("Withdrawal canceled"),
+    WITHDRAWAL_CANCELLED("Withdrawal cancelled"),
     
     // Ajustes manuales
     MANUAL_ADJUSTMENT("Manual adjustment by admin"),
-
-    // Reembolsos
-    PRODUCT_SALE_CANCELED("Product sale canceled"),
 
     // Referidos
     REFERRAL_PROMOTION("Referral promotion");

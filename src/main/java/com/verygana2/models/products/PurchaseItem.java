@@ -1,9 +1,9 @@
 package com.verygana2.models.products;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 import com.verygana2.models.enums.PurchaseItemStatus;
-import com.verygana2.models.userDetails.SellerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -18,11 +18,13 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Builder;
 import lombok.Data;
 
 @Entity
 @Table(name = "purchase_items")
 @Data
+@Builder
 public class PurchaseItem {
     
     @Id
@@ -36,30 +38,35 @@ public class PurchaseItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
-    
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false)
-    private SellerDetails seller;  // Para saber a quién pagar
+    @JoinColumn(name = "product_stock_id")
+    private ProductStock assignedProductStock;
     
     @Column(nullable = false)
     private Integer quantity;
     
     // Precio al momento de la compra (importante para histórico)
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(name = "price_at_purchase", nullable = false, precision = 19, scale = 2)
     private BigDecimal priceAtPurchase;
     
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal subtotal;  // quantity * priceAtPurchase
     
-    // Información del producto al momento de compra (por si se elimina después)
-    @Column(nullable = false)
-    private String productName;
+    @Column(name = "delivered_code", columnDefinition = "TEXT")
+    private String deliveredCode; // El código que se le entregó al cliente
     
-    @Column
-    private String productImageUrl;
+    @Column(name = "delivered_credentials", columnDefinition = "TEXT")
+    private String deliveredCredentials; // Credenciales entregadas (si aplica)
+    
+    @Column(name = "delivery_instructions", columnDefinition = "TEXT")
+    private String deliveryInstructions; // Instrucciones de uso
+    
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt; // Cuándo se entregó
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
     
     @PrePersist
@@ -67,4 +74,17 @@ public class PurchaseItem {
     protected void calculateSubtotal() {
         this.subtotal = priceAtPurchase.multiply(new BigDecimal(quantity));
     }
+
+    public void assignProductStock(ProductStock stock) {
+        this.assignedProductStock = stock;
+        this.deliveredCode = stock.getCode();
+        this.deliveredCredentials = stock.getAdditionalInfo();
+        this.deliveredAt = LocalDateTime.now();
+        this.status = PurchaseItemStatus.DELIVERED;
+    }
+
+    public boolean isDelivered() {
+        return status == PurchaseItemStatus.DELIVERED;
+    }
+
 }

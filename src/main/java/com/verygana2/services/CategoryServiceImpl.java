@@ -39,8 +39,8 @@ public class CategoryServiceImpl implements CategoryService {
             throw new IllegalArgumentException("Already exists a category with that name");
         }
         Category category = mapper.toEntity(dto);
-        repository.save(category);
-        return new EntityCreatedResponse("Category created succesfully", Instant.now());
+        Category savedCategory = repository.save(category);
+        return new EntityCreatedResponse(savedCategory.getId(),"Category created succesfully", Instant.now());
     }
 
     @Override

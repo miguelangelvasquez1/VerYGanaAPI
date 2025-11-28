@@ -8,6 +8,7 @@ import lombok.Data;
 @Data
 @AllArgsConstructor
 public class EntityCreatedResponse {
+    private Long id;
     private String message;
     private Instant timestamp;
 

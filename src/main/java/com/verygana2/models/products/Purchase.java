@@ -2,154 +2,148 @@ package com.verygana2.models.products;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
-import com.verygana2.models.enums.products.PaymentMethod;
-import com.verygana2.models.enums.products.PurchaseStatus;
+
+import com.verygana2.models.enums.PurchaseStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
-import jakarta.persistence.Table;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "purchases")
+@Table(name = "purchases", indexes = {
+    @Index(name = "idx_consumer_id", columnList = "consumer_id"),
+    @Index(name = "idx_purchase_status", columnList = "status"),
+    @Index(name = "idx_created_at", columnList = "created_at")
+})
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Purchase {
-
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, updatable = false)
+    @Column(name = "reference_id", nullable = false, updatable = false)
     private String referenceId;
-
+    
     // ===== RELACIONES =====
-
+    
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "consumer_id", nullable = false)
     private ConsumerDetails consumer;
-
+    
     @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<PurchaseItem> items = new ArrayList<>();
+    
+    // ===== INFORMACIÓN FINANCIERA =====
+    
+    @Column(name = "subtotal", nullable = false, precision = 19, scale = 2)
+    private BigDecimal subtotal;
+    
+    @Column(name = "discount_amount", precision = 19, scale = 2)
+    @Builder.Default
+    private BigDecimal discountAmount = BigDecimal.ZERO;
+    
+    @Column(name = "total", nullable = false, precision = 19, scale = 2)
+    private BigDecimal total;
 
-    // ===== INFORMACIÓN DE LA COMPRA =====
+    @Column(name = "platform_earnings", nullable = false)
+    private BigDecimal platformEarnings;
 
-    @Column(nullable = false)
-    private ZonedDateTime purchaseDate;
-
+    @Column(name = "paid_to_sellers", nullable = false)
+    private BigDecimal paidToSellers;
+    
+    // ===== ESTADO DE LA COMPRA =====
+    
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PurchaseStatus status; // PENDING, CONFIRMED, SHIPPED, DELIVERED, CANCELLED, REFUNDED
-
-    // ===== MONTOS (todos calculados pero almacenados para histórico) =====
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal subtotal; // Suma de productos sin impuestos
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal taxAmount; // IVA u otros impuestos
-
-    @Column(precision = 10, scale = 2)
-    private BigDecimal discount; // Descuentos aplicados (cupones, promociones)
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount; // Total final pagado
-
-    // ===== INFORMACIÓN DE ENTREGA =====
-
-    @Column(nullable = false)
-    private String deliveryAddress;
-
-    @Column(nullable = false)
-    private String deliveryCity;
-
-    @Column(nullable = false)
-    private String deliveryDepartment;
-
-    @Column
-    private String deliveryPhone;
-
-    @Column
-    private String deliveryNotes; // Instrucciones especiales de entrega Ej: "Horario disponible 2-5pm"
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private PaymentMethod paymentMethod; // Siempre será WALLET por ahora
-    // ===== TRACKING =====
-
-    @Column
-    private LocalDateTime cancelledDate;
-
-    @Column
-    private String cancellationReason;
-
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private PurchaseStatus status = PurchaseStatus.PENDING;
+    
+    // ===== INFORMACIÓN DE ENTREGA DIGITAL =====
+    
+    @Column(name = "contact_email", length = 255)
+    private String contactEmail; // Email donde se envían las credenciales
+    
+    @Column(name = "credentials_sent_at")
+    private LocalDateTime credentialsSentAt; // Cuándo se enviaron las credenciales
+    
+    // ===== CUPONES Y DESCUENTOS =====
+    
+    @Column(name = "coupon_code", length = 50)
+    private String couponCode;
+    
+    // ===== NOTAS =====
+    
+    @Column(columnDefinition = "TEXT")
+    private String notes; // Notas del comprador
+    
+    @Column(name = "admin_notes", columnDefinition = "TEXT")
+    private String adminNotes; // Notas internas del admin/seller
+    
     // ===== AUDITORÍA =====
-
-    @Column(updatable = false)
-    private ZonedDateTime createdAt;
-
-    @Column
-    private ZonedDateTime updatedAt;
-
+    
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+    
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+    
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt; // Cuándo se completó la compra
+    
+    // ===== MÉTODOS DE CICLO DE VIDA =====
+    
     @PrePersist
     protected void onCreate() {
-        if (referenceId == null) {
-            referenceId = "PURCHASE-" + UUID.randomUUID().toString();
-        }
-        createdAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-        updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-        if (purchaseDate == null) {
-            purchaseDate = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-        }
+        createdAt = LocalDateTime.now();
     }
-
+    
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        updatedAt = LocalDateTime.now();
     }
-
+    
     // ===== MÉTODOS DE NEGOCIO =====
-
-    public void calculateTotals() {
-        this.subtotal = items.stream()
-                .map(PurchaseItem::getSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // IVA 19% en Colombia (ajustar según tu país)
-        this.taxAmount = subtotal.multiply(new BigDecimal("0.19"));
-
-        this.totalAmount = subtotal
-                .add(taxAmount)
-                .subtract(discount != null ? discount : BigDecimal.ZERO);
-    }
-
+    
     public void addItem(PurchaseItem item) {
         items.add(item);
         item.setPurchase(this);
-        calculateTotals();
     }
-
+    
     public void removeItem(PurchaseItem item) {
         items.remove(item);
         item.setPurchase(null);
-        calculateTotals();
+    }
+    
+    public void calculateTotals() {
+        this.subtotal = items.stream()
+            .map(PurchaseItem::getSubtotal)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        this.total = subtotal.subtract(discountAmount != null ? discountAmount : BigDecimal.ZERO);
+    }
+    
+    public void markAsCompleted() {
+        this.status = PurchaseStatus.COMPLETED;
+        this.completedAt = LocalDateTime.now();
+        this.credentialsSentAt = LocalDateTime.now();
+    }
+
+    public void updatePlatformEarnings(BigDecimal newEarning){
+        this.platformEarnings = platformEarnings.add(newEarning);
+    }
+
+    public void updatePaidToSellers(BigDecimal newPaidToSellers){
+        this.paidToSellers = paidToSellers.add(newPaidToSellers);
     }
 }

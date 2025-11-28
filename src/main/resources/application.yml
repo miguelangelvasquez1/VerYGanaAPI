@@ -54,7 +54,7 @@ rsa:
 
 commissions:
   ad-commission: 0.1
-  product-commission: 0.3
+  
 
 jwt:
   access-token:
@@ -114,3 +114,19 @@ logging:
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.security: DEBUG
+
+# ============================================
+# TAXES
+# ============================================      
+taxes:
+  iva: ${IVA}
+# ============================================
+# PLATFORM EARNINGS
+# ============================================ 
+platformEarnings:
+  product-commission : ${PRODUCT_SALE_COMMISSION}
+# ============================================
+# USERS EARNINGS
+# ============================================  
+usersEarnings:
+  ad-view: ${AD_VIEW}

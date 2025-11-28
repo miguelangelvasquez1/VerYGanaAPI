@@ -35,8 +35,8 @@ public class WalletServiceImpl implements WalletService {
     private final TransactionRepository transactionRepository;
     private final PlatformTreasuryService platformTreasuryServiceImpl;
 
-    @Value("${commissions.ad-commission}")
-    private Double adCommission;
+    @Value("${usersEarnings.ad-view}")
+    private BigDecimal adCommission;
 
     // Internal wallet methods
 
@@ -90,7 +90,7 @@ public class WalletServiceImpl implements WalletService {
                         () -> new ObjectNotFoundException("Wallet not found for userId: " + ownerId, Wallet.class));
 
         WalletResponse response = new WalletResponse(wallet.getBalance(), wallet.getBlockedBalance(),
-                wallet.getLastUpdated(), wallet.getTransactions());
+                wallet.getLastUpdated());
 
         return response;
     }
@@ -119,7 +119,7 @@ public class WalletServiceImpl implements WalletService {
         BigDecimal netAmount = depositRequest.amount().subtract(gatewayFee);
 
         wallet.addBalance(depositRequest.amount());
-        Transaction transaction = Transaction.createDepositTransaction(wallet.getId(), depositRequest.amount(), depositRequest.paymentMethod());
+        Transaction transaction = Transaction.createDepositTransaction(wallet, depositRequest.amount(), depositRequest.paymentMethod());
         transaction.setCompletedAt(ZonedDateTime.now());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
@@ -147,7 +147,7 @@ public class WalletServiceImpl implements WalletService {
         }
 
         wallet.subtractBalance(withdrawalRequest.amount());
-        Transaction transaction = Transaction.createWithdrawalTransaction(wallet.getId(), withdrawalRequest.amount(), withdrawalRequest.paymentMethod());
+        Transaction transaction = Transaction.createWithdrawalTransaction(wallet, withdrawalRequest.amount(), withdrawalRequest.paymentMethod());
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
@@ -186,10 +186,10 @@ public class WalletServiceImpl implements WalletService {
         receiverWallet.addBalance(transferRequest.amount());
 
         String mutualReferenceId = UUID.randomUUID().toString();
-        Transaction senderTransaction = Transaction.createGiftSentTransaction(senderWallet.getId(),
+        Transaction senderTransaction = Transaction.createGiftSentTransaction(senderWallet,
                 transferRequest.amount(),
                 mutualReferenceId);
-        Transaction receiverTransaction = Transaction.createGiftReceivedTransaction(receiverWallet.getId(),
+        Transaction receiverTransaction = Transaction.createGiftReceivedTransaction(receiverWallet,
                 transferRequest.amount(),
                 mutualReferenceId);
 
@@ -246,13 +246,13 @@ public class WalletServiceImpl implements WalletService {
                 () -> new ObjectNotFoundException("Wallet not found for advertiserId: " + advertiserId, Wallet.class));
 
         advertiserWallet.subtractBalance(reward);
-        BigDecimal platformCommission = reward.multiply(new BigDecimal(adCommission));
+        BigDecimal platformCommission = reward.multiply(adCommission);
         userWallet.addBalance(reward.subtract(platformCommission));
 
         String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
-        Transaction advertiserTransaction = Transaction.createAdLikeRewardSentTransaction(advertiserWallet.getId(), reward,
+        Transaction advertiserTransaction = Transaction.createAdLikeRewardSentTransaction(advertiserWallet, reward,
                 mutualReferenceId);
-        Transaction userTransaction = Transaction.createAdLikeRewardReceivedTransaction(userWallet.getId(), reward,
+        Transaction userTransaction = Transaction.createAdLikeRewardReceivedTransaction(userWallet, reward,
                 mutualReferenceId);
 
         transactionRepository.save(advertiserTransaction);

@@ -31,8 +31,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService{
     @Override
     public EntityCreatedResponse create(CreateProductCategoryRequest request) {
         ProductCategory productCategory = productCategoryMapper.toProductCategory(request);
-        productCategoryRepository.save(productCategory);
-        return new EntityCreatedResponse("Product category created succesfully", Instant.now());
+        ProductCategory savedProductCategory = productCategoryRepository.save(productCategory);
+        return new EntityCreatedResponse(savedProductCategory.getId(), "Product category created succesfully", Instant.now());
     }
 
     @Override

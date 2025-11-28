@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
@@ -13,7 +14,7 @@ import com.verygana2.models.products.Product;
 
 public interface ProductService {
 
-    EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId);
+    EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId, MultipartFile productImage);
 
     Product getById(Long productId);
 
@@ -28,6 +29,8 @@ public interface ProductService {
 
     Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page);
     
+    Long getTotalSellerProducts (Long sellerId);
+
     Page<ProductSummaryResponse> filterProducts(String searchQuery,
             Long categoryId,
             Double minRating,

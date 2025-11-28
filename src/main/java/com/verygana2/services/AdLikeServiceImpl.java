@@ -73,7 +73,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         
         // Crear la transacción
         Transaction transaction = Transaction.builder()
-            .walletId(user.getWallet().getId())
+            .wallet(user.getWallet())
             .amount(ad.getRewardPerLike())
             .transactionType(TransactionType.POINTS_AD_LIKE_REWARD)
             .transactionState(TransactionState.COMPLETED)
