@@ -3,6 +3,7 @@ package com.verygana2.services;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
@@ -69,7 +70,7 @@ public class RaffleServiceImpl implements RaffleService{
 
         wallet.subtractBalance(amount);
         Transaction transaction = Transaction.createRaffleParticipationTransaction(wallet, amount);
-        transactionRepository.save(transaction);
+        transactionRepository.save(Objects.requireNonNull(transaction));
         walletRepository.save(wallet);
     }
 }

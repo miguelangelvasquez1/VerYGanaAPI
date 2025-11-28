@@ -40,6 +40,9 @@ public class SellerDetailsServiceImpl implements SellerDetailsService{
 
     @Override
     public boolean existsSellerById(Long sellerId) {
+        if (sellerId == null || sellerId <= 0) {
+            return false;
+        }
         return sellerDetailsRepository.existsById(sellerId);
     }
     

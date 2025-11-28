@@ -67,6 +67,7 @@ public class PurchaseItem {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
+    @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
     
     @PrePersist

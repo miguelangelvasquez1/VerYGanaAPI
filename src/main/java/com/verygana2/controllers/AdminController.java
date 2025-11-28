@@ -2,6 +2,7 @@ package com.verygana2.controllers;
 
 
 import java.net.URI;
+import java.util.Objects;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -70,7 +71,6 @@ public class AdminController {
     //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createCategory(@RequestBody @Valid CategoryRequestDTO request){
         EntityCreatedResponse response = categoryService.create(request);
-        return ResponseEntity.created(URI.create("/categories")).body(response);
+        return ResponseEntity.created(Objects.requireNonNull(URI.create("/categories"))).body(response);
     }
-
 }

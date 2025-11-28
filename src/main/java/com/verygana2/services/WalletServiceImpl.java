@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.UUID;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
@@ -48,7 +49,7 @@ public class WalletServiceImpl implements WalletService {
         }
 
         Wallet wallet = Wallet.createWallet(user);
-        walletRepository.save(wallet);
+        walletRepository.save(Objects.requireNonNull(wallet));
     }
     
     // Get
@@ -149,7 +150,7 @@ public class WalletServiceImpl implements WalletService {
         wallet.subtractBalance(withdrawalRequest.amount());
         Transaction transaction = Transaction.createWithdrawalTransaction(wallet, withdrawalRequest.amount(), withdrawalRequest.paymentMethod());
         walletRepository.save(wallet);
-        transactionRepository.save(transaction);
+        transactionRepository.save(Objects.requireNonNull(transaction));
 
         platformTreasuryServiceImpl.completeWithdrawal(withdrawalRequest.amount(), transaction.getReferenceId(), String.format("Withdrawal from user %d", userId));
 
@@ -193,8 +194,8 @@ public class WalletServiceImpl implements WalletService {
                 transferRequest.amount(),
                 mutualReferenceId);
 
-        transactionRepository.save(senderTransaction);
-        transactionRepository.save(receiverTransaction);
+        transactionRepository.save(Objects.requireNonNull(senderTransaction));
+        transactionRepository.save(Objects.requireNonNull(receiverTransaction));
 
         walletRepository.save(senderWallet);
         walletRepository.save(receiverWallet);
@@ -255,8 +256,8 @@ public class WalletServiceImpl implements WalletService {
         Transaction userTransaction = Transaction.createAdLikeRewardReceivedTransaction(userWallet, reward,
                 mutualReferenceId);
 
-        transactionRepository.save(advertiserTransaction);
-        transactionRepository.save(userTransaction);
+        transactionRepository.save(Objects.requireNonNull(advertiserTransaction));
+        transactionRepository.save(Objects.requireNonNull(userTransaction));
 
         walletRepository.save(advertiserWallet);
         walletRepository.save(userWallet);

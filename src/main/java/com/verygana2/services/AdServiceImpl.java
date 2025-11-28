@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
@@ -111,7 +112,7 @@ public class AdServiceImpl implements AdService {
             .and(AdSpecifications.inDateRange(filters.getStartDate(), filters.getEndDate()))
             .and(AdSpecifications.inCategories(filters.getCategoryIds()));
 
-        Page<Ad> ads = adRepository.findAll(spec, pageable);
+        Page<Ad> ads = adRepository.findAll(spec, Objects.requireNonNull(pageable));
         return PagedResponse.from(ads.map(adMapper::toDto));
     }
 
@@ -125,6 +126,7 @@ public class AdServiceImpl implements AdService {
     @Override
     @Transactional(readOnly = true)
     public Ad getAdEntityById(Long adId) {
+        Objects.requireNonNull(adId, "El ID del anuncio no puede ser nulo");
         return adRepository.findById(adId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado con ID: " + adId));
     }
@@ -189,6 +191,7 @@ public class AdServiceImpl implements AdService {
         log.debug("Buscando anuncios disponibles para usuario: {}", userId);
 
         // Validar que el usuario existe (se puede evitar al buscar en la bd al hacer login)
+        Objects.requireNonNull(userId, "El ID de usuario no puede ser nulo");
         if (!userRepository.existsById(userId)) {
             log.error("Usuario no encontrado: {}", userId);
             throw new ObjectNotFoundException("Usuario con ID " + userId + " no encontrado", User.class);

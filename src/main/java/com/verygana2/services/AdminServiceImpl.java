@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -58,7 +59,7 @@ public class AdminServiceImpl implements AdminService{
 
         AdminReport report = AdminReport.createBlockBalanceReport(blockBalanceRequest.userId(), blockBalanceRequest.amount(), blockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
         
-        adminReportRepository.save(report);
+        adminReportRepository.save(Objects.requireNonNull(report));
 
         AdminReportResponse response = new AdminReportResponse("Balance blocked", blockBalanceRequest.amount(), newBalance, LocalDateTime.now());
 
@@ -81,7 +82,7 @@ public class AdminServiceImpl implements AdminService{
         BigDecimal newBlockedBalance = wallet.getBlockedBalance();
 
         AdminReport report = AdminReport.createUnblockBalanceReport(unblockBalanceRequest.userId(), unblockBalanceRequest.amount(), unblockBalanceRequest.reason(), previousBalance, newBalance, previousBlockedBalance, newBlockedBalance);
-        adminReportRepository.save(report);
+        adminReportRepository.save(Objects.requireNonNull(report));
 
         AdminReportResponse response = new AdminReportResponse("Balance unblocked", unblockBalanceRequest.amount(), newBalance, LocalDateTime.now());
 

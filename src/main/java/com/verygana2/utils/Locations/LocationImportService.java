@@ -84,8 +84,9 @@ public class LocationImportService {
         departmentRepository.saveAll(departments);
 
         // Refrescar: traer departamentos guardados desde BD (para que sean managed y tengan estado correcto)
+        List<String> deptCodes = departments.stream().map(Department::getCode).collect(Collectors.toList());
         Map<String, Department> persistedDepartments = departmentRepository.findAllById(
-                departments.stream().map(Department::getCode).collect(Collectors.toList())
+                Objects.requireNonNull(deptCodes)
         ).stream().collect(Collectors.toMap(Department::getCode, d -> d));
 
         // Asignar departamento persistido a cada municipio y guardar municipios

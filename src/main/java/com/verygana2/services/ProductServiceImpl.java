@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import org.hibernate.ObjectNotFoundException;
@@ -80,6 +81,7 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public Product getById(Long productId) {
+        Objects.requireNonNull(productId, "The productId cannot be null");
         return productRepository.findById(productId).orElseThrow(
                 () -> new ObjectNotFoundException("Product with id: " + productId + " not found", Product.class));
     }
