@@ -1,8 +1,5 @@
 package com.verygana2.security.auth;
 
-import java.util.Arrays;
-import java.util.Optional;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -11,7 +8,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,10 +21,12 @@ import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.services.interfaces.UserService;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
@@ -49,11 +47,6 @@ public class AuthController {
         this.userService = userService;
     }
 
-    @GetMapping
-    public String getMethodName() {
-        return "Hello, " + "! You are authenticated.";
-    }
-
     /**
      * Login: Autentica al usuario y genera un par de tokens (access + refresh)
      */
@@ -61,18 +54,19 @@ public class AuthController {
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request)
             throws InterruptedException {
 
+        log.info("Login attempt for user: {}", request.getIdentifier());
+
         Authentication authentication = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
 
-        AuthResponse token = tokenService.generateTokenPair(authentication);
+        AuthResponse tokens = tokenService.generateTokenPair(authentication);
 
-        String accessTokenCookie = generateCookie(token.getAccessToken(), "accessToken");
-        String refreshTokenCookie = generateCookie(token.getRefreshToken(), "refreshToken");
+        String refreshTokenCookie = generateCookie(tokens.getRefreshToken(), "refreshToken");
 
+        log.info("Login successful for user: {}", authentication.getName());
         return ResponseEntity.ok()
-        .header(HttpHeaders.SET_COOKIE, accessTokenCookie)
         .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-        .body(new AuthResponse(token.getAccessToken(), token.getRefreshToken()));
+        .body(new AuthResponse(tokens.getAccessToken(), null));
     }
 
     /**
@@ -81,32 +75,77 @@ public class AuthController {
     @PostMapping("/refresh") //Proteger contra CSRF
     public ResponseEntity<AuthResponse> refresh(HttpServletRequest request) {
         // Leer refresh token desde la cookie
-        String refreshToken = Arrays.stream(Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]))
-                .filter(c -> "refreshToken".equals(c.getName()))
-                .map(Cookie::getValue)
-                .findFirst()
-                .orElseThrow(() -> new InvalidTokenException("Refresh token cookie not found"));
+        String refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+
+        if (refreshToken == null) {
+            log.warn("Refresh token cookie not found");
+            throw new InvalidTokenException("Refresh token not found");
+        }
 
         AuthResponse tokenResponse = tokenService.refreshAccessToken(refreshToken);
 
         String refreshTokenCookie = generateCookie(tokenResponse.getRefreshToken(), "refreshToken");
-        String accessTokenCookie = generateCookie(tokenResponse.getRefreshToken(), "refreshToken");
 
-         return ResponseEntity.ok()
-            .header(HttpHeaders.SET_COOKIE, accessTokenCookie)
+        return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-            .body(new AuthResponse(tokenResponse.getAccessToken(), tokenResponse.getRefreshToken()));
+            .body(new AuthResponse(tokenResponse.getAccessToken(), null));
+    }
+
+    /**
+     * Logout: Invalida el refresh token y limpia cookies
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(
+            HttpServletRequest request,
+            HttpServletResponse response) {
+
+        log.info("Logout attempt");
+
+        // Extraer refresh token para invalidarlo en Redis
+        String refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+        
+        if (refreshToken != null) {
+            try {
+                tokenService.revokeRefreshToken(refreshToken);
+                log.info("Refresh token revoked successfully");
+            } catch (Exception e) {
+                log.warn("Error revoking refresh token", e);
+            }
+        }
+
+        // Limpiar cookie
+        clearRefreshTokenCookie(response);
+
+        return ResponseEntity.noContent().build();
     }
 
     private String generateCookie(String token, String name) {
+        java.util.Objects.requireNonNull(token, "token cannot be null");
+        java.util.Objects.requireNonNull(name, "token name cannot be null");
         return ResponseCookie.from(name, token)
                 .httpOnly(true)
                 .secure(false) // Set to true if using HTTPS in PRODUCTION
-                .path("/auth/**")
+                .path("/")
                 .maxAge((name.equals("accessToken") ? accessTokenExpiration : refreshTokenExpiration) / 1000)
                 .sameSite("Strict")
                 .build()
                 .toString();
+    }
+
+    /**
+     * Limpia cookie de refresh token (logout)
+     */
+    private void clearRefreshTokenCookie(HttpServletResponse response) {
+        String clearCookie = ResponseCookie.from("refreshToken", "")
+            .httpOnly(true)
+            .secure(true)
+            .path("/")
+            .maxAge(0)  // Expira inmediatamente
+            .sameSite("Strict")
+            .build()
+            .toString();
+
+        response.addHeader(HttpHeaders.SET_COOKIE, clearCookie);
     }
 
     @PostMapping("/register/consumer") //Devolver UserResponse o ConsumerRespone

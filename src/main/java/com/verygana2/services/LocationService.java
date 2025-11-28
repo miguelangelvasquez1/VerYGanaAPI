@@ -30,7 +30,7 @@ public class LocationService {
     @Cacheable("departments")
     public List<DepartmentResponseDTO> getAllDepartments() {
         log.debug("Obteniendo todos los departamentos");
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAllByOrderByNameAsc().stream()
                 .map(locationMapper::toDepartmentDto)
                 .collect(Collectors.toList());
     }
@@ -46,7 +46,7 @@ public class LocationService {
     @Cacheable(value = "municipalities", key = "#departmentCode")
     public List<MunicipalityResponseDTO> getMunicipalitiesByDepartment(String departmentCode) {
         log.debug("Obteniendo municipios del departamento: {}", departmentCode);
-        return municipalityRepository.findByDepartmentCode(departmentCode).stream()
+        return municipalityRepository.findByDepartmentCodeOrderByNameAsc(departmentCode).stream()
                 .map(locationMapper::toMunicipalityDto)
                 .collect(Collectors.toList());
     }

@@ -10,17 +10,21 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
 @Entity
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "department")
 public class Department {
     
     @Id
-    @Column(length = 10, nullable = false)
+    @Column(length = 2, nullable = false)
     private String code; // Código DANE (ej: "63" para Quindío)
     
     @Column(nullable = false, length = 100)

@@ -34,6 +34,8 @@ public class JwtBearerFilter extends OncePerRequestFilter {
         this.jwtDecoder = jwtDecoder;
     }
 
+    //shouldFilterInternal?
+
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
@@ -60,6 +62,7 @@ public class JwtBearerFilter extends OncePerRequestFilter {
             } catch (JwtException e) {
                 logger.warn("Invalid JWT token: {}", e.getMessage());
                 SecurityContextHolder.clearContext();
+                // throw new ServletException("Invalid JWT token", e);
             }
         } else {
             logger.debug("No valid Bearer token found in Authorization header");

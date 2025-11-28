@@ -50,3 +50,6 @@ CREATE TABLE audit_log (
     status VARCHAR(20) DEFAULT 'SUCCESS', -- SUCCESS / FAILURE
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+- probar refresh token
+- obtener session estandarizado

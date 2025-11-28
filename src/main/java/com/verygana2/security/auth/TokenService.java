@@ -1,6 +1,7 @@
 package com.verygana2.security.auth;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,6 +27,8 @@ import com.verygana2.security.CustomUserDetailsService;
 import com.verygana2.security.auth.refreshToken.RefreshToken;
 import com.verygana2.security.auth.refreshToken.RefreshTokenRepository;
 
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
@@ -109,7 +112,7 @@ public class TokenService {
      * Genera access token con claims completos usando JwtEncoder
      */
     public String generateAccessToken(Authentication authentication, Instant issuedAt) {
-         Instant expiresAt = issuedAt.plusSeconds(accessTokenExpiration);
+        Instant expiresAt = issuedAt.plusSeconds(accessTokenExpiration);
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(" "));
@@ -210,11 +213,27 @@ public class TokenService {
                 .filter(rt -> !rt.getRevoked() && rt.getExpiresAt().isAfter(Instant.now())).isPresent();
     }
 
-    private void revokeRefreshToken(String token) {
+    public void revokeRefreshToken(String token) {
         refreshTokenRepository.findByToken(token).ifPresent(rt -> {
             rt.setRevoked(true);
             refreshTokenRepository.save(rt);
         });
+    }
+
+    /**
+     * Extrae refresh token de la cookie
+     */
+    public String extractRefreshTokenFromCookie(HttpServletRequest request) {
+        Cookie[] cookies = request.getCookies();
+        if (cookies == null) {
+            return null;
+        }
+
+        return Arrays.stream(cookies)
+            .filter(cookie -> "refreshToken".equals(cookie.getName()))
+            .map(Cookie::getValue)
+            .findFirst()
+            .orElse(null);
     }
 
     private Authentication createAuthenticationFromUserDetails(UserDetails userDetails) {
