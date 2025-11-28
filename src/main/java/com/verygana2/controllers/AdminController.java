@@ -2,8 +2,10 @@ package com.verygana2.controllers;
 
 
 import java.net.URI;
+import java.util.Objects;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -18,26 +20,31 @@ import com.verygana2.dtos.wallet.requests.UnblockBalanceRequest;
 import com.verygana2.services.interfaces.AdminService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.services.interfaces.ProductCategoryService;
+import com.verygana2.utils.Locations.LocationImportService;
 
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/admin")
+@RequiredArgsConstructor
 public class AdminController {
     
     private final AdminService adminService;
     private final ProductCategoryService productCategoryService;
     private final CategoryService categoryService;
 
-    public AdminController(AdminService adminService, ProductCategoryService productCategoryService, CategoryService categoryService){
-        this.adminService = adminService;
-        this.productCategoryService = productCategoryService;
-        this.categoryService = categoryService;
-    }
+    private final LocationImportService importService;
 
     // findByUserId
     // findByActionType
 
+
+    @GetMapping("/import-locations")
+    public String importLocations() {
+        importService.importFromDane();
+        return "Importación finalizada";
+    }
 
     @PostMapping("/block/balance")
     //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
@@ -64,7 +71,6 @@ public class AdminController {
     //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createCategory(@RequestBody @Valid CategoryRequestDTO request){
         EntityCreatedResponse response = categoryService.create(request);
-        return ResponseEntity.created(URI.create("/categories")).body(response);
+        return ResponseEntity.created(Objects.requireNonNull(URI.create("/categories"))).body(response);
     }
-
 }

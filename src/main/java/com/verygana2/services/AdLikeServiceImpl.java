@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.time.ZonedDateTime;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +45,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         log.info("Processing like for ad {} from user {}", adId, userId);
         
         // Verificar que el usuario existe
+        Objects.requireNonNull(userId, "El ID de usuario no puede ser nulo");
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new AdNotFoundException("Usuario no encontrado"));
         
@@ -81,10 +83,10 @@ public class AdLikeServiceImpl implements AdLikeService {
             .completedAt(ZonedDateTime.now())
             .build();
         
-        transaction = transactionRepository.save(transaction);
+        transactionRepository.save(Objects.requireNonNull(transaction));
         
         // Guardar el like
-        adLikeRepository.save(adLike);
+        adLikeRepository.save(Objects.requireNonNull(adLike));
         
         // Actualizar el anuncio
         ad.incrementLike(ad.getRewardPerLike());

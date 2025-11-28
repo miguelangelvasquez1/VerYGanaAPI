@@ -8,16 +8,20 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Data
+@AllArgsConstructor
+@NoArgsConstructor
 @Table(name = "municipality",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"department_id","name"}))
+       uniqueConstraints = @UniqueConstraint(columnNames = {"department_code","name"}))
 public class Municipality {
 
     @Id
-    @Column(length = 10, nullable = false)
+    @Column(length = 5, nullable = false)
     private String code; // Código DANE completo (ej: "63001" para Armenia)
     
     @Column(nullable = false, length = 100)
@@ -27,6 +31,6 @@ public class Municipality {
     @JoinColumn(name = "department_code", nullable = false)
     private Department department;
     
-    @Column(name = "department_code", insertable = false, updatable = false)
+    @Column(name = "department_code", length = 2, insertable = false, updatable = false)
     private String departmentCode;
 }

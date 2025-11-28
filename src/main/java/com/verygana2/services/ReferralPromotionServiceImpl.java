@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
@@ -41,8 +42,8 @@ public class ReferralPromotionServiceImpl implements ReferralPromotionService{
                 amount,
                 mutualReferenceId);
 
-        transactionRepository.save(userTransaction);
-        transactionRepository.save(referredUseTransaction);
+        transactionRepository.save(Objects.requireNonNull(userTransaction));
+        transactionRepository.save(Objects.requireNonNull(referredUseTransaction));
 
         walletRepository.save(userWallet);
         walletRepository.save(referredUserWallet);

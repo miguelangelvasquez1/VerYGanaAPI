@@ -9,5 +9,5 @@ import com.verygana2.models.Municipality;
 
 @Repository
 public interface MunicipalityRepository extends JpaRepository<Municipality, String> {
-    List<Municipality> findByDepartmentCode(String departmentCode);
+    List<Municipality> findByDepartmentCodeOrderByNameAsc(String departmentCode);
 }

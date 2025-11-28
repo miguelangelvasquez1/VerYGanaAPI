@@ -24,7 +24,7 @@ public class RefreshToken {
     private String username; //email
     
     @Column(nullable = false, length = 1024) // length = 512
-    private String token;
+    private String token; //guardar HMAC-SHA256 por ejemplo
     
     @Column(nullable = false, unique = true, length = 100)
     private String jti;

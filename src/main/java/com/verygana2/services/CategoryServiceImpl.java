@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
@@ -39,13 +40,13 @@ public class CategoryServiceImpl implements CategoryService {
             throw new IllegalArgumentException("Already exists a category with that name");
         }
         Category category = mapper.toEntity(dto);
-        Category savedCategory = repository.save(category);
+        Category savedCategory = repository.save(Objects.requireNonNull(category));
         return new EntityCreatedResponse(savedCategory.getId(),"Category created succesfully", Instant.now());
     }
 
     @Override
     public CategoryResponseDTO getById(Long id) {
-        Category category = repository.findById(id)
+        Category category = repository.findById(Objects.requireNonNull(id))
             .orElseThrow(() -> new ObjectNotFoundException("Category with id: " + id + " not found", Category.class));
         return mapper.toDTO(category);
     }
@@ -60,6 +61,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @CacheEvict(value = "categories", allEntries = true)
     public CategoryResponseDTO update(Long id, CategoryRequestDTO dto) {
+        Objects.requireNonNull(id);
         Category category = repository.findById(id)
             .orElseThrow(() -> new ObjectNotFoundException("Category with id: " + id + " not found", Category.class));
         
@@ -74,6 +76,7 @@ public class CategoryServiceImpl implements CategoryService {
     @Override
     @CacheEvict(value = "categories", allEntries = true)
     public void delete(Long id) {
+        Objects.requireNonNull(id);
         if (!repository.existsById(id)) {
             throw new ObjectNotFoundException("Category with id: " + id + " not found", Category.class);
         }

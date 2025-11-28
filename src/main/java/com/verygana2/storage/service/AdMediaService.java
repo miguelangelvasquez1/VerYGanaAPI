@@ -2,6 +2,7 @@ package com.verygana2.storage.service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,6 +38,7 @@ public class AdMediaService {
         log.info("Subiendo media para anuncio {}: tipo {}", adId, mediaType);
         
         // Buscar anuncio
+        Objects.requireNonNull(adId, "adId no puede ser nulo");
         Ad ad = adRepository.findById(adId)
             .orElseThrow(() -> new AdNotFoundException(adId));
         
@@ -80,6 +82,7 @@ public class AdMediaService {
     public void deleteAdMedia(Long adId) {
         log.info("Eliminando media de anuncio {}", adId);
         
+        Objects.requireNonNull(adId, "adId no puede ser nulo");
         Ad ad = adRepository.findById(adId)
             .orElseThrow(() -> new AdNotFoundException(adId));
         

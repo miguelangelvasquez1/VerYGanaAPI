@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import org.springframework.cache.annotation.Cacheable;
@@ -30,13 +31,14 @@ public class LocationService {
     @Cacheable("departments")
     public List<DepartmentResponseDTO> getAllDepartments() {
         log.debug("Obteniendo todos los departamentos");
-        return departmentRepository.findAll().stream()
+        return departmentRepository.findAllByOrderByNameAsc().stream()
                 .map(locationMapper::toDepartmentDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public DepartmentResponseDTO getDepartmentByCode(String code) {
+        Objects.requireNonNull(code, "El código del departamento no puede ser nulo");
         return departmentRepository.findById(code)
                 .map(locationMapper::toDepartmentDto)
                 .orElseThrow(() -> new EntityNotFoundException("Departamento no encontrado: " + code));
@@ -46,13 +48,14 @@ public class LocationService {
     @Cacheable(value = "municipalities", key = "#departmentCode")
     public List<MunicipalityResponseDTO> getMunicipalitiesByDepartment(String departmentCode) {
         log.debug("Obteniendo municipios del departamento: {}", departmentCode);
-        return municipalityRepository.findByDepartmentCode(departmentCode).stream()
+        return municipalityRepository.findByDepartmentCodeOrderByNameAsc(departmentCode).stream()
                 .map(locationMapper::toMunicipalityDto)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public MunicipalityResponseDTO getMunicipalityByCode(String code) {
+        Objects.requireNonNull(code, "El código del municipio no puede ser nulo");
         return municipalityRepository.findById(code)
                 .map(locationMapper::toMunicipalityDto)
                 .orElseThrow(() -> new EntityNotFoundException("Municipio no encontrado: " + code));

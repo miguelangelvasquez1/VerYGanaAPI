@@ -2,9 +2,9 @@ package com.verygana2.controllers;
 
 import java.net.URI;
 import java.util.List;
+import java.util.Objects;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -31,7 +31,7 @@ public class ProductCategoryController {
     @PostMapping("/create")
     //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createProductCategory (@Valid @RequestBody CreateProductCategoryRequest request){
-        return ResponseEntity.created(URI.create("/productCategories")).body(productCategoryService.create(request));
+        return ResponseEntity.created(Objects.requireNonNull(URI.create("/productCategories"))).body(productCategoryService.create(request));
     } 
 
     @DeleteMapping("/delete/{id}")

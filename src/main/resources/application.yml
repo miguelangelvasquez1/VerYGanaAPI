@@ -98,6 +98,8 @@ spring.cache:
     - availableAdsCount
     - userPreferences
     - categories
+    - departments
+    - municipalities
 
 # ============================================
 # LOGGING CONFIGURATION

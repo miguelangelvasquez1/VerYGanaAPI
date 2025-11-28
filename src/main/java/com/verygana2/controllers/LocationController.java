@@ -17,7 +17,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/v1/locations")
+@RequestMapping("/locations")
 @RequiredArgsConstructor
 @Tag(name = "Locations", description = "Gestión de ubicaciones geográficas")
 public class LocationController {

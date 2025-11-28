@@ -3,6 +3,7 @@ package com.verygana2.services;
 import java.time.Instant;
 import java.util.List;
 import java.util.Locale.Category;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
@@ -31,13 +32,13 @@ public class ProductCategoryServiceImpl implements ProductCategoryService{
     @Override
     public EntityCreatedResponse create(CreateProductCategoryRequest request) {
         ProductCategory productCategory = productCategoryMapper.toProductCategory(request);
-        ProductCategory savedProductCategory = productCategoryRepository.save(productCategory);
+        ProductCategory savedProductCategory = productCategoryRepository.save(Objects.requireNonNull(productCategory));
         return new EntityCreatedResponse(savedProductCategory.getId(), "Product category created succesfully", Instant.now());
     }
 
     @Override
     public void delete(Long categoryId) {
-        if (!productCategoryRepository.existsById(categoryId)) {
+        if (!productCategoryRepository.existsById(Objects.requireNonNull(categoryId))) {
             throw new ObjectNotFoundException("Product category not found with id: " + categoryId, Category.class);
         }
 

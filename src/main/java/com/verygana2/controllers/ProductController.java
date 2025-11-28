@@ -2,6 +2,7 @@ package com.verygana2.controllers;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.Objects;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,7 +72,7 @@ public class ProductController {
         
         Long userId = jwt.getClaim("userId");
         EntityCreatedResponse response = productService.create(request, userId, productImage);
-        return ResponseEntity.created(URI.create("/products/" + response.getId())).body(response);
+        return ResponseEntity.created(Objects.requireNonNull(URI.create("/products/" + response.getId()))).body(response);
         
     } catch (JsonProcessingException e) {
         throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid JSON format", e);

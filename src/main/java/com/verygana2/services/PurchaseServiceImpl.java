@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
@@ -189,7 +190,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         for (PurchaseItem item : purchaseWithItems.getItems()) {
                 if (item.getAssignedProductStock() != null) {
                     item.getAssignedProductStock().markAsAvailable();
-                    productStockRepository.save(item.getAssignedProductStock());
+                    productStockRepository.save(Objects.requireNonNull(item.getAssignedProductStock()));
                 }
 
                 // Restaurar stock del producto
@@ -213,7 +214,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 buyerWallet,
                 totalAmount.negate(), // Negativo porque es débito
                 referenceId);
-        transactionRepository.save(buyerTx);
+        transactionRepository.save(Objects.requireNonNull(buyerTx));
         log.debug("Buyer transaction saved: {}", buyerTx.getId());
 
         // 3. Agrupar items por vendedor
@@ -266,7 +267,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                     sellerWallet,
                     netAmount,
                     referenceId);
-            transactionRepository.save(sellerTx);
+            transactionRepository.save(Objects.requireNonNull(sellerTx));
         }
     }
 
@@ -295,7 +296,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Override
     @Transactional(readOnly = true)
     public List<Transaction> getPurchaseTransactions(Long purchaseId) {
-        Purchase purchase = purchaseRepository.findById(purchaseId)
+        Purchase purchase = purchaseRepository.findById(Objects.requireNonNull(purchaseId))
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Purchase with id: " + purchaseId + " not found",
                         Purchase.class));

@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 treasury.getReservedForWithdrawals());
 
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
 
     }
 
@@ -50,7 +51,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
 
     }
 
@@ -62,7 +63,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
     @Override
@@ -73,7 +74,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
 
     }
 
@@ -85,7 +86,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
     @Override
@@ -96,7 +97,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 withdrawalReference, description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
     @Override
@@ -107,7 +108,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
     @Override
@@ -118,7 +119,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
                 description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
         platformTreasuryRepository.save(treasury);
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
     @Override
@@ -145,7 +146,7 @@ public class PlatformTreasuryServiceImpl implements PlatformTreasuryService {
         PlatformTransaction platformTransaction = PlatformTransaction.createRefferalPromotion(amount, referenceId,
                 description, treasury.getBalance(), treasury.getAvailableBalance(),
                 treasury.getReservedForWithdrawals());
-        platformTransactionRepository.save(platformTransaction);
+        platformTransactionRepository.save(Objects.requireNonNull(platformTransaction));
     }
 
 }
