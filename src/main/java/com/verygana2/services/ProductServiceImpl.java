@@ -14,6 +14,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
@@ -31,6 +32,8 @@ import com.verygana2.services.interfaces.ProductCategoryService;
 import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.details.SellerDetailsService;
+import com.verygana2.storage.dto.UploadResult;
+import com.verygana2.storage.service.CloudStorageService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -51,15 +54,28 @@ public class ProductServiceImpl implements ProductService {
 
     private final ConsumerDetailsRepository consumerDetailsRepository;
 
+    private final CloudStorageService cloudStorageService;
+
     @Override
-    public EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId) {
+    public EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId, MultipartFile productImage) {
         SellerDetails seller = sellerDetailsService.getSellerById(sellerId);
+        ProductCategory category = productCategoryService.getById(request.getProductCategoryId());
+
         Product product = productMapper.toProduct(request);
-        ProductCategory category = productCategoryService.getById(request.getCategoryId());
         product.setSeller(seller);
-        product.setCategory(category);
-        productRepository.save(product);
-        return new EntityCreatedResponse("Product created succesfully", Instant.now());
+        product.setProductCategory(category);
+
+        UploadResult uploadResult = cloudStorageService.uploadFile(productImage, "products", null);
+
+        product.setImageUrl(uploadResult.getSecureUrl());
+
+        // Asociar stockItems con el producto
+        if (product.getStockItems() != null) {
+            product.getStockItems().forEach(stock -> stock.setProduct(product));
+        }
+        Product savedProduct = productRepository.save(product);
+
+        return new EntityCreatedResponse(savedProduct.getId(), "Product created succesfully", Instant.now());
     }
 
     @Override
@@ -96,8 +112,8 @@ public class ProductServiceImpl implements ProductService {
         Product product = getById(productId);
         productMapper.updateProductFromRequest(createOrEditProductRequest, product);
 
-        ProductCategory category = productCategoryService.getById(createOrEditProductRequest.getCategoryId());
-        product.setCategory(category);
+        ProductCategory category = productCategoryService.getById(createOrEditProductRequest.getProductCategoryId());
+        product.setProductCategory(category);
         productRepository.save(product);
     }
 
@@ -168,7 +184,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Long getTotalSellerProducts (Long sellerId){
+    public Long getTotalSellerProducts(Long sellerId) {
         return productRepository.countSellerProducts(sellerId);
     }
 

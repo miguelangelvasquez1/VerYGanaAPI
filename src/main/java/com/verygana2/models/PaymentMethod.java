@@ -1,4 +1,4 @@
-package com.verygana2.models.enums.products;
+package com.verygana2.models;
 
 public enum PaymentMethod {
     WALLET,              // Pago con billetera interna (Tpoints) - PRINCIPAL

@@ -9,7 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,13 +18,11 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.purchase.requests.CancelPurchaseOrProductRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.products.Purchase;
 import com.verygana2.services.interfaces.PurchaseService;
 
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -45,7 +42,7 @@ public class PurchaseController {
     @GetMapping
     public ResponseEntity<PagedResponse<Purchase>> getPurchases (@AuthenticationPrincipal Jwt jwt, Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(purchaseService.getPurchases(consumerId, pageable));
+        return ResponseEntity.ok(purchaseService.getConsumerPurchases(consumerId, pageable));
     }
 
     @GetMapping("/{purchaseId}/transactions")
@@ -54,19 +51,7 @@ public class PurchaseController {
         return ResponseEntity.ok(purchaseService.getPurchaseTransactions(purchaseId));
     }
 
-    @DeleteMapping("/cancel/{purchaseId}")
-    public ResponseEntity<Void> cancelPurchase(@AuthenticationPrincipal Jwt jwt, @PathVariable Long purchaseId, @Valid @RequestBody CancelPurchaseOrProductRequestDTO request){
-        Long consumerId = jwt.getClaim("userId");
-        purchaseService.cancelPurchase(purchaseId, consumerId, request.getReason());
-        return ResponseEntity.noContent().build();
-    }
+    
 
 
-
-    @DeleteMapping("/cancel/{purchaseId}/{productId}")
-    public ResponseEntity<Void> cancelPurchaseItem(@AuthenticationPrincipal Jwt jwt, @PathVariable Long purchaseId, @PathVariable Long productId, @Valid @RequestBody CancelPurchaseOrProductRequestDTO request){
-        Long consumerId = jwt.getClaim("userId");
-        purchaseService.cancelPurchaseItem(purchaseId, productId, consumerId, request.getReason());
-        return ResponseEntity.noContent().build();
-    }
 }

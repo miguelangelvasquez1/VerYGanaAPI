@@ -2,7 +2,7 @@ package com.verygana2.dtos.wallet.requests;
 
 import java.math.BigDecimal;
 
-import com.verygana2.models.enums.products.PaymentMethod;
+import com.verygana2.models.PaymentMethod;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;

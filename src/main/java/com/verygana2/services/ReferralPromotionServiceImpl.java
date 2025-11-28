@@ -35,9 +35,9 @@ public class ReferralPromotionServiceImpl implements ReferralPromotionService{
         referredUserWallet.addBalance(amount);
 
         String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
-        Transaction userTransaction = Transaction.createReferralRewardTransaction(userWallet.getId(), amount,
+        Transaction userTransaction = Transaction.createReferralRewardTransaction(userWallet, amount,
                 mutualReferenceId);
-        Transaction referredUseTransaction = Transaction.createReferralRewardTransaction(referredUserWallet.getId(),
+        Transaction referredUseTransaction = Transaction.createReferralRewardTransaction(referredUserWallet,
                 amount,
                 mutualReferenceId);
 

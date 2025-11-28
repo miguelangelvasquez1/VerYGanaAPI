@@ -5,9 +5,11 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.product.requests.ProductStockRequest;
 import com.verygana2.dtos.product.responses.ProductResponse;
 import com.verygana2.dtos.product.responses.ProductSummaryResponse;
 import com.verygana2.models.products.Product;
+import com.verygana2.models.products.ProductStock;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -16,40 +18,55 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface ProductMapper {
 
-    @Mapping(target = "category", ignore = true)
-    @Mapping(target = "active", ignore = true)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "productCategory", ignore = true)
+    @Mapping(target = "seller", ignore = true)
+    @Mapping(target = "reviews", ignore = true)
+    @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "averageRate", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "seller", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "stock", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "stockItems", source = "stockItems")
+    @Mapping(target = "active", ignore = true)
+    @Mapping(target = "instantDelivery", ignore = true)
     Product toProduct(CreateOrEditProductRequest request);
 
-    @Mapping(target = "category", ignore = true)
+    List<ProductStock> toProductStockList (List<ProductStockRequest> stockRequests);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "product", ignore = true)
+    @Mapping(target = "status", constant = "AVAILABLE")
+    @Mapping(target = "purchaseItem", ignore = true)
+    @Mapping(target = "soldAt", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    ProductStock toProductStock (ProductStockRequest request);
+
+    @Mapping(target = "productCategory", ignore = true)
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "averageRate", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "seller", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "reviews", ignore = true)
+    @Mapping(target = "reviewCount", ignore = true)
+    @Mapping(target = "stock", ignore = true)
+    @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "instantDelivery", ignore = true)
     void updateProductFromRequest(CreateOrEditProductRequest request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponse (completed) =====
-    @Mapping(target = "categoryName", source = "category.name")
+    @Mapping(target = "categoryName", source = "productCategory.name")
     @Mapping(target = "shopName", source = "seller.shopName")
     @Mapping(target = "priceFormatted", expression = "java(formatPrice(product.getPrice()))")
     ProductResponse toProductResponse(Product product);
 
-    @Mapping(target = "imagesUrl", expression = "java(getFirstImageUrl(product.getImagesUrls()))")
+    
     ProductSummaryResponse toProductSummaryResponse(Product product);
-
-    default String getFirstImageUrl(List<String> imageUrls) {
-        if (imageUrls == null || imageUrls.isEmpty()) {
-
-            return "https://placeholder.com/default-product.jpg"; // Default URL
-        }
-        return imageUrls.get(0);
-    }
 
     default String formatPrice(BigDecimal price) {
         if (price == null) {

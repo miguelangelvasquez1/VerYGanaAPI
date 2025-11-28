@@ -84,6 +84,12 @@
             <version>2.6.0</version>
         </dependency>
 
+        <!-- deserealizacion para fechas de JavaTime (Se puede cambiar al usar ZoneDateTime en el futuro) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.datatype</groupId>
+            <artifactId>jackson-datatype-jsr310</artifactId>
+        </dependency>
+
         <!-- AWS SDK S3 (para R2) - Solo se carga si se usa R2 -->
         <dependency>
             <groupId>software.amazon.awssdk</groupId>

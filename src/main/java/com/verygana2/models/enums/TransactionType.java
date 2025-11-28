@@ -20,10 +20,4 @@ public enum TransactionType {
     GIFT_TRANSFER_SENT,     // Envío entre usuarios
     GIFT_TRANSFER_RECEIVED,  // Recepción entre usuarios
 
-    // Reembolsos y Cancelaciones
-
-    PRODUCT_SALE_CANCELED,
-    WHOLE_PURCHASE_CANCELED,
-    PRODUCT_PURCHASE_CANCELED;
-
 }

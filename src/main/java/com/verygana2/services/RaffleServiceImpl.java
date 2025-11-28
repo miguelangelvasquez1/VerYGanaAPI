@@ -68,7 +68,7 @@ public class RaffleServiceImpl implements RaffleService{
         }
 
         wallet.subtractBalance(amount);
-        Transaction transaction = Transaction.createRaffleParticipationTransaction(wallet.getId(), amount);
+        Transaction transaction = Transaction.createRaffleParticipationTransaction(wallet, amount);
         transactionRepository.save(transaction);
         walletRepository.save(wallet);
     }

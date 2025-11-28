@@ -10,7 +10,7 @@ import com.verygana2.models.products.PurchaseItem;
 @Repository
 public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long>{
     
-    @Query("SELECT SUM(p.quantity) FROM PurchaseItem p WHERE p.seller = :sellerId")
+    @Query("SELECT SUM(p.quantity) FROM PurchaseItem p WHERE p.product.seller.id = :sellerId")
     Long countTotalSalesBySellerId (@Param("sellerId") Long sellerId);
 
 }
