@@ -1,5 +1,7 @@
 package com.verygana2.security.auth;
 
+import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -8,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -15,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
+import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.AdvertiserRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.dtos.user.SellerRegisterDTO;
@@ -59,14 +63,18 @@ public class AuthController {
         Authentication authentication = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
 
-        AuthResponse tokens = tokenService.generateTokenPair(authentication);
+        TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 
         String refreshTokenCookie = generateCookie(tokens.getRefreshToken(), "refreshToken");
+
+        String scope = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.joining(" "));
 
         log.info("Login successful for user: {}", authentication.getName());
         return ResponseEntity.ok()
         .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-        .body(new AuthResponse(tokens.getAccessToken(), null));
+        .body(new AuthResponse(tokens.getAccessToken(), scope));
     }
 
     /**
@@ -82,7 +90,7 @@ public class AuthController {
             throw new InvalidTokenException("Refresh token not found");
         }
 
-        AuthResponse tokenResponse = tokenService.refreshAccessToken(refreshToken);
+        TokenPairDTO tokenResponse = tokenService.refreshAccessToken(refreshToken);
 
         String refreshTokenCookie = generateCookie(tokenResponse.getRefreshToken(), "refreshToken");
 
