@@ -19,7 +19,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 
-import com.verygana2.dtos.auth.AuthResponse;
+import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.security.CustomUserDetails;
@@ -59,7 +59,7 @@ public class TokenService {
     /**
      * Genera un par de tokens (access + refresh) para un usuario autenticado
      */
-    public AuthResponse generateTokenPair(Authentication authentication) {
+    public TokenPairDTO generateTokenPair(Authentication authentication) {
         Instant now = Instant.now();
         String username = authentication.getName();
         
@@ -74,13 +74,13 @@ public class TokenService {
         
         log.info("Generated token pair for user: {}", username);
         
-        return new AuthResponse(accessToken, refreshToken);
+        return new TokenPairDTO(accessToken, refreshToken);
     }
 
     /**
      * Genera un nuevo access token usando el refresh token
      */
-    public AuthResponse refreshAccessToken(String refreshToken) {
+    public TokenPairDTO refreshAccessToken(String refreshToken) {
         try {
             // Validar y decodificar refresh token
             Jwt jwt = validateAndDecodeRefreshToken(refreshToken);
@@ -100,7 +100,7 @@ public class TokenService {
             
             log.info("Refreshed tokens for user: {}", username);
             
-            return new AuthResponse(newAccessToken, newRefreshToken);
+            return new TokenPairDTO(newAccessToken, newRefreshToken);
                     
         } catch (JwtException e) {
             log.warn("Invalid refresh token: {}", e.getMessage());
@@ -226,6 +226,7 @@ public class TokenService {
     public String extractRefreshTokenFromCookie(HttpServletRequest request) {
         Cookie[] cookies = request.getCookies();
         if (cookies == null) {
+            log.info("No cookies found in request");
             return null;
         }
 
