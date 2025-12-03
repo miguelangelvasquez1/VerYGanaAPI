@@ -1,7 +1,5 @@
 package com.verygana2.services.interfaces;
 
-import java.io.IOException;
-
 import com.verygana2.models.products.Purchase;
 
 public interface EmailService {
