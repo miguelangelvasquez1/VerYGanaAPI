@@ -30,6 +30,7 @@ import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.storage.service.AdMediaService;
 import com.verygana2.utils.DateValidator;
 import com.verygana2.utils.specifications.AdSpecifications;
 
@@ -51,6 +52,7 @@ public class AdServiceImpl implements AdService {
     private final UserRepository userRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
+    private final AdMediaService adMediaService;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -73,6 +75,10 @@ public class AdServiceImpl implements AdService {
         ad.setCategories(selectedCategories);
 
         Ad savedAd = adRepository.save(ad);
+
+        //Llamar al servicio de almacenamiento
+        adMediaService.uploadAdMedia(savedAd.getId(), createDto.getFile(), createDto.getMediaType()); //terminar esto
+
         log.info("Ad created successfully with ID: {}", savedAd.getId());
         
         return adMapper.toDto(savedAd);

@@ -1,5 +1,6 @@
 package com.verygana2.security.auth;
 
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -81,7 +82,7 @@ public class AuthController {
      * Refresh: Usa el refresh token para generar un nuevo par de tokens
      */
     @PostMapping("/refresh") //Proteger contra CSRF
-    public ResponseEntity<AuthResponse> refresh(HttpServletRequest request) {
+    public ResponseEntity<Map<String, String>> refresh(HttpServletRequest request) {
         // Leer refresh token desde la cookie
         String refreshToken = tokenService.extractRefreshTokenFromCookie(request);
 
@@ -96,7 +97,7 @@ public class AuthController {
 
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-            .body(new AuthResponse(tokenResponse.getAccessToken(), null));
+            .body(Map.of("accessToken", tokenResponse.getAccessToken()));
     }
 
     /**
@@ -134,8 +135,8 @@ public class AuthController {
                 .httpOnly(true)
                 .secure(false) // Set to true if using HTTPS in PRODUCTION
                 .path("/")
-                .maxAge((name.equals("accessToken") ? accessTokenExpiration : refreshTokenExpiration) / 1000)
-                .sameSite("Strict")
+                .maxAge((name.equals("accessToken") ? accessTokenExpiration : refreshTokenExpiration))
+                .sameSite("Lax")
                 .build()
                 .toString();
     }
