@@ -36,11 +36,13 @@ import com.verygana2.repositories.ProductStockRepository;
 import com.verygana2.repositories.PurchaseItemRepository;
 import com.verygana2.repositories.PurchaseRepository;
 import com.verygana2.repositories.TransactionRepository;
+import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.PlatformTreasuryService;
 import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.PurchaseService;
 import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 
@@ -60,6 +62,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final ProductRepository productRepository;
     private final ConsumerDetailsService consumerDetailsService;
     private final ProductStockRepository productStockRepository;
+    private final EmailService emailService;
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
 
@@ -69,6 +72,15 @@ public class PurchaseServiceImpl implements PurchaseService {
     @Value("${taxes.iva}")
     private BigDecimal iva;
 
+    @Override
+    public Purchase getPurchaseById(Long purchaseId) {
+        if (purchaseId == null || purchaseId <= 0) {
+            throw new IllegalArgumentException("Purchase id must be positive");
+        }
+
+        return purchaseRepository.findById(purchaseId).orElseThrow(
+                () -> new ObjectNotFoundException("Purchase with id:" + purchaseId + " not found", Purchase.class));
+    }
 
     @Override
     public EntityCreatedResponse createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
@@ -84,7 +96,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         // 1. Crear compra
         Purchase basePurchase = createBasePurchase(referenceId, consumerId, request);
-        
+
         // 2. Adicionar items
         Purchase purchaseWithItems = addPurchaseItems(basePurchase, request);
 
@@ -118,28 +130,36 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw e;
         }
 
-        // logica de envio de productos al comprador (emailService)
+        // Envio de productos al comprador (emailService)
+        try {
+            emailService.sendPurchaseConfirmation(purchaseWithItems);
+        } catch (Exception e) {
+            log.error("Failed to send purchase confirmation email, but purchase was successful. Purchase ID: {}",
+                    purchaseWithItems.getId(), e);
+            // No lanzamos la excepción porque el pago ya se completó exitosamente
+        }
 
         Purchase savedPurchase = purchaseRepository.save(purchaseWithItems);
 
-        log.info("Purchase created succesfully. id: {}, Total: {}", purchaseWithItems.getId(), purchaseWithItems.getTotal());
+        log.info("Purchase created succesfully. id: {}, Total: {}", purchaseWithItems.getId(),
+                purchaseWithItems.getTotal());
 
         return new EntityCreatedResponse(savedPurchase.getId(), "Purchase registered succesfully", Instant.now());
     }
 
     // Metodos privados para crear una compra
-    private Purchase createBasePurchase(String referenceId, Long consumerId, CreatePurchaseRequestDTO request){
+    private Purchase createBasePurchase(String referenceId, Long consumerId, CreatePurchaseRequestDTO request) {
         return Purchase.builder()
-        .referenceId(referenceId)
-        .consumer(consumerDetailsService.getConsumerById(consumerId))
-        .status(PurchaseStatus.PENDING)
-        .contactEmail(request.getContactEmail())
-        .notes(request.getNotes())
-        .couponCode(request.getCouponCode())
-        .build();
+                .referenceId(referenceId)
+                .consumer(consumerDetailsService.getConsumerById(consumerId))
+                .status(PurchaseStatus.PENDING)
+                .contactEmail(request.getContactEmail())
+                .notes(request.getNotes())
+                .couponCode(request.getCouponCode())
+                .build();
     }
 
-    private Purchase addPurchaseItems(Purchase basePurchase, CreatePurchaseRequestDTO request){
+    private Purchase addPurchaseItems(Purchase basePurchase, CreatePurchaseRequestDTO request) {
 
         Purchase purchaseWithItems = basePurchase;
 
@@ -186,18 +206,18 @@ public class PurchaseServiceImpl implements PurchaseService {
         return purchaseWithItems;
     }
 
-    private void releaseCodes (Purchase purchaseWithItems){
+    private void releaseCodes(Purchase purchaseWithItems) {
         for (PurchaseItem item : purchaseWithItems.getItems()) {
-                if (item.getAssignedProductStock() != null) {
-                    item.getAssignedProductStock().markAsAvailable();
-                    productStockRepository.save(Objects.requireNonNull(item.getAssignedProductStock()));
-                }
-
-                // Restaurar stock del producto
-                Product product = item.getProduct();
-                product.updateStockCount();
-                productRepository.save(product);
+            if (item.getAssignedProductStock() != null) {
+                item.getAssignedProductStock().markAsAvailable();
+                productStockRepository.save(Objects.requireNonNull(item.getAssignedProductStock()));
             }
+
+            // Restaurar stock del producto
+            Product product = item.getProduct();
+            product.updateStockCount();
+            productRepository.save(product);
+        }
     }
 
     private void processPurchasePayment(Purchase purchaseWithItems, Wallet buyerWallet) {
@@ -228,7 +248,8 @@ public class PurchaseServiceImpl implements PurchaseService {
         BigDecimal totalPaidToSellers = purchaseWithItems.getPaidToSellers();
 
         // 5. ✅ Registrar UNA SOLA PlatformTransaction con el total de comisiones
-        savePurchaseDataInPlatform(purchaseWithItems, referenceId, totalplatformEarnings, totalPaidToSellers, sellerAmounts.size());
+        savePurchaseDataInPlatform(purchaseWithItems, referenceId, totalplatformEarnings, totalPaidToSellers,
+                sellerAmounts.size());
         log.info("Payment processed successfully for purchase: {}", purchaseWithItems.getId());
     }
 
@@ -245,8 +266,9 @@ public class PurchaseServiceImpl implements PurchaseService {
         return sellerAmounts;
     }
 
-    private void distributeSellersEarningsAndTransactions(Purchase purchaseWithItems, String referenceId, Map<SellerDetails, BigDecimal> sellerAmounts){
-        
+    private void distributeSellersEarningsAndTransactions(Purchase purchaseWithItems, String referenceId,
+            Map<SellerDetails, BigDecimal> sellerAmounts) {
+
         for (Map.Entry<SellerDetails, BigDecimal> entry : sellerAmounts.entrySet()) {
             SellerDetails seller = entry.getKey();
             BigDecimal grossAmount = entry.getValue();
@@ -271,18 +293,19 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
     }
 
-    private void savePurchaseDataInPlatform (Purchase purchaseWithItems, String referenceId, BigDecimal platformEarnings, BigDecimal totalPaidToSellers, int sellerAmountsSize){
-        
+    private void savePurchaseDataInPlatform(Purchase purchaseWithItems, String referenceId, BigDecimal platformEarnings,
+            BigDecimal totalPaidToSellers, int sellerAmountsSize) {
+
         String description = String.format(
                 "Commission from purchase #%d - Totals earnings: %s from %d seller(s)",
                 purchaseWithItems.getId(),
                 platformEarnings,
                 sellerAmountsSize);
-        
+
         platformTreasuryService.addProductsSaleCommission(
-            platformEarnings,
-            referenceId,
-            description);
+                platformEarnings,
+                referenceId,
+                description);
 
         String description2 = String.format("Amount reserved from purchase #%d - Total reserved: %s from %d seller(s)",
                 purchaseWithItems.getId(), totalPaidToSellers, sellerAmountsSize);

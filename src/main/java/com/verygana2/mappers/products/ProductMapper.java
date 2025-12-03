@@ -6,8 +6,8 @@ import org.mapstruct.MappingTarget;
 
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
 import com.verygana2.dtos.product.requests.ProductStockRequest;
-import com.verygana2.dtos.product.responses.ProductResponse;
-import com.verygana2.dtos.product.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.responses.ProductResponseDTO;
+import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.products.ProductStock;
 
@@ -63,10 +63,10 @@ public interface ProductMapper {
     @Mapping(target = "categoryName", source = "productCategory.name")
     @Mapping(target = "shopName", source = "seller.shopName")
     @Mapping(target = "priceFormatted", expression = "java(formatPrice(product.getPrice()))")
-    ProductResponse toProductResponse(Product product);
+    ProductResponseDTO toProductResponseDTO(Product product);
 
     
-    ProductSummaryResponse toProductSummaryResponse(Product product);
+    ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     default String formatPrice(BigDecimal price) {
         if (price == null) {

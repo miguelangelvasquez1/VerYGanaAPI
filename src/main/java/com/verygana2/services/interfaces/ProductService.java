@@ -8,8 +8,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
-import com.verygana2.dtos.product.responses.ProductResponse;
-import com.verygana2.dtos.product.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.responses.ProductResponseDTO;
+import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.products.Product;
 
 public interface ProductService {
@@ -25,13 +25,13 @@ public interface ProductService {
 
     void edit (Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest);
 
-    Page<ProductSummaryResponse> getAllProducts(Integer page);
+    Page<ProductSummaryResponseDTO> getAllProducts(Integer page);
 
-    Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page);
+    Page<ProductSummaryResponseDTO> getSellerProducts(Long sellerId, Integer page);
     
     Long getTotalSellerProducts (Long sellerId);
 
-    Page<ProductSummaryResponse> filterProducts(String searchQuery,
+    Page<ProductSummaryResponseDTO> filterProducts(String searchQuery,
             Long categoryId,
             Double minRating,
             BigDecimal maxPrice,
@@ -39,13 +39,13 @@ public interface ProductService {
             String sortBy,
             String sortDirection);
 
-    ProductResponse detailProduct(Long productId);
+    ProductResponseDTO detailProduct(Long productId);
 
     void getProductStats(Long productId, Long userId); // pending
 
     List<String> getBestSellers (); // pending
 
-    Page<ProductSummaryResponse> getFavorites(Long userId, Integer page); // pending
+    Page<ProductSummaryResponseDTO> getFavorites(Long userId, Integer page); // pending
     void addFavorite (Long userId, Long productId); // pending
     void removeFavorite(Long userId, Long productId); // pending
 

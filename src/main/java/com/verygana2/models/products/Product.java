@@ -91,6 +91,9 @@ public class Product {
         averageRate = 0.0;
         reviewCount = 0;
         isActive = true;
+        if (digitalFormat == DigitalFormat.CODE) {
+            isInstantDelivery = true;
+        }
     }
 
     @PreUpdate

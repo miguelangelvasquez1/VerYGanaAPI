@@ -29,13 +29,13 @@ public class ProductCategoryController {
     private final ProductCategoryService productCategoryService;
 
     @PostMapping("/create")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createProductCategory (@Valid @RequestBody CreateProductCategoryRequest request){
         return ResponseEntity.created(Objects.requireNonNull(URI.create("/productCategories"))).body(productCategoryService.create(request));
     } 
 
     @DeleteMapping("/delete/{id}")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteProductCategory(@PathVariable Long id){
         productCategoryService.delete(id);
         return ResponseEntity.noContent().build();

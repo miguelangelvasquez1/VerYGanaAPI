@@ -12,6 +12,7 @@ import com.verygana2.models.products.Purchase;
 
 public interface PurchaseService {
     EntityCreatedResponse createPurchase(Long consumerId, CreatePurchaseRequestDTO request);
+    Purchase getPurchaseById (Long purchaseId);
     PagedResponse<Purchase> getConsumerPurchases(Long consumerId, Pageable pageable);
     List<Transaction> getPurchaseTransactions (Long purchaseId);
 }

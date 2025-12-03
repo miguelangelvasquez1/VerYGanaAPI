@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -55,9 +56,9 @@ public class ProductReview {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "purchase_id", nullable = false)
-    private Purchase purchase;
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "purchase_item_id", nullable = false, unique = true)
+    private PurchaseItem purchaseItem;
 
     @Column(nullable = false)
     private Integer rating;

@@ -19,8 +19,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.generic.EntityCreatedResponse;
 import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
-import com.verygana2.dtos.product.responses.ProductResponse;
-import com.verygana2.dtos.product.responses.ProductSummaryResponse;
+import com.verygana2.dtos.product.responses.ProductResponseDTO;
+import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.mappers.products.ProductMapper;
 import com.verygana2.models.products.Product;
@@ -121,15 +121,15 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponse> getAllProducts(Integer page) {
+    public Page<ProductSummaryResponseDTO> getAllProducts(Integer page) {
         Pageable pageable = PageRequest.of(page, 20, Direction.DESC, "createdAt");
         Page<Product> activeProducts = productRepository.findAllActiveProducts(pageable);
-        return activeProducts.map(productMapper::toProductSummaryResponse);
+        return activeProducts.map(productMapper::toProductSummaryResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponse> filterProducts(String searchQuery, Long categoryId, Double minRating,
+    public Page<ProductSummaryResponseDTO> filterProducts(String searchQuery, Long categoryId, Double minRating,
             BigDecimal maxPrice, Integer page,
             String sortBy, String sortDirection) {
 
@@ -143,7 +143,7 @@ public class ProductServiceImpl implements ProductService {
         Page<Product> productPage = productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
                 pageable);
 
-        return productPage.map(productMapper::toProductSummaryResponse);
+        return productPage.map(productMapper::toProductSummaryResponseDTO);
 
     }
 
@@ -161,19 +161,19 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductResponse detailProduct(Long productId) {
+    public ProductResponseDTO detailProduct(Long productId) {
         if (productId == null || productId <= 0) {
             throw new IllegalArgumentException("the product id must be positive");
         }
         Product product = productRepository.findById(productId).orElseThrow(
                 () -> new ObjectNotFoundException("the product with id: " + productId + " not found", Product.class));
-        ProductResponse response = productMapper.toProductResponse(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
         return response;
     }
 
     // Métodos para Seller
     @Override
-    public Page<ProductSummaryResponse> getSellerProducts(Long sellerId, Integer page) {
+    public Page<ProductSummaryResponseDTO> getSellerProducts(Long sellerId, Integer page) {
 
         if (!sellerDetailsService.existsSellerById(sellerId)) {
             throw new ObjectNotFoundException("Seller with id:" + sellerId + " not found", SellerDetails.class);
@@ -182,7 +182,7 @@ public class ProductServiceImpl implements ProductService {
         Integer pageIndex = (page != null && page >= 0) ? page : 0;
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         Page<Product> products = productRepository.findBySellerId(sellerId, pageable);
-        return products.map(productMapper::toProductSummaryResponse);
+        return products.map(productMapper::toProductSummaryResponseDTO);
     }
 
     @Override
@@ -204,10 +204,10 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ProductSummaryResponse> getFavorites(Long userId, Integer page) {
+    public Page<ProductSummaryResponseDTO> getFavorites(Long userId, Integer page) {
         Pageable pageable = PageRequest.of(page, 20, Sort.Direction.DESC, "createdAt");
         Page<Product> favorites = productRepository.findFavoriteProductsByUserId(userId, pageable);
-        return favorites.map(productMapper::toProductSummaryResponse);
+        return favorites.map(productMapper::toProductSummaryResponseDTO);
     }
 
     @Override

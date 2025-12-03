@@ -1,7 +1,5 @@
 package com.verygana2.controllers;
 
-
-
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -29,29 +27,28 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/purchases")
 @RequiredArgsConstructor
 public class PurchaseController {
-    
+
     private final PurchaseService purchaseService;
 
     @PostMapping("/buy")
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
-    public ResponseEntity<EntityCreatedResponse> createPurchase(@AuthenticationPrincipal Jwt jwt, @RequestBody CreatePurchaseRequestDTO request){
+    public ResponseEntity<EntityCreatedResponse> createPurchase(@AuthenticationPrincipal Jwt jwt,
+            @RequestBody CreatePurchaseRequestDTO request) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.createPurchase(consumerId, request));
     }
 
     @GetMapping
-    public ResponseEntity<PagedResponse<Purchase>> getPurchases (@AuthenticationPrincipal Jwt jwt, Pageable pageable){
+    @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
+    public ResponseEntity<PagedResponse<Purchase>> getPurchases(@AuthenticationPrincipal Jwt jwt, Pageable pageable) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.getConsumerPurchases(consumerId, pageable));
     }
 
     @GetMapping("/{purchaseId}/transactions")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<List<Transaction>> getPurchaseTransactions(@PathVariable Long purchaseId){
+    public ResponseEntity<List<Transaction>> getPurchaseTransactions(@PathVariable Long purchaseId) {
         return ResponseEntity.ok(purchaseService.getPurchaseTransactions(purchaseId));
     }
-
-    
-
 
 }
