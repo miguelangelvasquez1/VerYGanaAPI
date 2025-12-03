@@ -47,28 +47,28 @@ public class AdminController {
     }
 
     @PostMapping("/block/balance")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<AdminReportResponse> blockBalance (@RequestBody @Valid BlockBalanceRequest request){
         AdminReportResponse response = adminService.blockBalance(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/unblock/balance")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<AdminReportResponse> unblockBalance (@RequestBody @Valid UnblockBalanceRequest request){
         AdminReportResponse response = adminService.unblockBalance(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/create/productCategory")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createProductCategory(@RequestBody @Valid CreateProductCategoryRequest request){
         EntityCreatedResponse response = productCategoryService.create(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/create/category")
-    //@PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    //@PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<EntityCreatedResponse> createCategory(@RequestBody @Valid CategoryRequestDTO request){
         EntityCreatedResponse response = categoryService.create(request);
         return ResponseEntity.created(Objects.requireNonNull(URI.create("/categories"))).body(response);

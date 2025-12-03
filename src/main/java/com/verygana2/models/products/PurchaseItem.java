@@ -5,6 +5,7 @@ import java.time.LocalDateTime;
 
 import com.verygana2.models.enums.PurchaseItemStatus;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -15,9 +16,11 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -46,6 +49,9 @@ public class PurchaseItem {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_stock_id")
     private ProductStock assignedProductStock;
+
+    @OneToOne(mappedBy = "purchaseItem", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private ProductReview review;
     
     @Column(nullable = false)
     private Integer quantity;
@@ -68,6 +74,11 @@ public class PurchaseItem {
     
     @Column(name = "delivered_at")
     private LocalDateTime deliveredAt; // Cuándo se entregó
+
+    @Transient
+    public boolean hasReview() {
+        return this.review != null;
+    }
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -92,4 +103,7 @@ public class PurchaseItem {
         return status == PurchaseItemStatus.DELIVERED;
     }
 
+    public boolean canBeReviewed() {
+        return this.isDelivered() && !this.hasReview();
+    }
 }

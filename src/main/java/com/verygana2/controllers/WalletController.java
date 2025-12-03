@@ -38,29 +38,6 @@ public class WalletController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/deposit")
-    public ResponseEntity<TransactionResponse> doDeposit (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid DepositRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.doDeposit(userId, request);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/withdraw")
-    @PreAuthorize("hasAuthority('ROLE_SELLER')")
-    public ResponseEntity<TransactionResponse> doWithdrawal (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid WithdrawalRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.doWithdrawal(userId, request);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/transfer")
-    @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
-    public ResponseEntity<TransactionResponse> transferToUser (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid TransferRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.transferToUser(userId, request);
-        return ResponseEntity.ok(response);
-    }
-
     // Balance Queries
 
     @GetMapping("/balance")
@@ -76,4 +53,29 @@ public class WalletController {
         BigDecimal blockedBalance = walletService.getBlockedBalance(userId); 
         return ResponseEntity.ok(blockedBalance);
     }
+
+    @PostMapping("/deposit")
+    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    public ResponseEntity<TransactionResponse> doDeposit (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid DepositRequest request){
+        Long userId = jwt.getClaim("userId");
+        TransactionResponse response = walletService.doDeposit(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/withdraw")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<TransactionResponse> doWithdrawal (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid WithdrawalRequest request){
+        Long userId = jwt.getClaim("userId");
+        TransactionResponse response = walletService.doWithdrawal(userId, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/transfer")
+    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    public ResponseEntity<TransactionResponse> transferToUser (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid TransferRequest request){
+        Long userId = jwt.getClaim("userId");
+        TransactionResponse response = walletService.transferToUser(userId, request);
+        return ResponseEntity.ok(response);
+    }
+    
 }

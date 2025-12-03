@@ -21,18 +21,18 @@ public class PlatformTreasuryController {
 
 
     @GetMapping("/balance")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<BigDecimal> getTotalBalance(){
         return ResponseEntity.ok(platformTreasuryService.getTotalBalance());
     }
 
     @GetMapping("/balance/available")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<BigDecimal> getAvailableBalance(){
         return ResponseEntity.ok(platformTreasuryService.getAvailableBalance());
     }
     @GetMapping("/balance/reserved")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<BigDecimal> getReservedBalance(){
         return ResponseEntity.ok(platformTreasuryService.getReservedBalance());
     }

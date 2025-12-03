@@ -116,6 +116,14 @@ logging:
     org.springframework.security: DEBUG
 
 # ============================================
+# Email service
+# ============================================   
+sendgrid:
+  api-key: ${SENDGRID_API_KEY}
+  from-email: notificaciones@verygana.com
+  from-name: VerYGana
+  support-email: soporte@verygana.com
+# ============================================
 # TAXES
 # ============================================      
 taxes:

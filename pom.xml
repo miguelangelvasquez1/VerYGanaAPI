@@ -140,6 +140,13 @@
             <scope>provided</scope>
         </dependency>
 
+        <!-- SendGrid: para envio de correos desde la API -->
+        <dependency>
+            <groupId>com.sendgrid</groupId>
+            <artifactId>sendgrid-java</artifactId>
+            <version>4.10.1</version>
+        </dependency>
+
         <!-- Test: Para pruebas unitarias -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

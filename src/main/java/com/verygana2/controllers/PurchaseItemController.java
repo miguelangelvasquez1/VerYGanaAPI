@@ -1,6 +1,7 @@
 package com.verygana2.controllers;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +20,7 @@ public class PurchaseItemController {
     private final PurchaseItemService purchaseItemService;
 
     @GetMapping("/TotalSales")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Long> getTotalSellerSales(@AuthenticationPrincipal Jwt jwt){
         Long sellerId = jwt.getClaim("sellerId");
         return ResponseEntity.ok(purchaseItemService.getTotalSalesbySeller(sellerId));
