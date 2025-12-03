@@ -25,6 +25,7 @@ public interface AdMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "spentBudget", ignore = true)
     @Mapping(target = "currentLikes", constant = "0")
+    @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
