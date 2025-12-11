@@ -1,0 +1,36 @@
+@startuml named uml/classes/treasury.puml
+' Treasury / Platform Transactions
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+!include enums.puml
+
+class PlatformTransaction {
+  id
+  type
+  amount
+  referenceId
+  description
+  balanceAfter
+  availableBalanceAfter
+  reservedBalanceAfter
+  createdAt
+}
+
+class PlatformTreasury {
+  id
+  balance
+  reservedForWithdrawals
+  availableBalance
+  version
+  createdAt
+  lastUpdated
+}
+
+' Relations
+PlatformTransaction --> "1" PlatformTransactionType : type >
+
+' Helpers: many static factory methods for different transaction types (see spec)
+
+@enduml

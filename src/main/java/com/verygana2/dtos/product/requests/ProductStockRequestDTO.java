@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class ProductStockRequest {
+public class ProductStockRequestDTO {
     
     @Valid
     @NotBlank(message = "Code cannot be empty")

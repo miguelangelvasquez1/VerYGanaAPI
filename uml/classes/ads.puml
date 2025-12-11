@@ -1,0 +1,62 @@
+@startuml named uml/classes/ads.puml
+' Ad module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+!include enums.puml
+
+class Ad {
+  id
+  title
+  description
+  rewardPerLike
+  maxLikes
+  currentLikes
+  status
+  createdAt
+  startDate
+  endDate
+  totalBudget
+  spentBudget
+  contentUrl
+  targetUrl
+  minAge
+  maxAge
+  targetGender
+  rejectionReason
+}
+
+class AdLike {
+  id
+  rewardAmount
+  createdAt
+}
+
+class AdLikeId {
+  userId
+  adId
+}
+
+class AdvertiserDetails {
+  companyName
+  nit
+}
+
+class Category
+class Municipality
+
+' Relations
+Ad --> "1" AdvertiserDetails : advertiser >
+Ad --> "0..*" AdLike : likes >
+Ad --> "0..*" Category : categories >
+Ad --> "0..*" Municipality : targetMunicipalities >
+
+AdLike --> "1" User : user >
+AdLike --> "1" Ad : ad >
+AdLike o-- AdLikeId
+
+' Helper methods (documented as comments in UML)
+' Ad: canReceiveLike(), hasRemainingBudget(), incrementLike(), getRemainingBudget(), getRemainingLikes(), getCompletionPercentage()
+
+@enduml

@@ -17,8 +17,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.exceptions.FavoriteProductException;
@@ -58,7 +58,7 @@ public class ProductServiceImpl implements ProductService {
     private final CloudStorageService cloudStorageService;
 
     @Override
-    public EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId, MultipartFile productImage) {
+    public EntityCreatedResponseDTO create(CreateOrEditProductRequestDTO request, Long sellerId, MultipartFile productImage) {
         SellerDetails seller = sellerDetailsService.getSellerById(sellerId);
         ProductCategory category = productCategoryService.getById(request.getProductCategoryId());
 
@@ -76,7 +76,7 @@ public class ProductServiceImpl implements ProductService {
         }
         Product savedProduct = productRepository.save(product);
 
-        return new EntityCreatedResponse(savedProduct.getId(), "Product created succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(savedProduct.getId(), "Product created succesfully", Instant.now());
     }
 
     @Override
@@ -106,7 +106,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void edit(Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest) {
+    public void edit(Long productId, Long sellerId, CreateOrEditProductRequestDTO createOrEditProductRequest) {
         if (!productRepository.existsByIdAndSellerId(productId, sellerId)) {
             throw new ObjectNotFoundException(
                     "Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);

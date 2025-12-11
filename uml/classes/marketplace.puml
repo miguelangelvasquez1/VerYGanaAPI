@@ -1,0 +1,110 @@
+@startuml named uml/classes/marketplace.puml
+' Marketplace module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+!include enums.puml
+
+class Product {
+  id
+  name
+  imageUrl
+  price
+  stock
+  isActive
+  description
+  createdAt
+  updatedAt
+  deliveryType
+  digitalFormat
+  isInstantDelivery
+}
+
+class ProductCategory {
+  id
+  name
+  isActive
+  createdAt
+  imageUrl
+}
+
+class ProductReview {
+  id
+  rating
+  comment
+  createdAt
+  updatedAt
+  isVisible
+}
+
+class ProductStock {
+  id
+  version
+  code
+  additionalInfo
+  expirationDate
+  status
+  soldAt
+  createdAt
+  updatedAt
+}
+
+class Purchase {
+  id
+  referenceId
+  subtotal
+  total
+  platformEarnings
+  paidToSellers
+  status
+  contactEmail
+  credentialsSentAt
+  couponCode
+  notes
+  adminNotes
+  createdAt
+  updatedAt
+  completedAt
+}
+
+class PurchaseItem {
+  id
+  quantity
+  priceAtPurchase
+  subtotal
+  deliveredAt
+}
+
+class SellerDetails {
+  shopName
+  nit
+}
+
+class ConsumerDetails {
+  name
+  lastName
+}
+
+' Relations
+Product --> "1" SellerDetails : seller >
+Product --> "0..*" ProductReview : reviews >
+Product --> "0..*" ProductStock : stockItems >
+Product --> "1" ProductCategory : productCategory >
+
+ProductReview --> "1" ConsumerDetails : consumer >
+ProductReview --> "1" Product : product >
+ProductReview --> "1" PurchaseItem : purchaseItem >
+
+ProductStock --> "1" Product : product >
+ProductStock --> "1" StockStatus : status >
+ProductStock --> "0..1" PurchaseItem : purchaseItem >
+
+Purchase --> "1" ConsumerDetails : consumer >
+Purchase --> "0..*" PurchaseItem : items >
+PurchaseItem --> "1" Purchase : purchase >
+PurchaseItem --> "1" Product : product >
+PurchaseItem --> "1" ProductStock : assignedProductStock
+PurchaseItem --> "0..1" ProductReview : review
+
+@enduml

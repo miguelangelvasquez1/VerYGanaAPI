@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseItemToReviewResponseDTO;
@@ -46,7 +46,7 @@ public class ProductReviewController {
 
     @PostMapping("/create")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<EntityCreatedResponse> createProductReview (@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateProductReviewRequestDTO request){
+    public ResponseEntity<EntityCreatedResponseDTO> createProductReview (@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateProductReviewRequestDTO request){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productReviewService.createProductReview(consumerId, request));
     }

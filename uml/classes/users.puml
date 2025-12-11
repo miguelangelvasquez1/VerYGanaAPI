@@ -1,0 +1,101 @@
+@startuml named uml/classes/users.puml
+' User module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+set namespaceSeparator ::
+
+' Import enums (if rendering standalone, include enums.puml)
+!include enums.puml
+
+class User {
+  id
+  email
+  password
+  registeredDate
+}
+
+class UserDetails {
+  id
+}
+
+class AdminDetails {
+  adminCode
+}
+
+class AdvertiserDetails {
+  companyName
+  nit
+}
+
+class ConsumerDetails {
+  name
+  lastName
+  adsWatched
+  totalWithdraws
+  dailyAdCount
+  referralCode
+  department
+  municipality
+}
+
+class SellerDetails {
+  shopName
+  nit
+}
+
+class UserVerification {
+  id
+  documentType
+  documentNumber
+  documentImageUrl
+  verificationStatus
+  submittedAt
+  verifiedAt
+}
+
+class Wallet {
+  id
+  balance
+  blockedBalance
+  lastUpdated
+  createdAt
+}
+
+class Notification {
+  id
+  title
+  message
+  isRead
+  createdAt
+}
+
+class PaymentInfo {
+  id
+  type
+  details
+  isDefault
+  verified
+}
+
+' Relationships and multiplicities
+User --> "1" UserDetails : details >
+User --> "1" Role : role >
+User --> "1" UserState : state >
+User --> "1" Wallet : wallet >
+User --> "0..*" Notification : notifications >
+User --> "1" UserVerification : verification >
+
+UserDetails --> "1" User : user >
+UserVerification --> "1" User : user >
+Wallet --> "1" User : user >
+Notification --> "1" User : user >
+PaymentInfo --> "1" User : user >
+
+' Inheritance of details
+AdminDetails -|> UserDetails
+AdvertiserDetails -|> UserDetails
+ConsumerDetails -|> UserDetails
+SellerDetails -|> UserDetails
+
+@enduml

@@ -15,7 +15,7 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class CreateOrEditProductRequest {
+public class CreateOrEditProductRequestDTO {
 
     @NotBlank(message = "Product name cannot be empty")
     @Size(max = 150, message = "Product name cannot exceed 150 characters")
@@ -39,5 +39,5 @@ public class CreateOrEditProductRequest {
 
     // Para cargar stock digital
     @NotEmpty(message = "Product must have at least one stock item")
-    private List<ProductStockRequest> stockItems;
+    private List<ProductStockRequestDTO> stockItems;
 }
