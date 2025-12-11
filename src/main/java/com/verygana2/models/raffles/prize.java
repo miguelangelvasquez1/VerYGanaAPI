@@ -1,4 +1,4 @@
-package com.verygana2.models;
+package com.verygana2.models.raffles;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -8,7 +8,7 @@ import lombok.Data;
 
 @Entity
 @Data
-public class Reward {
+public class prize {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseItemToReviewResponseDTO;
@@ -65,7 +65,7 @@ public class ProductReviewServiceImpl implements ProductReviewService{
     }
 
     @Override
-    public EntityCreatedResponse createProductReview(Long consumerId, CreateProductReviewRequestDTO request) {
+    public EntityCreatedResponseDTO createProductReview(Long consumerId, CreateProductReviewRequestDTO request) {
 
         PurchaseItem purchaseItem = purchaseItemService.getByIdAndConsumerId(request.getPurchaseItemId(), consumerId);
 
@@ -89,7 +89,7 @@ public class ProductReviewServiceImpl implements ProductReviewService{
         product.updateAverageRating();
         productRepository.save(product);
 
-        return new EntityCreatedResponse(savedReview.getId(), "ProductReview created succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(savedReview.getId(), "ProductReview created succesfully", Instant.now());
     }
 
     @Transactional(readOnly = true)

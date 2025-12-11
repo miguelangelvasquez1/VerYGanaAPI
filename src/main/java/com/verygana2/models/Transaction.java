@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import com.verygana2.models.enums.PaymentMethod;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
 

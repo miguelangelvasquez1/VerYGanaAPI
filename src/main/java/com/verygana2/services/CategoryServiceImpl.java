@@ -15,7 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.CategoryResponseDTO;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.mappers.CategoryMapper;
 import com.verygana2.models.Category;
 import com.verygana2.repositories.CategoryRepository;
@@ -35,13 +35,13 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @CacheEvict(value = "categories", allEntries = true)
-    public EntityCreatedResponse create(CategoryRequestDTO dto) {
+    public EntityCreatedResponseDTO create(CategoryRequestDTO dto) {
         if (repository.existsByName(dto.getName())) {
             throw new IllegalArgumentException("Already exists a category with that name");
         }
         Category category = mapper.toEntity(dto);
         Category savedCategory = repository.save(Objects.requireNonNull(category));
-        return new EntityCreatedResponse(savedCategory.getId(),"Category created succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(savedCategory.getId(),"Category created succesfully", Instant.now());
     }
 
     @Override

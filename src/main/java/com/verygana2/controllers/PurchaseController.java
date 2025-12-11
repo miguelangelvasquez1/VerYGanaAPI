@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.products.Purchase;
@@ -32,7 +32,7 @@ public class PurchaseController {
 
     @PostMapping("/buy")
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
-    public ResponseEntity<EntityCreatedResponse> createPurchase(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<EntityCreatedResponseDTO> createPurchase(@AuthenticationPrincipal Jwt jwt,
             @RequestBody CreatePurchaseRequestDTO request) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.createPurchase(consumerId, request));

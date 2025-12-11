@@ -46,7 +46,7 @@ public class PurchaseItem {
     @JoinColumn(name = "product_id", nullable = false)
     private Product product;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_stock_id")
     private ProductStock assignedProductStock;
 

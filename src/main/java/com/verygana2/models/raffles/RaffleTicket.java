@@ -2,7 +2,7 @@ package com.verygana2.models.raffles;
 
 import java.time.LocalDateTime;
 
-import com.verygana2.models.User;
+import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -25,5 +25,5 @@ public class RaffleTicket {
     private Raffle raffle;
 
     @ManyToOne
-    private User user;
+    private ConsumerDetails ticketOwner;
 }
