@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.CategoryRequestDTO;
 import com.verygana2.dtos.admin.responses.AdminReportResponse;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequestDTO;
 import com.verygana2.dtos.wallet.requests.BlockBalanceRequest;
 import com.verygana2.dtos.wallet.requests.UnblockBalanceRequest;
 import com.verygana2.services.interfaces.AdminService;
@@ -62,15 +62,15 @@ public class AdminController {
 
     @PostMapping("/create/productCategory")
     //@PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<EntityCreatedResponse> createProductCategory(@RequestBody @Valid CreateProductCategoryRequest request){
-        EntityCreatedResponse response = productCategoryService.create(request);
+    public ResponseEntity<EntityCreatedResponseDTO> createProductCategory(@RequestBody @Valid CreateProductCategoryRequestDTO request){
+        EntityCreatedResponseDTO response = productCategoryService.create(request);
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/create/category")
     //@PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<EntityCreatedResponse> createCategory(@RequestBody @Valid CategoryRequestDTO request){
-        EntityCreatedResponse response = categoryService.create(request);
+    public ResponseEntity<EntityCreatedResponseDTO> createCategory(@RequestBody @Valid CategoryRequestDTO request){
+        EntityCreatedResponseDTO response = categoryService.create(request);
         return ResponseEntity.created(Objects.requireNonNull(URI.create("/categories"))).body(response);
     }
 }

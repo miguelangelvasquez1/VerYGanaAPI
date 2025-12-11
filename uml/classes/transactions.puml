@@ -1,0 +1,50 @@
+@startuml named uml/classes/transactions.puml
+' Transactions and Wallet module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+!include enums.puml
+
+class Wallet {
+  id
+  version
+  balance
+  blockedBalance
+  lastUpdated
+  createdAt
+}
+
+class Transaction {
+  id
+  referenceId
+  amount
+  createdAt
+  completedAt
+  transactionType
+  transactionState
+}
+
+class PaymentInfo {
+  id
+  type
+  details
+  isDefault
+  verified
+}
+
+class PaymentMethod
+
+class TransactionType
+class TransactionState
+
+' Relations
+Transaction --> "1" Wallet : wallet >
+Transaction --> "1" PaymentMethod : paymentMethod >
+Transaction --> "0..1" PaymentInfo : paymentInfo >
+
+Wallet --> "1" User : user >
+
+' Helper factories (static in docs): createDepositTransaction, createWithdrawalTransaction, etc.
+
+@enduml

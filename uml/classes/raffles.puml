@@ -1,0 +1,43 @@
+@startuml named uml/classes/raffles.puml
+' Raffles module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+class Raffle {
+  id
+  name
+  description
+  ticketPrice
+  totalTickets
+  createdAt
+  drawDate
+  isClosed
+}
+
+class RaffleTicket {
+  id
+  ticketNumber
+  purchasedAt
+}
+
+class Prize {
+  id
+  name
+  brand
+  price
+  imageUrl
+}
+
+class ConsumerDetails {
+  name
+  lastName
+}
+
+' Relations
+Raffle --> "1" Prize : prize >
+Raffle --> "0..*" RaffleTicket : tickets >
+RaffleTicket --> "1" Raffle : raffle >
+RaffleTicket --> "1" ConsumerDetails : ticketOwner >
+
+@enduml

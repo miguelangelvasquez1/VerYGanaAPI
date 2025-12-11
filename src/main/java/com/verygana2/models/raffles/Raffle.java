@@ -1,9 +1,8 @@
 package com.verygana2.models.raffles;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
-
-import com.verygana2.models.Reward;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -17,16 +16,16 @@ import lombok.Data;
 @Data
 public class Raffle {
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID) //UUID?
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
     private String name;
     private String description;
 
     @ManyToOne
-    private Reward reward;
+    private prize prize;
 
-    private Double ticketPrice;
+    private BigDecimal ticketPrice;
     private Integer totalTickets;
     private LocalDateTime createdAt;
     private LocalDateTime drawDate; // Validacion: Must be after createdAt

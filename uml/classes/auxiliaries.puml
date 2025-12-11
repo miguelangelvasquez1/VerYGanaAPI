@@ -1,0 +1,59 @@
+@startuml named uml/classes/auxiliaries.puml
+' Auxiliary entities used across the system
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+class Category {
+  id
+  name
+}
+
+class Department {
+  code
+  name
+}
+
+class Municipality {
+  code
+  name
+  department
+}
+
+class Notification {
+  id
+  title
+  message
+  isRead
+  createdAt
+}
+
+class PaymentInfo {
+  id
+  type
+  details
+  isDefault
+  verified
+}
+
+class AdminReport {
+  id
+  userId
+  actionType
+  amount
+  reason
+  previousBalance
+  newBalance
+  previousBlockedBalance
+  newBlockedBalance
+  createdAt
+}
+
+' Relationships
+Department --> "0..*" Municipality : municipalities >
+Municipality --> "1" Department : department >
+
+Notification --> "1" User : user >
+PaymentInfo --> "1" User : user >
+
+@enduml

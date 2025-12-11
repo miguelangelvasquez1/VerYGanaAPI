@@ -1,0 +1,22 @@
+@startuml named uml/classes/master.puml
+' Master file that includes all modules
+' Use this to render the whole system (may be heavy -> render per-module if needed)
+
+' Style C (compact attributes)
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+hide circle
+set namespaceSeparator ::
+
+!include enums.puml
+!include auxiliaries.puml
+!include users.puml
+!include gamification.puml
+!include ads.puml
+!include marketplace.puml
+!include raffles.puml
+!include transactions.puml
+!include treasury.puml
+
+@enduml

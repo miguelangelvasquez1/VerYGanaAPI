@@ -6,15 +6,15 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.products.Product;
 
 public interface ProductService {
 
-    EntityCreatedResponse create(CreateOrEditProductRequest request, Long sellerId, MultipartFile productImage);
+    EntityCreatedResponseDTO create(CreateOrEditProductRequestDTO request, Long sellerId, MultipartFile productImage);
 
     Product getById(Long productId);
 
@@ -23,7 +23,7 @@ public interface ProductService {
     // send a notification to product's owner with the reason of product elimination 
     void deleteForAdmin(Long productId);
 
-    void edit (Long productId, Long sellerId, CreateOrEditProductRequest createOrEditProductRequest);
+    void edit (Long productId, Long sellerId, CreateOrEditProductRequestDTO createOrEditProductRequest);
 
     Page<ProductSummaryResponseDTO> getAllProducts(Integer page);
 

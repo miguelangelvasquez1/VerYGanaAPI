@@ -1,0 +1,62 @@
+@startuml named uml/classes/gamification.puml
+' Gamification module
+skinparam classAttributeIconSize 0
+hide methods
+hide stereotypes
+
+!include enums.puml
+
+class Companion {
+  id
+  name
+  currentLevel
+  currentExperience
+  experienceToNextLevel
+  evolutionStage
+  createdAt
+  lastInteractionDate
+}
+
+class Pet {
+  species
+  imageUrl
+}
+
+class Avatar {
+  skinTone
+  hairStyle
+  clothingStyle
+}
+
+class ExperienceEvent {
+  id
+  eventType
+  experienceGained
+  timestamp
+  description
+}
+
+class Benefit {
+  id
+  name
+  description
+  type
+  value
+  minLevel
+  minEvolutionStage
+  iconUrl
+}
+
+' Relations
+Companion --> "1" User : user >
+Companion --> "1" EvolutionStage : evolutionStage >
+Pet -|> Companion
+Avatar -|> Companion
+
+ExperienceEvent --> "1" Companion : companion >
+Benefit --> "0..*" Companion : grantedTo >
+
+' ConsumerDetails -> Companion relation (consumer side is in users.puml)
+ConsumerDetails ..> Companion : has >
+
+@enduml

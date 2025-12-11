@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequestDTO;
 import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
 import com.verygana2.services.interfaces.ProductCategoryService;
 
@@ -30,7 +30,7 @@ public class ProductCategoryController {
 
     @PostMapping("/create")
     //@PreAuthorize("hasRole('ROLE_ADMIN')")
-    public ResponseEntity<EntityCreatedResponse> createProductCategory (@Valid @RequestBody CreateProductCategoryRequest request){
+    public ResponseEntity<EntityCreatedResponseDTO> createProductCategory (@Valid @RequestBody CreateProductCategoryRequestDTO request){
         return ResponseEntity.created(Objects.requireNonNull(URI.create("/productCategories"))).body(productCategoryService.create(request));
     } 
 

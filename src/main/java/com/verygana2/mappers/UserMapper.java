@@ -21,8 +21,6 @@ public interface UserMapper {
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "notifications", ignore = true)
-    @Mapping(target = "paymentMethodsInfo", ignore = true)
-    @Mapping(target = "raffleTickets", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(ConsumerRegisterDTO dto);
@@ -34,6 +32,7 @@ public interface UserMapper {
     @Mapping(target = "referralCode", ignore = true)
     @Mapping(target = "totalWithdraws", ignore = true)
     @Mapping(target = "favoriteProducts", ignore = true)
+    @Mapping(target = "raffleTickets", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----
@@ -43,8 +42,6 @@ public interface UserMapper {
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "notifications", ignore = true)
-    @Mapping(target = "paymentMethodsInfo", ignore = true)
-    @Mapping(target = "raffleTickets", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(AdvertiserRegisterDTO dto);
@@ -60,8 +57,6 @@ public interface UserMapper {
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "notifications", ignore = true)
-    @Mapping(target = "paymentMethodsInfo", ignore = true)
-    @Mapping(target = "raffleTickets", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(SellerRegisterDTO dto);

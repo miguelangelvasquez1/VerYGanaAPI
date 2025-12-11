@@ -28,8 +28,8 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateOrEditProductRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateOrEditProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.services.interfaces.ProductService;
@@ -49,29 +49,29 @@ public class ProductController {
 
     @PostMapping("/create")
     @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<EntityCreatedResponse> createProduct(@Valid @RequestPart("product") String productJson,
+    public ResponseEntity<EntityCreatedResponseDTO> createProduct(@Valid @RequestPart("product") String productJson,
             @RequestPart("productImage") MultipartFile productImage, @AuthenticationPrincipal Jwt jwt) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new JavaTimeModule());
 
-            CreateOrEditProductRequest request = objectMapper.readValue(productJson, CreateOrEditProductRequest.class);
+            CreateOrEditProductRequestDTO request = objectMapper.readValue(productJson, CreateOrEditProductRequestDTO.class);
 
             // Validación manual
             ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
             Validator validator = factory.getValidator();
-            Set<ConstraintViolation<CreateOrEditProductRequest>> violations = validator.validate(request);
+            Set<ConstraintViolation<CreateOrEditProductRequestDTO>> violations = validator.validate(request);
 
             if (!violations.isEmpty()) {
                 StringBuilder sb = new StringBuilder();
-                for (ConstraintViolation<CreateOrEditProductRequest> violation : violations) {
+                for (ConstraintViolation<CreateOrEditProductRequestDTO> violation : violations) {
                     sb.append(violation.getMessage()).append("; ");
                 }
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, sb.toString());
             }
 
             Long userId = jwt.getClaim("userId");
-            EntityCreatedResponse response = productService.create(request, userId, productImage);
+            EntityCreatedResponseDTO response = productService.create(request, userId, productImage);
             return ResponseEntity.created(Objects.requireNonNull(URI.create("/products/" + response.getId())))
                     .body(response);
 
@@ -99,7 +99,7 @@ public class ProductController {
 
     @PutMapping("/edit/{productId}")
     @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Void> editProduct(@RequestBody @Valid CreateOrEditProductRequest request,
+    public ResponseEntity<Void> editProduct(@RequestBody @Valid CreateOrEditProductRequestDTO request,
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long userId = jwt.getClaim("userId");
         productService.edit(productId, userId, request);

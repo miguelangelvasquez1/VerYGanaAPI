@@ -7,10 +7,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserState;
-import com.verygana2.models.raffles.RaffleTicket;
 import com.verygana2.models.userDetails.UserDetails;
 
 import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -41,11 +41,13 @@ public class User{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    @Column(unique = true, nullable = false)
     private String email;
+    @Column(unique = true, nullable = false)
     private String phoneNumber;
     @JsonIgnore
     private String password; //JsonIgnore, encrypt
+    @Column(nullable = false)
     private UserState userState;
     private ZonedDateTime registeredDate;
 
@@ -53,13 +55,7 @@ public class User{
     private Wallet wallet;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<PaymentInfo> paymentMethodsInfo;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<Notification> notifications;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<RaffleTicket> raffleTickets;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;

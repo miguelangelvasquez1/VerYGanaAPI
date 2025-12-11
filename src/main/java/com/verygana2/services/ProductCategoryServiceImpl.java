@@ -8,8 +8,8 @@ import java.util.Objects;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
-import com.verygana2.dtos.generic.EntityCreatedResponse;
-import com.verygana2.dtos.product.requests.CreateProductCategoryRequest;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateProductCategoryRequestDTO;
 import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
 import com.verygana2.mappers.products.ProductCategoryMapper;
 import com.verygana2.models.products.ProductCategory;
@@ -30,10 +30,10 @@ public class ProductCategoryServiceImpl implements ProductCategoryService{
     }
 
     @Override
-    public EntityCreatedResponse create(CreateProductCategoryRequest request) {
+    public EntityCreatedResponseDTO create(CreateProductCategoryRequestDTO request) {
         ProductCategory productCategory = productCategoryMapper.toProductCategory(request);
         ProductCategory savedProductCategory = productCategoryRepository.save(Objects.requireNonNull(productCategory));
-        return new EntityCreatedResponse(savedProductCategory.getId(), "Product category created succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(savedProductCategory.getId(), "Product category created succesfully", Instant.now());
     }
 
     @Override

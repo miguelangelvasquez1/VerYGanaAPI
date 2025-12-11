@@ -44,7 +44,7 @@ import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.generic.EntityCreatedResponse;
+import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 
 import lombok.RequiredArgsConstructor;
 
@@ -83,7 +83,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     }
 
     @Override
-    public EntityCreatedResponse createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
+    public EntityCreatedResponseDTO createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
 
         log.info("Validating request items size...");
         if (request.getItems().isEmpty()) {
@@ -144,7 +144,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         log.info("Purchase created succesfully. id: {}, Total: {}", purchaseWithItems.getId(),
                 purchaseWithItems.getTotal());
 
-        return new EntityCreatedResponse(savedPurchase.getId(), "Purchase registered succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(savedPurchase.getId(), "Purchase registered succesfully", Instant.now());
     }
 
     // Metodos privados para crear una compra
