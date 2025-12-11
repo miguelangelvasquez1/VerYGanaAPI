@@ -44,6 +44,7 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
       file-size-threshold: 2MB
+      # max-file-count: 20
 
 # ============================================
 # JWT CONFIGURATION

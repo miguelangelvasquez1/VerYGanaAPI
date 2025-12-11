@@ -4,6 +4,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserState;
 import com.verygana2.models.userDetails.UserDetails;
@@ -13,6 +14,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -28,8 +30,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class User{
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, optional = false)
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true, optional = true)
+    @JsonManagedReference // o @JsonIgnoreProperties("user")
     private UserDetails userDetails;
+
 
     @Enumerated(EnumType.STRING)
     private Role role;

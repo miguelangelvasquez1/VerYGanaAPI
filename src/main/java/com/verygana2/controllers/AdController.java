@@ -44,7 +44,7 @@ public class AdController {
     @PostMapping
     @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdResponseDTO> createAd(
-            @Valid @RequestBody AdCreateDTO createDto,
+            @Valid @ModelAttribute AdCreateDTO createDto,
             @AuthenticationPrincipal Jwt jwt) {
         
         log.info("Creating ad for advertiser: {}" + jwt.getClaim("userId"));
