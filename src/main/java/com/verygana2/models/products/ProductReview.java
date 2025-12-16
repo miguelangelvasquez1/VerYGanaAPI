@@ -72,13 +72,13 @@ public class ProductReview {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
-    @Column(name = "is_visible", nullable = false)
-    private boolean isVisible;
+    @Column(name = "visible", nullable = false)
+    private boolean visible;
 
     @PrePersist
     protected void onCreate(){
         this.createdAt = LocalDateTime.now();
-        this.isVisible = true;
+        this.visible = true;
     }
 
     @PreUpdate
@@ -88,6 +88,6 @@ public class ProductReview {
 
     // Admin function
     public void hide() {
-        this.isVisible = false;
+        this.visible = false;
     }
 }
