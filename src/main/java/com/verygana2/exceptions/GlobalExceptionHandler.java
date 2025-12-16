@@ -15,6 +15,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.multipart.MultipartException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
@@ -33,7 +34,7 @@ public class GlobalExceptionHandler {
     //Predetermined exception handler for IllegalArgumentException
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
-        ex.printStackTrace();
+        // ex.printStackTrace();
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
@@ -99,6 +100,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handlePhoneExists(PhoneNumberAlreadyExistsException ex) {
         return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /* For multipart exception 500 */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ErrorResponse> handleMultipartException(MultipartException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     //DataIntegrityViolation

@@ -7,5 +7,6 @@ public enum AdStatus {
     ACTIVE,
     PAUSED,
     COMPLETED,
-    EXPIRED;
+    EXPIRED,
+    BLOCKED;
 }

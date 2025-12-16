@@ -70,7 +70,7 @@ public class AdMediaController {
         Long userId = jwt.getClaim("userId");
         log.info("Usuario {} subiendo video para anuncio {}", userId, adId);
         
-        AdResponseDTO response = adMediaService.uploadAdMedia(adId, file, "video");
+        AdResponseDTO response = adMediaService.uploadAdMedia(adId, file, com.verygana2.models.enums.MediaType.VIDEO);
         
         return ResponseEntity.ok(response);
     }
@@ -106,7 +106,7 @@ public class AdMediaController {
         Long userId = jwt.getClaim("userId");
         log.info("Usuario {} subiendo imagen para anuncio {}", userId, adId);
         
-        AdResponseDTO response = adMediaService.uploadAdMedia(adId, file, "image");
+        AdResponseDTO response = adMediaService.uploadAdMedia(adId, file, com.verygana2.models.enums.MediaType.IMAGE);
         
         return ResponseEntity.ok(response);
     }

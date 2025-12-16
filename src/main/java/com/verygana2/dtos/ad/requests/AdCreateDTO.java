@@ -4,8 +4,7 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import org.springframework.web.multipart.MultipartFile;
-
+import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.TargetGender;
 
 import jakarta.validation.constraints.*;
@@ -42,10 +41,7 @@ public class AdCreateDTO {
     
     private ZonedDateTime endDate;
     
-    @NotNull(message = "Debe subir una imagen o video para el anuncio")
-    private MultipartFile file;
-
-    private String mediaType;
+    private MediaType mediaType;
     
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;
@@ -58,5 +54,6 @@ public class AdCreateDTO {
 
     private Integer maxAge;
 
+    @NotNull(message = "This espec is required")
     private TargetGender targetGender;
 }

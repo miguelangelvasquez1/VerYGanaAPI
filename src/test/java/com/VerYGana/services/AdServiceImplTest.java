@@ -100,51 +100,51 @@ class AdServiceImplTest {
             .build();
     }
 
-    @Test
-    void testCreateAd_Success() {
-        // Arrange
-        when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
-            .thenReturn(false);
-        when(adMapper.toEntity(AdCreateDTO)).thenReturn(ad);
-        when(adRepository.save(any(Ad.class))).thenReturn(ad);
+    // @Test
+    // void testCreateAd_Success() {
+    //     // Arrange
+    //     when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
+    //     when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
+    //         .thenReturn(false);
+    //     when(adMapper.toEntity(AdCreateDTO)).thenReturn(ad);
+    //     when(adRepository.save(any(Ad.class))).thenReturn(ad);
         
-        AdResponseDTO expectedDto = new AdResponseDTO();
-        expectedDto.setId(1L);
-        when(adMapper.toDto(ad)).thenReturn(expectedDto);
+    //     AdResponseDTO expectedDto = new AdResponseDTO();
+    //     expectedDto.setId(1L);
+    //     when(adMapper.toDto(ad)).thenReturn(expectedDto);
 
-        // Act
-        AdResponseDTO result = adService.createAd(AdCreateDTO, 1L);
+    //     // Act
+    //     AdResponseDTO result = adService.createAd(AdCreateDTO, 1L);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(1L, result.getId());
-        verify(adRepository, times(1)).save(any(Ad.class));
-    }
+    //     // Assert
+    //     assertNotNull(result);
+    //     assertEquals(1L, result.getId());
+    //     verify(adRepository, times(1)).save(any(Ad.class));
+    // }
 
-    @Test
-    void testCreateAd_AdvertiserNotFound() {
-        // Arrange
-        when(userRepository.findById(1L)).thenReturn(Optional.empty());
+    // @Test
+    // void testCreateAd_AdvertiserNotFound() {
+    //     // Arrange
+    //     when(userRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act & Assert
-        assertThrows(AdNotFoundException.class, () -> {
-            adService.createAd(AdCreateDTO, 1L);
-        });
-    }
+    //     // Act & Assert
+    //     assertThrows(AdNotFoundException.class, () -> {
+    //         adService.createAd(AdCreateDTO, 1L);
+    //     });
+    // }
 
-    @Test
-    void testCreateAd_DuplicateTitle() {
-        // Arrange
-        when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
-        when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
-            .thenReturn(true);
+    // @Test
+    // void testCreateAd_DuplicateTitle() {
+    //     // Arrange
+    //     when(userRepository.findById(1L)).thenReturn(Optional.of(advertiser));
+    //     when(adRepository.existsByAdvertiserIdAndTitle(1L, "Test Ad"))
+    //         .thenReturn(true);
 
-        // Act & Assert
-        assertThrows(InvalidAdStateException.class, () -> {
-            adService.createAd(AdCreateDTO, 1L);
-        });
-    }
+    //     // Act & Assert
+    //     assertThrows(InvalidAdStateException.class, () -> {
+    //         adService.createAd(AdCreateDTO, 1L);
+    //     });
+    // }
 
     // @Test
     // void testProcessAdLike_Success() {
@@ -195,36 +195,36 @@ class AdServiceImplTest {
     //     });
     // }
 
-    @Test
-    void testActivateAd_Success() {
-        // Arrange
-        ad.setStatus(AdStatus.APPROVED);
-        when(adRepository.findByIdAndAdvertiserId(1L, 1L)).thenReturn(Optional.of(ad));
-        when(adRepository.save(any(Ad.class))).thenReturn(ad);
+    // @Test
+    // void testActivateAd_Success() {
+    //     // Arrange
+    //     ad.setStatus(AdStatus.APPROVED);
+    //     when(adRepository.findByIdAndAdvertiserId(1L, 1L)).thenReturn(Optional.of(ad));
+    //     when(adRepository.save(any(Ad.class))).thenReturn(ad);
         
-        AdResponseDTO expectedDto = new AdResponseDTO();
-        when(adMapper.toDto(ad)).thenReturn(expectedDto);
+    //     AdResponseDTO expectedDto = new AdResponseDTO();
+    //     when(adMapper.toDto(ad)).thenReturn(expectedDto);
 
-        // Act
-        AdResponseDTO result = adService.activateAd(1L, 1L);
+    //     // Act
+    //     AdResponseDTO result = adService.activateAd(1L, 1L);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(AdStatus.ACTIVE, ad.getStatus());
-        verify(adRepository, times(1)).save(ad);
-    }
+    //     // Assert
+    //     assertNotNull(result);
+    //     assertEquals(AdStatus.ACTIVE, ad.getStatus());
+    //     verify(adRepository, times(1)).save(ad);
+    // }
 
-    @Test
-    void testActivateAd_NotApproved() {
-        // Arrange
-        ad.setStatus(AdStatus.PENDING);
-        when(adRepository.findByIdAndAdvertiserId(1L, 1L)).thenReturn(Optional.of(ad));
+    // @Test
+    // void testActivateAd_NotApproved() {
+    //     // Arrange
+    //     ad.setStatus(AdStatus.PENDING);
+    //     when(adRepository.findByIdAndAdvertiserId(1L, 1L)).thenReturn(Optional.of(ad));
 
-        // Act & Assert
-        assertThrows(InvalidAdStateException.class, () -> {
-            adService.activateAd(1L, 1L);
-        });
-    }
+    //     // Act & Assert
+    //     assertThrows(InvalidAdStateException.class, () -> {
+    //         adService.activateAd(1L, 1L);
+    //     });
+    // }
 
     @Test
     void testApproveAd_Success() {

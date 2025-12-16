@@ -15,15 +15,21 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.responses.AdForAdminDTO;
+import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
+import com.verygana2.models.enums.AdStatus;
 import com.verygana2.services.interfaces.AdService;
 
 import jakarta.validation.Valid;
@@ -44,11 +50,12 @@ public class AdController {
     @PostMapping
     @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdResponseDTO> createAd(
-            @Valid @ModelAttribute AdCreateDTO createDto,
+            @Valid @RequestPart("ad") AdCreateDTO createDto,
+            @RequestPart("file") MultipartFile file,
             @AuthenticationPrincipal Jwt jwt) {
         
         log.info("Creating ad for advertiser: {}" + jwt.getClaim("userId"));
-        AdResponseDTO ad = adService.createAd(createDto, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.createAd(createDto, file, jwt.getClaim("userId"));
         
         return ResponseEntity.status(HttpStatus.CREATED).body(ad);
     }
@@ -57,10 +64,11 @@ public class AdController {
     @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdResponseDTO> updateAd(
             @PathVariable Long id,
-            @Valid @RequestBody AdUpdateDTO updateDto,
+            @Valid @RequestPart("ad") AdUpdateDTO updateDto,
+            @RequestPart(value = "file", required = false) MultipartFile file,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.updateAd(id, updateDto, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.updateAd(id, updateDto, file, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 
@@ -77,21 +85,21 @@ public class AdController {
 
     @PostMapping("/{id}/activate")
     @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> activateAd(
+    public ResponseEntity<AdResponseDTO> activateAdAsAdvertiser(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.activateAd(id, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.activateAdAsAdvertiser(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 
     @PostMapping("/{id}/pause")
     @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> pauseAd(
+    public ResponseEntity<AdResponseDTO> pauseAdAsAdvertiser(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.pauseAd(id, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.pauseAdAsAdvertiser(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 
@@ -99,12 +107,12 @@ public class AdController {
 
     @GetMapping("/user/available")
     @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<PagedResponse<AdResponseDTO>> getAvailableAdsForUser(
+    public ResponseEntity<PagedResponse<AdForConsumerDTO>> getAvailableAdsForUser(
             @AuthenticationPrincipal Jwt jwt,
             Pageable pageable) { //sortBy puede ser por currentLikes para equilibrar
         
         Long userId = jwt.getClaim("userId");
-        PagedResponse<AdResponseDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
+        PagedResponse<AdForConsumerDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
         
         log.info("Se retornaron {} anuncios de {} totales para usuario {}", 
                  ads.getMeta().getTotalElements(), ads.getMeta().getTotalElements(), userId);
@@ -148,12 +156,49 @@ public class AdController {
 
     // ==================== ENDPOINTS PARA ADMINISTRADORES ====================
 
-    @GetMapping("/admin/pending")
+    @PostMapping("/admin/{id}/activate")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PagedResponse<AdResponseDTO>> getPendingAds(
+    public ResponseEntity<AdResponseDTO> activateAdAsAdmin(
+            @PathVariable Long id) {
+        
+        AdResponseDTO ad = adService.activateAdAsAdmin(id);
+        return ResponseEntity.ok(ad);
+    }
+
+    @PostMapping("/admin/{id}/pause")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdResponseDTO> pauseAdAsAdmin(
+            @PathVariable Long id) {
+        
+        AdResponseDTO ad = adService.pauseAdAsAdmin(id);
+        return ResponseEntity.ok(ad);
+    }
+
+    @PostMapping("/admin/{id}/block")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<AdResponseDTO> blockAdAsAdmin(
+            @PathVariable Long id) {
+        
+        AdResponseDTO ad = adService.blockAdAsAdmin(id);
+        return ResponseEntity.ok(ad);
+    }
+
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PagedResponse<AdForAdminDTO>> getAllAdsForAdmin(
+        @RequestParam(required = false) AdStatus status,
+        Pageable pageable) {
+        
+        Page<AdForAdminDTO> ads = adService.getAdsByStatus(status, pageable);
+        return ResponseEntity.ok(PagedResponse.from(ads));
+    }
+
+    @GetMapping("/admin/pending") //Quitar este endpoint
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<PagedResponse<AdForAdminDTO>> getPendingAds(
             Pageable pageable) {
         
-        Page<AdResponseDTO> ads = adService.getPendingApprovalAds(pageable);
+        Page<AdForAdminDTO> ads = adService.getPendingApprovalAds(pageable);
         return ResponseEntity.ok(PagedResponse.from(ads));
     }
 

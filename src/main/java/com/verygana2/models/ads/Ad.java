@@ -8,6 +8,7 @@ import java.util.List;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
@@ -114,6 +115,10 @@ public class Ad {
     @Column(length = 500)
     private String contentUrl;
 
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private MediaType mediaType;
+
     @Column(name = "target_url", length = 500)
     private String targetUrl; // When de user clicks the ad, where to redirect
 
@@ -217,5 +222,12 @@ public class Ad {
             return BigDecimal.ZERO;
         }
         return rewardPerLike.multiply(BigDecimal.valueOf(maxLikes));
+    }
+
+    public List<Municipality> getTargetMunicipalities() {
+        if (targetMunicipalities == null) {
+            targetMunicipalities = new ArrayList<>();
+        }
+        return targetMunicipalities;
     }
 }
