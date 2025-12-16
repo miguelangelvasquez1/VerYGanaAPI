@@ -33,6 +33,8 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "favoriteProducts", ignore = true)
     @Mapping(target = "raffleTickets", ignore = true)
+    @Mapping(target = "user.email", source = "email")
+    @Mapping(target = "user.phoneNumber", source = "phoneNumber")
     void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     
