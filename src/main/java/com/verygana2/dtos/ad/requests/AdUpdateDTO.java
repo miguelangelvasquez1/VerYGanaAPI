@@ -4,10 +4,14 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import com.verygana2.models.enums.MediaType;
+import com.verygana2.models.enums.TargetGender;
+
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -37,9 +41,8 @@ public class AdUpdateDTO {
     private ZonedDateTime startDate;
     
     private ZonedDateTime endDate;
-    
-    @Size(max = 500, message = "La URL de imagen no puede exceder 500 caracteres")
-    private String contentUrl;
+
+    private MediaType mediaType;
     
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;
@@ -51,4 +54,7 @@ public class AdUpdateDTO {
     private Integer minAge;
 
     private Integer maxAge;
+
+    @NotNull(message = "This espec is required")
+    private TargetGender targetGender;
 }

@@ -12,6 +12,7 @@ import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.models.enums.MediaType;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.storage.dto.UploadOptions;
 import com.verygana2.storage.dto.UploadResult;
@@ -33,7 +34,7 @@ public class AdMediaService {
      * Funciona igual sin importar el provider (Cloudinary o R2)
      */
     @Transactional
-    public AdResponseDTO uploadAdMedia(Long adId, MultipartFile file, String mediaType) {
+    public AdResponseDTO uploadAdMedia(Long adId, MultipartFile file, MediaType mediaType) {
         
         log.info("Subiendo media para anuncio {}: tipo {}", adId, mediaType);
         
@@ -42,14 +43,15 @@ public class AdMediaService {
         Ad ad = adRepository.findById(adId)
             .orElseThrow(() -> new AdNotFoundException(adId));
         
+        String mediaTypeStr = mediaType == MediaType.VIDEO ? "video" : "image";
         // Validar tipo de archivo
-        validateMediaType(file, mediaType);
+        validateMediaType(file, mediaTypeStr);
         
         // Preparar opciones de upload
         String folder = String.format("ads/%d", adId);
         
         UploadOptions options = UploadOptions.builder()
-            .resourceType(mediaType) // "image" o "video"
+            .resourceType(mediaTypeStr) // "image" o "video"
             .folder(folder)
             .uniqueFilename(true)
             .metadata(buildMetadata(ad))

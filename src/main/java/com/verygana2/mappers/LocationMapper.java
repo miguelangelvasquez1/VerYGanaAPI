@@ -21,5 +21,6 @@ public interface LocationMapper {
      * Convierte Municipality a MunicipalityResponseDTO
      */
     @Mapping(source = "department.code", target = "departmentCode")
+    @Mapping(source = "department.name", target = "departmentName")
     MunicipalityResponseDTO toMunicipalityDto(Municipality municipality);
 }

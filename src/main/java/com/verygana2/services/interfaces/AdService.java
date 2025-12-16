@@ -2,11 +2,14 @@ package com.verygana2.services.interfaces;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.responses.AdForAdminDTO;
+import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.models.ads.Ad;
@@ -15,9 +18,9 @@ import com.verygana2.models.enums.AdStatus;
 public interface AdService {
     
     // Para advertisers
-    AdResponseDTO createAd(AdCreateDTO createDto, Long advertiserId);
+    AdResponseDTO createAd(AdCreateDTO createDto, MultipartFile file, Long advertiserId);
     
-    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId);
+    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, MultipartFile file, Long advertiserId);
 
     PagedResponse<AdResponseDTO> getFilteredAds(Long advertiserId, AdFilterDTO filters, Pageable pageable);
     
@@ -25,21 +28,29 @@ public interface AdService {
 
     Ad getAdEntityById(Long adId);
 
-    AdResponseDTO activateAd(Long adId, Long advertiserId);
+    AdResponseDTO activateAdAsAdvertiser(Long adId, Long advertiserId);
         
-    AdResponseDTO pauseAd(Long adId, Long advertiserId);
+    AdResponseDTO pauseAdAsAdvertiser(Long adId, Long advertiserId);
     
     // Consultas para consumers
-    PagedResponse<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable);
+    PagedResponse<AdForConsumerDTO> getAvailableAdsForUser(Long userId, Pageable pageable);
 
     long countAvailableAdsForUser(Long userId);
     
     // Gestión de estado (Admin)
+    AdResponseDTO activateAdAsAdmin(Long adId);
+        
+    AdResponseDTO pauseAdAsAdmin(Long adId);
+
+    AdResponseDTO blockAdAsAdmin(Long adId);
+
     AdResponseDTO approveAd(Long adId, Long adminId);
     
     AdResponseDTO rejectAd(Long adId, String reason, Long adminId);
+
+    Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable);
     
-    Page<AdResponseDTO> getPendingApprovalAds(Pageable pageable);
+    Page<AdForAdminDTO> getPendingApprovalAds(Pageable pageable);
     
     // Estadísticas
     AdStatsDTO getAdStats(Long adId, Long advertiserId);

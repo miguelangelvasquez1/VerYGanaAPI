@@ -29,6 +29,9 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
 
        Page<Ad> findByStatus(AdStatus status, Pageable pageable);
 
+       @Query("SELECT a FROM Ad a WHERE (:status IS NULL OR a.status = :status)")
+       Page<Ad> findAllByStatus(@Param("status") AdStatus status, Pageable pageable);
+
        // Anuncios disponibles por categoría
        @Query("SELECT DISTINCT a FROM Ad a JOIN a.categories c WHERE " +
                      "a.status = 'APPROVED' " +

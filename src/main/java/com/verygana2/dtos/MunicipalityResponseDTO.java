@@ -7,4 +7,5 @@ public class MunicipalityResponseDTO {
     private String code;
     private String name;
     private String departmentCode;
+    private String departmentName;
 }

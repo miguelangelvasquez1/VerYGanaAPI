@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -10,11 +11,14 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.responses.AdForAdminDTO;
+import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
@@ -22,11 +26,13 @@ import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.repositories.AdRepository;
+import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
@@ -52,12 +58,13 @@ public class AdServiceImpl implements AdService {
     private final UserRepository userRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
+    private final MunicipalityRepository municipalityRepository;
     private final AdMediaService adMediaService;
 
     // ==================== Consultas para Anunciantes ====================
 
     @Override
-    public AdResponseDTO createAd(AdCreateDTO createDto, Long advertiserId) {
+    public AdResponseDTO createAd(AdCreateDTO createDto, MultipartFile file, Long advertiserId) {
         log.info("Creating ad for advertiser: {}", advertiserId);
 
         DateValidator.validateStartBeforeEnd(createDto.getStartDate(), createDto.getEndDate(),
@@ -69,15 +76,27 @@ public class AdServiceImpl implements AdService {
         }
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(createDto.getCategoryIds());
+        List<String> codes = createDto.getTargetMunicipalitiesCodes();
+
+        List<Municipality> targetMunicipalities = new ArrayList<>();
+        if (!codes.isEmpty()) {
+            targetMunicipalities = municipalityRepository.findAllById(codes);
+
+            if (targetMunicipalities.size() != codes.size()) {
+                throw new IllegalArgumentException("Algunos códigos de municipio no existen");
+            }
+        }
         
         Ad ad = adMapper.toEntity(createDto);
         ad.setAdvertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId));
         ad.setCategories(selectedCategories);
+        ad.setTargetMunicipalities(targetMunicipalities);
+        ad.setMediaType(createDto.getMediaType());
 
         Ad savedAd = adRepository.save(ad);
 
         //Llamar al servicio de almacenamiento
-        adMediaService.uploadAdMedia(savedAd.getId(), createDto.getFile(), createDto.getMediaType()); //terminar esto
+        adMediaService.uploadAdMedia(savedAd.getId(), file, createDto.getMediaType());
 
         log.info("Ad created successfully with ID: {}", savedAd.getId());
         
@@ -85,7 +104,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId) {
+    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, MultipartFile file, Long advertiserId) {
         log.info("Updating ad {} for advertiser {}", adId, advertiserId);
 
         DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
@@ -94,17 +113,45 @@ public class AdServiceImpl implements AdService {
         Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
-        // No permitir editar si ya está ACTIVE
+        // Only edit when status is PENDING
         if (ad.getStatus() != AdStatus.PENDING) {
             throw new InvalidAdStateException("Solo se pueden editar anuncios pendientes de aprobación");
         }
         
         List<Category> selectedCategories = categoryService.getValidatedCategories(updateDto.getCategoryIds());
+        ad.setCategories(selectedCategories);
+
+        // Validar y actualizar municipios si se proporcionan
+        if (updateDto.getTargetMunicipalitiesCodes() != null) {
+            List<String> codes = updateDto.getTargetMunicipalitiesCodes();
+            List<Municipality> targetMunicipalities = new ArrayList<>();
+            
+            if (!codes.isEmpty()) {
+                targetMunicipalities = municipalityRepository.findAllById(codes);
+            }
+            
+            ad.setTargetMunicipalities(targetMunicipalities);
+        }
 
         adMapper.updateEntityFromDto(updateDto, ad);
-        ad.setCategories(selectedCategories);
         
         Ad updatedAd = adRepository.save(ad);
+
+        if ((file == null || file.isEmpty()) && ad.getContentUrl() == null) {
+            throw new IllegalArgumentException("Se debe proporcionar un archivo multimedia");
+        }
+
+        // Si se proporcionó un nuevo archivo, actualizar el media
+        if (file != null && !file.isEmpty()) {
+            try {
+                adMediaService.uploadAdMedia(updatedAd.getId(), file, updateDto.getMediaType());
+                log.info("Media updated for ad {}", adId);
+            } catch (Exception e) {
+                log.error("Error updating media for ad {}: {}", adId, e.getMessage());
+                throw new RuntimeException("Error al actualizar el archivo multimedia", e);
+            }
+        }
+
         log.info("Ad {} updated successfully by advertiser {}", adId, advertiserId);
         return adMapper.toDto(updatedAd);
     }
@@ -138,7 +185,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO activateAd(Long adId, Long advertiserId) {
+    public AdResponseDTO activateAdAsAdvertiser(Long adId, Long advertiserId) {
         Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
@@ -162,7 +209,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO pauseAd(Long adId, Long advertiserId) {
+    public AdResponseDTO pauseAdAsAdvertiser(Long adId, Long advertiserId) {
         Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
@@ -193,7 +240,7 @@ public class AdServiceImpl implements AdService {
      * @throws UserNotFoundException si el usuario no existe
      */
     @Transactional(readOnly = true)
-    public PagedResponse<AdResponseDTO> getAvailableAdsForUser(Long userId, Pageable pageable) {
+    public PagedResponse<AdForConsumerDTO> getAvailableAdsForUser(Long userId, Pageable pageable) {
         log.debug("Buscando anuncios disponibles para usuario: {}", userId);
 
         // Validar que el usuario existe (se puede evitar al buscar en la bd al hacer login)
@@ -227,7 +274,7 @@ public class AdServiceImpl implements AdService {
         log.info("Se encontraron {} anuncios disponibles para usuario {}", 
                  adsPage.getTotalElements(), userId);
 
-        return PagedResponse.from(adsPage.map(adMapper::toDto));
+        return PagedResponse.from(adsPage.map(adMapper::toConsumerDto));
     }
 
     /**
@@ -245,6 +292,73 @@ public class AdServiceImpl implements AdService {
     }
 
     // ==================== Gestión de Estado (Admin) ====================
+
+    @Override
+    public AdResponseDTO activateAdAsAdmin(Long adId) {
+        Objects.requireNonNull(adId, "El ID del anuncio no puede ser nulo");
+        Ad ad = adRepository.findById(adId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+        
+        if (ad.getStatus() != AdStatus.APPROVED && ad.getStatus() != AdStatus.PAUSED && ad.getStatus() != AdStatus.BLOCKED) {
+            throw new InvalidAdStateException(
+                "Solo se pueden activar anuncios aprobados o pausados o bloqueados"
+            );
+        }
+        
+        ad.setStatus(AdStatus.ACTIVE);
+        ad.setUpdatedAt(ZonedDateTime.now());
+        
+        if (ad.getStartDate() == null) {
+            ad.setStartDate(ZonedDateTime.now());
+        }
+        
+        Ad savedAd = adRepository.save(ad);
+        log.info("Ad {} activated", adId);
+        
+        return adMapper.toDto(savedAd);
+    }
+
+    @Override
+    public AdResponseDTO pauseAdAsAdmin(Long adId) {
+        Objects.requireNonNull(adId, "El ID del anuncio no puede ser nulo");
+        Ad ad = adRepository.findById(adId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        if (ad.getStatus() != AdStatus.ACTIVE && ad.getStatus() != AdStatus.BLOCKED) {
+            throw new InvalidAdStateException(
+                "Solo se pueden pausar anuncios activos o bloqueados"
+            );
+        }
+        
+        ad.setStatus(AdStatus.PAUSED);
+        ad.setUpdatedAt(ZonedDateTime.now());
+        
+        Ad savedAd = adRepository.save(ad);
+        log.info("Ad {} paused", adId);
+        
+        return adMapper.toDto(savedAd);
+    }
+
+    @Override
+    public AdResponseDTO blockAdAsAdmin(Long adId) {
+        Objects.requireNonNull(adId, "El ID del anuncio no puede ser nulo");
+        Ad ad = adRepository.findById(adId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        if (ad.getStatus() != AdStatus.APPROVED && ad.getStatus() != AdStatus.PAUSED && ad.getStatus() != AdStatus.ACTIVE) {
+            throw new InvalidAdStateException(
+                "Solo se pueden bloquear anuncios activos, pausados o aprobados"
+            );
+        }
+        
+        ad.setStatus(AdStatus.BLOCKED);
+        ad.setUpdatedAt(ZonedDateTime.now());
+        
+        Ad savedAd = adRepository.save(ad);
+        log.info("Ad {} blocked", adId);
+        
+        return adMapper.toDto(savedAd);
+    }
 
     @Override
     public AdResponseDTO approveAd(Long adId, Long adminId) {
@@ -288,12 +402,18 @@ public class AdServiceImpl implements AdService {
         
         return adMapper.toDto(savedAd);
     }
+    @Override
+    @Transactional(readOnly = true)
+    public Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable) {
+        Page<Ad> ads = adRepository.findAllByStatus(status, pageable);
+        return ads.map(adMapper::toAdminDto);
+    }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<AdResponseDTO> getPendingApprovalAds(Pageable pageable) {
+    public Page<AdForAdminDTO> getPendingApprovalAds(Pageable pageable) {
         Page<Ad> ads = adRepository.findPendingApproval(pageable);
-        return ads.map(adMapper::toDto);
+        return ads.map(adMapper::toAdminDto);
     }
 
     // ==================== Estadísticas ====================
