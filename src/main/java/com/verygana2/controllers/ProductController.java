@@ -132,7 +132,7 @@ public class ProductController {
     }
 
     // Métodos para Seller
-    @GetMapping("/{sellerId}")
+    @GetMapping("/seller/{sellerId}")
     public ResponseEntity<Page<ProductSummaryResponseDTO>> getSellerProducts(@PathVariable Long sellerId,
             @RequestParam(defaultValue = "0") Integer page) {
         return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));

@@ -12,16 +12,19 @@ import org.hibernate.ObjectNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
+import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.ProductNotAvailableException;
+import com.verygana2.mappers.PurchaseMapper;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.Wallet;
 import com.verygana2.models.enums.PurchaseItemStatus;
@@ -63,6 +66,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final ConsumerDetailsService consumerDetailsService;
     private final ProductStockRepository productStockRepository;
     private final EmailService emailService;
+    private final PurchaseMapper purchaseMapper;
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
 
@@ -328,7 +332,15 @@ public class PurchaseServiceImpl implements PurchaseService {
     }
 
     @Override
-    public PagedResponse<Purchase> getConsumerPurchases(Long consumerId, Pageable pageable) {
-        return PagedResponse.from(purchaseRepository.findByConsumerId(consumerId, pageable));
+    public PagedResponse<PurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
+        Page<Purchase> purchases = purchaseRepository.findByConsumerId(consumerId, pageable);
+        Page<PurchaseResponseDTO> purchasesDtos = purchases.map(purchaseMapper::toPurchaseResponseDTO);
+        return PagedResponse.from(purchasesDtos);
+    }
+
+    @Override
+    public PurchaseResponseDTO getPurchaseResponseDTO(Long purchaseId, Long consumerId) {
+        Purchase purchase = purchaseRepository.findByIdAndConsumerIdWithItems(purchaseId, consumerId).orElseThrow(() -> new ObjectNotFoundException("Purchase with id:" + purchaseId + " not found", Purchase.class));
+        return purchaseMapper.toPurchaseResponseDTO(purchase);
     }
 }

@@ -17,8 +17,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
+import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.models.Transaction;
-import com.verygana2.models.products.Purchase;
 import com.verygana2.services.interfaces.PurchaseService;
 
 import lombok.RequiredArgsConstructor;
@@ -38,9 +38,16 @@ public class PurchaseController {
         return ResponseEntity.ok(purchaseService.createPurchase(consumerId, request));
     }
 
+    @GetMapping("/{purchaseId}")
+    @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
+    public ResponseEntity<PurchaseResponseDTO> getPurchaseById(@AuthenticationPrincipal Jwt jwt, @PathVariable Long purchaseId){
+        Long consumerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseService.getPurchaseResponseDTO(purchaseId, consumerId));
+    }
+
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
-    public ResponseEntity<PagedResponse<Purchase>> getPurchases(@AuthenticationPrincipal Jwt jwt, Pageable pageable) {
+    public ResponseEntity<PagedResponse<PurchaseResponseDTO>> getPurchases(@AuthenticationPrincipal Jwt jwt, Pageable pageable) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.getConsumerPurchases(consumerId, pageable));
     }

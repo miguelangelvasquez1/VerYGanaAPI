@@ -11,5 +11,4 @@ public class EntityCreatedResponseDTO {
     private Long id;
     private String message;
     private Instant timestamp;
-
 }
