@@ -23,15 +23,23 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
-@NoArgsConstructor
-@AllArgsConstructor
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
+
+
 @Entity
 @Table(name = "purchase_items")
-@Data
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
+@ToString(exclude = {"purchase", "product", "assignedProductStock", "review"})
+@EqualsAndHashCode(exclude = {"purchase", "product", "assignedProductStock", "review"})
 public class PurchaseItem {
     
     @Id

@@ -34,7 +34,7 @@ public class PlatformTransaction {
         private Long id;
 
         @Enumerated(EnumType.STRING)
-        @Column(nullable = false)
+        @Column(name = "type", nullable = false, length = 50)
         private PlatformTransactionType type;
 
         @Column(precision = 15, scale = 2, nullable = false)
@@ -154,7 +154,7 @@ public class PlatformTransaction {
                         BigDecimal updatedBalance,
                         BigDecimal updatedAvailableBalance,
                         BigDecimal updatedReservedBalance) {
-                return PlatformTransaction.builder().amount(amount).description(description)
+                return PlatformTransaction.builder().type(PlatformTransactionType.WITHDRAWAL_RESERVED).amount(amount).description(description)
                                 .balanceAfter(updatedBalance).availableBalanceAfter(updatedAvailableBalance)
                                 .reservedBalanceAfter(updatedReservedBalance).build();
 
