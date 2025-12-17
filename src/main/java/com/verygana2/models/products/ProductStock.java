@@ -22,8 +22,11 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "product_stock",
@@ -36,10 +39,13 @@ import lombok.NoArgsConstructor;
         @UniqueConstraint(name = "uk_code", columnNames = "code")
     }
 )
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {"product", "purchaseItem"})
+@EqualsAndHashCode(exclude = {"product", "purchaseItem"})
 public class ProductStock {
     
     @Id

@@ -36,7 +36,6 @@ import com.verygana2.models.products.PurchaseItem;
 import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.ProductRepository;
 import com.verygana2.repositories.ProductStockRepository;
-import com.verygana2.repositories.PurchaseItemRepository;
 import com.verygana2.repositories.PurchaseRepository;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.services.interfaces.EmailService;
@@ -59,7 +58,6 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final WalletService walletService;
     private final TransactionRepository transactionRepository;
     private final PurchaseRepository purchaseRepository;
-    private final PurchaseItemRepository purchaseItemRepository;
     private final PlatformTreasuryService platformTreasuryService;
     private final ProductService productService;
     private final ProductRepository productRepository;
@@ -87,6 +85,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     }
 
     @Override
+    @SuppressWarnings("null")
     public EntityCreatedResponseDTO createPurchase(Long consumerId, CreatePurchaseRequestDTO request) {
 
         log.info("Validating request items size...");
@@ -101,15 +100,18 @@ public class PurchaseServiceImpl implements PurchaseService {
         // 1. Crear compra
         Purchase basePurchase = createBasePurchase(referenceId, consumerId, request);
 
-        // 2. Adicionar items
-        Purchase purchaseWithItems = addPurchaseItems(basePurchase, request);
+        // 2. guardamos el cuerpo de la compra para generar ID
+        Purchase savedBasePurchase = purchaseRepository.save(basePurchase);
 
-        // 3. Calcular total de la compra
+        // 3. Adicionar items
+        Purchase purchaseWithItems = addPurchaseItems(savedBasePurchase, request);
+
+        // 4. Calcular total de la compra
         purchaseWithItems.calculateTotals();
 
         // logica para los cupones
 
-        // 4. Validar saldo del comprador
+        // 5. Validar saldo del comprador
         Wallet buyerWallet = walletService.getByOwnerId(consumerId);
         if (!buyerWallet.hasSufficientBalance(purchaseWithItems.getTotal())) {
             releaseCodes(purchaseWithItems);
@@ -134,21 +136,21 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw e;
         }
 
+        Purchase finalPurchase = purchaseRepository.save(purchaseWithItems);
+
         // Envio de productos al comprador (emailService)
         try {
-            emailService.sendPurchaseConfirmation(purchaseWithItems);
+            emailService.sendPurchaseConfirmation(finalPurchase, request.getContactEmail());
         } catch (Exception e) {
             log.error("Failed to send purchase confirmation email, but purchase was successful. Purchase ID: {}",
-                    purchaseWithItems.getId(), e);
-            // No lanzamos la excepción porque el pago ya se completó exitosamente
+                    finalPurchase.getId(), e);
+            // No se lanza la excepción porque el pago ya se completó exitosamente
         }
 
-        Purchase savedPurchase = purchaseRepository.save(purchaseWithItems);
+        log.info("Purchase created succesfully. id: {}, Total: {}", finalPurchase.getId(),
+                finalPurchase.getTotal());
 
-        log.info("Purchase created succesfully. id: {}, Total: {}", purchaseWithItems.getId(),
-                purchaseWithItems.getTotal());
-
-        return new EntityCreatedResponseDTO(savedPurchase.getId(), "Purchase registered succesfully", Instant.now());
+        return new EntityCreatedResponseDTO(finalPurchase.getId(), "Purchase registered succesfully", Instant.now());
     }
 
     // Metodos privados para crear una compra
@@ -163,9 +165,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .build();
     }
 
-    private Purchase addPurchaseItems(Purchase basePurchase, CreatePurchaseRequestDTO request) {
-
-        Purchase purchaseWithItems = basePurchase;
+    private Purchase addPurchaseItems(Purchase savedPurchase, CreatePurchaseRequestDTO request) {
 
         for (CreatePurchaseItemRequestDTO itemRequest : request.getItems()) {
             Product product = productService.getById(itemRequest.getProductId());
@@ -179,21 +179,25 @@ public class PurchaseServiceImpl implements PurchaseService {
             }
 
             for (int i = 0; i < itemRequest.getQuantity(); i++) {
-                ProductStock availableCode = product.getNextAvailableCode();
+                ProductStock availableCode = productStockRepository.findNextAvailableForProduct(product.getId())
+                .orElseThrow(() -> new InsufficientStockException(product.getName()));
+
+                availableCode.markAsReserved();
+                productStockRepository.saveAndFlush(availableCode);
+                // Crear item
                 PurchaseItem purchaseItem = PurchaseItem.builder()
-                        .purchase(purchaseWithItems)
+                        .purchase(savedPurchase)
                         .product(product)
                         .quantity(1)
                         .priceAtPurchase(product.getPrice())
                         .status(PurchaseItemStatus.PENDING)
                         .build();
 
+                // Asignar código
                 purchaseItem.assignProductStock(availableCode);
-                PurchaseItem savedItem = purchaseItemRepository.save(purchaseItem);
-                availableCode.markAsSold(savedItem);
 
-                productStockRepository.save(availableCode);
-                purchaseWithItems.addItem(purchaseItem);
+                // Agregar a la compra (esto lo agrega a la lista)
+                savedPurchase.addItem(purchaseItem);
             }
 
             product.updateStockCount();
@@ -203,11 +207,21 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         int expectedItems = request.getItems().stream().mapToInt(CreatePurchaseItemRequestDTO::getQuantity).sum();
 
-        if (purchaseWithItems.getItems().size() != expectedItems) {
+        if (savedPurchase.getItems().size() != expectedItems) {
             throw new BusinessException("Purchase incompleted");
         }
 
-        return purchaseWithItems;
+        savedPurchase = purchaseRepository.save(savedPurchase);
+
+        for(PurchaseItem item : savedPurchase.getItems()){
+            if (item.getAssignedProductStock() != null) {
+                ProductStock stock = item.getAssignedProductStock();
+                stock.markAsSold(item);
+                productStockRepository.save(stock);
+            }
+        }
+
+        return savedPurchase;
     }
 
     private void releaseCodes(Purchase purchaseWithItems) {

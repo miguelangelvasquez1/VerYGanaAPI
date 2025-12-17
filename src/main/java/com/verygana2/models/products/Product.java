@@ -8,10 +8,14 @@ import java.util.List;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.models.enums.DeliveryType;
 import com.verygana2.models.enums.DigitalFormat;
+import com.verygana2.models.enums.StockStatus;
 import com.verygana2.models.userDetails.SellerDetails;
 
 import jakarta.persistence.*;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "products", indexes = {
@@ -21,7 +25,10 @@ import lombok.Data;
         @Index(name = "idx_average_rate", columnList = "average_rate"),
         @Index(name = "idx_active", columnList = "is_active")
 })
-@Data
+@Getter
+@Setter
+@ToString(exclude = {"seller", "reviews", "stockItems", "productCategory"})
+@EqualsAndHashCode(exclude = {"seller", "reviews", "stockItems", "productCategory"})
 public class Product {
 
     @Id
@@ -106,7 +113,7 @@ public class Product {
     }
 
     public Integer getAvailableStock(){
-        return (int) stockItems.stream().filter(ProductStock::canBeSold).count();
+        return (int) stockItems.stream().filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).count();
     }
 
     public void updateStockCount(){
@@ -114,7 +121,7 @@ public class Product {
     }
 
     public ProductStock getNextAvailableCode() {
-        return stockItems.stream().filter(ProductStock::canBeSold).findFirst().orElseThrow(() -> new InsufficientStockException(this.name));
+        return stockItems.stream().filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).findFirst().orElseThrow(() -> new InsufficientStockException(this.name));
     }
 
     public void updateAverageRating() {

@@ -34,7 +34,7 @@ public class WalletServiceImpl implements WalletService {
 
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
-    private final PlatformTreasuryService platformTreasuryServiceImpl;
+    private final PlatformTreasuryService platformTreasuryService;
 
     @Value("${usersEarnings.ad-view}")
     private BigDecimal adCommission;
@@ -125,7 +125,7 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(wallet);
         transactionRepository.save(transaction);
 
-        platformTreasuryServiceImpl.recordRealMoneyDeposit(netAmount, transaction.getReferenceId(), String.format("Deposit from user %d. Gateway fee: %s", userId, gatewayFee));
+        platformTreasuryService.recordRealMoneyDeposit(netAmount, transaction.getReferenceId(), String.format("Deposit from user %d. Gateway fee: %s", userId, gatewayFee));
 
         return new TransactionResponse("Deposit succesful", transaction.getAmount(),
                 transaction.getReferenceId(), transaction.getCompletedAt());
@@ -152,7 +152,7 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(wallet);
         transactionRepository.save(Objects.requireNonNull(transaction));
 
-        platformTreasuryServiceImpl.completeWithdrawal(withdrawalRequest.amount(), transaction.getReferenceId(), String.format("Withdrawal from user %d", userId));
+        platformTreasuryService.completeWithdrawal(withdrawalRequest.amount(), transaction.getReferenceId(), String.format("Withdrawal from user %d", userId));
 
         TransactionResponse response = new TransactionResponse("Witdrawal succesful", withdrawalRequest.amount(),
                 transaction.getReferenceId(), ZonedDateTime.now());
@@ -262,7 +262,7 @@ public class WalletServiceImpl implements WalletService {
         walletRepository.save(advertiserWallet);
         walletRepository.save(userWallet);
 
-        platformTreasuryServiceImpl.addAdCommission(platformCommission, mutualReferenceId, String.format("Ad commission from advertiser id: %d ", advertiserId));
+        platformTreasuryService.addAdCommission(platformCommission, mutualReferenceId, String.format("Ad commission from advertiser id: %d ", advertiserId));
 
     }
 

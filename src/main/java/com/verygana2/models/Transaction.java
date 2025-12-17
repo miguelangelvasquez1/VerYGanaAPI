@@ -48,9 +48,11 @@ public class Transaction { // Future consideration: currency column, hacer esto 
         private PaymentInfo paymentInfo;
 
         @Enumerated(EnumType.STRING)
+        @Column(name = "transaction_type", nullable = false)
         private TransactionType transactionType;
 
         @Enumerated(EnumType.STRING)
+        @Column(name = "transaction_state", nullable = false)
         private TransactionState transactionState;
 
         @Column(precision = 15, scale = 2)

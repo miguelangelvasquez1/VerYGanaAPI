@@ -12,8 +12,11 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
 @Entity
 @Table(name = "purchases", indexes = {
@@ -21,10 +24,13 @@ import lombok.NoArgsConstructor;
     @Index(name = "idx_purchase_status", columnList = "status"),
     @Index(name = "idx_created_at", columnList = "created_at")
 })
-@Data
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@ToString(exclude = {"consumer", "items"})  // ⭐ Excluir relaciones
+@EqualsAndHashCode(exclude = {"consumer", "items"})  // ⭐ Excluir relaciones
 public class Purchase {
     
     @Id
@@ -47,20 +53,24 @@ public class Purchase {
     // ===== INFORMACIÓN FINANCIERA =====
     
     @Column(name = "subtotal", nullable = false, precision = 19, scale = 2)
-    private BigDecimal subtotal;
+    @Builder.Default
+    private BigDecimal subtotal = BigDecimal.ZERO;
     
     @Column(name = "discount_amount", precision = 19, scale = 2)
     @Builder.Default
     private BigDecimal discountAmount = BigDecimal.ZERO;
     
     @Column(name = "total", nullable = false, precision = 19, scale = 2)
-    private BigDecimal total;
+    @Builder.Default
+    private BigDecimal total = BigDecimal.ZERO;
 
     @Column(name = "platform_earnings", nullable = false)
-    private BigDecimal platformEarnings;
+    @Builder.Default
+    private BigDecimal platformEarnings = BigDecimal.ZERO;
 
     @Column(name = "paid_to_sellers", nullable = false)
-    private BigDecimal paidToSellers;
+    @Builder.Default
+    private BigDecimal paidToSellers = BigDecimal.ZERO;
     
     // ===== ESTADO DE LA COMPRA =====
     

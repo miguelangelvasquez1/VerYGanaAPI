@@ -15,6 +15,7 @@ public enum PlatformTransactionType {
     WITHDRAWAL_REQUESTED("Withdrawal requested"),
     WITHDRAWAL_COMPLETED("Withdrawal completed"),
     WITHDRAWAL_CANCELLED("Withdrawal cancelled"),
+    WITHDRAWAL_RESERVED("Withdrawal reserved"),
     
     // Ajustes manuales
     MANUAL_ADJUSTMENT("Manual adjustment by admin"),
