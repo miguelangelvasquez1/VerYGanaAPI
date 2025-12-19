@@ -9,8 +9,10 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class GameMetricRequestDTO {
+public class GameMetricDTO {
     private String key;
     private MetricType type;
     private Object value;
+
+    private String thecnicalData; // Errores, load_time, etc
 }

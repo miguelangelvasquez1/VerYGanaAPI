@@ -20,19 +20,31 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Game {
+    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     @Column(name = "code", nullable = false)
     private String code;
+
     @Column(name = "name", nullable = false)
     private String name;
+
     @Column(name = "min_duration_seconds", nullable = false)
-    private Integer minDurationSeconds;
+    private Integer minDurationSeconds; // Optional
+
     @Column(name = "max_duration_seconds", nullable = false)
-    private Integer maxDurationSeconds;
+    private Integer maxDurationSeconds; // Optional
+
     @Column(name = "active", nullable = false)
     private boolean active;
+
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameSession> gameSessions;
+
+    @OneToMany
+    private List<GameMetricDefinition> metricDefinitions;
+
+    // Assets definition?
 }

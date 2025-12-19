@@ -2,6 +2,8 @@ package com.verygana2.models.games;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.models.enums.MetricType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -33,10 +35,10 @@ public class GameSessionMetric {
     private String metricKey; // "moves", "accuracy", "reaction_time"
 
     @Column(nullable = false)
-    private String metricType; // INT, DECIMAL, BOOLEAN, STRING
+    private MetricType metricType; // INT, DECIMAL, BOOLEAN, STRING
 
     @Column(nullable = false)
-    private String metricValue; // valor serializado
+    private Object metricValue; // valor serializado
 
     private String unit; // ms, %, points
 

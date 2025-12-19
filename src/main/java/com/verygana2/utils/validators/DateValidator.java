@@ -1,4 +1,4 @@
-package com.verygana2.utils;
+package com.verygana2.utils.validators;
 
 import java.time.ZonedDateTime;
 
