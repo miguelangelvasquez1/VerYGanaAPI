@@ -1,5 +1,6 @@
 package com.verygana2.models.games;
 
+import com.verygana2.models.enums.AssetType;
 import com.verygana2.models.enums.MediaType;
 
 import jakarta.persistence.Column;
@@ -29,8 +30,11 @@ public class Asset {
     @Column(name = "url", nullable = false)
     private String url;
 
-    @Column(name = "type", nullable = false)
-    private MediaType type;
+    @Column(name = "asset_type", nullable = false)
+    private AssetType assetType;
+
+    @Column(name = "media_type", nullable = false)
+    private MediaType mediaType;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id", nullable = false)

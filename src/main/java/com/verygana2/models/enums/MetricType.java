@@ -4,5 +4,6 @@ public enum MetricType {
     INT,
     DECIMAL,
     BOOLEAN,
-    STRING
+    STRING,
+    DOUBLE
 }

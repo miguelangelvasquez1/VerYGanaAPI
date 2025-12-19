@@ -37,8 +37,8 @@ import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AdMediaService;
-import com.verygana2.utils.DateValidator;
 import com.verygana2.utils.specifications.AdSpecifications;
+import com.verygana2.utils.validators.DateValidator;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

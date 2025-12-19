@@ -1,6 +1,8 @@
 package com.verygana2.models.games;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
 
@@ -12,6 +14,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -27,6 +30,9 @@ public class GameSession {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "session_token", unique = true, length = 100)
+    private String sessionToken;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "consumer_id", nullable = false)
     private ConsumerDetails consumer;
@@ -41,6 +47,12 @@ public class GameSession {
     @Column(name = "end_time", nullable = false)
     private ZonedDateTime endTime;
 
+    @Column(name = "play_time", nullable = false)
+    private Long playTime; // segundos?
+
+    @Column(name = "device_platform", nullable = false)
+    private Long devicePlatform;
+
     @Column(name = "completed", nullable = false)
     private boolean completed;
 
@@ -50,4 +62,26 @@ public class GameSession {
     @Column(name = "score", nullable = false)
     private Integer score;
 
+    @OneToMany
+    private List<GameSessionMetric> metrics;
+
+    // Factory method to create a new GameSession
+    public static GameSession start(
+            ConsumerDetails consumer,
+            Game game,
+            Long platform
+    ) {
+        GameSession session = new GameSession();
+        session.consumer = consumer;
+        session.game = game;
+        session.startTime = ZonedDateTime.now();
+        session.completed = false;
+        session.rewardGranted = false;
+        session.score = 0;
+        session.playTime = 0L;
+        session.devicePlatform = platform;
+        session.metrics = new ArrayList<>();
+        session.endTime = null;
+        return session;
+    }
 }
