@@ -33,6 +33,9 @@ public interface UserMapper {
     @Mapping(target = "totalWithdraws", ignore = true)
     @Mapping(target = "favoriteProducts", ignore = true)
     @Mapping(target = "raffleTickets", ignore = true)
+    @Mapping(target = "age", ignore = true)
+    @Mapping(target = "gender", ignore = true)
+    @Mapping(target = "userHash", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----

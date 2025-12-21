@@ -1,16 +1,21 @@
-package com.verygana2.controllers.games;
+package com.verygana2.controllers;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.game.EndSessionDTO;
+import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
@@ -31,21 +36,43 @@ public class GameController {
     
     @PostMapping("/init")
     public ResponseEntity<InitGameResponseDTO> initGame(InitGameRequestDTO request, @AuthenticationPrincipal Jwt jwt) {
-        InitGameResponseDTO response = gameService.initGameSession(request, jwt.getClaim("userId"));
+
+        // Init sponsored game
+        if (request.getSponsored() != null && request.getSponsored()) {
+            InitGameResponseDTO response = gameService.initGameSponsored(request, jwt.getClaim("userId"));
+            return ResponseEntity.ok(response);
+
+        }
+        // Init not sponsored game
+        InitGameResponseDTO response = gameService.initGameNotSponsored(request, jwt.getClaim("userId"));
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/metrics")
     public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event, @AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
-        gameService.submitGameMetrics(event.getSessionId(), event.getPayload(), userId);
+        gameService.submitGameMetrics(event, userId);
         return ResponseEntity.ok().build();
     }
 
-    //Tipos de datos que retornan estos metodos y parametros aun no definidos
-    //@GetMapping
-    //public PagedResponse<Game> getAvailableGamesPage (){
-    //};
+    @PostMapping("/end-session")
+    public ResponseEntity<Void> endSession(@RequestBody GameEventDTO<EndSessionDTO> event, @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        gameService.completeSession(event, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    @GetMapping
+    public PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable) {
+        return gameService.getAvailableGamesPage(pageable);
+    }
+
+    // //Método para que el juego obtenga los assets
+    // @GetMapping("/{gameId}/assets")
+    // public ResponseEntity<List<String>> getGameAssets(@PathVariable Long gameId) {
+    //     List<String> assets = gameService.getGameAssets(gameId);
+    //     return ResponseEntity.ok(assets);
+    // }
 
     //@GetMapping("/{gameId}")
     //public Game getGameDetails (@PathVariable Long gameId){
@@ -54,4 +81,8 @@ public class GameController {
     //@GetMapping("{gameId}/config")
     //public GameConfigDTO getGameConfig (@PathVariable Long gameId){
     //}
+
+    //GetMetrics by sessionId
+
+    //GetSession details
 }

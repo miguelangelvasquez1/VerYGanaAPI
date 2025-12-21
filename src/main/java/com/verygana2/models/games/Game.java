@@ -1,5 +1,6 @@
 package com.verygana2.models.games;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import jakarta.persistence.CascadeType;
@@ -8,28 +9,44 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "games")
+@Table(name = "games", indexes = {
+    @Index(name = "idx_game_active", columnList = "active"),
+    @Index(name = "idx_game_code", columnList = "code"),
+    @Index(name = "idx_game_sponsorable", columnList = "sponsorable, active")
+})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Game {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "code", nullable = false)
-    private String code;
+    @Column(name = "title", nullable = false)
+    private String title;
 
     @Column(name = "name", nullable = false)
     private String name;
+
+    @Column(name = "description", nullable = false)
+    private String description;
+
+    @Column(name = "url", nullable = false)
+    private String url;
+
+    @Column(name = "front_page_url", nullable = false)
+    private String frontPageUrl;    
 
     @Column(name = "min_duration_seconds", nullable = false)
     private Integer minDurationSeconds; // Optional
@@ -43,8 +60,16 @@ public class Game {
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameSession> gameSessions;
 
-    @OneToMany
-    private List<GameMetricDefinition> metricDefinitions;
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<GameMetricDefinition> metricDefinitions = new ArrayList<>();
+    
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)
+    @Builder.Default
+    private List<Campaign> campaigns = new ArrayList<>();
 
-    // Assets definition?
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<GameAssetDefinition> assetDefinitions = new ArrayList<>();
+
 }

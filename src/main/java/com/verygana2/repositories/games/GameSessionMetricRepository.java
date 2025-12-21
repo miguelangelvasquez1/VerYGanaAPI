@@ -1,4 +1,4 @@
-package com.verygana2.repositories;
+package com.verygana2.repositories.games;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;

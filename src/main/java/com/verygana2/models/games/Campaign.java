@@ -11,6 +11,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
@@ -20,7 +21,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "campaigns")
+@Table(name = "campaigns", indexes = {
+    @Index(name = "idx_campaign_game", columnList = "game_id"),
+    @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id"),
+    @Index(name = "idx_campaign_active_dates", columnList = "active, status, start_date, end_date")
+})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -38,7 +43,6 @@ public class Campaign {
     private AdvertiserDetails advertiser;
 
     @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    @JoinColumn(name = "assets", nullable = false)
     private List<Asset> assets;
 
     @Column(name = "active", nullable = false)

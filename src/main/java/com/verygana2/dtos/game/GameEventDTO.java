@@ -9,8 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GameEventDTO<T> {
     
-    private Long sessionId;
-    private Long gameId;
-    private String eventType; // Inicio de juego, eventos de gameplay, métricas finales.
-    private T payload; // Métricas
+    private String sessionToken;
+    private String userHash;
+    private T payload; // Métricas periódicas, métricas finales, etc.
 }
