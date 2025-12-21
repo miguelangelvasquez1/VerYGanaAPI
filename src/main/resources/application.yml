@@ -4,6 +4,10 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
+games:
+  user-hash-secret: ${USER_HASH_SECRET}
+  session-expiration-minutes: 30
+
   # =====================
   # DATABASE CONFIGURATION
   # =====================
@@ -80,13 +84,21 @@ cloudinary:
 # =====================
 # CLOUDFLARE R2 (Production - Future)
 # =====================
-# cloudflare:
-#   r2:
-#     account-id: ${CLOUDFLARE_ACCOUNT_ID:}
-#     access-key-id: ${CLOUDFLARE_R2_ACCESS_KEY_ID:}
-#     secret-access-key: ${CLOUDFLARE_R2_SECRET_ACCESS_KEY:}
-#     bucket-name: ${CLOUDFLARE_R2_BUCKET_NAME:verygana-ads}
-#     public-domain: ${CLOUDFLARE_R2_PUBLIC_DOMAIN:}
+cloudflare:
+  r2:
+    account-id: ${R2_ACCOUNT_ID:your-account-id}
+    access-key-id: ${R2_ACCESS_KEY_ID}
+    secret-access-key: ${R2_SECRET_ACCESS_KEY}
+    bucket-name: ${R2_BUCKET_NAME:verygana-campaigns}
+    cdn-domain: ${R2_CDN_DOMAIN:} # Opcional: cdn.verygana.com
+    endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
+
+# Configuración de limpieza de huérfanos
+cleanup:
+  orphaned-assets:
+    enabled: true
+    cron: "0 0 2 * * ?" # Cada día a las 2 AM
+    max-age-hours: 24 # Eliminar huérfanos de más de 24 horas
 
 # ============================================
 # CACHE CONFIGURATION

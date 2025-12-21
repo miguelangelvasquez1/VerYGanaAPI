@@ -63,6 +63,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
+    /* For storage exception */
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponse> handleStorageException(StorageException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     /* For duplicate like 409 */
     @ExceptionHandler(DuplicateLikeException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateLikeException(DuplicateLikeException ex) {

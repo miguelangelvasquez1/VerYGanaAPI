@@ -4,10 +4,13 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -33,6 +36,9 @@ public class GameSession {
     @Column(name = "session_token", unique = true, length = 100)
     private String sessionToken;
 
+    @Column(name = "user_hash", nullable = false)
+    private String userHash;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "consumer_id", nullable = false)
     private ConsumerDetails consumer;
@@ -51,7 +57,8 @@ public class GameSession {
     private Long playTime; // segundos?
 
     @Column(name = "device_platform", nullable = false)
-    private Long devicePlatform;
+    @Enumerated(EnumType.STRING)
+    private DevicePlatform devicePlatform;
 
     @Column(name = "completed", nullable = false)
     private boolean completed;
@@ -62,16 +69,18 @@ public class GameSession {
     @Column(name = "score", nullable = false)
     private Integer score;
 
-    @OneToMany
+    @OneToMany(mappedBy = "session")
     private List<GameSessionMetric> metrics;
 
     // Factory method to create a new GameSession
     public static GameSession start(
             ConsumerDetails consumer,
             Game game,
-            Long platform
+            DevicePlatform platform
     ) {
         GameSession session = new GameSession();
+        session.sessionToken = java.util.UUID.randomUUID().toString();
+        session.userHash = consumer.getUserHash();
         session.consumer = consumer;
         session.game = game;
         session.startTime = ZonedDateTime.now();

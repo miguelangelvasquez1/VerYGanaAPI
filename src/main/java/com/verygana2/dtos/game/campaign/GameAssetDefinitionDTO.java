@@ -1,4 +1,4 @@
-package com.verygana2.dtos.game;
+package com.verygana2.dtos.game.campaign;
 
 import com.verygana2.models.enums.AssetType;
 import com.verygana2.models.enums.MediaType;
@@ -10,11 +10,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AssetDTO {
+public class GameAssetDefinitionDTO {
     
     private Long id;
-    private String content;
     private AssetType assetType;
     private MediaType mediaType;
+    private boolean required;
+    private boolean multiple;
+    private String description;
 }
-    

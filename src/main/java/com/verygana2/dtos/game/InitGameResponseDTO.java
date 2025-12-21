@@ -13,16 +13,10 @@ import lombok.NoArgsConstructor;
 @Builder
 public class InitGameResponseDTO {
     
-    // Info from game
+    private String sessionToken;
+    private String userHash;
     private Long gameId;
-    private String gameCode;
-    private String gameName;
-    private Integer minDurationSeconds; // Optional en config
-    private Integer maxDurationSeconds; // Optional
-
-    private Long sessionId;
     private Long campaignId;
-    private String advertiserName;
     private List<AssetDTO> assets;
     private String jsonConfig; // Opcional: configuración adicional en formato JSON/Base64
 }

@@ -10,6 +10,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class InitGameRequestDTO {
     
-    @NotNull
-    private Long gameId;
+    @NotNull(message = "Game ID is required")
+    private Long gameId; // Debería ser aleatorio si es sponsored
+
+    @NotNull(message = "Sponsored flag is required")
+    private Boolean sponsored;
 }

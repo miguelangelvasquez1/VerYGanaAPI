@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.models.Category;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.raffles.RaffleTicket;
+import com.verygana2.utils.generators.UserHashGenerator;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -13,6 +15,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -26,7 +29,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class ConsumerDetails extends UserDetails {
 
-    //Agregar edad y genero si es necesario
+    private String userHash;
 
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)
@@ -46,12 +49,17 @@ public class ConsumerDetails extends UserDetails {
 
     @Size(max = 20, message = "Referral code must be at most 20 characters")
     private String referralCode;
+
     @NotBlank(message = "Department is required")
     @Size(max = 50)
     private String department;
+
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
     private String municipality;
+
+    private Integer age;
+    private TargetGender gender;
     
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
@@ -65,4 +73,11 @@ public class ConsumerDetails extends UserDetails {
 
     @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
+
+    @PrePersist
+    protected void onCreate() {
+        if (userHash == null) {
+            userHash = UserHashGenerator.generate(this.getId());
+        }
+    }
 }
