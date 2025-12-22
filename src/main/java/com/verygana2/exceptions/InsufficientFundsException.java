@@ -7,6 +7,6 @@ public class InsufficientFundsException extends RuntimeException {
     }
 
     public InsufficientFundsException(String description){
-        super("Insufficient Funds" + description);
+        super(description);
     }
 }
