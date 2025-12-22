@@ -34,9 +34,6 @@ public class Game {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
     @Column(name = "description", nullable = false)
     private String description;
 

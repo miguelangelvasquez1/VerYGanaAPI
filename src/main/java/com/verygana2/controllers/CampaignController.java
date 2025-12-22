@@ -72,8 +72,7 @@ public class CampaignController {
     
     @GetMapping("/{gameId}/asset-definitions")
     public List<GameAssetDefinitionDTO> getAssetDefinitions(
-            @PathVariable Long gameId
-    ) {
+            @PathVariable Long gameId) {
         return service.getAssetsByGame(gameId);
     }
 }
