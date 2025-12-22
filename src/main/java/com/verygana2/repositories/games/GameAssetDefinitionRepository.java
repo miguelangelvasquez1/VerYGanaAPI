@@ -12,7 +12,7 @@ import com.verygana2.models.games.GameAssetDefinition;
 public interface GameAssetDefinitionRepository extends JpaRepository<GameAssetDefinition, Long> {
 
     @Query("""
-        SELECT new com.verygana2.dtos.games.GameAssetDefinitionDTO(
+        SELECT new com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO(
             gad.id,
             gad.assetType,
             gad.mediaType,

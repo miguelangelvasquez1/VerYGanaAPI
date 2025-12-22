@@ -4,10 +4,6 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
-games:
-  user-hash-secret: ${USER_HASH_SECRET}
-  session-expiration-minutes: 30
-
   # =====================
   # DATABASE CONFIGURATION
   # =====================
@@ -151,3 +147,10 @@ platformEarnings:
 # ============================================  
 usersEarnings:
   ad-view: ${AD_VIEW}
+
+# ============================================
+# GAMES CONFIG
+# ============================================ 
+games:
+  user-hash-secret: ${USER_HASH_SECRET}
+  session-expiration-minutes: 30

@@ -23,8 +23,7 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "campaigns", indexes = {
     @Index(name = "idx_campaign_game", columnList = "game_id"),
-    @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id"),
-    @Index(name = "idx_campaign_active_dates", columnList = "active, status, start_date, end_date")
+    @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id")
 })
 @Data
 @AllArgsConstructor
