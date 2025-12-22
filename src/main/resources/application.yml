@@ -4,10 +4,6 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
-games:
-  user-hash-secret: ${USER_HASH_SECRET}
-  session-expiration-minutes: 30
-
   # =====================
   # DATABASE CONFIGURATION
   # =====================
@@ -151,3 +147,18 @@ platformEarnings:
 # ============================================  
 usersEarnings:
   ad-view: ${AD_VIEW}
+
+# ============================================
+# GAMES CONFIG
+# ============================================ 
+games:
+  user-hash-secret: ${USER_HASH_SECRET}
+  session-expiration-minutes: 30
+  
+# Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
+wompi:
+  public-key: pub_test_EJEMPLO_DOCUMENTACION
+  private-key: prv_test_EJEMPLO_DOCUMENTACION
+  event-secret: event_secret_EJEMPLO
+  api-url: https://sandbox.wompi.co/v1
+  currency: COP

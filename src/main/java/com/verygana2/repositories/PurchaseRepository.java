@@ -13,11 +13,15 @@ import com.verygana2.models.products.Purchase;
 public interface PurchaseRepository extends JpaRepository<Purchase, Long> {
 
     @Query("""
-                SELECT p FROM Purchase p
-                JOIN FETCH p.items
-                WHERE p.id = :purchaseId
-                AND p.consumer.id = :consumerId
-            """)
+            SELECT DISTINCT p FROM Purchase p
+            LEFT JOIN FETCH p.consumer consumer
+            LEFT JOIN FETCH consumer.user
+            LEFT JOIN FETCH p.items items
+            LEFT JOIN FETCH items.product product
+            LEFT JOIN FETCH items.assignedProductStock stock
+            WHERE p.id = :purchaseId
+            AND p.consumer.id = :consumerId
+                """)
     Optional<Purchase> findByIdAndConsumerIdWithItems(@Param("purchaseId") Long purchaseId,
             @Param("consumerId") Long consumerId);
 
