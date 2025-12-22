@@ -19,9 +19,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "games", indexes = {
-    @Index(name = "idx_game_active", columnList = "active"),
-    @Index(name = "idx_game_code", columnList = "code"),
-    @Index(name = "idx_game_sponsorable", columnList = "sponsorable, active")
+    @Index(name = "idx_game_active", columnList = "active")
 })
 @Data
 @AllArgsConstructor

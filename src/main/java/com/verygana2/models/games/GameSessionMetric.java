@@ -2,6 +2,10 @@ package com.verygana2.models.games;
 
 import java.time.ZonedDateTime;
 
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import com.fasterxml.jackson.databind.JsonNode;
 import com.verygana2.models.enums.MetricType;
 
 import jakarta.persistence.Column;
@@ -37,8 +41,9 @@ public class GameSessionMetric {
     @Column(nullable = false)
     private MetricType metricType; // INT, DECIMAL, BOOLEAN, STRING
 
-    @Column(nullable = false)
-    private Object metricValue; // valor serializado
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "metric_value", columnDefinition = "json", nullable = false)
+    private JsonNode metricValue;
 
     private String unit; // ms, %, points
 

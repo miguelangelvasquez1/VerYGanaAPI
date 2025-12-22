@@ -1,10 +1,12 @@
 package com.verygana2.models.games;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -22,10 +24,16 @@ public class GameMetricDefinition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    private Game game;
-
+    @Column(name = "metric_key", nullable = false)
     private String key;
+
+    @Column(name = "required_flag", nullable = false)
+    private boolean required;
+
+    @Column(name = "metric_type", nullable = false)
     private String type;
-    private Boolean required;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "game_id")
+    private Game game;
 }
