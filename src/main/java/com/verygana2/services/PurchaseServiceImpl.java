@@ -138,17 +138,17 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         Purchase finalPurchase = purchaseRepository.save(purchaseWithItems);
 
-        // Envio de productos al comprador (emailService)
-        try {
-            emailService.sendPurchaseConfirmation(finalPurchase, request.getContactEmail());
-        } catch (Exception e) {
-            log.error("Failed to send purchase confirmation email, but purchase was successful. Purchase ID: {}",
-                    finalPurchase.getId(), e);
-            // No se lanza la excepción porque el pago ya se completó exitosamente
-        }
+        log.info("consumer Email:" + finalPurchase.getConsumer().getUser().getEmail());
+        log.info("Contact Email (DTO sent):" + request.getContactEmail());
+
+        // Envio de codigos de productos por correo al comprador (emailService)
+        emailService.sendPurchaseConfirmation(finalPurchase, request.getContactEmail());
 
         log.info("Purchase created succesfully. id: {}, Total: {}", finalPurchase.getId(),
                 finalPurchase.getTotal());
+
+        // envio de correos para notificar venta a cada vendedor (emailService)
+        emailService.sendSellerSaleNotification(finalPurchase);
 
         return new EntityCreatedResponseDTO(finalPurchase.getId(), "Purchase registered succesfully", Instant.now());
     }

@@ -3,6 +3,8 @@ package com.verygana2.controllers;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -22,6 +24,7 @@ import com.verygana2.dtos.game.InitGameRequestDTO;
 import com.verygana2.dtos.game.InitGameResponseDTO;
 import com.verygana2.services.interfaces.GameService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,7 +38,7 @@ public class GameController {
     private final GameService gameService;
     
     @PostMapping("/init")
-    public ResponseEntity<InitGameResponseDTO> initGame(InitGameRequestDTO request, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<InitGameResponseDTO> initGame(@Valid @RequestBody InitGameRequestDTO request, @AuthenticationPrincipal Jwt jwt) {
 
         // Init sponsored game
         if (request.getSponsored() != null && request.getSponsored()) {
@@ -63,7 +66,7 @@ public class GameController {
     }
 
     @GetMapping
-    public PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable) {
+    public PagedResponse<GameDTO> getAvailableGamesPage (@PageableDefault(size = 20, sort = "title", direction = Sort.Direction.ASC ) Pageable pageable) {
         return gameService.getAvailableGamesPage(pageable);
     }
 

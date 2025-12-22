@@ -44,17 +44,24 @@ public class SendGridEmailService implements EmailService {
     @Override
     @Async
     public void sendPurchaseConfirmation(Purchase purchase, String contactEmail) {
-        log.info("Sending purchase confirmation email for purchase ID: {}", purchase.getId());
-        String recipientEmail = getRecipientEmail(purchase, contactEmail);
 
-        if (recipientEmail == null || recipientEmail.isBlank()) {
-            log.error("No recipient email found for purchase ID: {}", purchase.getId());
-            return;
-        }
+        log.info("Sending purchase confirmation email for purchase ID: {}", purchase.getId());
 
         try {
+
+            String recipientEmail = getRecipientEmail(purchase, contactEmail);
+
+            log.info("Recipient email determined: {}", recipientEmail);
+
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                log.error("No recipient email found for purchase ID: {}", purchase.getId());
+                return;
+            }
+
             String subject = String.format("✅ Confirmación de Compra - Orden #%d", purchase.getId());
             String htmlContent = buildPurchaseConfirmationHtml(purchase);
+
+            log.info("Attempting to send email to: {}", recipientEmail);
 
             boolean sent = sendEmail(recipientEmail, subject, htmlContent);
 
@@ -71,7 +78,7 @@ public class SendGridEmailService implements EmailService {
     }
 
     @Override
-    @Async
+    //@Async
     public void sendSellerSaleNotification(Purchase purchase) {
         log.info("Sending seller sale notification for purchase ID: {}", purchase.getId());
 

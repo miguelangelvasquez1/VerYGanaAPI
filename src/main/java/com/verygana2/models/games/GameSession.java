@@ -20,6 +20,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -28,6 +29,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class GameSession {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,12 +50,14 @@ public class GameSession {
     private Game game;
 
     @Column(name = "start_time", nullable = false)
-    private ZonedDateTime startTime;
+    @Builder.Default
+    private ZonedDateTime startTime = ZonedDateTime.now();
 
-    @Column(name = "end_time", nullable = false)
-    private ZonedDateTime endTime;
+    @Column(name = "end_time", nullable = true)
+    @Builder.Default
+    private ZonedDateTime endTime = ZonedDateTime.now();
 
-    @Column(name = "play_time", nullable = false)
+    @Column(name = "play_time", nullable = true)
     private Long playTime; // segundos?
 
     @Column(name = "device_platform", nullable = false)
@@ -66,7 +70,7 @@ public class GameSession {
     @Column(name = "reward_granted", nullable = false)
     private boolean rewardGranted;
 
-    @Column(name = "score", nullable = false)
+    @Column(name = "score", nullable = true)
     private Integer score;
 
     @OneToMany(mappedBy = "session")
@@ -86,8 +90,8 @@ public class GameSession {
         session.startTime = ZonedDateTime.now();
         session.completed = false;
         session.rewardGranted = false;
-        session.score = 0;
-        session.playTime = 0L;
+        session.score = null;
+        session.playTime = null;
         session.devicePlatform = platform;
         session.metrics = new ArrayList<>();
         session.endTime = null;
