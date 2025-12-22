@@ -73,7 +73,7 @@ public class MetricValidator {
                 validateValueType(metric);
 
                 // 5. Valor requerido
-                if (Boolean.TRUE.equals(definition.getRequired())
+                if (Boolean.TRUE.equals(definition.isRequired())
                         && metric.getValue() == null) {
                     throw new IllegalArgumentException(
                             "Required metric missing value: " + metric.getKey()
@@ -84,7 +84,7 @@ public class MetricValidator {
 
         // 6. Validar métricas requeridas faltantes
         for (GameMetricDefinition definition : definitions) {
-            if (Boolean.TRUE.equals(definition.getRequired())
+            if (Boolean.TRUE.equals(definition.isRequired())
                     && !receivedKeys.contains(definition.getKey())) {
                 throw new IllegalArgumentException(
                         "Missing required metric: " + definition.getKey()

@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
@@ -53,6 +55,7 @@ public class GameServiceImpl implements GameService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
     private final GameSessionRepository gameSessionRepository;
@@ -206,9 +209,15 @@ public class GameServiceImpl implements GameService {
         metric.setSession(session);
         metric.setMetricKey(dto.getKey());
         metric.setMetricType(dto.getType());
-        metric.setMetricValue(dto.getValue());
+        metric.setMetricValue(toJsonNode(dto.getValue()));
         // metric.setUnit(dto.getUnit());
         metric.setRecordedAt(ZonedDateTime.now());
         return metric;
+    }
+
+    private JsonNode toJsonNode(Object value) {
+    return value == null
+            ? objectMapper.nullNode()
+            : objectMapper.valueToTree(value);
     }
 }
