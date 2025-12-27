@@ -4,7 +4,8 @@ public enum PlatformTransactionType {
     // Comisiones (entradas)
     COMMISSION_PRODUCTS_SALE("Commission by products sale"),
     COMMISSION_RAFFLE("Commission by raffle ticket purchase"),
-    COMMISSION_AD("Commision by ad published"),
+    COMMISSION_AD("Commission by ad published"),
+    COMMISION_GAME("Commission by game builded"),
     COMMISSION_PREMIUM_SUBSCRIPTION("Commission premium suscription"),
     
     // Movimientos de dinero real
