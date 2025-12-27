@@ -1,8 +1,9 @@
 package com.verygana2.controllers;
 
-import java.util.List;
 
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,7 +19,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
-import com.verygana2.models.Transaction;
+import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
 import com.verygana2.services.interfaces.PurchaseService;
 
 import lombok.RequiredArgsConstructor;
@@ -47,15 +48,15 @@ public class PurchaseController {
 
     @GetMapping
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
-    public ResponseEntity<PagedResponse<PurchaseResponseDTO>> getPurchases(@AuthenticationPrincipal Jwt jwt, Pageable pageable) {
+    public ResponseEntity<PagedResponse<PurchaseResponseDTO>> getPurchases(@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.getConsumerPurchases(consumerId, pageable));
     }
 
     @GetMapping("/{purchaseId}/transactions")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<List<Transaction>> getPurchaseTransactions(@PathVariable Long purchaseId) {
-        return ResponseEntity.ok(purchaseService.getPurchaseTransactions(purchaseId));
+    public ResponseEntity<PagedResponse<TransactionResponseDTO>> getPurchaseTransactions(@PathVariable Long purchaseId, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(purchaseService.getPurchaseTransactions(purchaseId, pageable));
     }
 
 }
