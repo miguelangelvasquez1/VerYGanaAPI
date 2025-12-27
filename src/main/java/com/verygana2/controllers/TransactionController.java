@@ -64,8 +64,9 @@ public class TransactionController {
 
     // Obtener transacción por código de referencia
     @GetMapping("/reference")
-    public ResponseEntity<PagedResponse<TransactionResponseDTO>> getByReferenceCode(@RequestParam String code, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
-        return ResponseEntity.ok(transactionService.getByReferenceId(code, pageable));
+    public ResponseEntity<PagedResponse<TransactionResponseDTO>> getByReferenceCode(@AuthenticationPrincipal Jwt jwt, @RequestParam String code, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable){
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(transactionService.getByReferenceId(userId, code, pageable));
     }
 
 }
