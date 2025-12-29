@@ -3,7 +3,6 @@ package com.verygana2.services;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -20,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
+import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
@@ -336,13 +336,13 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Transaction> getPurchaseTransactions(Long purchaseId) {
+    public PagedResponse<TransactionResponseDTO> getPurchaseTransactions(Long purchaseId, Pageable pageable) {
         Purchase purchase = purchaseRepository.findById(Objects.requireNonNull(purchaseId))
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Purchase with id: " + purchaseId + " not found",
                         Purchase.class));
 
-        return transactionRepository.findByReferenceId(purchase.getReferenceId());
+        return PagedResponse.from(transactionRepository.findByReferenceId(purchase.getReferenceId(), pageable));
     }
 
     @Override

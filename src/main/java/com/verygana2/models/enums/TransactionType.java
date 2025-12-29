@@ -5,7 +5,8 @@ public enum TransactionType {
     // Ingresos
      DEPOSIT,        // Depósito de dinero
      POINTS_AD_LIKE_PAID,
-     POINTS_AD_LIKE_REWARD,       // Puntos por ver anuncios y dar like
+     POINTS_AD_LIKE_REWARD, // Puntos por ver anuncios y dar like
+     POINTS_GAME_PLAYED,       // Puntos por jugar minijuegos patrocinados
      POINTS_REFERRAL_BONUS,  // Puntos por referidos
      RAFFLE_PRIZE,          // Premio de rifa
     

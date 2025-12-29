@@ -1,84 +1,89 @@
 package com.verygana2.services;
 
-import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
-import com.verygana2.models.Transaction;
+import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.services.interfaces.TransactionService;
+import com.verygana2.services.interfaces.WalletService;
+
+import lombok.RequiredArgsConstructor;
 
 @Service
+@RequiredArgsConstructor
 public class TransactionServiceImpl implements TransactionService {
-   @Autowired
-   private TransactionRepository transactionRepository;
+   
+   private final TransactionRepository transactionRepository;
+   private final WalletService walletService;
 
    @Override
-   public List<Transaction> getByTransactionType(TransactionType transactionType) {
-      if (transactionType == null) {
-
-         throw new IllegalArgumentException("TransactionType cannot be null");
-      }
-      return transactionRepository.findByTransactionTypeOrderByCreatedAtDesc(transactionType);
-   }
-
-   @Override
-   public List<Transaction> getByTransactionState(TransactionState transactionState) {
-      if (transactionState == null) {
-
-         throw new IllegalArgumentException("TransactionState cannot be null");
-      }
-      return transactionRepository.findByTransactionStateOrderByCreatedAtDesc(transactionState);
-   }
-
-   @Override
-   public List<Transaction> getByWalletIdAndTransactionType(Long walletId, TransactionType transactionType) {
-      if (walletId == null || walletId <= 0) {
-         throw new IllegalArgumentException("WalletId null or not valid");
+   public PagedResponse<TransactionResponseDTO> getByWalletIdAndTransactionType(Long userId, TransactionType transactionType, Pageable pageable) {
+      if (userId == null || userId <= 0) {
+         throw new IllegalArgumentException("UserId null or not valid");
       }
       if (transactionType == null) {
-
          throw new IllegalArgumentException("TransactionType cannot be null");
       }
-      return transactionRepository.findByWalletIdAndTransactionType(walletId, transactionType);
+
+      Long walletId = walletService.getByOwnerId(userId).getId();
+      return PagedResponse.from(transactionRepository.findByWalletIdAndTransactionType(walletId, transactionType, pageable));
    }
 
    @Override
-   public List<Transaction> getByWalletIdAndTransactionState(Long walletId, TransactionState transactionState) {
-      if (walletId == null || walletId <= 0) {
-         throw new IllegalArgumentException("WalletId null or not valid");
+   public PagedResponse<TransactionResponseDTO> getByWalletIdAndTransactionState(Long userId, TransactionState transactionState, Pageable pageable) {
+      if (userId == null || userId <= 0) {
+         throw new IllegalArgumentException("UserId null or not valid");
       }
       if (transactionState == null) {
          throw new IllegalArgumentException("TransactionState cannot be null");
       }
-      return transactionRepository.findByWalletIdAndTransactionState(walletId, transactionState);
+      Long walletId = walletService.getByOwnerId(userId).getId();
+      return PagedResponse.from(transactionRepository.findByWalletIdAndTransactionState(walletId, transactionState, pageable));
    }
 
    @Override
-   public List<Transaction> getByWalletId(Long walletId) {
-      if (walletId == null || walletId <= 0) {
-         throw new IllegalArgumentException("WalletId null or not valid");
+   public PagedResponse<TransactionResponseDTO> getByWalletId(Long userId, Pageable pageable) {
+      if (userId == null || userId <= 0) {
+         throw new IllegalArgumentException("UserId null or not valid");
       }
-      return transactionRepository.findByWalletIdOrderByCreatedAtDesc(walletId);
+      Long walletId = walletService.getByOwnerId(userId).getId();
+      return PagedResponse.from(transactionRepository.findByWalletId(walletId, pageable));
    }
 
    @Override
-   public List<Transaction> getByReferenceId(String referenceId) {
+   public PagedResponse<TransactionResponseDTO> getByReferenceId(String referenceId, Pageable pageable) {
       if (referenceId == null || referenceId.isBlank()) {
          throw new IllegalArgumentException("ReferenceId null or not valid");
       }
-      return transactionRepository.findByReferenceId(referenceId);
+      return PagedResponse.from(transactionRepository.findByReferenceId(referenceId, pageable));
    }
 
    @Override
-   public boolean existsByReferenceId(String referenceId) {
-      if (referenceId == null || referenceId.isBlank()) {
-         throw new IllegalArgumentException("ReferenceId null or not valid");
+   public Long countByWalletIdAndTransactionType(Long userId, TransactionType transactionType) {
+      if (userId == null || userId <= 0) {
+         throw new IllegalArgumentException("UserId null or not valid");
       }
-      return transactionRepository.existsByReferenceId(referenceId);
+      if (transactionType == null) {
+         throw new IllegalArgumentException("TransactionType cannot be null");
+      }
+      
+      Long walletId = walletService.getByOwnerId(userId).getId();
+      return transactionRepository.countByWalletIdAndTransactionType(walletId, transactionType);
+   }
+
+   @Override
+   public Long getTotalConsumerEarnings(Long consumerId) {
+      if (consumerId == null || consumerId <= 0) {
+         throw new IllegalArgumentException("UserId null or not valid");
+      }
+      Long walletId = walletService.getByOwnerId(consumerId).getId();
+      Long earnings = (transactionRepository.sumUserEarningsByWalletId(walletId) != null) ? transactionRepository.sumUserEarningsByWalletId(walletId): 0L;
+      return earnings;
    }
 
 }
