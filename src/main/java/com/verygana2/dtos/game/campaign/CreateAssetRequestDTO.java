@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class CreateAssetRequestDTO {
     
-    @NotNull(message = "Debe elegir un asset preestablecido")
+    @NotNull(message = "Debe elegir una plantilla de asset")
     private Long assetDefinitionId;
 
     // @NotNull(message = "Debe elegir una campaña")

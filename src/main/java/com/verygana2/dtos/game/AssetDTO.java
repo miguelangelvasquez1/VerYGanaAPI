@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 public class AssetDTO {
     
     private Long id;
-    private String content;
+    private String objectKey;
     private AssetType assetType;
     private MediaType mediaType;
 }

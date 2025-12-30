@@ -11,4 +11,6 @@ import com.verygana2.models.games.Campaign;
 public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     
     Optional<Campaign> findRandomActiveCampaignByGameId(Long gameId);
+
+    boolean existsByAdvertiserIdAndGameId(Long advertiserId, Long gameId);
 }

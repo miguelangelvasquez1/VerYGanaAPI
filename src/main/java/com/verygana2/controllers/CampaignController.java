@@ -1,8 +1,7 @@
 package com.verygana2.controllers;
 
 import java.util.List;
-import java.util.Map;
-
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -15,12 +14,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
 import com.verygana2.services.interfaces.CampaignService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -33,17 +36,26 @@ public class CampaignController {
 
     private final CampaignService service;
 
+    // @GetMapping
+    // public ResponseEntity<PagedResponse<GameDTO>> getAdvertiserCapaings(
+    //     @AuthenticationPrincipal Jwt jwt) {
+
+    //     return service.ge
+    // }
+
     /**
      * POST /api/campaigns/prepare
      * Paso 1: Validar y obtener URLs de subida
      */
     @PostMapping("/prepare")
-    public ResponseEntity<Map<Long, AssetUploadPermissionDTO>> prepareCampaign(
-            @Valid @RequestBody CreateCampaignRequestDTO request) {
+    public ResponseEntity<List<AssetUploadPermissionDTO>> prepareCampaign(
+            @Valid @RequestBody CreateCampaignRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
         
-        Map<Long, AssetUploadPermissionDTO> permissions = 
+       List<AssetUploadPermissionDTO> permissions = 
             service.prepareAssetUploads(
-                request.getGameId(), 
+                request.getGameId(),
+                jwt.getClaim("userId"),
                 request.getAssets()
             );
         
@@ -58,16 +70,25 @@ public class CampaignController {
     public ResponseEntity<Boolean> createCampaign(
             @RequestParam Long gameId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody Map<Long, String> uploadedAssets) {
+            @RequestBody @NotEmpty List<@NotNull Long> assetIds) {
         
         Long userId = jwt.getClaim("userId");
         service.createCampaignWithAssets(
             gameId, 
             userId, 
-            uploadedAssets
+            assetIds
         );
         
         return ResponseEntity.ok(true);
+    }
+
+    @GetMapping("/games")
+    public PagedResponse<GameDTO> getAvailableGames(
+            @AuthenticationPrincipal Jwt jwt,
+            Pageable pageable) {
+
+        Long userId = jwt.getClaim("userId");
+        return service.getAvailableGames(userId, pageable);
     }
     
     @GetMapping("/{gameId}/asset-definitions")

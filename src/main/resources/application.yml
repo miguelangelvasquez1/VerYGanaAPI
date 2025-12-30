@@ -155,6 +155,9 @@ games:
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
 
+# ============================================
+# WOMPI CONFIG
+# ============================================ 
 # Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
 wompi:
   public-key: pub_test_EJEMPLO_DOCUMENTACION
@@ -162,3 +165,61 @@ wompi:
   event-secret: event_secret_EJEMPLO
   api-url: https://sandbox.wompi.co/v1
   currency: COP
+
+
+# ============================================
+# AUDIT CONFIG
+# ============================================ 
+audit:
+  # Habilitar/deshabilitar auditoría
+  enabled: true
+  
+  # Nivel mínimo para persistir (útil en dev)
+  # DEBUG: solo para debugging local
+  # INFO: operaciones normales
+  # WARNING: operaciones sospechosas
+  # CRITICAL: operaciones críticas
+  min-level: INFO
+  
+  # Configuración de retención (días)
+  retention:
+    debug: 7
+    info: 90
+    warning: 365
+    critical: 2555  # 7 años
+  
+  # Limpieza automática
+  cleanup:
+    enabled: true
+    cron: "0 0 3 * * ?"  # 3 AM diario
+    
+  # Reportes
+  reports:
+    weekly:
+      enabled: true
+      cron: "0 0 8 * * MON"  # Lunes 8 AM
+      recipients:
+        - admin@verygana.com
+        
+  # Máscaras por defecto (además de las especificadas en @Auditable)
+  default-mask-params:
+    - password
+    - confirmPassword
+    - oldPassword
+    - token
+    - apiKey
+    - secret
+    - creditCard
+    - ssn
+    
+  # Excluir de auditoría (no auditar aunque tenga @Auditable)
+  excluded-actions:
+    - HEALTH_CHECK
+    - METRICS_COLLECTION
+    
+  # Configuración de async
+  async:
+    core-pool-size: 2
+    max-pool-size: 10
+    queue-capacity: 500
+    thread-name-prefix: "audit-"

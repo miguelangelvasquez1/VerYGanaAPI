@@ -49,6 +49,10 @@ public class GameSession {
     @JoinColumn(name = "game_id", nullable = false)
     private Game game;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "campaign_id", nullable = false)
+    private Campaign campaign;
+
     @Column(name = "start_time", nullable = false)
     @Builder.Default
     private ZonedDateTime startTime = ZonedDateTime.now();

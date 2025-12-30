@@ -1,13 +1,17 @@
 package com.verygana2.mappers;
 
+import java.util.List;
+
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.game.InitGameResponseDTO;
+import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
 import com.verygana2.dtos.game.AssetDTO;
 import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameAssetDefinition;
 import com.verygana2.models.games.GameSession;
 
 @Mapper(componentModel = "spring")
@@ -26,4 +30,9 @@ public interface GameMapper {
     );
 
     AssetDTO toAssetDto(Asset asset);
+
+    // Para obtener las definiciones
+    GameAssetDefinitionDTO toDto(GameAssetDefinition entity);
+
+    List<GameAssetDefinitionDTO> toDtoList(List<GameAssetDefinition> entities);
 }
