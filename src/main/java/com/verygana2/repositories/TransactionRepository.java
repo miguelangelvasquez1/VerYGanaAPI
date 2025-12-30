@@ -16,28 +16,28 @@ import com.verygana2.models.enums.TransactionType;
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
    @Query("""
          SELECT new com.verygana2.dtos.transaction.responses.TransactionResponseDTO(
-         t.id,
-         t.amount,
-         t.createdAt,
-         t.paymentMethod,
-         t.referenceId,
-         t.transactionType,
-         t.transactionState)
-         FROM Transaction t
+            t.id,
+            t.amount,
+            t.createdAt,
+            t.paymentMethod,
+            t.referenceId,
+            t.transactionType,
+            t.transactionState)
+            FROM Transaction t
          WHERE t.wallet.id = :walletId
          """)
    Page<TransactionResponseDTO> findByWalletId(@Param("walletId") Long walletId, Pageable pageable);
 
    @Query("""
          SELECT new com.verygana2.dtos.transaction.responses.TransactionResponseDTO(
-         t.id,
-         t.amount,
-         t.createdAt,
-         t.paymentMethod,
-         t.referenceId,
-         t.transactionType,
-         t.transactionState)
-         FROM Transaction t
+            t.id,
+            t.amount,
+            t.createdAt,
+            t.paymentMethod,
+            t.referenceId,
+            t.transactionType,
+            t.transactionState)
+            FROM Transaction t
          WHERE t.wallet.id = :walletId AND t.transactionType = :type
          """)
    Page<TransactionResponseDTO> findByWalletIdAndTransactionType(@Param("walletId") Long walletId,
@@ -45,13 +45,13 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
    @Query("""
          SELECT new com.verygana2.dtos.transaction.responses.TransactionResponseDTO(
-         t.id,
-         t.amount,
-         t.createdAt,
-         t.paymentMethod,
-         t.referenceId,
-         t.transactionType,
-         t.transactionState)
+            t.id,
+            t.amount,
+            t.createdAt,
+            t.paymentMethod,
+            t.referenceId,
+            t.transactionType,
+            t.transactionState)
          FROM Transaction t
          WHERE t.wallet.id = :walletId AND t.transactionState = :state
          """)
@@ -60,25 +60,25 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
    @Query("""
          SELECT new com.verygana2.dtos.transaction.responses.TransactionResponseDTO(
-         t.id,
-         t.amount,
-         t.createdAt,
-         t.paymentMethod,
-         t.referenceId,
-         t.transactionType,
-         t.transactionState)
+            t.id,
+            t.amount,
+            t.createdAt,
+            t.paymentMethod,
+            t.referenceId,
+            t.transactionType,
+            t.transactionState)
          FROM Transaction t
-         WHERE t.referenceId = :referenceId
-         ORDER BY t.createdAt DESC
+         WHERE t.referenceId LIKE CONCAT('%', :referenceId, '%') 
+            AND t.wallet.user.id = :userId
          """)
-   Page<TransactionResponseDTO> findByReferenceId(@Param("referenceId") String referenceId, Pageable pageable);
+   Page<TransactionResponseDTO> findByReferenceId(@Param("userId") Long userId, @Param("referenceId") String referenceId, Pageable pageable);
 
    Long countByWalletIdAndTransactionType(Long walletId, TransactionType transactionType);
 
    @Query("""
             SELECT SUM(t.amount) FROM Transaction t
             WHERE (t.transactionType = com.verygana2.models.enums.TransactionType.POINTS_AD_LIKE_REWARD OR t.transactionType = com.verygana2.models.enums.TransactionType.POINTS_GAME_PLAYED)
-            AND t.wallet.id = :walletId
+                  AND t.wallet.id = :walletId
          """)
    Long sumUserEarningsByWalletId(@Param("walletId") Long walletId);
 }

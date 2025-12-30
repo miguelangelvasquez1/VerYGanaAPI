@@ -1,6 +1,6 @@
 package com.verygana2.models.products;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
 
@@ -24,26 +24,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "Product_reviews", 
-    indexes = {
+@Table(name = "Product_reviews", indexes = {
         @Index(name = "idx_consumer_id", columnList = "consumer_id"),
         @Index(name = "idx_product_id", columnList = "product_id"),
         @Index(name = "idx_rating", columnList = "rating"),
         @Index(name = "idx_created_at", columnList = "created_at")
-    },
-    uniqueConstraints = {
-        @UniqueConstraint(
-            name = "uk_one_review_per_purchase",
-            columnNames = {"consumer_id", "product_id", "purchase_id"}
-        )
-    }
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_one_review_per_consumer_product", columnNames = { "consumer_id", "product_id" })
+}
+
 )
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class ProductReview {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -67,23 +63,24 @@ public class ProductReview {
     private String comment;
 
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
-    private LocalDateTime updatedAt;
+    @Builder.Default
+    private ZonedDateTime updatedAt = ZonedDateTime.now();
 
     @Column(name = "visible", nullable = false)
     private boolean visible;
 
     @PrePersist
-    protected void onCreate(){
-        this.createdAt = LocalDateTime.now();
+    protected void onCreate() {
+        this.createdAt = ZonedDateTime.now();
         this.visible = true;
     }
 
     @PreUpdate
-    protected void onUpdate(){
-        this.updatedAt = LocalDateTime.now();
+    protected void onUpdate() {
+        this.updatedAt = ZonedDateTime.now();
     }
 
     // Admin function

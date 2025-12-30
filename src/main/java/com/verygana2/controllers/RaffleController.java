@@ -3,7 +3,6 @@ package com.verygana2.controllers;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -13,12 +12,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.services.interfaces.RaffleService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/raffles")
 public class RaffleController {
     
-    @Autowired
-    private RaffleService raffleService;
+    private final RaffleService raffleService;
 
     // Obtener la lista de rifas según el estado que pasen como argumento
     // @GetMapping("/state/{raffleState}")

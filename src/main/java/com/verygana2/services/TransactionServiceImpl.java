@@ -56,11 +56,15 @@ public class TransactionServiceImpl implements TransactionService {
    }
 
    @Override
-   public PagedResponse<TransactionResponseDTO> getByReferenceId(String referenceId, Pageable pageable) {
+   public PagedResponse<TransactionResponseDTO> getByReferenceId(Long userId, String referenceId, Pageable pageable) {
+      if (userId == null || userId <= 0) {
+         throw new IllegalArgumentException("UserId must be positive");
+      }
+
       if (referenceId == null || referenceId.isBlank()) {
          throw new IllegalArgumentException("ReferenceId null or not valid");
       }
-      return PagedResponse.from(transactionRepository.findByReferenceId(referenceId, pageable));
+      return PagedResponse.from(transactionRepository.findByReferenceId(userId, referenceId, pageable));
    }
 
    @Override

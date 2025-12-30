@@ -16,18 +16,15 @@ import com.verygana2.models.products.ProductCategory;
 import com.verygana2.repositories.ProductCategoryRepository;
 import com.verygana2.services.interfaces.ProductCategoryService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class ProductCategoryServiceImpl implements ProductCategoryService{
 
     private final ProductCategoryRepository productCategoryRepository;
 
     private final ProductCategoryMapper productCategoryMapper;
-
-    public ProductCategoryServiceImpl(ProductCategoryRepository productCategoryRepository,
-            ProductCategoryMapper productCategoryMapper) {
-        this.productCategoryRepository = productCategoryRepository;
-        this.productCategoryMapper = productCategoryMapper;
-    }
 
     @Override
     public EntityCreatedResponseDTO create(CreateProductCategoryRequestDTO request) {

@@ -2,6 +2,8 @@ package com.verygana2.controllers;
 
 import java.util.List;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -18,18 +20,18 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
-import com.verygana2.dtos.purchase.responses.PurchaseItemToReviewResponseDTO;
+import com.verygana2.dtos.productReviews.ReviewableProductResponseDTO;
 import com.verygana2.services.interfaces.ProductReviewService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/productReviews")
+@RequestMapping("/productsReviews")
 @RequiredArgsConstructor
 public class ProductReviewController {
     
-    private ProductReviewService productReviewService;
+    private final ProductReviewService productReviewService;
 
     @GetMapping("/{productId}/avg")
     @PreAuthorize("hasRole('ROLE_SELLER')")
@@ -37,6 +39,7 @@ public class ProductReviewController {
         return ResponseEntity.ok(productReviewService.getProductAvgRating(productId));
     }
 
+    // Posible cambio de ubicacion de este metodo
     @GetMapping("/{sellerId}/avg")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Double> getSellerAvgRating (@AuthenticationPrincipal Jwt jwt){
@@ -52,8 +55,8 @@ public class ProductReviewController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<PagedResponse<ProductReviewResponseDTO>> getProductReviewList (@PathVariable Long productId, @RequestParam Integer pageIndex) {
-        return ResponseEntity.ok(productReviewService.getProductReviewList(productId, pageIndex));
+    public ResponseEntity<PagedResponse<ProductReviewResponseDTO>> getProductReviewsByProductId (@PathVariable Long productId, @PageableDefault(size = 20, page = 0, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(productReviewService.getProductReviewList(productId, pageable));
     }
 
     /**
@@ -62,12 +65,11 @@ public class ProductReviewController {
      */
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<List<PurchaseItemToReviewResponseDTO>> getPendingReviews(
-            @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<List<ReviewableProductResponseDTO>> getPendingReviews(
+            @AuthenticationPrincipal Jwt jwt, @RequestParam Long purchaseId) {
         
         Long consumerId = jwt.getClaim("userId");
-        List<PurchaseItemToReviewResponseDTO> items = productReviewService.getPurchaseItemsToReview(consumerId);
-        return ResponseEntity.ok(items);
+        return ResponseEntity.ok(productReviewService.getPurchaseItemsToReview(purchaseId, consumerId));
     }
 
 

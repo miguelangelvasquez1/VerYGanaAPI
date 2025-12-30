@@ -1,6 +1,6 @@
 package com.verygana2.dtos.product.responses;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import lombok.Data;
 
@@ -10,5 +10,5 @@ public class ProductReviewResponseDTO {
     private String comment;
     private Integer rating;
     private String consumerName;
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
 }

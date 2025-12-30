@@ -19,7 +19,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
-import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
@@ -335,17 +334,6 @@ public class PurchaseServiceImpl implements PurchaseService {
     // Fin de metodos para crear una compra
 
     @Override
-    @Transactional(readOnly = true)
-    public PagedResponse<TransactionResponseDTO> getPurchaseTransactions(Long purchaseId, Pageable pageable) {
-        Purchase purchase = purchaseRepository.findById(Objects.requireNonNull(purchaseId))
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Purchase with id: " + purchaseId + " not found",
-                        Purchase.class));
-
-        return PagedResponse.from(transactionRepository.findByReferenceId(purchase.getReferenceId(), pageable));
-    }
-
-    @Override
     public PagedResponse<PurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
         Page<Purchase> purchases = purchaseRepository.findByConsumerId(consumerId, pageable);
         Page<PurchaseResponseDTO> purchasesDtos = purchases.map(purchaseMapper::toPurchaseResponseDTO);
@@ -356,5 +344,17 @@ public class PurchaseServiceImpl implements PurchaseService {
     public PurchaseResponseDTO getPurchaseResponseDTO(Long purchaseId, Long consumerId) {
         Purchase purchase = purchaseRepository.findByIdAndConsumerIdWithItems(purchaseId, consumerId).orElseThrow(() -> new ObjectNotFoundException("Purchase with id:" + purchaseId + " not found", Purchase.class));
         return purchaseMapper.toPurchaseResponseDTO(purchase);
+    }
+
+    @Override
+    public Purchase getByIdAndConsumerId(Long purchaseId, Long consumerId) {
+        if (purchaseId == null || purchaseId <= 0) {
+            throw new IllegalArgumentException("Purchase id must be positive");
+        }
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        return purchaseRepository.findByIdAndConsumerId(purchaseId, consumerId).orElseThrow(() -> new ObjectNotFoundException("Purchase with id: " + purchaseId + " and consumer id: " + consumerId + "not found", Purchase.class));
     }
 }
