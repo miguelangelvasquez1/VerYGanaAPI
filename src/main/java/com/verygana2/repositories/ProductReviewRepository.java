@@ -1,5 +1,8 @@
 package com.verygana2.repositories;
 
+import java.util.List;
+import java.util.Set;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,5 +23,16 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
 
     @Query("SELECT pr FROM ProductReview pr WHERE pr.product.id = :productId")
     Page<ProductReview> getProductReviewByProductId (@Param ("productId") Long productId, Pageable pageable);
+
+    boolean existsByConsumerIdAndProductId(Long consumerId, Long productId);
+
+    @Query(
+        """
+        SELECT pr.product.id
+        FROM ProductReview pr
+        WHERE pr.consumer.id = :consumerId
+        AND pr.product.Id IN :productsIds
+    """)
+    Set<Long> findReviewedProductIdsByConsumer(@Param("consumerId") Long consumerId, @Param("productsIds") List<Long> productIds);
     
 }
