@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.storage.service.AdMediaService;
+import com.verygana2.storage.service.OrphanedAssetsCleanupJob;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -32,12 +33,20 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @RestController
-@RequestMapping("/ads/{adId}/media")
+// @RequestMapping("/ads/{adId}/media")
+@RequestMapping("/media")
 @RequiredArgsConstructor
 @Tag(name = "Ad Media", description = "Gestión de contenido multimedia de anuncios")
 public class AdMediaController {
 
     private final AdMediaService adMediaService;
+    private final OrphanedAssetsCleanupJob cleanupJob;
+
+    @PostMapping("/cleanup-assets")
+    public ResponseEntity<Void> cleanupAssets() {
+        cleanupJob.cleanupAssets();
+        return ResponseEntity.ok().build();
+    }
 
     /**
      * Sube un video para un anuncio

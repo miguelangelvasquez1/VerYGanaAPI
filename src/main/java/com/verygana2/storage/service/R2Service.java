@@ -4,21 +4,28 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
+import org.apache.tika.Tika;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
+import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.exceptions.StorageException;
+import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.storage.config.R2Config;
 
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.Delete;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
 import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
+import software.amazon.awssdk.services.s3.model.GetObjectRequest;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.HeadObjectResponse;
@@ -28,6 +35,7 @@ import software.amazon.awssdk.services.s3.model.MetadataDirective;
 import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
 import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
@@ -36,6 +44,8 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Service
 @Slf4j
 public class R2Service {
+
+    private static final Duration DEFAULT_UPLOAD_EXPIRATION = Duration.ofMinutes(5);
 
     @Autowired
     private S3Client r2Client;
@@ -47,35 +57,33 @@ public class R2Service {
     private R2Config r2Config;
 
     /**
-     * Genera URL pre-firmada para subir un objeto
+     * Genera URL pre-firmada para subir un objeto desde el cliente.
+     * @param objectKey clave única del objeto dentro del bucket R2.
+     * @param contentType tipo de mime declarado al subir el archivo.
+     * @param expirationSeconds tiempo de expiración de la URL pre-firmada.
+     * 
+     * @return {@link AssetUploadPermissionDTO} que contiene:
+     *  <ul>
+     *      <li>URL pre-firmada para subir el archivo</li>
+     *      <li>URL pública o de acceso al objeto</li>
+     *      <li>Tiempo de expiración en segundos</li>
+     *  </ul>
      */
-    public AssetUploadPermissionDTO generateUploadUrl(
-            String objectKey,
-            String contentType,
-            Long expirationSeconds) {
+    public FileUploadPermissionDTO generateUploadUrl(String objectKey, String contentType) {
         
         try {
             // Validar parámetros
-            validateObjectKey(objectKey);
+            validateObjectKey(objectKey); //Poner loggers audit, evitar sobreescritura?
             
             // Crear request de pre-signed URL
             PutObjectRequest putRequest = PutObjectRequest.builder()
                 .bucket(r2Config.getBucketName())
                 .key(objectKey)
                 .contentType(contentType)
-                .metadata(java.util.Map.of(
-                    "uploaded-at", Instant.now().toString(),
-                    "status", "pending"
-                ))
                 .build();
 
-            // Configurar expiración
-            Duration expiration = Duration.ofSeconds(
-                expirationSeconds != null ? expirationSeconds : 3600L
-            );
-
             PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
-                .signatureDuration(expiration)
+                .signatureDuration(DEFAULT_UPLOAD_EXPIRATION)
                 .putObjectRequest(putRequest)
                 .build();
 
@@ -88,11 +96,7 @@ public class R2Service {
 
             log.info("Pre-signed URL generada para: {}", objectKey);
 
-            return new AssetUploadPermissionDTO(
-                uploadUrl,
-                publicUrl,
-                expiration.getSeconds()
-            );
+            return new FileUploadPermissionDTO(uploadUrl, publicUrl, DEFAULT_UPLOAD_EXPIRATION.getSeconds());
 
         } catch (Exception e) {
             log.error("Error generando pre-signed URL para {}: {}", objectKey, e.getMessage());
@@ -101,16 +105,80 @@ public class R2Service {
     }
 
     /**
+     * Validación de Objetos Post-Upload (existencia, size y conten-type)
+     * @param objectKey clave única del objeto dentro del bucket R2.
+     * @param expectedSizeBytes tamaño esperado del archivo.
+     * @param maxSizeBytes tamaño máximo esperado del archivo según políticas.
+     * @param allowedMimeTypes tipos esperados.
+     */
+    public SupportedMimeType validateUploadedObject(String objectKey, long expectedSizeBytes, long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
+        try {
+            HeadObjectResponse head = r2Client.headObject(
+                HeadObjectRequest.builder()
+                    .bucket(r2Config.getBucketName())
+                    .key(objectKey)
+                    .build()
+            );
+
+            long realSize = head.contentLength();
+            SupportedMimeType detectedMime = SupportedMimeType.fromValue(head.contentType());
+
+            // 1. Validar tamaño máximo absoluto (política)
+            if (realSize > maxSizeBytes) {
+                deleteObject(objectKey);
+                throw new ValidationException(
+                    "Archivo excede tamaño máximo permitido. Máximo: " + maxSizeBytes + ", real: " + realSize
+                );
+            }
+
+            // 2. Validar tamaño exacto contra lo declarado
+            if (realSize != expectedSizeBytes) {
+                deleteObject(objectKey);
+                throw new ValidationException(
+                    "Tamaño inválido. Esperado: " + expectedSizeBytes + ", real: " + realSize
+                );
+            }
+
+            // 3. Validar content-type almacenado en R2 contra definidos (política)
+            if (detectedMime == null || !allowedMimeTypes.contains(detectedMime)) {
+                log.info("realContent: " + detectedMime + ", allowedMime: " + allowedMimeTypes);
+                deleteObject(objectKey);
+                throw new ValidationException(
+                    "Content-Type inválido: " + detectedMime
+                );
+            }
+
+            // 4. Validar content-type REAL (fuente de verdad)
+            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(objectKey));
+            if (!allowedMimeTypes.contains(detectedRealMime)) {
+                deleteObject(objectKey);
+                throw new ValidationException(
+                    "Content-Type real inválido: " + detectedRealMime
+                );
+            }
+
+            log.info("Objeto {} validado correctamente", objectKey);
+            return detectedMime;
+
+        } catch (NoSuchKeyException e) {
+            throw new ValidationException("El objeto no existe en storage");
+        } catch (S3Exception e) {
+            log.error("Error validando objeto {}: {}", objectKey, e.awsErrorDetails().errorMessage());
+            throw new StorageException("Error accediendo a storage", e);
+        }
+    }
+
+    /**
      * Verifica si un objeto existe en R2
      */
     public boolean objectExists(String objectKey) {
         try {
-            HeadObjectRequest headRequest = HeadObjectRequest.builder()
+            r2Client.headObject(
+            HeadObjectRequest.builder()
                 .bucket(r2Config.getBucketName())
                 .key(objectKey)
-                .build();
-
-            r2Client.headObject(headRequest);
+                .build()
+            );
             return true;
 
         } catch (NoSuchKeyException e) {
@@ -298,16 +366,20 @@ public class R2Service {
      * Construye URL pública del CDN
      */
     public String buildPublicUrl(String objectKey) {
-        // Si tienes CDN configurado (ej: images.verygana.com)
+
         if (r2Config.getCdnDomain() != null && !r2Config.getCdnDomain().isEmpty()) {
             return String.format("https://%s/%s", r2Config.getCdnDomain(), objectKey);
         }
         
-        // Fallback a URL pública de R2
-        return String.format("https://%s.r2.cloudflarestorage.com/%s",
-            r2Config.getAccountId(),
+        return String.format("https://pub-62444f33ebfb47b89addd611efd14277.r2.dev/%s",
             objectKey
         );
+
+        // Fallback a URL pública de R2
+        // return String.format("https://%s.r2.cloudflarestorage.com/%s",
+        //     r2Config.getAccountId(),
+        //     objectKey
+        // );
     }
 
     /**
@@ -331,25 +403,25 @@ public class R2Service {
     /**
      * Copia objeto a otra ubicación (útil para backups)
      */
-    // public String copyObject(String sourceKey, String destinationKey) {
-    //     try {
-    //         CopyObjectRequest copyRequest = CopyObjectRequest.builder()
-    //             .sourceBucket(r2Config.getBucketName())
-    //             .sourceKey(sourceKey)
-    //             .destinationBucket(r2Config.getBucketName())
-    //             .destinationKey(destinationKey)
-    //             .build();
+    public String copyObject(String sourceKey, String destinationKey) {
+        try {
+            CopyObjectRequest copyRequest = CopyObjectRequest.builder()
+                .sourceBucket(r2Config.getBucketName())
+                .sourceKey(sourceKey)
+                .destinationBucket(r2Config.getBucketName())
+                .destinationKey(destinationKey)
+                .build();
 
-    //         CopyObjectResponse response = r2Client.copyObject(copyRequest);
-    //         log.info("Objeto copiado: {} -> {}", sourceKey, destinationKey);
+            r2Client.copyObject(copyRequest);
+            log.info("Objeto copiado: {} -> {}", sourceKey, destinationKey);
             
-    //         return buildPublicUrl(destinationKey);
+            return buildPublicUrl(destinationKey);
 
-    //     } catch (Exception e) {
-    //         log.error("Error copiando objeto: {}", e.getMessage());
-    //         throw new StorageException("Error copiando objeto", e);
-    //     }
-    // }
+        } catch (Exception e) {
+            log.error("Error copiando objeto: {}", e.getMessage());
+            throw new StorageException("Error copiando objeto", e);
+        }
+    }
 
     /**
      * Valida que la key del objeto sea segura
@@ -377,6 +449,25 @@ public class R2Service {
             partitions.add(list.subList(i, Math.min(i + size, list.size())));
         }
         return partitions;
+    }
+
+    public String detectRealMimeType(String objectKey) {
+        try (ResponseInputStream<GetObjectResponse> objectStream =
+                r2Client.getObject(
+                    GetObjectRequest.builder()
+                        .bucket(r2Config.getBucketName())
+                        .key(objectKey)
+                        .range("bytes=0-4096")
+                        .build()
+                )) {
+
+            Tika tika = new Tika();
+            return tika.detect(objectStream);
+
+        } catch (Exception e) {
+            log.error("Error detectando MIME real de {}: {}", objectKey, e.getMessage());
+            throw new StorageException("Error detectando tipo real", e);
+        }
     }
 
     // ==================== DTOs ====================

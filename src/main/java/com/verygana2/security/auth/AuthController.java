@@ -25,6 +25,8 @@ import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.services.interfaces.UserService;
+import com.verygana2.utils.audit.AuditLevel;
+import com.verygana2.utils.audit.Auditable;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -56,6 +58,7 @@ public class AuthController {
      * Login: Autentica al usuario y genera un par de tokens (access + refresh)
      */
     @PostMapping("/login")
+    @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request)
             throws InterruptedException {
 

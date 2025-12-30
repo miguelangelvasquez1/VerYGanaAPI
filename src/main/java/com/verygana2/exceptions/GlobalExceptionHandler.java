@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -14,7 +15,6 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
@@ -25,15 +25,16 @@ import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
     
-    //Predetermined exception handler for IllegalArgumentException
+    //Predetermined exception handler for Exception
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
         // ex.printStackTrace();
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
@@ -48,6 +49,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidTokenException.class)
     public ResponseEntity<ErrorResponse> handleInvalidTokenException(InvalidTokenException ex) {
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    }
+
+    //* For jdbc connection failure */
+    @ExceptionHandler(JDBCConnectionException.class)
+    public ResponseEntity<ErrorResponse> handleJDBCConnectionException(JDBCConnectionException ex) {
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     //*For invalid credentials */
@@ -105,6 +112,12 @@ public class GlobalExceptionHandler {
     /* For phone number already exists 409 */
     @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handlePhoneExists(PhoneNumberAlreadyExistsException ex) {
+        return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    }
+
+    /* For ValidationExceptions 500 */
+    @ExceptionHandler(ValidationException.class)
+    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
         return buildError(HttpStatus.CONFLICT, ex.getMessage());
     }
 

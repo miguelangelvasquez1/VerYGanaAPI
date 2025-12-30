@@ -34,9 +34,6 @@ public class Game {
     @Column(name = "title", nullable = false)
     private String title;
 
-    @Column(name = "name", nullable = false)
-    private String name;
-
     @Column(name = "description", nullable = false)
     private String description;
 
@@ -44,7 +41,7 @@ public class Game {
     private String url;
 
     @Column(name = "front_page_url", nullable = false)
-    private String frontPageUrl;    
+    private String frontPageUrl;
 
     @Column(name = "min_duration_seconds", nullable = false)
     private Integer minDurationSeconds; // Optional
@@ -62,12 +59,11 @@ public class Game {
     @Builder.Default
     private List<GameMetricDefinition> metricDefinitions = new ArrayList<>();
     
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<GameAssetDefinition> assetDefinitions = new ArrayList<>(); //Tiene que ser una relación muchos a muchos?
+
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)
     @Builder.Default
     private List<Campaign> campaigns = new ArrayList<>();
-
-    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
-    @Builder.Default
-    private List<GameAssetDefinition> assetDefinitions = new ArrayList<>();
-
 }

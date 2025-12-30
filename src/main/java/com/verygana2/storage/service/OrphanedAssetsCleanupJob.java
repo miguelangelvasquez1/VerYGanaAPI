@@ -1,13 +1,19 @@
 package com.verygana2.storage.service;
 
-import java.time.Instant;
+import java.time.ZonedDateTime;
+import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.games.Asset;
+import com.verygana2.repositories.games.AssetRepository;
+
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -22,41 +28,45 @@ import lombok.extern.slf4j.Slf4j;
     matchIfMissing = false
 )
 @Slf4j
+@RequiredArgsConstructor
 public class OrphanedAssetsCleanupJob {
 
-    @Autowired
-    private R2Service r2Service;
+    private final AssetRepository assetRepository;
+    private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
     private int maxAgeHours;
 
-    /**
-     * Se ejecuta según el cron configurado en application.yml
-     * Por defecto: cada día a las 2 AM
-     */
-    @Scheduled(cron = "${cleanup.orphaned-assets.cron:0 0 2 * * ?}")
-    public void cleanupOrphanedAssets() {
-        log.info("Iniciando limpieza de assets huérfanos (edad máxima: {} horas)", maxAgeHours);
-        
-        Instant startTime = Instant.now();
-        
-        try {
-            int deletedCount = r2Service.cleanOrphanedObjects(maxAgeHours);
-            
-            long durationSeconds = Instant.now().getEpochSecond() - startTime.getEpochSecond();
-            
-            log.info("Limpieza completada en {} segundos. Assets eliminados: {}", 
-                durationSeconds, deletedCount);
-            
-            // Opcional: enviar métricas a sistema de monitoreo
-            // metricsService.recordCleanup(deletedCount, durationSeconds);
-            
-        } catch (Exception e) {
-            log.error("Error durante limpieza de assets huérfanos: {}", e.getMessage(), e);
-            // Opcional: enviar alerta
-            // alertService.sendAlert("Cleanup job falló", e);
+    @Transactional //    @Scheduled(cron = "${cleanup.orphaned-assets.cron:0 0 2 * * ?}")
+    @Scheduled(cron = "0 0 * * * *") // cada hora
+    public void cleanupAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+
+        log.info("Cleanup job: {} assets candidatos", assets.size());
+
+        for (Asset asset : assets) {
+            try {
+                r2Service.deleteObject(asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                assetRepository.save(asset);
+
+                log.info("Asset {} eliminado de R2", asset.getId());
+                // Opcional: enviar métricas a sistema de monitoreo
+                // metricsService.recordCleanup(deletedCount, durationSeconds);
+
+            } catch (Exception e) {
+                log.warn(
+                    "No se pudo eliminar asset {} ({}): {}",
+                    asset.getId(),
+                    asset.getObjectKey(),
+                    e.getMessage()
+                );
+            }
         }
-    }
+    } 
 
     /**
      * Health check del servicio R2 cada 5 minutos
