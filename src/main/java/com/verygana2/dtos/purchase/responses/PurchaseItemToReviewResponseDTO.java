@@ -1,6 +1,6 @@
 package com.verygana2.dtos.purchase.responses;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -13,5 +13,5 @@ public class PurchaseItemToReviewResponseDTO {
     private String productName;
     private String productImageUrl;
     private String deliveredCode;
-    private LocalDateTime deliveredAt;
+    private ZonedDateTime deliveredAt;
 }

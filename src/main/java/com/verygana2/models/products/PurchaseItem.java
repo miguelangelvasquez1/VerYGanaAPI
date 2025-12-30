@@ -1,7 +1,7 @@
 package com.verygana2.models.products;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.PurchaseItemStatus;
 
@@ -81,7 +81,7 @@ public class PurchaseItem {
     private String deliveryInstructions; // Instrucciones de uso
     
     @Column(name = "delivered_at")
-    private LocalDateTime deliveredAt; // Cuándo se entregó
+    private ZonedDateTime deliveredAt; // Cuándo se entregó
 
     @Transient
     public boolean hasReview() {
@@ -103,7 +103,7 @@ public class PurchaseItem {
         this.assignedProductStock = stock;
         this.deliveredCode = stock.getCode();
         this.deliveredCredentials = stock.getAdditionalInfo();
-        this.deliveredAt = LocalDateTime.now();
+        this.deliveredAt = ZonedDateTime.now();
         this.status = PurchaseItemStatus.DELIVERED;
     }
 
@@ -112,6 +112,6 @@ public class PurchaseItem {
     }
 
     public boolean canBeReviewed() {
-        return this.isDelivered() && !this.hasReview();
+        return this.isDelivered();
     }
 }

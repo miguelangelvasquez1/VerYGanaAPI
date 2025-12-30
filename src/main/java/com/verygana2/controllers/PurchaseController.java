@@ -19,7 +19,6 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
-import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
 import com.verygana2.services.interfaces.PurchaseService;
 
 import lombok.RequiredArgsConstructor;
@@ -51,12 +50,6 @@ public class PurchaseController {
     public ResponseEntity<PagedResponse<PurchaseResponseDTO>> getPurchases(@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.getConsumerPurchases(consumerId, pageable));
-    }
-
-    @GetMapping("/{purchaseId}/transactions")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<PagedResponse<TransactionResponseDTO>> getPurchaseTransactions(@PathVariable Long purchaseId, @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(purchaseService.getPurchaseTransactions(purchaseId, pageable));
     }
 
 }
