@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -35,8 +36,9 @@ public class GlobalExceptionHandler {
     //Predetermined exception handler for Exception
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
+        log.error(ex.getMessage(), ex);
         // ex.printStackTrace();
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
     }
 
     //*For error 403 with no scope */
@@ -158,6 +160,25 @@ public class GlobalExceptionHandler {
             .build();
 
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(TransactionSystemException.class)
+    public ResponseEntity<ErrorResponse> handleTransactionSystemException(
+            TransactionSystemException ex) {
+
+        Throwable cause = ex.getRootCause();
+
+        if (cause instanceof jakarta.validation.ConstraintViolationException violationEx) {
+            String message = violationEx.getConstraintViolations()
+                    .stream()
+                    .map(v -> v.getPropertyPath() + ": " + v.getMessage())
+                    .findFirst()
+                    .orElse("Datos inválidos");
+
+            return buildError(HttpStatus.BAD_REQUEST, message);
+        }
+
+        return buildError(HttpStatus.BAD_REQUEST, "Failure processing transaction");
     }
 
     /* For build error method */

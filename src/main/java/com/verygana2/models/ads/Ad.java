@@ -79,6 +79,8 @@ public class Ad {
     @Builder.Default
     private Integer currentLikes = 0;
 
+    //CTR, metricas de engagement
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

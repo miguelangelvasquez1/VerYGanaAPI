@@ -39,6 +39,7 @@ import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AdMediaService;
 import com.verygana2.utils.specifications.AdSpecifications;
 import com.verygana2.utils.validators.DateValidator;
+import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -60,6 +61,7 @@ public class AdServiceImpl implements AdService {
     private final CategoryService categoryService;
     private final MunicipalityRepository municipalityRepository;
     private final AdMediaService adMediaService;
+    private final TargetingValidator targetingValidator;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -76,16 +78,7 @@ public class AdServiceImpl implements AdService {
         }
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(createDto.getCategoryIds());
-        List<String> codes = createDto.getTargetMunicipalitiesCodes();
-
-        List<Municipality> targetMunicipalities = new ArrayList<>();
-        if (!codes.isEmpty()) {
-            targetMunicipalities = municipalityRepository.findAllById(codes);
-
-            if (targetMunicipalities.size() != codes.size()) {
-                throw new IllegalArgumentException("Algunos códigos de municipio no existen");
-            }
-        }
+        List<Municipality> targetMunicipalities = targetingValidator.getValidatedMunicipalities(createDto.getTargetMunicipalitiesCodes());
         
         Ad ad = adMapper.toEntity(createDto);
         ad.setAdvertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId));

@@ -7,8 +7,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -17,13 +19,15 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
+import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
+import com.verygana2.dtos.game.campaign.PrepareCampaignRequestDTO;
+import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
+import com.verygana2.dtos.game.campaign.UpdateCampaignStatusRequest;
 import com.verygana2.services.interfaces.CampaignService;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,12 +40,36 @@ public class CampaignController {
 
     private final CampaignService service;
 
-    // @GetMapping
-    // public ResponseEntity<PagedResponse<GameDTO>> getAdvertiserCapaings(
-    //     @AuthenticationPrincipal Jwt jwt) {
+    @GetMapping
+    public ResponseEntity<List<CampaignDTO>> getAdvertiserCampaigns(
+            @AuthenticationPrincipal Jwt jwt) {
 
-    //     return service.ge
-    // }
+        return ResponseEntity.ok(service.getAdvertiserCampaigns(jwt.getClaim("userId")));
+    }
+
+    @PatchMapping("/update-status/{campaignId}")
+    public ResponseEntity<Void> updateCampaignStatus(
+            @PathVariable Long campaignId,
+            @RequestBody UpdateCampaignStatusRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        service.updateCampaignStatus(campaignId, userId, request.getStatus());
+
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{campaignId}")
+    public ResponseEntity<Void> updateCampaign(
+            @PathVariable Long campaignId,
+            @RequestBody @Valid UpdateCampaignRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        service.updateCampaign(campaignId, userId, request);
+
+        return ResponseEntity.noContent().build();
+    }
 
     /**
      * POST /api/campaigns/prepare
@@ -49,7 +77,7 @@ public class CampaignController {
      */
     @PostMapping("/prepare")
     public ResponseEntity<List<AssetUploadPermissionDTO>> prepareCampaign(
-            @Valid @RequestBody CreateCampaignRequestDTO request,
+            @Valid @RequestBody PrepareCampaignRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
         
        List<AssetUploadPermissionDTO> permissions = 
@@ -70,13 +98,13 @@ public class CampaignController {
     public ResponseEntity<Boolean> createCampaign(
             @RequestParam Long gameId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @NotEmpty List<@NotNull Long> assetIds) {
+            @RequestBody CreateCampaignRequestDTO request) {
         
         Long userId = jwt.getClaim("userId");
         service.createCampaignWithAssets(
             gameId, 
             userId, 
-            assetIds
+            request
         );
         
         return ResponseEntity.ok(true);
