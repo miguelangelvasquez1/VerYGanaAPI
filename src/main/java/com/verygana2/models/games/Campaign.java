@@ -2,9 +2,13 @@ package com.verygana2.models.games;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.Category;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.CampaignStatus;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
 import jakarta.persistence.CascadeType;
@@ -18,23 +22,35 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "campaigns", indexes = {
-    @Index(name = "idx_campaign_game", columnList = "game_id"),
-    @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id")
-})
+@Table(
+    name = "campaigns",
+    indexes = {
+        @Index(name = "idx_campaign_game", columnList = "game_id"),
+        @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id"),
+        @Index(name = "idx_campaign_status", columnList = "status")
+    }
+)
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 public class Campaign {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -54,23 +70,68 @@ public class Campaign {
     @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Asset> assets;
 
-    @Column(name = "impressions")
-    private Long impressions = 0L;
+    // Stats persisitdas
+    @Column(name = "sessions_played") // Total sessions on this campaign
+    @Builder.Default
+    private Long sessionsPlayed = 0L;
 
-    @Column(name = "clicks")
-    private Long clicks = 0L;
+    @Column(name = "completed_sessions") // Total sessions on this campaign that were completed
+    @Builder.Default
+    private Long completedSessions = 0L;
 
-    @Column(name = "budget", precision = 12, scale = 2)
+    @Column(name = "total_play_time_seconds") // Total play time of all sessions on this campaign
+    @Builder.Default
+    private Long totalPlayTimeSeconds = 0L;
+
+
+    @Column(name = "budget", precision = 12, scale = 2, nullable = false)
     private BigDecimal budget;
 
-    @Column(name = "spent", precision = 12, scale = 2)
-    private BigDecimal spent;
+    @Column(name = "spent", precision = 12, scale = 2, nullable = false)
+    @Builder.Default
+    private BigDecimal spent = BigDecimal.ZERO;
 
     @Column(name = "start_date")
     private ZonedDateTime startDate; // Could be null, meaning it starts immediately
 
     @Column(name = "end_date")
     private ZonedDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
+
+    @Column(name = "target_url", length = 500)
+    private String targetUrl; // When de user clicks the campaign url, where to redirect
+
+    // Users targeting
+    @ManyToMany
+    @JoinTable(
+        name = "campaign_categories",
+        joinColumns = @JoinColumn(name = "campaign_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @NotNull(message = "Preferences are required")
+    @Size(min = 1, message = "At least one category must be selected")
+    private List<Category> categories;
+
+    @ManyToMany
+    @JoinTable(
+        name = "campaign_municipalities",
+        joinColumns = @JoinColumn(name = "campaign_id"),
+        inverseJoinColumns = @JoinColumn(name = "municipality_code")
+    )
+    @Builder.Default
+    private List<Municipality> targetMunicipalities = new ArrayList<>();
+
+    @Column(name = "min_age")
+    @Min(value = 13, message = "La edad mínima debe ser 13")
+    private Integer minAge;
+
+    @Column(name = "max_age")
+    @Max(value = 100, message = "La edad máxima debe ser 100")
+    private Integer maxAge;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "target_gender", length = 10)
+    private TargetGender targetGender;
+
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)

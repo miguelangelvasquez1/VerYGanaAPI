@@ -1,5 +1,7 @@
 package com.verygana2.services;
 
+import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -17,9 +19,17 @@ import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
+import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateAssetRequestDTO;
+import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
+import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
+import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO.TargetAudienceDTO;
+import com.verygana2.exceptions.UnauthorizedActionException;
+import com.verygana2.mappers.CampaignMapper;
 import com.verygana2.mappers.GameMapper;
+import com.verygana2.models.Category;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.SupportedMimeType;
@@ -28,13 +38,16 @@ import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameAssetDefinition;
 import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.repositories.details.AdvertiserDetailsRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameAssetDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.CampaignService;
+import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -52,23 +65,91 @@ public class CampaignServiceImpl implements CampaignService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    private final AdvertiserDetailsRepository advertiserRepository;
+    private final CategoryService categoryService;
+    private final TargetingValidator targetingValidator;
+    private final CampaignMapper campaignMapper;
     private final AssetOrphanedService assetOrphanedService;
     private final CampaignRepository campaignRepository;
     private final GameRepository gameRepository;
     private final GameAssetDefinitionRepository assetDefinitionRepository;
     private final AssetRepository assetRepository;
-    private final GameMapper mapper;
+    private final GameMapper gameMapper;
     private final R2Service r2Service;
 
-    // public PagedResponse<CampaignDTO> getAdvertiserCapaings(Long advertiserId) {
-    //     return campaignRepository.
-    // }
+    @Override
+    public List<CampaignDTO> getAdvertiserCampaigns(Long advertiserId) {
+        List<Campaign> campaigns = campaignRepository.findByAdvertiserId(advertiserId);
+        return campaigns.stream().map(campaignMapper::toDto).toList();
+    }
+
+    @Override
+    public void updateCampaignStatus(Long campaignId, Long userId, CampaignStatus newStatus) {
+
+        Campaign campaign = campaignRepository.findById(Objects.requireNonNull(campaignId))
+                .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
+
+        // 1. Autorización
+        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+            throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
+        }
+
+        CampaignStatus currentStatus = campaign.getStatus();
+
+        // 2. Validar transición
+        validateStatusTransition(campaign, currentStatus, newStatus);
+
+        // 3. Aplicar transición
+        campaign.setStatus(newStatus);
+
+        // 4. Reglas laterales según estado
+        handleSideEffects(campaign, newStatus);
+
+        campaignRepository.save(campaign);
+    }
+
+    @Override
+    public void updateCampaign(Long campaignId, Long userId, UpdateCampaignRequestDTO request) {
+
+        Campaign campaign = campaignRepository.findById(Objects.requireNonNull(campaignId))
+                .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
+
+        // 1. Autorización
+        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+            throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
+        }
+
+        // 2. Restricciones por estado
+        if (campaign.getStatus() == CampaignStatus.CANCELLED || 
+            campaign.getStatus() == CampaignStatus.COMPLETED || 
+            campaign.getStatus() == CampaignStatus.ACTIVE) {
+            throw new ValidationException("No se puede editar la campaña en el estado actual");
+        }
+
+        // 3. Presupuesto
+        if (request.getBudget() != null) {
+            validateBudgetChange(campaign, request.getBudget());
+            campaign.setBudget(request.getBudget());
+        }
+
+        // 4. Target URL
+        campaign.setTargetUrl(request.getTargetUrl());
+
+        // 5. Categorías
+        List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
+        campaign.setCategories(categories);
+
+        // 6. Target audience
+        applyTargetAudience(campaign, request.getTargetAudience());
+
+        campaignRepository.save(campaign);
+    }
 
     /**
      * PASO 1: Validar estructura y generar pre-signed URLs 
      */
     @Override
-    public List<AssetUploadPermissionDTO> prepareAssetUploads( //dejar bien lo de crear anuncio, ver lista de auncios
+    public List<AssetUploadPermissionDTO> prepareAssetUploads(
             Long gameId,
             Long advertiserId,
             List<CreateAssetRequestDTO> assetRequests) {
@@ -137,8 +218,9 @@ public class CampaignServiceImpl implements CampaignService {
     public Campaign createCampaignWithAssets(
             Long gameId,
             Long advertiserId,
-            List<Long> assetIds) {
+            CreateCampaignRequestDTO request) {
 
+        List<Long> assetIds = request.getAssetIds();
         log.info("Creando campaña para juego {} con {} assets", gameId, assetIds.size());
 
         List<Asset> assets = List.of();
@@ -147,7 +229,12 @@ public class CampaignServiceImpl implements CampaignService {
             Game game = gameRepository.findById(Objects.requireNonNull(gameId))
                 .orElseThrow(() -> new EntityNotFoundException("Juego no encontrado: " + gameId));
 
-            AdvertiserDetails advertiser = entityManager.getReference(AdvertiserDetails.class, advertiserId);
+            AdvertiserDetails advertiser = advertiserRepository.findById(Objects.requireNonNull(advertiserId))
+                .orElseThrow(() -> new ValidationException("Anunciante no existe"));
+
+            if (advertiser.getUser().getWallet().getBalance().compareTo(request.getBudget()) < 0) {
+                throw new ValidationException("Saldo insuficiente");
+            }
 
             // 2. Validar assetsIds
             assets = assetRepository.findAllByIdInAndStatus(assetIds, AssetStatus.PENDING);
@@ -182,20 +269,25 @@ public class CampaignServiceImpl implements CampaignService {
             validateCampaignAssets(game, assets);
 
             // 5. Crear campaña (aún no persistida)
-            Campaign campaign = new Campaign();
-            campaign.setGame(game);
-            campaign.setAdvertiser(advertiser);
-            campaign.setStatus(CampaignStatus.ACTIVE);
-            campaign.setAssets(new ArrayList<>());
+            Campaign campaign = campaignMapper.toEntity(request, game, advertiser);
 
-            // 6. Asociar assets a la campaña
+            // 6. Validar categorias y municipios
+            List<Category> validatedCategories = categoryService.getValidatedCategories(request.getCategoryIds());
+            List<Municipality> validatedMunicipalities = targetingValidator.getValidatedMunicipalities(request.getTargetMunicipalityCodes());
+                        
+            campaign.setCategories(validatedCategories);
+            campaign.setTargetMunicipalities(validatedMunicipalities);
+
+            campaign = campaignRepository.save(Objects.requireNonNull(campaign));
+
+            // 7. Asociar assets a la campaña
             for (Asset asset : assets) {
                 asset.setCampaign(campaign);
                 campaign.getAssets().add(asset);
             }
 
-            // 7. Persistir
-            Campaign savedCampaign = campaignRepository.save(campaign);
+            // 8. Persistir
+            Campaign savedCampaign = campaignRepository.save(Objects.requireNonNull(campaign));
 
             log.info("Campaña creada exitosamente: ID {}, {} assets", 
                 savedCampaign.getId(), savedCampaign.getAssets().size());
@@ -221,7 +313,7 @@ public class CampaignServiceImpl implements CampaignService {
     @Override
     public List<GameAssetDefinitionDTO> getAssetsByGame(Long gameId) {
         List<GameAssetDefinition> defs = assetDefinitionRepository.findByGameIdWithMimeTypes(gameId);
-        return mapper.toDtoList(defs);
+        return gameMapper.toDtoList(defs);
     }
 
     /**
@@ -343,5 +435,94 @@ public class CampaignServiceImpl implements CampaignService {
             return "bin";
         }
         return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
+    }
+
+    private void validateStatusTransition(Campaign campaign, CampaignStatus from, CampaignStatus to) {
+
+        if (from == to) {
+            throw new ValidationException("La campaña ya está en ese estado");
+        }
+
+        switch (from) {
+            case DRAFT -> {
+                if (to != CampaignStatus.ACTIVE && to != CampaignStatus.PAUSED) {
+                    throw new ValidationException("Transición inválida desde DRAFT");
+                }
+            }
+            case ACTIVE -> {
+                if (to != CampaignStatus.PAUSED && to != CampaignStatus.CANCELLED) {
+                    throw new ValidationException("Transición inválida desde ACTIVE");
+                }
+            }
+            case PAUSED -> {
+                if (to != CampaignStatus.ACTIVE && to != CampaignStatus.CANCELLED) {
+                    throw new ValidationException("Transición inválida desde PAUSED");
+                }
+            }
+            case CANCELLED -> {
+                throw new ValidationException("Una campaña cancelada no puede modificarse");
+            }
+            case COMPLETED -> {
+                throw new ValidationException("Una campaña completada no puede modificarse");
+            }
+        }
+
+        // Reglas adicionales
+        if (to == CampaignStatus.ACTIVE && campaign.getAssets().isEmpty()) {
+            throw new ValidationException("No se puede activar una campaña sin assets");
+        }
+    }
+
+    private void handleSideEffects(Campaign campaign, CampaignStatus newStatus) {
+
+        ZonedDateTime now = ZonedDateTime.now();
+
+        switch (newStatus) {
+            case ACTIVE -> {
+                if (campaign.getStartDate() == null) {
+                    campaign.setStartDate(now);
+                }
+            }
+            case CANCELLED -> {
+                if (campaign.getEndDate() == null) {
+                    campaign.setEndDate(now);
+                }
+                for (Asset asset : campaign.getAssets()) {
+                    asset.setStatus(AssetStatus.CANCELLED);
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private void validateBudgetChange(Campaign campaign, BigDecimal newBudget) {
+
+        if (newBudget.compareTo(campaign.getSpent()) < 0) {
+            throw new ValidationException("El presupuesto no puede ser menor al monto ya gastado");
+        }
+
+        BigDecimal availableBalance = campaign.getAdvertiser().getUser().getWallet().getBalance();
+
+        if (newBudget.compareTo(availableBalance.add(campaign.getSpent())) > 0) { // Mirar lógica de los saldos
+            throw new ValidationException("Saldo insuficiente");
+        }
+    }
+
+    private void applyTargetAudience(Campaign campaign, TargetAudienceDTO targetAudience) {
+
+        if (targetAudience == null) return;
+
+        if (targetAudience.getMinAge() > targetAudience.getMaxAge()) {
+            throw new ValidationException("Rango de edad inválido");
+        }
+
+        campaign.setMinAge(targetAudience.getMinAge());
+        campaign.setMaxAge(targetAudience.getMaxAge());
+        campaign.setTargetGender(targetAudience.getGender());
+
+        List<Municipality> municipalities = targetingValidator.getValidatedMunicipalities(targetAudience.getMunicipalityCodes());
+
+        campaign.setTargetMunicipalities(municipalities);
     }
 }

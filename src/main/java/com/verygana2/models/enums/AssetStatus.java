@@ -4,6 +4,7 @@ public enum AssetStatus {
     
     PENDING,
     VALIDATED,
-    ORPHANED,
-    DELETED;
+    ORPHANED, // Para borrar en CDN
+    DELETED, // Borrados en CDN
+    CANCELLED; // Campaign cancelada
 }
