@@ -97,24 +97,24 @@ public class GameServiceImpl implements GameService {
     @Override
     public InitGameResponseDTO initGameNotSponsored(InitGameRequestDTO request, Long userId) {
 
-        ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
-
         // 2. Validar juego
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
             .orElseThrow(() -> new IllegalArgumentException("Game not available"));
 
-        // 3. Crear sesión
-        GameSession session = GameSession.start(consumer, game, resolvePlatform());
+        // Una jugada de un juego not sponsored no deberia crear sesión?
 
-        // 4. Persistir
-        GameSession savedSession = gameSessionRepository.save(
-            java.util.Objects.requireNonNull(session, "session must not be null"));
+        // 3. Crear sesión
+        // GameSession session = GameSession.start(consumer, game, resolvePlatform());
+
+        // // 4. Persistir
+        // GameSession savedSession = gameSessionRepository.save(
+        //     java.util.Objects.requireNonNull(session, "session must not be null"));
 
         // 5. Construir respuesta
         return gameMapper.toInitResponse(
-            savedSession,
+            null,
             game,
             null // No campaign for non-sponsored games
         );
