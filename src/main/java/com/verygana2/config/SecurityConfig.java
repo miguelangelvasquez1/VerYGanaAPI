@@ -63,7 +63,10 @@ public class SecurityConfig {
         
         return http
                     .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                    .csrf(csrf -> csrf.disable()) //Put csrf for refresh token endpoint
+                    .csrf(csrf -> {
+                        csrf.disable();
+                        csrf.ignoringRequestMatchers("/api/webhooks/**");
+                    }) //Put csrf for refresh token endpoint
                     .authorizeHttpRequests(auth -> auth.requestMatchers(PublicPaths.PATHS).permitAll().anyRequest().authenticated())
                     .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //Spring Security will never create an HttpSession and it will never use it to obtain the Security Context.
                     .addFilterBefore(new JwtBearerFilter(jwtDecoder()), UsernamePasswordAuthenticationFilter.class) //Filter to extract JWT from cookies and set authentication in the security context.

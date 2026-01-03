@@ -17,7 +17,7 @@ spring:
   # MYSQL LOCAL (Commented - for reference)
      url: jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota
      username: root
-     password: 1234
+     password: sasa
      driver-class-name: com.mysql.cj.jdbc.Driver
 
   # =====================
@@ -160,11 +160,15 @@ games:
 # ============================================ 
 # Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
 wompi:
-  public-key: pub_test_EJEMPLO_DOCUMENTACION
-  private-key: prv_test_EJEMPLO_DOCUMENTACION
-  event-secret: event_secret_EJEMPLO
-  api-url: https://sandbox.wompi.co/v1
+  public-key: ${WOMPI_PUBLIC_KEY:pub_test_EJEMPLO}
+  private-key: ${WOMPI_PRIVATE_KEY:prv_test_EJEMPLO}
+  event-secret: ${WOMPI_EVENT_SECRET:event_secret_EJEMPLO}
+  api-url: ${WOMPI_API_URL:https://sandbox.wompi.co/v1}
   currency: COP
+  
+payment:
+  min-deposit: 5000      # $5.000 COP
+  max-deposit: 10000000  # $10.000.000 COP
 
 
 # ============================================

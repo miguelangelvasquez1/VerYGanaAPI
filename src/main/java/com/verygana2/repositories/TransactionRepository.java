@@ -1,5 +1,7 @@
 package com.verygana2.repositories;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -72,6 +74,8 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
             AND t.wallet.user.id = :userId
          """)
    Page<TransactionResponseDTO> findByReferenceId(@Param("userId") Long userId, @Param("referenceId") String referenceId, Pageable pageable);
+
+   Optional<Transaction> findByWompiTransactionId(String wompiTransactionId);
 
    Long countByWalletIdAndTransactionType(Long walletId, TransactionType transactionType);
 

@@ -2,7 +2,7 @@ package com.verygana2.models.enums;
 
 public enum PaymentMethod {
     WALLET,              // Pago con billetera interna (Tpoints) - PRINCIPAL
-    CREDIT_CARD,         // Para recargas: Tarjeta de crédito
+    CARD,         // Para recargas: Tarjeta de crédito
     DEBIT_CARD,          // Para recargas: Tarjeta débito
     PSE,                 // Para recargas: PSE Colombia
     BANK_TRANSFER,       // Para retiros: Transferencia bancaria
