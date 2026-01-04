@@ -42,7 +42,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
 
     @Override
     public WompiDepositResponse initiateDeposit(Long userId, WompiDepositRequest request, String ipAddress) {
-        log.info("💳 Iniciando depósito para usuario: {}, monto: {}, método: {}", 
+        log.info("💳 Starting deposit for user: {}, amount: {}, method: {}", 
                 userId, request.getAmount(), request.getPaymentMethod());
         
         // 1. Validar monto
@@ -72,7 +72,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
         
         // 6. Guardar transacción
         transaction = transactionRepository.save(transaction);
-        log.info("📝 Transacción creada con ID: {} y referencia: {}", 
+        log.info("📝 Transaction created with ID: {} and reference: {}", 
                 transaction.getId(), transaction.getReferenceId());
         
         try {
@@ -89,7 +89,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
             String wompiStatus = data.get("status").asText();
             String paymentUrl = data.has("payment_link_url") ? data.get("payment_link_url").asText() : null;
             
-            log.info("✅ Respuesta de Wompi - ID: {}, Estado: {}", wompiTxId, wompiStatus);
+            log.info("✅ Wompi response - ID: {}, Status: {}", wompiTxId, wompiStatus);
             
             // 9. Actualizar transacción con respuesta de Wompi
             transaction.updateWithWompiResponse(
@@ -121,25 +121,25 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
                     .build();
             
         } catch (Exception e) {
-            log.error("❌ Error procesando pago: {}", e.getMessage());
+            log.error("❌ Processing payment error: {}", e.getMessage());
             
             // Marcar transacción como fallida
             transaction.markAsDeclined("Error: " + e.getMessage());
             transactionRepository.save(transaction);
             
-            throw new RuntimeException("Error procesando pago: " + e.getMessage(), e);
+            throw new RuntimeException("Processing payment error: " + e.getMessage(), e);
         }
     }
 
     @Override
     public void confirmDeposit(String wompiTransactionId) {
-        log.info("✅ Confirmando depósito de transacción Wompi: {}", wompiTransactionId);
+        log.info("✅ Confirming Wompi deposit transaction: {}", wompiTransactionId);
         
         Transaction transaction = transactionRepository.findByWompiTransactionId(wompiTransactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found: " + wompiTransactionId));
         
         if (transaction.getTransactionState() == TransactionState.COMPLETED) {
-            log.warn("⚠️ Transacción ya estaba confirmada: {}", transaction.getId());
+            log.warn("⚠️ Transaction already was confirmed: {}", transaction.getId());
             return;
         }
         
@@ -161,19 +161,19 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
         transactionRepository.save(transaction);
         walletRepository.save(wallet);
         
-        log.info("💰 Balance actualizado para usuario: {}. Nuevo balance: {}", 
+        log.info("💰 Updated balance for user: {}. New balance: {}", 
                 wallet.getUser().getId(), wallet.getBalance());
     }
 
     @Override
     public void declineDeposit(String wompiTransactionId, String reason) {
-        log.info("❌ Rechazando depósito de transacción Wompi: {}", wompiTransactionId);
+        log.info("❌ Rejecting Wompi deposit transaction: {}", wompiTransactionId);
         
         Transaction transaction = transactionRepository.findByWompiTransactionId(wompiTransactionId)
                 .orElseThrow(() -> new RuntimeException("Transaction not found: " + wompiTransactionId));
         
         if (transaction.getTransactionState() == TransactionState.FAILED) {
-            log.warn("⚠️ Transacción ya estaba marcada como fallida: {}", transaction.getId());
+            log.warn("⚠️ Transaction already was marked as failed: {}", transaction.getId());
             return;
         }
         
@@ -188,7 +188,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
         transaction.markAsDeclined(reason);
         transactionRepository.save(transaction);
         
-        log.info("⚠️ Depósito rechazado para usuario: {}. Razón: {}", 
+        log.info("⚠️ Deposit rejected for user: {}. Reason: {}", 
                 wallet.getUser().getId(), reason);
     }
 
@@ -196,10 +196,10 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
     
     private void validateAmount(BigDecimal amount) {
         if (amount.compareTo(new BigDecimal("5000")) < 0) {
-            throw new IllegalArgumentException("Monto mínimo: $5.000 COP");
+            throw new IllegalArgumentException("Minimum amount: $5.000 COP");
         }
         if (amount.compareTo(new BigDecimal("10000000")) > 0) {
-            throw new IllegalArgumentException("Monto máximo: $10.000.000 COP");
+            throw new IllegalArgumentException("Maximum amount: $10.000.000 COP");
         }
     }
     
@@ -212,7 +212,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
             case CARD -> wompiService.createCardTransaction(request, reference, amountInCents);
             case NEQUI -> wompiService.createNequiTransaction(request, reference, amountInCents);
             case PSE -> wompiService.createPSETransaction(request, reference, amountInCents);
-            default -> throw new IllegalArgumentException("Método de pago no soportado: " + request.getPaymentMethod());
+            default -> throw new IllegalArgumentException("Payment method not allowed: " + request.getPaymentMethod());
         };
     }
     
@@ -241,7 +241,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
             transaction.setPaymentMethodInfoFromMap(info);
             
         } catch (Exception e) {
-            log.warn("⚠️ No se pudo guardar info del método de pago: {}", e.getMessage());
+            log.warn("⚠️ it was not possible save the payment method info: {}", e.getMessage());
         }
     }
     
@@ -251,23 +251,23 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
         if (status == TransactionState.PENDING || status == TransactionState.PROCESSING) {
             // PSE, Nequi - agregar a pending
             wallet.addPendingBalance(transaction.getAmount());
-            log.info("⏳ Balance pendiente agregado: {}", transaction.getAmount());
+            log.info("⏳ Pending balanced added: {}", transaction.getAmount());
             
         } else if (status == TransactionState.COMPLETED) {
             // Tarjeta aprobada instantáneamente
             wallet.addInstantDeposit(transaction.getAmount());
-            log.info("✅ Depósito instantáneo: {}", transaction.getAmount());
+            log.info("✅ Instant deposit: {}", transaction.getAmount());
         }
         // Si es FAILED/CANCELLED, no hacer nada con el wallet
     }
     
     private String getMessageForStatus(TransactionState status) {
         return switch (status) {
-            case COMPLETED -> "Pago aprobado exitosamente";
-            case PENDING -> "Pago pendiente de confirmación";
-            case PROCESSING -> "Pago en proceso. Por favor aprueba desde tu app.";
-            case FAILED -> "Pago rechazado";
-            case CANCELLED -> "Pago cancelado";
+            case COMPLETED -> "Payment approved succesfully";
+            case PENDING -> "Pending payment";
+            case PROCESSING -> "Payment is in process";
+            case FAILED -> "Rejected payment";
+            case CANCELLED -> "Canceled payment";
         };
     }
 }

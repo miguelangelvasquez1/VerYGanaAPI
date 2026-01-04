@@ -17,7 +17,7 @@ spring:
   # MYSQL LOCAL (Commented - for reference)
      url: jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota
      username: root
-     password: sasa
+     password: 1234
      driver-class-name: com.mysql.cj.jdbc.Driver
 
   # =====================
