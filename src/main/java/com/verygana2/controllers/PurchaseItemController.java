@@ -19,10 +19,10 @@ public class PurchaseItemController {
     
     private final PurchaseItemService purchaseItemService;
 
-    @GetMapping("/TotalSales")
+    @GetMapping("/totalSales")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Long> getTotalSellerSales(@AuthenticationPrincipal Jwt jwt){
-        Long sellerId = jwt.getClaim("sellerId");
+        Long sellerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseItemService.getTotalSalesbySeller(sellerId));
     }
 }

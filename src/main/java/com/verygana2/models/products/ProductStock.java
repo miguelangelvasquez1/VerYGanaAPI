@@ -1,6 +1,6 @@
 package com.verygana2.models.products;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.StockStatus;
 
@@ -70,7 +70,7 @@ public class ProductStock {
     private String additionalInfo; // Ej: "Usuario: juan@example.com, Contraseña: xyz123"
     
     @Column(name = "expiration_date")
-    private LocalDateTime expirationDate; // Si el código expira
+    private ZonedDateTime expirationDate; // Si el código expira
     
     // ===== ESTADO =====
     
@@ -86,24 +86,24 @@ public class ProductStock {
     private PurchaseItem purchaseItem; // A qué compra fue asignado
     
     @Column(name = "sold_at")
-    private LocalDateTime soldAt;
+    private ZonedDateTime soldAt;
     
     // ===== AUDITORÍA =====
     
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
     
     @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    private ZonedDateTime updatedAt;
     
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        createdAt = ZonedDateTime.now();
     }
     
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
+        updatedAt = ZonedDateTime.now();
     }
     
     // ===== MÉTODOS DE NEGOCIO =====
@@ -111,7 +111,7 @@ public class ProductStock {
     public void markAsSold(PurchaseItem item) {
         this.status = StockStatus.SOLD;
         this.purchaseItem = item;
-        this.soldAt = LocalDateTime.now();
+        this.soldAt = ZonedDateTime.now();
     }
     
     public void markAsReserved() {
@@ -125,7 +125,7 @@ public class ProductStock {
     }
     
     public boolean isExpired() {
-        return expirationDate != null && LocalDateTime.now().isAfter(expirationDate);
+        return expirationDate != null && ZonedDateTime.now().isAfter(expirationDate);
     }
     
     public boolean canBeSold() {

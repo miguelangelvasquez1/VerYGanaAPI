@@ -1,6 +1,8 @@
 package com.verygana2.dtos;
 
 import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -43,4 +45,16 @@ public class PagedResponse<T> {
                         .build())
                 .build();
     }
+
+    public <R> PagedResponse<R> map(Function<? super T, ? extends R> mapper) {
+        List<R> mappedData = this.data.stream()
+                .map(mapper)
+                .collect(Collectors.toList());
+
+        return PagedResponse.<R>builder()
+                .data(mappedData)
+                .meta(this.meta)
+                .build();
+    }
 }
+

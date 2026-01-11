@@ -18,4 +18,5 @@ public class ProductResponseDTO {
     private Integer stock;
     private Integer reviewCount; // Cantidad de reseñas del producto
     private List<ProductReviewResponseDTO> reviews; // Lista de reseñas del producto
+    private boolean isFavorite;
 }

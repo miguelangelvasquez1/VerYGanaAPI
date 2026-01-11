@@ -40,7 +40,7 @@ public class ProductReviewController {
     }
 
     // Posible cambio de ubicacion de este metodo
-    @GetMapping("/{sellerId}/avg")
+    @GetMapping("/seller/avg")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Double> getSellerAvgRating (@AuthenticationPrincipal Jwt jwt){
         Long sellerId = jwt.getClaim("userId");

@@ -5,8 +5,10 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
-import com.verygana2.dtos.product.requests.CreateOrEditProductRequestDTO;
+import com.verygana2.dtos.product.requests.CreateProductRequestDTO;
 import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
+import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
+import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
@@ -32,9 +34,11 @@ public interface ProductMapper {
     @Mapping(target = "stockItems", source = "stockItems")
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "instantDelivery", ignore = true)
-    Product toProduct(CreateOrEditProductRequestDTO request);
+    @Mapping(target = "favorite", ignore = true)
+    Product toProduct(CreateProductRequestDTO request);
 
-    List<ProductStock> toProductStockList (List<ProductStockRequestDTO> stockRequests);
+    List<ProductStock> toProductStockList(List<ProductStockRequestDTO> stockRequests);
+    List<ProductStockRequestDTO> toProductStockRequestDTOList(List<ProductStock> stock);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "version", ignore = true)
@@ -44,7 +48,7 @@ public interface ProductMapper {
     @Mapping(target = "soldAt", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    ProductStock toProductStock (ProductStockRequestDTO request);
+    ProductStock toProductStock(ProductStockRequestDTO request);
 
     @Mapping(target = "productCategory", ignore = true)
     @Mapping(target = "active", ignore = true)
@@ -58,7 +62,9 @@ public interface ProductMapper {
     @Mapping(target = "stock", ignore = true)
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "instantDelivery", ignore = true)
-    void updateProductFromRequest(CreateOrEditProductRequestDTO request, @MappingTarget Product product);
+    @Mapping(target = "favorite", ignore = true)
+    @Mapping(target = "stockItems", ignore = true)
+    void updateProductFromRequest(UpdateProductRequestDTO request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponseDTO (completed) =====
     @Mapping(target = "categoryName", source = "productCategory.name")
@@ -72,6 +78,10 @@ public interface ProductMapper {
     @Mapping(target = "categoryName", source = "productCategory.name")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
+    @Mapping(target = "productCategoryId", source = "productCategory.id")
+    @Mapping(target = "stockItems", source = "stockItems")
+    CreateProductRequestDTO toCreateOrEditProductRequestDTO(Product product);
+
     @AfterMapping
     default void calculateStock(@MappingTarget ProductSummaryResponseDTO dto, Product product) {
         dto.setStock(product.getAvailableStock());
@@ -80,6 +90,15 @@ public interface ProductMapper {
     @AfterMapping
     default void calculateStock(@MappingTarget ProductResponseDTO dto, Product product) {
         dto.setStock(product.getAvailableStock());
+    }
+
+    @Mapping(target = "productCategoryId", source = "productCategory.id")
+    @Mapping(target = "totalStockItems", source = "stock")
+    @Mapping(target = "availableStockItems", expression = "java(getAvailableStock(product))")
+    ProductEditInfoResponseDTO toProductEditInfoDTO (Product product);
+
+    default Integer getAvailableStock (Product product) {
+        return product.getAvailableStock();
     }
 
 }
