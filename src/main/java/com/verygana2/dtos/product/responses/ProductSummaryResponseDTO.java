@@ -12,4 +12,5 @@ public class ProductSummaryResponseDTO {
     private Double averageRate;
     private String categoryName;
     private Integer stock;
+    private boolean isFavorite;
 }

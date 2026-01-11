@@ -92,12 +92,16 @@ public class Product {
     @Column(name = "is_instant_delivery")
     private boolean isInstantDelivery;
 
+    @Column(name = "is_favorite")
+    private boolean isFavorite;
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        averageRate = 0.0;
-        reviewCount = 0;
-        isActive = true;
+        this.createdAt = LocalDateTime.now();
+        this.averageRate = 0.0;
+        this.reviewCount = 0;
+        this.isActive = true;
+        this.isFavorite = false;
         if (digitalFormat == DigitalFormat.CODE) {
             isInstantDelivery = true;
         }

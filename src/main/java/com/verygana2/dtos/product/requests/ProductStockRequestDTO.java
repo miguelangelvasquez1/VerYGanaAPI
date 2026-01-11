@@ -1,6 +1,6 @@
 package com.verygana2.dtos.product.requests;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -18,5 +18,5 @@ public class ProductStockRequestDTO {
     @Size(max = 250)
     private String additionalInfo;
 
-    private LocalDateTime expirationDate;
+    private ZonedDateTime expirationDate;
 }

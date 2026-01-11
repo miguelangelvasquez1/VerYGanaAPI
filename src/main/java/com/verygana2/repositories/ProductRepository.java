@@ -1,6 +1,7 @@
 package com.verygana2.repositories;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,41 +13,46 @@ import com.verygana2.models.products.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    boolean existsByIdAndSellerId(Long id, Long sellerId);
+        boolean existsByIdAndSellerId(Long id, Long sellerId);
 
-    @Query("SELECT p FROM Product p " +
-            "JOIN FETCH p.productCategory c " +
-            "WHERE p.isActive = true")
-    Page<Product> findAllActiveProducts(Pageable pageable);
+        Optional<Product> findByIdAndSellerId(Long productId, Long sellerId);
 
-    @Query("SELECT p FROM Product p " +
-            "JOIN FETCH p.productCategory c " +
-            "WHERE p.isActive = true " +
-            "AND (:searchQuery IS NULL OR :searchQuery = '' OR " +
-            "     LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR " +
-            "     LOWER(p.description) LIKE LOWER(CONCAT('%', :searchQuery, '%'))) " +
-            "AND (:productCategoryId IS NULL OR c.id = :productCategoryId) " +
-            "AND (:minRating IS NULL OR p.averageRate >= :minRating) " +
-            "AND (:maxPrice IS NULL OR p.price <= :maxPrice)")
-    Page<Product> searchProducts(
-            @Param("searchQuery") String searchQuery,
-            @Param("productCategoryId") Long productCategoryId,
-            @Param("minRating") Double minRating,
-            @Param("maxPrice") BigDecimal maxPrice,
-            Pageable pageable);
+        @Query("SELECT p FROM Product p " +
+                        "JOIN FETCH p.productCategory c " +
+                        "WHERE p.isActive = true")
+        Page<Product> findAllActiveProducts(Pageable pageable);
 
-    Page<Product> findBySellerId(Long sellerId, Pageable pageable);
-    
-    @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.seller.id = :sellerId")
-    Long countSellerProducts(@Param("sellerId") Long sellerId);
+        @Query("SELECT p FROM Product p " +
+                        "JOIN FETCH p.productCategory c " +
+                        "WHERE p.isActive = true " +
+                        "AND (:searchQuery IS NULL OR :searchQuery = '' OR " +
+                        "     LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR " +
+                        "     LOWER(p.description) LIKE LOWER(CONCAT('%', :searchQuery, '%'))) " +
+                        "AND (:productCategoryId IS NULL OR c.id = :productCategoryId) " +
+                        "AND (:minRating IS NULL OR p.averageRate >= :minRating) " +
+                        "AND (:maxPrice IS NULL OR p.price <= :maxPrice)")
+        Page<Product> searchProducts(
+                        @Param("searchQuery") String searchQuery,
+                        @Param("productCategoryId") Long productCategoryId,
+                        @Param("minRating") Double minRating,
+                        @Param("maxPrice") BigDecimal maxPrice,
+                        Pageable pageable);
+        @Query("""
+                SELECT p FROM Product p
+                JOIN FETCH p.productCategory c
+                WHERE p.seller.id = :sellerId AND p.isActive = true
+                """)
+        Page<Product> findBySellerId(@Param("sellerId") Long sellerId, Pageable pageable);
 
-    @Query("SELECT p FROM ConsumerDetails c " +
-            "JOIN c.favoriteProducts p " +
-            "WHERE c.id = :userId " +
-            "AND p.isActive = true")
-    Page<Product> findFavoriteProductsByUserId(
-            @Param("userId") Long userId,
-            Pageable pageable);
+        @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.seller.id = :sellerId")
+        Long countSellerProducts(@Param("sellerId") Long sellerId);
+
+        @Query("SELECT p FROM ConsumerDetails c " +
+                        "JOIN c.favoriteProducts p " +
+                        "WHERE c.id = :userId " +
+                        "AND p.isActive = true")
+        Page<Product> findFavoriteProductsByUserId(
+                        @Param("userId") Long userId,
+                        Pageable pageable);
 
 }
- 

@@ -2,10 +2,13 @@ package com.verygana2.controllers;
 
 import java.math.BigDecimal;
 import java.net.URI;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -27,11 +30,20 @@ import org.springframework.web.server.ResponseStatusException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
-import com.verygana2.dtos.product.requests.CreateOrEditProductRequestDTO;
+import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
+import com.verygana2.dtos.product.requests.CreateProductRequestDTO;
+import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
+import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
+import com.verygana2.dtos.product.responses.BulkStockResponseDTO;
+import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
+import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
+import com.verygana2.models.enums.StockStatus;
 import com.verygana2.services.interfaces.ProductService;
+import com.verygana2.services.interfaces.ProductStockService;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Valid;
@@ -47,6 +59,11 @@ public class ProductController {
 
     private final ProductService productService;
 
+    private final ProductStockService productStockService;
+
+    /**
+     * Crear un producto
+     */
     @PostMapping("/create")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<EntityCreatedResponseDTO> createProduct(@Valid @RequestPart("product") String productJson,
@@ -55,16 +72,17 @@ public class ProductController {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.registerModule(new JavaTimeModule());
 
-            CreateOrEditProductRequestDTO request = objectMapper.readValue(productJson, CreateOrEditProductRequestDTO.class);
+            CreateProductRequestDTO request = objectMapper.readValue(productJson,
+                    CreateProductRequestDTO.class);
 
             // Validación manual
             ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
             Validator validator = factory.getValidator();
-            Set<ConstraintViolation<CreateOrEditProductRequestDTO>> violations = validator.validate(request);
+            Set<ConstraintViolation<CreateProductRequestDTO>> violations = validator.validate(request);
 
             if (!violations.isEmpty()) {
                 StringBuilder sb = new StringBuilder();
-                for (ConstraintViolation<CreateOrEditProductRequestDTO> violation : violations) {
+                for (ConstraintViolation<CreateProductRequestDTO> violation : violations) {
                     sb.append(violation.getMessage()).append("; ");
                 }
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, sb.toString());
@@ -80,6 +98,9 @@ public class ProductController {
         }
     }
 
+    /**
+     * Eliminar un producto
+     */
     @DeleteMapping("/{productId}")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Void> deleteProduct(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
@@ -89,6 +110,9 @@ public class ProductController {
 
     }
 
+    /**
+     * ELiminar un producto siendo el admin
+     */
     @DeleteMapping("/delete/admin/{productId}")
     @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<Void> deleteProductForAdmin(@PathVariable Long productId) {
@@ -97,55 +121,190 @@ public class ProductController {
 
     }
 
-    @PutMapping("/edit/{productId}")
+    /**
+     * obtener la informacion guardada de un producto para editarlo
+     */
+    @GetMapping("/edit/{productId}")
     @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Void> editProduct(@RequestBody @Valid CreateOrEditProductRequestDTO request,
-            @AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
-        Long userId = jwt.getClaim("userId");
-        productService.edit(productId, userId, request);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<ProductEditInfoResponseDTO> getProductEditInfo(@PathVariable Long productId,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.getProductEditInfo(productId, sellerId));
     }
 
+    /**
+     * Editar un producto
+     */
+    @PutMapping("/edit/{productId}")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<EntityUpdatedResponseDTO> editProduct(
+            @Valid @RequestPart("product") String productJson,
+            @RequestPart(value = "productImage", required = false) MultipartFile productImage,
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long productId) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.registerModule(new JavaTimeModule());
+
+            UpdateProductRequestDTO request = objectMapper.readValue(productJson,
+                    UpdateProductRequestDTO.class);
+
+            // Validación manual
+            ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+            Validator validator = factory.getValidator();
+            Set<ConstraintViolation<UpdateProductRequestDTO>> violations = validator.validate(request);
+
+            if (!violations.isEmpty()) {
+                StringBuilder sb = new StringBuilder();
+                for (ConstraintViolation<UpdateProductRequestDTO> violation : violations) {
+                    sb.append(violation.getMessage()).append("; ");
+                }
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, sb.toString());
+            }
+
+            Long sellerId = jwt.getClaim("userId");
+            EntityUpdatedResponseDTO response = productService.edit(productId, sellerId, request, productImage);
+            return ResponseEntity.ok(response);
+
+        } catch (JsonProcessingException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid JSON format", e);
+        }
+    }
+
+    /**
+     * Obtener el listado de codigos registrados de un producto
+     */
+    @GetMapping("/{productId}/stock")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<PagedResponse<ProductStockResponseDTO>> getProductStock(
+            @PathVariable Long productId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) StockStatus status,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        return ResponseEntity.ok(productStockService.getProductStock(productId, sellerId, search, status, pageable));
+    }
+
+    /**
+     * Agregar un nuevo código de stock
+     */
+    @PostMapping("/{productId}/stock")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<ProductStockResponseDTO> addStockItem(
+            @PathVariable Long productId,
+            @RequestBody @Valid ProductStockRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+        ProductStockResponseDTO created = productStockService.addStockItem(productId, sellerId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+    }
+
+    /**
+     * Editar un código de stock específico
+     */
+    @PutMapping("/{productId}/stock/{stockId}")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<ProductStockResponseDTO> updateStockItem(
+            @PathVariable Long productId,
+            @PathVariable Long stockId,
+            @RequestBody @Valid ProductStockRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+        ProductStockResponseDTO updated = productStockService.updateStockItem(productId, stockId, sellerId, request);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Eliminar un código de stock específico
+     */
+    @DeleteMapping("/{productId}/stock/{stockId}")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<Void> deleteStockItem(
+            @PathVariable Long productId,
+            @PathVariable Long stockId,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+        productStockService.deleteStockItem(productId, stockId, sellerId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Agregar múltiples códigos de stock de una vez
+     */
+    @PostMapping("/{productId}/stock/bulk")
+    @PreAuthorize("hasRole('ROLE_SELLER')")
+    public ResponseEntity<BulkStockResponseDTO> addBulkStockItems(
+            @PathVariable Long productId,
+            @RequestBody @Valid List<ProductStockRequestDTO> requests,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long sellerId = jwt.getClaim("userId");
+        BulkStockResponseDTO response = productStockService.addBulkStockItems(productId, sellerId, requests);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Cargar productos
+     */
     @GetMapping
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> loadProducts(
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> loadProducts(
             @RequestParam(defaultValue = "0") Integer page) {
-        Page<ProductSummaryResponseDTO> response = productService.getAllProducts(page);
+        PagedResponse<ProductSummaryResponseDTO> response = productService.getAllProducts(page);
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Buscar productos con filtros
+     */
     @GetMapping("/filter")
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> searchProducts(
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> searchProducts(
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long categoryId, @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) BigDecimal maxPrice, @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        Page<ProductSummaryResponseDTO> response = productService.filterProducts(searchQuery, categoryId, minRating,
+        PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(searchQuery, categoryId,
+                minRating,
                 maxPrice, page, sortBy, sortDirection);
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Obtener la vista detallada de un producto
+     */
     @GetMapping("/{productId}")
     public ResponseEntity<ProductResponseDTO> getProductDetail(@PathVariable Long productId) {
         return ResponseEntity.ok(productService.detailProduct(productId));
     }
 
-    // Métodos para Seller
+    /**
+     * Obtener los productos de un vendedor
+     */
     @GetMapping("/seller/{sellerId}")
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> getSellerProducts(@PathVariable Long sellerId,
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getSellerProducts(@PathVariable Long sellerId,
             @RequestParam(defaultValue = "0") Integer page) {
         return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));
     }
 
+    /**
+     * Obtener los productos de un vendedor siendo el vendedor
+     */
     @GetMapping("/myProducts")
     @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> getMyProducts(@AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getMyProducts(@AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") Integer page) {
         Long sellerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));
     }
 
+    /**
+     * Obtener el numero de productos activos que tiene un vendedor
+     */
     @GetMapping("/totalProducts")
     @PreAuthorize("hasRole('ROLE_SELLER')")
     public ResponseEntity<Long> getTotalSellerProducts(@AuthenticationPrincipal Jwt jwt) {
@@ -153,17 +312,23 @@ public class ProductController {
         return ResponseEntity.ok(productService.getTotalSellerProducts(sellerId));
     }
 
+    /**
+     * Obtener la lista de productos favoritos de un usuario
+     */
     @GetMapping("/favorites")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<Page<ProductSummaryResponseDTO>> getFavorites(
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getFavorites(
             @RequestParam(defaultValue = "0") Integer page,
             @AuthenticationPrincipal Jwt jwt) {
 
         Long userId = jwt.getClaim("userId");
-        Page<ProductSummaryResponseDTO> response = productService.getFavorites(userId, page);
+        PagedResponse<ProductSummaryResponseDTO> response = productService.getFavorites(userId, page);
         return ResponseEntity.ok(response);
     }
 
+    /**
+     * Agregar un producto a la lista de favoritos
+     */
     @PostMapping("{productId}/favorites")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     public ResponseEntity<Void> addToFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
@@ -172,6 +337,9 @@ public class ProductController {
         return ResponseEntity.ok().build();
     }
 
+    /**
+     * Remover un producto a la lista de favoritos
+     */
     @DeleteMapping("{productId}/favorites")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     public ResponseEntity<Void> removeFromFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
@@ -181,217 +349,3 @@ public class ProductController {
     }
 
 }
-
-/*
- * FUTURE POSIBLE METHODS
- * 
- * @PatchMapping("/{productId}/stock")
- * 
- * @PreAuthorize("hasAuthority('ROLE_SELLER')")
- * public ResponseEntity<Void> updateStock(
- * 
- * @PathVariable Long productId,
- * 
- * @RequestParam Integer quantity,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * productService.updateStock(productId, userId, quantity);
- * return ResponseEntity.ok().build();
- * }
- * 
- * @PatchMapping("/{productId}/toggle-availability")
- * 
- * @PreAuthorize("hasAuthority('ROLE_SELLER')")
- * public ResponseEntity<Void> toggleAvailability(
- * 
- * @PathVariable Long productId,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * productService.toggleAvailability(productId, userId);
- * return ResponseEntity.ok().build();
- * }
- * 2. Productos del vendedor (SELLER)
- * java@GetMapping("/my-products")
- * 
- * @PreAuthorize("hasAuthority('ROLE_SELLER')")
- * public ResponseEntity<Page<ProductSummaryResponse>> getMyProducts(
- * 
- * @RequestParam(defaultValue = "0") Integer page,
- * 
- * @RequestParam(defaultValue = "10") Integer size,
- * 
- * @RequestParam(required = false) String status, // ACTIVE, INACTIVE,
- * OUT_OF_STOCK
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * Page<ProductSummaryResponse> response =
- * productService.getSellerProducts(userId, page, size, status);
- * return ResponseEntity.ok(response);
- * }
- * 3. Productos relacionados/recomendados (PÚBLICO)
- * java@GetMapping("/{productId}/related")
- * public ResponseEntity<List<ProductSummaryResponse>> getRelatedProducts(
- * 
- * @PathVariable Long productId,
- * 
- * @RequestParam(defaultValue = "6") Integer limit) {
- * List<ProductSummaryResponse> response =
- * productService.getRelatedProducts(productId, limit);
- * return ResponseEntity.ok(response);
- * }
- * 4. Productos por categoría (PÚBLICO)
- * java@GetMapping("/category/{categoryId}")
- * public ResponseEntity<Page<ProductSummaryResponse>> getProductsByCategory(
- * 
- * @PathVariable Long categoryId,
- * 
- * @RequestParam(defaultValue = "0") Integer page,
- * 
- * @RequestParam(defaultValue = "20") Integer size,
- * 
- * @RequestParam(defaultValue = "createdAt") String sortBy,
- * 
- * @RequestParam(defaultValue = "DESC") String sortDirection) {
- * Page<ProductSummaryResponse> response = productService.getProductsByCategory(
- * categoryId, page, size, sortBy, sortDirection);
- * return ResponseEntity.ok(response);
- * }
- * 5. Productos destacados/populares (PÚBLICO)
- * java@GetMapping("/featured")
- * public ResponseEntity<List<ProductSummaryResponse>> getFeaturedProducts(
- * 
- * @RequestParam(defaultValue = "10") Integer limit) {
- * List<ProductSummaryResponse> response =
- * productService.getFeaturedProducts(limit);
- * return ResponseEntity.ok(response);
- * }
- * 
- * @GetMapping("/best-sellers")
- * public ResponseEntity<List<ProductSummaryResponse>> getBestSellingProducts(
- * 
- * @RequestParam(defaultValue = "10") Integer limit) {
- * List<ProductSummaryResponse> response =
- * productService.getBestSellingProducts(limit);
- * return ResponseEntity.ok(response);
- * }
- * 
- * @GetMapping("/newest")
- * public ResponseEntity<List<ProductSummaryResponse>> getNewestProducts(
- * 
- * @RequestParam(defaultValue = "10") Integer limit) {
- * List<ProductSummaryResponse> response =
- * productService.getNewestProducts(limit);
- * return ResponseEntity.ok(response);
- * }
- * 6. Productos por vendedor (PÚBLICO)
- * java@GetMapping("/seller/{sellerId}")
- * public ResponseEntity<Page<ProductSummaryResponse>> getProductsBySeller(
- * 
- * @PathVariable Long sellerId,
- * 
- * @RequestParam(defaultValue = "0") Integer page,
- * 
- * @RequestParam(defaultValue = "20") Integer size) {
- * Page<ProductSummaryResponse> response =
- * productService.getProductsBySeller(sellerId, page, size);
- * return ResponseEntity.ok(response);
- * }
- * 7. Estadísticas del producto (SELLER/ADMIN)
- * java@GetMapping("/{productId}/stats")
- * 
- * @PreAuthorize("hasAnyAuthority('ROLE_SELLER', 'ROLE_ADMIN')")
- * public ResponseEntity<ProductStatsResponse> getProductStats(
- * 
- * @PathVariable Long productId,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * ProductStatsResponse response = productService.getProductStats(productId,
- * userId);
- * return ResponseEntity.ok(response);
- * }
- * 8. Gestión administrativa (ADMIN)
- * java@GetMapping("/admin/pending-approval")
- * 
- * @PreAuthorize("hasAuthority('ROLE_ADMIN')")
- * public ResponseEntity<Page<ProductSummaryResponse>> getPendingProducts(
- * 
- * @RequestParam(defaultValue = "0") Integer page) {
- * Page<ProductSummaryResponse> response =
- * productService.getPendingProducts(page);
- * return ResponseEntity.ok(response);
- * }
- * 
- * @PatchMapping("/admin/{productId}/approve")
- * 
- * @PreAuthorize("hasAuthority('ROLE_ADMIN')")
- * public ResponseEntity<Void> approveProduct(@PathVariable Long productId) {
- * productService.approveProduct(productId);
- * return ResponseEntity.ok().build();
- * }
- * 
- * @PatchMapping("/admin/{productId}/reject")
- * 
- * @PreAuthorize("hasAuthority('ROLE_ADMIN')")
- * public ResponseEntity<Void> rejectProduct(
- * 
- * @PathVariable Long productId,
- * 
- * @RequestParam String reason) {
- * productService.rejectProduct(productId, reason);
- * return ResponseEntity.ok().build();
- * }
- * 9. Búsqueda mejorada (PÚBLICO)
- * java@GetMapping("/search/suggestions")
- * public ResponseEntity<List<String>> getSearchSuggestions(
- * 
- * @RequestParam String query,
- * 
- * @RequestParam(defaultValue = "5") Integer limit) {
- * List<String> suggestions = productService.getSearchSuggestions(query, limit);
- * return ResponseEntity.ok(suggestions);
- * }
- * 10. Favoritos/Wishlist (CONSUMER)
- * java@PostMapping("/{productId}/favorite")
- * 
- * @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
- * public ResponseEntity<Void> addToFavorites(
- * 
- * @PathVariable Long productId,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * productService.addToFavorites(productId, userId);
- * return ResponseEntity.ok().build();
- * }
- * 
- * @DeleteMapping("/{productId}/favorite")
- * 
- * @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
- * public ResponseEntity<Void> removeFromFavorites(
- * 
- * @PathVariable Long productId,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * productService.removeFromFavorites(productId, userId);
- * return ResponseEntity.ok().build();
- * }
- * 
- * @GetMapping("/favorites")
- * 
- * @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
- * public ResponseEntity<Page<ProductSummaryResponse>> getFavorites(
- * 
- * @RequestParam(defaultValue = "0") Integer page,
- * 
- * @AuthenticationPrincipal Jwt jwt) {
- * Long userId = jwt.getClaim("userId");
- * Page<ProductSummaryResponse> response = productService.getFavorites(userId,
- * page);
- * return ResponseEntity.ok(response);
- * }
- */
