@@ -26,7 +26,7 @@ import java.util.Map;
 @RequestMapping("/api/webhooks")
 @RequiredArgsConstructor
 @Slf4j
-public class WebhookController {
+public class WebHookController {
     
     private final WompiService wompiService;
     private final WompiPaymentService wompiPaymentService;

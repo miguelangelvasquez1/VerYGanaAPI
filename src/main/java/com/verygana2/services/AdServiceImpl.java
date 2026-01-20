@@ -1,12 +1,15 @@
 package com.verygana2.services;
 
+import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -29,9 +32,12 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.repositories.AdRepository;
+import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
@@ -62,6 +68,8 @@ public class AdServiceImpl implements AdService {
     private final MunicipalityRepository municipalityRepository;
     private final AdMediaService adMediaService;
     private final TargetingValidator targetingValidator;
+    private final AdWatchSessionRepository adWatchSessionRepository;
+    private final Clock clock;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -223,51 +231,80 @@ public class AdServiceImpl implements AdService {
 
     // ==================== Consultas para UsuariosConsumer ====================
 
-    /**
-     * Obtiene anuncios disponibles para un usuario con filtrado por categorías.
-     * Los resultados se ordenan por fecha de creación (más recientes primero).
-     * 
-     * @param userId ID del usuario
-     * @param pageable Parámetros de paginación
-     * @return Página de DTOs de anuncios disponibles
-     * @throws UserNotFoundException si el usuario no existe
-     */
-    @Transactional(readOnly = true)
-    public PagedResponse<AdForConsumerDTO> getAvailableAdsForUser(Long userId, Pageable pageable) {
-        log.debug("Buscando anuncios disponibles para usuario: {}", userId);
+    @Override
+    @Transactional
+    public Optional<AdForConsumerDTO> getNextAdForUser(Long userId) {
 
-        // Validar que el usuario existe (se puede evitar al buscar en la bd al hacer login)
+        log.debug("Buscando siguiente anuncio disponible para usuario: {}", userId);
+
         Objects.requireNonNull(userId, "El ID de usuario no puede ser nulo");
-        if (!userRepository.existsById(userId)) {
-            log.error("Usuario no encontrado: {}", userId);
-            throw new ObjectNotFoundException("Usuario con ID " + userId + " no encontrado", User.class);
-        }
 
-        ZonedDateTime now = ZonedDateTime.now();
-        
-        // Intentar obtener anuncios con filtro de categorías
-        Page<Ad> adsPage = adRepository.findAvailableAdsForUser(
-            userId,
-            AdStatus.ACTIVE,
-            now,
-            pageable
+        User user = userRepository.findById(userId).orElseThrow(() ->
+            new ObjectNotFoundException("Usuario con ID " + userId + " no encontrado", User.class)
         );
 
-        // Si no hay resultados con categorías, intentar sin filtro de categorías
-        if (adsPage.isEmpty() && pageable.getPageNumber() == 0) {
-            log.debug("No se encontraron anuncios con filtro de categorías, intentando sin filtro");
-            adsPage = adRepository.findAvailableAdsForUserWithoutCategoryFilter(
-                userId,
-                AdStatus.ACTIVE,
-                now,
-                pageable
-            );
+        ZonedDateTime now = ZonedDateTime.now(clock);
+
+        // Reanudar sesión activa si existe
+        Optional<AdWatchSession> activeSession =
+            adWatchSessionRepository
+                .findByUserIdAndStatusAndExpiresAtAfter(
+                    userId,
+                    AdWatchSessionStatus.ACTIVE,
+                    now
+                );
+
+        if (activeSession.isPresent()) {
+            log.info("Reanudando sesión activa {}", activeSession.get().getId());
+            AdWatchSession session = activeSession.get();
+            AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
+            dto.setSessionUUID(session.getId());
+            return Optional.of(dto);
         }
 
-        log.info("Se encontraron {} anuncios disponibles para usuario {}", 
-                 adsPage.getTotalElements(), userId);
+        Optional<Ad> adOpt = findWithCategoryMatch(userId, now)
+        .or(() -> findWithoutCategoryMatch(userId, now));
 
-        return PagedResponse.from(adsPage.map(adMapper::toConsumerDto));
+        if (adOpt.isEmpty()) {
+            return Optional.empty();
+        }
+
+        Ad ad = adOpt.get();
+        AdWatchSession session = new AdWatchSession(user, ad);
+        adWatchSessionRepository.save(session);
+
+        // Posibilidad de fallback de nivel 2 con los anuncios vistos
+
+        AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
+        dto.setSessionUUID(session.getId());
+
+        return Optional.of(dto);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<Ad> findWithCategoryMatch(Long userId, ZonedDateTime now) {
+        log.info("Mostrando anuncio con coincidencia de categoría para el usuario {}", userId);
+        List<Ad> ads = adRepository.findFirstAvailableAdForUser(
+            userId,
+            AdStatus.ACTIVE,
+            List.of(AdWatchSessionStatus.LIKED),
+            now,
+            PageRequest.of(0, 1)
+        );
+
+        return ads.stream().findFirst();
+    }
+
+    private Optional<Ad> findWithoutCategoryMatch(Long userId, ZonedDateTime now) {
+        log.info("Mostrando anuncio sin coincidencia de categoría para el usuario {}", userId);
+        List<Ad> ads = adRepository.findNextAdWithoutCategoryMatch(
+            userId,
+            AdStatus.ACTIVE,
+            List.of(AdWatchSessionStatus.LIKED),
+            now,
+            PageRequest.of(0, 1)
+        );
+        return ads.stream().findFirst();
     }
 
     /**
@@ -280,7 +317,7 @@ public class AdServiceImpl implements AdService {
     // @Cacheable(value = "availableAdsCount", key = "#userId")
     @Override
     public long countAvailableAdsForUser(Long userId) {
-        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(clock);
         return adRepository.countAvailableAdsForUser(userId, AdStatus.ACTIVE, now);
     }
 

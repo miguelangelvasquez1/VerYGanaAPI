@@ -16,6 +16,7 @@ import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.WalletService;
+import com.verygana2.utils.generators.UserHashGenerator;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private final UserHashGenerator userHashGenerator;
     private final UserRepository userRepository;
     private final WalletService walletService;
     private final PasswordEncoder passwordEncoder;
@@ -74,10 +76,15 @@ public class UserServiceImpl implements UserService {
         details.setUser(user);
         user.setUserDetails(details);
 
-        User savedUser = userRepository.save(user);
-        walletService.createWallet(savedUser);
+        userRepository.saveAndFlush(user);
+        
+        // Asignar hash
+        String userHash = userHashGenerator.generate(user.getId());
+        details.setUserHash(userHash);
 
-        return savedUser;
+        walletService.createWallet(user);
+
+        return user;
     }
 
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {

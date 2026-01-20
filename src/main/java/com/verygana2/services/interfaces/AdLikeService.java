@@ -1,8 +1,12 @@
 package com.verygana2.services.interfaces;
 
+import java.util.UUID;
+
+import com.verygana2.dtos.ad.responses.AdLikedResponse;
+
 public interface AdLikeService {
     
-    boolean processAdLike(Long adId, Long userId, String ipAddress);
+    AdLikedResponse processAdLike(UUID sessionId, Long adId, Long userId, String ipAddress);
 
     boolean hasUserLikedAd(Long adId, Long userId);
 }

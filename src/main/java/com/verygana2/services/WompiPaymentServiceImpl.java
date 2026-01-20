@@ -3,13 +3,13 @@ package com.verygana2.services;
 import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.wompi.WompiDepositRequest;
 import com.verygana2.dtos.wompi.WompiDepositResponse;
 import com.verygana2.models.Transaction;
@@ -37,7 +37,6 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
     private final WompiService wompiService;
     private final WalletRepository walletRepository;
     private final TransactionRepository transactionRepository;
-    private final ObjectMapper objectMapper;
 
 
     @Override
@@ -71,7 +70,7 @@ public class WompiPaymentServiceImpl implements WompiPaymentService {
         );
         
         // 6. Guardar transacción
-        transaction = transactionRepository.save(transaction);
+        transaction = transactionRepository.save(Objects.requireNonNull(transaction));
         log.info("📝 Transaction created with ID: {} and reference: {}", 
                 transaction.getId(), transaction.getReferenceId());
         

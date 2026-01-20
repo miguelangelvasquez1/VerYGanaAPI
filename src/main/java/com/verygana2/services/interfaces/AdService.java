@@ -1,5 +1,7 @@
 package com.verygana2.services.interfaces;
 
+import java.util.Optional;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.multipart.MultipartFile;
@@ -33,7 +35,7 @@ public interface AdService {
     AdResponseDTO pauseAdAsAdvertiser(Long adId, Long advertiserId);
     
     // Consultas para consumers
-    PagedResponse<AdForConsumerDTO> getAvailableAdsForUser(Long userId, Pageable pageable);
+    Optional<AdForConsumerDTO> getNextAdForUser(Long userId);
 
     long countAvailableAdsForUser(Long userId);
     

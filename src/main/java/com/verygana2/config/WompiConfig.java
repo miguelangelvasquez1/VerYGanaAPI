@@ -1,5 +1,7 @@
 package com.verygana2.config;
 
+import java.util.Objects;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -23,7 +25,7 @@ public class WompiConfig {
     @Bean
     public WebClient wompiWebClient(WebClient.Builder builder) {
         return builder
-                .baseUrl(apiUrl)
+                .baseUrl(Objects.requireNonNull(apiUrl, "wompi.apiUrl must be set"))
                 .build();
     }
 }

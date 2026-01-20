@@ -5,6 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import com.verygana2.config.RsaKeyProperties;
 
@@ -12,6 +13,7 @@ import com.verygana2.config.RsaKeyProperties;
 @EnableConfigurationProperties(RsaKeyProperties.class)
 @EnableCaching
 @EnableAsync
+@EnableScheduling
 public class RifacelApplication {
 
 	public static void main(String[] args) {

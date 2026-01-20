@@ -7,15 +7,12 @@ import com.verygana2.models.Category;
 import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
-import com.verygana2.utils.generators.UserHashGenerator;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -72,11 +69,4 @@ public class ConsumerDetails extends UserDetails {
 
     @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
-
-    @PrePersist
-    protected void onCreate() {
-        if (userHash == null) {
-            userHash = UserHashGenerator.generate(this.getId());
-        }
-    }
 }

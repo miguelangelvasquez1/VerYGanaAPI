@@ -105,19 +105,16 @@ public class AdController {
 
     // ==================== ENDPOINTS PARA USUARIOS CONSUMER ====================
 
-    @GetMapping("/user/available")
+    @GetMapping("/next")
     @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<PagedResponse<AdForConsumerDTO>> getAvailableAdsForUser(
-            @AuthenticationPrincipal Jwt jwt,
-            Pageable pageable) { //sortBy puede ser por currentLikes para equilibrar
-        
+    public ResponseEntity<AdForConsumerDTO> getNextAd(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
         Long userId = jwt.getClaim("userId");
-        PagedResponse<AdForConsumerDTO> ads = adService.getAvailableAdsForUser(userId, pageable);
-        
-        log.info("Se retornaron {} anuncios de {} totales para usuario {}", 
-                 ads.getMeta().getTotalElements(), ads.getMeta().getTotalElements(), userId);
-        
-        return ResponseEntity.ok(ads);
+
+        return adService.getNextAdForUser(userId)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/user/available/count")

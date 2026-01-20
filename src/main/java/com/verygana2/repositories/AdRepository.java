@@ -1,6 +1,7 @@
 package com.verygana2.repositories;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import com.verygana2.models.Category;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.AdWatchSessionStatus;
 
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationExecutor<Ad> {
@@ -99,72 +101,72 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        // Verificar si existe un anuncio activo con el mismo título para un advertiser
        boolean existsByAdvertiserIdAndTitle(Long advertiserId, String title);
 
-       // Consultas para usuarios consumer
+       // ------------------------ Consultas para usuarios consumer --------------------------
 
-       /**
-        * Encuentra anuncios disponibles para un usuario específico.
-        * 
-        * Un anuncio es elegible si:
-        * - Está en estado ACTIVE
-        * - No ha alcanzado el máximo de likes
-        * - No ha expirado (o no tiene fecha de expiración)
-        * - Tiene presupuesto restante
-        * - El usuario no lo ha visto antes (no existe un AdLike)
-        * - Las categorías del anuncio coinciden con las preferencias del usuario
-        * 
-        * @param userId ID del usuario
-        * @param now Fecha y hora actual
-        * @param pageable Parámetros de paginación
-        * @return Página de anuncios disponibles
-        */
        @Query("""
-              SELECT DISTINCT a FROM Ad a
-              LEFT JOIN FETCH a.categories
+              SELECT a FROM Ad a
               WHERE a.status = :status
               AND a.currentLikes < a.maxLikes
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
+
               AND NOT EXISTS (
-                     SELECT 1 FROM AdLike al 
-                     WHERE al.ad.id = a.id 
+                     SELECT 1 FROM AdLike al
+                     WHERE al.ad.id = a.id
                      AND al.user.id = :userId
               )
+
               AND EXISTS (
-                     SELECT 1 FROM ConsumerDetails cd
-                     JOIN cd.categories pref
-                     JOIN cd.user u
-                     WHERE u.id = :userId
-                     AND pref IN (SELECT cat FROM a.categories cat)
+                     SELECT 1
+                     FROM ConsumerDetails cd
+                     JOIN cd.categories c
+                     WHERE cd.user.id = :userId
+                     AND c MEMBER OF a.categories
               )
+
+              AND NOT EXISTS (
+                     SELECT 1 FROM AdWatchSession s
+                     WHERE s.ad.id = a.id
+                     AND s.user.id = :userId
+                     AND s.status IN :blockedStatuses
+              )
+
               ORDER BY a.createdAt DESC
        """)
-       Page<Ad> findAvailableAdsForUser(
+       List<Ad> findFirstAvailableAdForUser(
               @Param("userId") Long userId,
               @Param("status") AdStatus status,
+              @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
               @Param("now") ZonedDateTime now,
               Pageable pageable
        );
-
-       /**
-        * Versión sin filtro de categorías para casos donde el usuario no tiene preferencias
-        */
+       
        @Query("""
-              SELECT DISTINCT a FROM Ad a
-              LEFT JOIN FETCH a.categories
+              SELECT a FROM Ad a
               WHERE a.status = :status
               AND a.currentLikes < a.maxLikes
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
+
               AND NOT EXISTS (
-              SELECT 1 FROM AdLike al 
-              WHERE al.ad.id = a.id 
-              AND al.user.id = :userId
+                     SELECT 1 FROM AdLike al
+                     WHERE al.ad.id = a.id
+                     AND al.user.id = :userId
               )
+
+              AND NOT EXISTS (
+                     SELECT 1 FROM AdWatchSession s
+                     WHERE s.ad.id = a.id
+                     AND s.user.id = :userId
+                     AND s.status IN :blockedStatuses
+              )
+
               ORDER BY a.createdAt DESC
        """)
-       Page<Ad> findAvailableAdsForUserWithoutCategoryFilter(
+       List<Ad> findNextAdWithoutCategoryMatch(
               @Param("userId") Long userId,
               @Param("status") AdStatus status,
+              @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
               @Param("now") ZonedDateTime now,
               Pageable pageable
        );
