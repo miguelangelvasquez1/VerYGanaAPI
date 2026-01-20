@@ -52,3 +52,4 @@ CREATE TABLE audit_log (
 
 - probar refresh token
 - obtener session estandarizado
+- calcular la duración de un anuncio?

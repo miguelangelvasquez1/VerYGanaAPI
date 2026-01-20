@@ -14,6 +14,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -59,8 +60,9 @@ public class AuthController {
      */
     @PostMapping("/login")
     @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
-    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request)
-            throws InterruptedException {
+    public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request,
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+    ) throws InterruptedException {
 
         log.info("Login attempt for user: {}", request.getIdentifier());
 
@@ -69,16 +71,25 @@ public class AuthController {
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 
-        String refreshTokenCookie = generateCookie(tokens.getRefreshToken(), "refreshToken");
-
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.joining(" "));
 
+        boolean isMobile = clientType.equalsIgnoreCase("mobile");
+
+        if (isMobile) {
+            // Mobile: enviar ambos tokens en el body
+            return ResponseEntity.ok(
+                    new AuthResponse(tokens.getAccessToken(), tokens.getRefreshToken(), scope)
+            );
+        }
+
+        String refreshTokenCookie = generateCookie(tokens.getRefreshToken(), "refreshToken");
+
         log.info("Login successful for user: {}", authentication.getName());
         return ResponseEntity.ok()
-        .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-        .body(new AuthResponse(tokens.getAccessToken(), scope));
+            .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
+            .body(new AuthResponse(tokens.getAccessToken(), null, scope));
     }
 
     /**

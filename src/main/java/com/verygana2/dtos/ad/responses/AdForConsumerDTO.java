@@ -1,5 +1,7 @@
 package com.verygana2.dtos.ad.responses;
 
+import java.util.UUID;
+
 import com.verygana2.models.enums.MediaType;
 
 import lombok.AllArgsConstructor;
@@ -20,6 +22,8 @@ public class AdForConsumerDTO {
     private String contentUrl;
     private String targetUrl;
     private MediaType mediaType;
+
+    private UUID sessionUUID;
 
     private Long advertiserId;
     private String advertiserName; 

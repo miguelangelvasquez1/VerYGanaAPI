@@ -8,5 +8,6 @@ import lombok.Data;
 public class AuthResponse {
     
     private String accessToken;
+    private String refreshToken; // Only for mobile
     private String role;
 }

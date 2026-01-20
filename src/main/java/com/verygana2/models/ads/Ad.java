@@ -49,6 +49,11 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Ad {
+
+    @Version
+    @Column(nullable = false)
+    private Long version;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -68,6 +73,8 @@ public class Ad {
     @DecimalMax(value = "100.00", message = "La recompensa no puede exceder 100")
     @Column(name = "reward_per_like", nullable = false, precision = 19, scale = 2)
     private BigDecimal rewardPerLike;
+
+    private Double duration; // Duración estimada del anuncio
 
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1, message = "Debe permitir al menos 1 like")
@@ -191,7 +198,7 @@ public class Ad {
         return getSpentBudget().add(rewardPerLike).compareTo(getTotalBudget()) <= 0;
     }
 
-    public void incrementLike(BigDecimal rewardAmount) {
+    public void incrementLike() {
         this.currentLikes++;
 
         // Auto-desactivar si se alcanza el límite

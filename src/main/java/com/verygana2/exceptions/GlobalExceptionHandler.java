@@ -105,6 +105,20 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
+    /* For nullPointerException 500 */
+    @ExceptionHandler(NullPointerException.class)
+    public ResponseEntity<ErrorResponse> NullPointerException(NullPointerException ex) {
+        log.error("NullPointerException: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /* For BusinessException 500 */
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> BusinessException(BusinessException ex) {
+        log.error("BusinessException: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     /* For email already exists 500 */
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<String> emailAlreadyExistsException(EmailAlreadyExistsException ex) {

@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -76,6 +77,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final AssetRepository assetRepository;
     private final GameMapper gameMapper;
     private final R2Service r2Service;
+    private final Clock clock;
 
     @Override
     public List<CampaignDTO> getAdvertiserCampaigns(Long advertiserId) {
@@ -475,7 +477,7 @@ public class CampaignServiceImpl implements CampaignService {
 
     private void handleSideEffects(Campaign campaign, CampaignStatus newStatus) {
 
-        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now(clock);
 
         switch (newStatus) {
             case ACTIVE -> {
