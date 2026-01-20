@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Objects;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -184,10 +185,10 @@ public class WompiServiceImpl implements WompiService {
     private JsonNode callWompiApi(String endpoint, Map<String, Object> payload) {
         try {
             String response = wompiWebClient.post()
-                    .uri(endpoint)
+                    .uri(Objects.requireNonNull(endpoint))
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + wompiConfig.getPrivateKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(payload)
+                    .contentType(Objects.requireNonNull(MediaType.APPLICATION_JSON))
+                    .bodyValue(Objects.requireNonNull(payload))
                     .retrieve()
                     .onStatus(status -> status.is4xxClientError(),
                             clientResponse -> clientResponse.bodyToMono(String.class).flatMap(body -> {

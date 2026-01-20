@@ -187,22 +187,22 @@ public class Transaction {
         /**
          * Mapear status de Wompi a tu enum
          */
-        private TransactionState mapWompiStatusToState(String wompiStatus) {
-                switch (wompiStatus.toUpperCase()) {
-                        case "APPROVED":
-                                return TransactionState.COMPLETED;
-                        case "DECLINED":
-                                return TransactionState.FAILED;
-                        case "PENDING":
-                                return TransactionState.PENDING;
-                        case "VOIDED":
-                                return TransactionState.CANCELLED;
-                        case "ERROR":
-                                return TransactionState.FAILED;
-                        default:
-                                return TransactionState.FAILED;
-                }
-        }
+        // private TransactionState mapWompiStatusToState(String wompiStatus) {
+        //         switch (wompiStatus.toUpperCase()) {
+        //                 case "APPROVED":
+        //                         return TransactionState.COMPLETED;
+        //                 case "DECLINED":
+        //                         return TransactionState.FAILED;
+        //                 case "PENDING":
+        //                         return TransactionState.PENDING;
+        //                 case "VOIDED":
+        //                         return TransactionState.CANCELLED;
+        //                 case "ERROR":
+        //                         return TransactionState.FAILED;
+        //                 default:
+        //                         return TransactionState.FAILED;
+        //         }
+        // }
 
         /**
          * Marcar como aprobada (desde webhook)

@@ -27,8 +27,8 @@ import lombok.ToString;
 })
 @Getter
 @Setter
-@ToString(exclude = {"seller", "reviews", "stockItems", "productCategory"})
-@EqualsAndHashCode(exclude = {"seller", "reviews", "stockItems", "productCategory"})
+@ToString(exclude = { "seller", "reviews", "stockItems", "productCategory" })
+@EqualsAndHashCode(exclude = { "seller", "reviews", "stockItems", "productCategory" })
 public class Product {
 
     @Id
@@ -67,6 +67,9 @@ public class Product {
     @Column(name = "is_active", nullable = false)
     private boolean isActive;
 
+    @OneToMany(mappedBy = "product", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FavoriteProduct> favoritedBy = new ArrayList<>();
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_category_id", nullable = false)
     private ProductCategory productCategory;
@@ -80,7 +83,7 @@ public class Product {
 
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
-    
+
     @Enumerated(EnumType.STRING)
     @Column(name = "delivery_type", length = 20)
     private DeliveryType deliveryType; // AUTO, MANUAL, EXTERNAL_API
@@ -92,16 +95,13 @@ public class Product {
     @Column(name = "is_instant_delivery")
     private boolean isInstantDelivery;
 
-    @Column(name = "is_favorite")
-    private boolean isFavorite;
-
     @PrePersist
     protected void onCreate() {
         this.createdAt = LocalDateTime.now();
         this.averageRate = 0.0;
         this.reviewCount = 0;
         this.isActive = true;
-        this.isFavorite = false;
+
         if (digitalFormat == DigitalFormat.CODE) {
             isInstantDelivery = true;
         }
@@ -116,32 +116,34 @@ public class Product {
         return this.imageUrl;
     }
 
-    public Integer getAvailableStock(){
-        return (int) stockItems.stream().filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).count();
+    public Integer getAvailableStock() {
+        return (int) stockItems.stream()
+                .filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).count();
     }
 
-    public void updateStockCount(){
+    public void updateStockCount() {
         this.stock = getAvailableStock();
     }
 
     public ProductStock getNextAvailableCode() {
-        return stockItems.stream().filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).findFirst().orElseThrow(() -> new InsufficientStockException(this.name));
+        return stockItems.stream().filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired())
+                .findFirst().orElseThrow(() -> new InsufficientStockException(this.name));
     }
 
     public void updateAverageRating() {
         List<ProductReview> visibleReviews = reviews.stream()
-            .filter(ProductReview::isVisible)
-            .toList();
-        
+                .filter(ProductReview::isVisible)
+                .toList();
+
         this.reviewCount = visibleReviews.size();
-        
+
         if (reviewCount == 0) {
             this.averageRate = 0.0;
         } else {
             this.averageRate = visibleReviews.stream()
-                .mapToInt(ProductReview::getRating)
-                .average()
-                .orElse(0.0);
+                    .mapToInt(ProductReview::getRating)
+                    .average()
+                    .orElse(0.0);
         }
     }
 }

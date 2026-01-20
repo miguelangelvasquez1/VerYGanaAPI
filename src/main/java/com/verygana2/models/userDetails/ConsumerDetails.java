@@ -5,7 +5,7 @@ import java.util.List;
 
 import com.verygana2.models.Category;
 import com.verygana2.models.enums.TargetGender;
-import com.verygana2.models.products.Product;
+import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
@@ -64,9 +64,8 @@ public class ConsumerDetails extends UserDetails {
     @Size(min = 1, message = "At least one category must be selected")
     private List<Category> categories = new ArrayList<>();
 
-    @ManyToMany
-    @JoinTable(name = "consumer_favorites_products", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "product_id"))
-    private List<Product> favoriteProducts = new ArrayList<>();
+    @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<FavoriteProduct> favoriteProducts = new ArrayList<>();
 
     @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();

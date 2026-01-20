@@ -321,31 +321,41 @@ public class ProductController {
             @RequestParam(defaultValue = "0") Integer page,
             @AuthenticationPrincipal Jwt jwt) {
 
-        Long userId = jwt.getClaim("userId");
-        PagedResponse<ProductSummaryResponseDTO> response = productService.getFavorites(userId, page);
+        Long consumerId = jwt.getClaim("userId");
+        PagedResponse<ProductSummaryResponseDTO> response = productService.getFavorites(consumerId, page);
         return ResponseEntity.ok(response);
     }
 
     /**
      * Agregar un producto a la lista de favoritos
      */
-    @PostMapping("{productId}/favorites")
+    @PostMapping("/favorites/{productId}")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     public ResponseEntity<Void> addToFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
-        Long userId = jwt.getClaim("userId");
-        productService.addFavorite(userId, productId);
+        Long consumerId = jwt.getClaim("userId");
+        productService.addFavorite(consumerId, productId);
         return ResponseEntity.ok().build();
     }
 
     /**
      * Remover un producto a la lista de favoritos
      */
-    @DeleteMapping("{productId}/favorites")
+    @DeleteMapping("/favorites/{productId}")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     public ResponseEntity<Void> removeFromFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
-        Long userId = jwt.getClaim("userId");
-        productService.removeFavorite(userId, productId);
+        Long consumerId = jwt.getClaim("userId");
+        productService.removeFavorite(consumerId, productId);
         return ResponseEntity.noContent().build();
     }
 
+    /**
+     * Contar los productos favoritos del consumidor
+     */
+
+    @GetMapping("/favorites/count")
+    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    public ResponseEntity<Long> countFavorites (@AuthenticationPrincipal Jwt jwt){
+        Long consumerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.countFavoriteProductsByConsumerId(consumerId));
+    }
 }

@@ -1,20 +1,26 @@
 package com.verygana2.services.details;
 
+import java.math.BigDecimal;
+
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 
+import com.verygana2.dtos.seller.responses.MonthlyReportResponseDTO;
 import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.details.SellerDetailsRepository;
+import com.verygana2.services.interfaces.PurchaseItemService;
+import com.verygana2.services.interfaces.TransactionService;
 import com.verygana2.services.interfaces.details.SellerDetailsService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class SellerDetailsServiceImpl implements SellerDetailsService{
 
-    private SellerDetailsRepository sellerDetailsRepository;
-
-    public SellerDetailsServiceImpl(SellerDetailsRepository sellerDetailsRepository){
-        this.sellerDetailsRepository = sellerDetailsRepository;
-    }
+    private final SellerDetailsRepository sellerDetailsRepository;
+    private final TransactionService transactionService;
+    private final PurchaseItemService purchaseItemService;
 
     @Override
     public SellerDetails getSellerById(Long sellerId) {
@@ -45,5 +51,18 @@ public class SellerDetailsServiceImpl implements SellerDetailsService{
         }
         return sellerDetailsRepository.existsById(sellerId);
     }
+
+    @Override
+    public MonthlyReportResponseDTO getMonthlyReport(Long sellerId, Integer year, Integer month) {
+        
+        BigDecimal monthlyEarningsAmount = transactionService.getSellerEarningsByMonth(sellerId, year, month);
+        BigDecimal monthlySalesAmount = purchaseItemService.getTotalSellerSalesAmountByMonth(sellerId, year, month);
+        BigDecimal monthlyCommissionsAmount = purchaseItemService.getTotalPlatformComissionsByMonth(sellerId, year, month); 
+
+        return MonthlyReportResponseDTO.builder().sellerId(sellerId).month(month).totalSalesAmount(monthlySalesAmount).earnings(monthlyEarningsAmount)
+        .totalPlatformCommissionsAmount(monthlyCommissionsAmount).year(year).build();
+    }
+
+    
     
 }

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.multipart.MultipartException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
@@ -33,133 +35,165 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class GlobalExceptionHandler {
     
-    //Predetermined exception handler for Exception
+    // ==================== EXCEPCIONES GENÉRICAS ====================
+    
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex) {
-        log.error(ex.getMessage(), ex);
-        // ex.printStackTrace();
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error");
+    public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
+        log.error("Unexpected error: ", ex);
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request);
     }
 
-    //*For error 403 with no scope */
+    // ==================== AUTENTICACIÓN Y AUTORIZACIÓN ====================
+    
     @ExceptionHandler(AuthorizationDeniedException.class)
-    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(AuthorizationDeniedException ex) {
-        return buildError(HttpStatus.FORBIDDEN, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleAuthorizationDenied(
+            AuthorizationDeniedException ex, WebRequest request) {
+        log.warn("Authorization denied: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN, "Access denied", request);
     }
 
-    //*For refresh token invalid */
     @ExceptionHandler(InvalidTokenException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidTokenException(InvalidTokenException ex) {
-        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleInvalidTokenException(
+            InvalidTokenException ex, WebRequest request) {
+        log.warn("Invalid token: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
-    //* For jdbc connection failure */
-    @ExceptionHandler(JDBCConnectionException.class)
-    public ResponseEntity<ErrorResponse> handleJDBCConnectionException(JDBCConnectionException ex) {
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    //*For invalid credentials */
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<ErrorResponse> handleBadCredentialsException(BadCredentialsException ex) {
-        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleBadCredentialsException(
+            BadCredentialsException ex, WebRequest request) {
+        log.warn("Bad credentials: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, "Invalid credentials", request);
     }
 
-    /* For ad not found 404 */
+    // ==================== RECURSOS NO ENCONTRADOS (404) ====================
+    
     @ExceptionHandler(AdNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleAdNotFoundException(AdNotFoundException ex) {
-        log.info("AdNotFoundException: {}", ex.getMessage());
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleAdNotFoundException(
+            AdNotFoundException ex, WebRequest request) {
+        log.info("Ad not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    /* For storage exception */
-    @ExceptionHandler(StorageException.class)
-    public ResponseEntity<ErrorResponse> handleStorageException(StorageException ex) {
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    /* For duplicate like 409 */
-    @ExceptionHandler(DuplicateLikeException.class)
-    public ResponseEntity<ErrorResponse> handleDuplicateLikeException(DuplicateLikeException ex) {
-        log.error("DuplicateLikeException: {}", ex.getMessage());
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
-    }
-
-    /* For insufficient budget 400 */
-    @ExceptionHandler(InsufficientBudgetException.class)
-    public ResponseEntity<ErrorResponse> handleInsufficientBudgetException(InsufficientBudgetException ex) {
-        log.error("InsufficientBudgetException: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    /* For invalid ad state 400 */
-    @ExceptionHandler(InvalidAdStateException.class)
-    public ResponseEntity<ErrorResponse> handleInvalidAdStateException(InvalidAdStateException ex) {
-        log.error("InvalidAdStateException: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
-    }
-
-    /* For user not found 500 */
     @ExceptionHandler(UsernameNotFoundException.class)
-    public ResponseEntity<String> handleUsernameNotFoundException(UsernameNotFoundException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ErrorResponse> handleUsernameNotFoundException(
+            UsernameNotFoundException ex, WebRequest request) {
+        log.warn("User not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    /* For nullPointerException 500 */
-    @ExceptionHandler(NullPointerException.class)
-    public ResponseEntity<ErrorResponse> NullPointerException(NullPointerException ex) {
-        log.error("NullPointerException: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    @ExceptionHandler(ObjectNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleObjectNotFoundException(ObjectNotFoundException ex, WebRequest request){
+        log.warn("Object not found : {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
-    /* For BusinessException 500 */
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> BusinessException(BusinessException ex) {
-        log.error("BusinessException: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    // ==================== CONFLICTOS (409) ====================
+    
+    @ExceptionHandler(DuplicateLikeException.class)
+    public ResponseEntity<ErrorResponse> handleDuplicateLikeException(
+            DuplicateLikeException ex, WebRequest request) {
+        log.warn("Duplicate like: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    /* For email already exists 500 */
     @ExceptionHandler(EmailAlreadyExistsException.class)
-    public ResponseEntity<String> emailAlreadyExistsException(EmailAlreadyExistsException ex) {
-        return new ResponseEntity<>(ex.getMessage(), HttpStatus.INTERNAL_SERVER_ERROR);
+    public ResponseEntity<ErrorResponse> handleEmailAlreadyExistsException(
+            EmailAlreadyExistsException ex, WebRequest request) {
+        log.warn("Email already exists: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    /* For phone number already exists 409 */
     @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
-    public ResponseEntity<ErrorResponse> handlePhoneExists(PhoneNumberAlreadyExistsException ex) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handlePhoneNumberAlreadyExistsException(
+            PhoneNumberAlreadyExistsException ex, WebRequest request) {
+        log.warn("Phone number already exists: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    /* For ValidationExceptions 500 */
+    // ==================== ERRORES DE VALIDACIÓN (400) ====================
+    
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalAccessException ex, WebRequest request){
+        log.warn("Illegal argument: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InsufficientBudgetException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientBudgetException(
+            InsufficientBudgetException ex, WebRequest request) {
+        log.warn("Insufficient budget: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidAdStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidAdStateException(
+            InvalidAdStateException ex, WebRequest request) {
+        log.warn("Invalid ad state: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(FavoriteProductException.class)
+    public ResponseEntity<ErrorResponse> handleFavoriteProductException(
+            FavoriteProductException ex, WebRequest request) {
+        log.warn("Favorite product error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InsufficientStockException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientStockException(
+            InsufficientStockException ex, WebRequest request) {
+        log.warn("Insufficient stock: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(StorageException.class)
+    public ResponseEntity<ErrorResponse> handleStorageException(
+            StorageException ex, WebRequest request) {
+        log.warn("Storage error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex) {
-        return buildError(HttpStatus.CONFLICT, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleValidationException(
+            ValidationException ex, WebRequest request) {
+        log.warn("Validation error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    /* For multipart exception 500 */
     @ExceptionHandler(MultipartException.class)
-    public ResponseEntity<ErrorResponse> handleMultipartException(MultipartException ex) {
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleMultipartException(
+            MultipartException ex, WebRequest request) {
+        log.warn("Multipart error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    //DataIntegrityViolation
+    @ExceptionHandler(JDBCConnectionException.class)
+    public ResponseEntity<ErrorResponse> handleJDBCConnectionException(
+            JDBCConnectionException ex, WebRequest request) {
+        log.error("JDBC connection error: {}", ex.getMessage());
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Database connection error", request);
+    }
 
-    // Jakarta Validation
+    // ==================== VALIDACIONES JAKARTA ====================
+    
     @ExceptionHandler(ConstraintViolationException.class)
-    public ResponseEntity<ErrorResponse> handleConstraintViolationException(ConstraintViolationException ex) {
-        // Extraer todos los mensajes de validación
+    public ResponseEntity<ErrorResponse> handleConstraintViolationException(
+            ConstraintViolationException ex, WebRequest request) {
+        
         String messages = ex.getConstraintViolations()
                 .stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining("; "));
 
-        return buildError(HttpStatus.BAD_REQUEST, messages);
+        log.warn("Constraint violation: {}", messages);
+        return buildError(HttpStatus.BAD_REQUEST, messages, request);
     }
 
-    // @Valid for DTOs
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErrorResponse> handleValidationExceptions(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
+            MethodArgumentNotValidException ex, WebRequest request) {
+        
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
@@ -170,15 +204,17 @@ public class GlobalExceptionHandler {
             .status(HttpStatus.BAD_REQUEST.value())
             .error("Validation Error")
             .message("Validation failed for one or more fields")
+            .path(getPath(request))
             .details(errors)
             .build();
 
+        log.warn("Validation failed: {}", errors);
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(TransactionSystemException.class)
     public ResponseEntity<ErrorResponse> handleTransactionSystemException(
-            TransactionSystemException ex) {
+            TransactionSystemException ex, WebRequest request) {
 
         Throwable cause = ex.getRootCause();
 
@@ -187,22 +223,33 @@ public class GlobalExceptionHandler {
                     .stream()
                     .map(v -> v.getPropertyPath() + ": " + v.getMessage())
                     .findFirst()
-                    .orElse("Datos inválidos");
+                    .orElse("Invalid data");
 
-            return buildError(HttpStatus.BAD_REQUEST, message);
+            log.warn("Transaction validation error: {}", message);
+            return buildError(HttpStatus.BAD_REQUEST, message, request);
         }
 
-        return buildError(HttpStatus.BAD_REQUEST, "Failure processing transaction");
+        log.error("Transaction system error: ", ex);
+        return buildError(HttpStatus.BAD_REQUEST, "Transaction processing failed", request);
     }
 
-    /* For build error method */
-    private ResponseEntity<ErrorResponse> buildError(HttpStatus status, String message) { //Add request to include path
+    // ==================== MÉTODOS AUXILIARES ====================
+    
+    private ResponseEntity<ErrorResponse> buildError(
+            HttpStatus status, String message, WebRequest request) {
+        
         ErrorResponse error = ErrorResponse.builder()
             .timestamp(Instant.now())
             .status(status.value())
             .error(status.getReasonPhrase())
             .message(message)
+            .path(getPath(request))
             .build();
+        
         return new ResponseEntity<>(error, status);
+    }
+
+    private String getPath(WebRequest request) {
+        return request.getDescription(false).replace("uri=", "");
     }
 }
