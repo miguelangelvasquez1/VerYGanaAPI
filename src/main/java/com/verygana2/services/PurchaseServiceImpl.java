@@ -190,6 +190,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                         .quantity(1)
                         .priceAtPurchase(product.getPrice())
                         .status(PurchaseItemStatus.PENDING)
+                        .platformCommissionRate(platformCommission)
                         .build();
 
                 // Asignar código

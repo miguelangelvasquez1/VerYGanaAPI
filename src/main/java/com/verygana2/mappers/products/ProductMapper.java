@@ -12,6 +12,7 @@ import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
+import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.products.ProductReview;
 import com.verygana2.models.products.ProductStock;
@@ -34,7 +35,7 @@ public interface ProductMapper {
     @Mapping(target = "stockItems", source = "stockItems")
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "instantDelivery", ignore = true)
-    @Mapping(target = "favorite", ignore = true)
+    @Mapping(target = "favoritedBy", ignore = true)
     Product toProduct(CreateProductRequestDTO request);
 
     List<ProductStock> toProductStockList(List<ProductStockRequestDTO> stockRequests);
@@ -62,8 +63,8 @@ public interface ProductMapper {
     @Mapping(target = "stock", ignore = true)
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "instantDelivery", ignore = true)
-    @Mapping(target = "favorite", ignore = true)
     @Mapping(target = "stockItems", ignore = true)
+    @Mapping(target = "favoritedBy", ignore = true)
     void updateProductFromRequest(UpdateProductRequestDTO request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponseDTO (completed) =====
@@ -77,6 +78,15 @@ public interface ProductMapper {
 
     @Mapping(target = "categoryName", source = "productCategory.name")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
+
+    @Mapping(target = "id", source = "product.id")
+    @Mapping(target = "name", source = "product.name")
+    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "price", source = "product.price")
+    @Mapping(target = "averageRate", source = "product.averageRate")
+    @Mapping(target = "categoryName", source = "product.productCategory.name")
+    @Mapping(target = "stock", source = "product.stock")
+    ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @Mapping(target = "productCategoryId", source = "productCategory.id")
     @Mapping(target = "stockItems", source = "stockItems")

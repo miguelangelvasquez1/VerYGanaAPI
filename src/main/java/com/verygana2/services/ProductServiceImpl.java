@@ -2,8 +2,6 @@ package com.verygana2.services;
 
 import java.math.BigDecimal;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -27,13 +25,14 @@ import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.mappers.products.ProductMapper;
 import com.verygana2.models.enums.StockStatus;
+import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.products.ProductCategory;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.userDetails.SellerDetails;
+import com.verygana2.repositories.FavoriteProductRepository;
 import com.verygana2.repositories.ProductRepository;
 import com.verygana2.repositories.ProductStockRepository;
-import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.ProductCategoryService;
 import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -52,6 +51,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductRepository productRepository;
 
+    private final FavoriteProductRepository favoriteProductRepository;
+
     private final ProductCategoryService productCategoryService;
 
     private final ProductMapper productMapper;
@@ -59,8 +60,6 @@ public class ProductServiceImpl implements ProductService {
     private final SellerDetailsService sellerDetailsService;
 
     private final ConsumerDetailsService consumerDetailsService;
-
-    private final ConsumerDetailsRepository consumerDetailsRepository;
 
     private final CloudStorageService cloudStorageService;
 
@@ -199,7 +198,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery, Long categoryId, Double minRating,
+    public PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery, Long categoryId,
+            Double minRating,
             BigDecimal maxPrice, Integer page,
             String sortBy, String sortDirection) {
 
@@ -210,8 +210,9 @@ public class ProductServiceImpl implements ProductService {
         int indexPage = (page != null && page >= 0) ? page : 0;
         Pageable pageable = PageRequest.of(indexPage, 20, sort);
 
-        PagedResponse<Product> productPage = PagedResponse.from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
-                pageable));
+        PagedResponse<Product> productPage = PagedResponse
+                .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
+                        pageable));
 
         return productPage.map(productMapper::toProductSummaryResponseDTO);
 
@@ -261,59 +262,54 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void getProductStats(Long productId, Long userId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getProductStats'");
-    }
-
-    @Override
-    public List<String> getBestSellers() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getBestSellers'");
-    }
-
-    @Override
     @Transactional(readOnly = true)
-    public PagedResponse<ProductSummaryResponseDTO> getFavorites(Long userId, Integer page) {
-        Pageable pageable = PageRequest.of(page, 20, Sort.Direction.DESC, "createdAt");
-        PagedResponse<Product> favorites = PagedResponse.from(productRepository.findFavoriteProductsByUserId(userId, pageable));
+    public PagedResponse<ProductSummaryResponseDTO> getFavorites(Long consumerId, Integer page) {
+        Pageable pageable = PageRequest.of(page, 10, Sort.Direction.DESC, "createdAt");
+        PagedResponse<FavoriteProduct> favorites = PagedResponse
+                .from(favoriteProductRepository.findByConsumerIdWithActiveProducts(consumerId, pageable));
         return favorites.map(productMapper::toProductSummaryResponseDTO);
     }
 
     @Override
-    public void addFavorite(Long userId, Long productId) {
-        ConsumerDetails consumer = consumerDetailsService.getConsumerById(userId);
+    public void addFavorite(Long consumerId, Long productId) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id cannot be null");
+        }
+
+        if (productId == null || productId <= 0) {
+            throw new IllegalArgumentException("Product id cannot be null");
+        }
+
+        if (favoriteProductRepository.existsByConsumerIdAndProductId(consumerId, productId)) {
+            throw new FavoriteProductException("this product already exists in your favorite products list");
+        }
         Product product = getById(productId);
-        List<Product> favoriteList = consumer.getFavoriteProducts();
 
-        if (favoriteList == null) {
-            favoriteList = new ArrayList<>();
-            consumer.setFavoriteProducts(favoriteList);
-        }
-        if (favoriteList.contains(product)) {
-            throw new FavoriteProductException("This product already exists in your favorites list");
+        if (!product.isActive()) {
+            throw new FavoriteProductException("Inactive product cannot be added");
         }
 
-        favoriteList.add(product);
-        consumerDetailsRepository.save(consumer);
+        ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+        
+
+        FavoriteProduct favorite = new FavoriteProduct();
+        favorite.setConsumer(consumer);
+        favorite.setProduct(product);
+
+        favoriteProductRepository.save(favorite);
+
     }
 
     @Override
-    public void removeFavorite(Long userId, Long productId) {
-        ConsumerDetails consumer = consumerDetailsService.getConsumerById(userId);
-        Product product = getById(productId);
-        List<Product> favoriteList = consumer.getFavoriteProducts();
+    @SuppressWarnings("null")
+    public void removeFavorite(Long consumerId, Long productId) {
+        
+        FavoriteProduct productToDelete = favoriteProductRepository.findByConsumerIdAndProductId(consumerId, productId)
+                .orElseThrow(() -> new ObjectNotFoundException("Favorite product with productId :" + productId
+                        + " and consumer id : " + consumerId + " not found ", FavoriteProduct.class));
 
-        if (favoriteList == null || favoriteList.isEmpty()) {
-            throw new FavoriteProductException("Your favorites list is empty");
-        }
-
-        if (!favoriteList.contains(product)) {
-            throw new FavoriteProductException("This product does not exists in your favorites list");
-        }
-
-        favoriteList.remove(product);
-        consumerDetailsRepository.save(consumer);
+        favoriteProductRepository.delete(productToDelete);
 
     }
 
@@ -329,7 +325,7 @@ public class ProductServiceImpl implements ProductService {
 
         Product product = productRepository.findByIdAndSellerId(productId, sellerId)
                 .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and seller id: " + sellerId + " not found", Product.class));
+                        "Product with id: " + productId + " and seller id: " + sellerId + " not found ", Product.class));
 
         ProductEditInfoResponseDTO dto = productMapper.toProductEditInfoDTO(product);
 
@@ -339,6 +335,15 @@ public class ProductServiceImpl implements ProductService {
                 productStockRepository.countByProductIdAndStatus(productId, StockStatus.AVAILABLE));
 
         return dto;
+    }
+
+    @Override
+    public Long countFavoriteProductsByConsumerId(Long consumerId) {
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        return favoriteProductRepository.countByConsumerId(consumerId);
     }
 
 }

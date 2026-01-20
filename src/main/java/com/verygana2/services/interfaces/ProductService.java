@@ -1,7 +1,6 @@
 package com.verygana2.services.interfaces;
 
 import java.math.BigDecimal;
-import java.util.List;
 
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,13 +43,11 @@ public interface ProductService {
 
     ProductResponseDTO detailProduct(Long productId);
 
-    void getProductStats(Long productId, Long userId); // pending
-
-    List<String> getBestSellers (); // pending
-
-    PagedResponse<ProductSummaryResponseDTO> getFavorites(Long userId, Integer page); // pending
-    void addFavorite (Long userId, Long productId); // pending
-    void removeFavorite(Long userId, Long productId); // pending
+    PagedResponse<ProductSummaryResponseDTO> getFavorites(Long consumerId, Integer page); // pending
+    void addFavorite (Long consumerId, Long productId); // pending
+    void removeFavorite(Long consumerId, Long productId); // pending
 
     ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long sellerId);
+
+    Long countFavoriteProductsByConsumerId(Long consumerId);
 }
