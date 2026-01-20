@@ -14,6 +14,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
@@ -32,7 +33,11 @@ import lombok.ToString;
 
 
 @Entity
-@Table(name = "purchase_items")
+@Table(name = "purchase_items",
+    indexes = {
+        @Index(name = "idx_purchase_items_product_deliveredat", columnList = "product_id, delivered_at")
+    }
+)
 @Getter
 @Setter
 @NoArgsConstructor
@@ -70,6 +75,9 @@ public class PurchaseItem {
     
     @Column(nullable = false, precision = 19, scale = 2)
     private BigDecimal subtotal;  // quantity * priceAtPurchase
+
+    @Column(nullable = false)
+    private BigDecimal platformCommissionRate;
     
     @Column(name = "delivered_code", columnDefinition = "TEXT")
     private String deliveredCode; // El código que se le entregó al cliente
@@ -97,6 +105,17 @@ public class PurchaseItem {
     @PreUpdate
     protected void calculateSubtotal() {
         this.subtotal = priceAtPurchase.multiply(new BigDecimal(quantity));
+    }
+
+    @Transient
+    public BigDecimal getSellerEarnings() {
+        BigDecimal commission = subtotal.multiply(platformCommissionRate);
+        return subtotal.subtract(commission);
+    }
+    
+    @Transient
+    public BigDecimal getPlatformCommission() {
+        return subtotal.multiply(platformCommissionRate);
     }
 
     public void assignProductStock(ProductStock stock) {

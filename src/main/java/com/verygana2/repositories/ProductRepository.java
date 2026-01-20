@@ -47,12 +47,4 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.seller.id = :sellerId")
         Long countSellerProducts(@Param("sellerId") Long sellerId);
 
-        @Query("SELECT p FROM ConsumerDetails c " +
-                        "JOIN c.favoriteProducts p " +
-                        "WHERE c.id = :userId " +
-                        "AND p.isActive = true")
-        Page<Product> findFavoriteProductsByUserId(
-                        @Param("userId") Long userId,
-                        Pageable pageable);
-
 }

@@ -28,6 +28,7 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     private final WalletService walletService;
     private final ConsumerDetailsMapper consumerDetailsMapper;
 
+
     @Override
     @Transactional(readOnly = true)
     public ConsumerDetails getConsumerById(Long consumerId) {
@@ -73,12 +74,11 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     @Transactional(readOnly = true)
     public boolean existsConsumerById(Long consumerId) {
         if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("user id must be positive");
+            throw new IllegalArgumentException("Consumer id must be positive");
         }
 
         return consumerDetailsRepository.existsById(consumerId);
     }
 
-    
     
 }
