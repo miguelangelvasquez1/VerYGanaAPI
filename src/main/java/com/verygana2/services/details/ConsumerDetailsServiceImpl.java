@@ -1,5 +1,6 @@
 package com.verygana2.services.details;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 
 import org.hibernate.ObjectNotFoundException;
@@ -8,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
+import com.verygana2.dtos.user.consumer.responses.BalanceResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.mappers.ConsumerDetailsMapper;
@@ -28,6 +30,15 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     private final WalletService walletService;
     private final ConsumerDetailsMapper consumerDetailsMapper;
 
+    @Override
+    @Transactional(readOnly = true)
+    public BalanceResponseDTO getConsumerBalance(Long consumerId) {
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id exists");
+        }
+        BigDecimal availableBalance = walletService.getAvailableBalance(consumerId);
+        return new BalanceResponseDTO(availableBalance);
+    }
 
     @Override
     @Transactional(readOnly = true)

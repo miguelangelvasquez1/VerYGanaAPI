@@ -36,6 +36,14 @@ import lombok.extern.slf4j.Slf4j;
 public class GameController {
 
     private final GameService gameService;
+
+    /**
+     * Flujo:
+     * 1. El juego se inicia con los parámetros de la url
+     * 2. El juego lee los parámetros y llama al backend para pedir los assets y configuración
+     * 3. El juego recibe los assets y configuración y empieza su ejecución
+     * */
+
     
     @PostMapping("/init")
     public ResponseEntity<InitGameResponseDTO> initGame(@Valid @RequestBody InitGameRequestDTO request, @AuthenticationPrincipal Jwt jwt) {

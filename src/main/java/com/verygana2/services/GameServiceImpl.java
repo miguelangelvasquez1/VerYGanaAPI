@@ -66,7 +66,7 @@ public class GameServiceImpl implements GameService {
     
     @Override
     public InitGameResponseDTO initGameSponsored(InitGameRequestDTO request, Long userId) {
-        
+         
         ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
 
         // 2. Validar juego

@@ -25,6 +25,14 @@ public class GameAssetDefinition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "code", nullable = false)
+    private String code; // "background_image", "logo", "sfx_win"
+
+    // Nombre 
+
+    // @Column(name = "constraints", columnDefinition = "jsonb")
+    // private String constraints; // JSON con width/height/min/max/duration/ratio etc.
+
     /** Juego al que pertenece esta definición */
     @ManyToOne(optional = false, fetch = FetchType.LAZY)
     @JoinColumn(name = "game_id", nullable = false)

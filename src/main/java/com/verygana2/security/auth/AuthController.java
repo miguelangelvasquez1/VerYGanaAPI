@@ -1,6 +1,5 @@
 package com.verygana2.security.auth;
 
-import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -20,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
+import com.verygana2.dtos.auth.RefreshRequest;
 import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.AdvertiserRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
@@ -64,7 +64,7 @@ public class AuthController {
             @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
     ) throws InterruptedException {
 
-        log.info("Login attempt for user: {}", request.getIdentifier());
+        log.info("Login attempt for user: {} from {}", request.getIdentifier(), clientType);
 
         Authentication authentication = authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
@@ -96,22 +96,39 @@ public class AuthController {
      * Refresh: Usa el refresh token para generar un nuevo par de tokens
      */
     @PostMapping("/refresh") //Proteger contra CSRF
-    public ResponseEntity<Map<String, String>> refresh(HttpServletRequest request) {
+    public ResponseEntity<AuthResponse> refresh(
+            HttpServletRequest request,
+            @RequestBody(required = false) RefreshRequest body,
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType) {
+
         // Leer refresh token desde la cookie
-        String refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+        String refreshToken;
+
+        if ("mobile".equalsIgnoreCase(clientType)) {
+            refreshToken = body != null ? body.getRefreshToken() : null;
+        } else {
+            refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+        }
 
         if (refreshToken == null) {
-            log.warn("Refresh token cookie not found");
+            log.warn("Refresh token not found");
             throw new InvalidTokenException("Refresh token not found");
         }
 
         TokenPairDTO tokenResponse = tokenService.refreshAccessToken(refreshToken);
 
+        if ("mobile".equalsIgnoreCase(clientType)) {
+        // Mobile: tokens en el body
+            return ResponseEntity.ok(
+                    new AuthResponse(tokenResponse.getAccessToken(), tokenResponse.getRefreshToken(), null)
+            );
+        }
+
         String refreshTokenCookie = generateCookie(tokenResponse.getRefreshToken(), "refreshToken");
 
         return ResponseEntity.ok()
             .header(HttpHeaders.SET_COOKIE, refreshTokenCookie)
-            .body(Map.of("accessToken", tokenResponse.getAccessToken()));
+            .body(new AuthResponse(tokenResponse.getAccessToken(), null, null));
     }
 
     /**
@@ -120,12 +137,20 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             HttpServletRequest request,
-            HttpServletResponse response) {
+            HttpServletResponse response,
+            @RequestBody(required = false) RefreshRequest body,
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType) {
 
-        log.info("Logout attempt");
+        log.info("Logout attempt from clientType={}", clientType);
 
         // Extraer refresh token para invalidarlo en Redis
-        String refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+        String refreshToken = null;
+
+        if ("mobile".equalsIgnoreCase(clientType)) {
+            refreshToken = body != null ? body.getRefreshToken() : null;
+        } else {
+            refreshToken = tokenService.extractRefreshTokenFromCookie(request);
+        }
         
         if (refreshToken != null) {
             try {
@@ -134,10 +159,14 @@ public class AuthController {
             } catch (Exception e) {
                 log.warn("Error revoking refresh token", e);
             }
+        } else {
+            log.warn("No refresh token provided for logout");
         }
 
-        // Limpiar cookie
-        clearRefreshTokenCookie(response);
+        // Solo web limpia cookie
+        if (!"mobile".equalsIgnoreCase(clientType)) {
+            clearRefreshTokenCookie(response);
+        }
 
         return ResponseEntity.noContent().build();
     }
