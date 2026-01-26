@@ -35,6 +35,8 @@ public interface AdMapper {
     @Mapping(target = "totalBudget", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
     @Mapping(target = "mediaType", ignore = true) // Se establece en el servicio según el archivo subido
+    @Mapping(target = "duration", ignore = true)
+    @Mapping(target = "version", ignore = true)
     Ad toEntity(AdCreateDTO dto);
 
     // 🔹 Mapear entidad a DTO de respuesta
@@ -48,6 +50,7 @@ public interface AdMapper {
     // 🔹 Mapear entidad a DTO para consumidor
     @Mapping(target = "advertiserName", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getCompanyName() : null)")
     @Mapping(target = "advertiserId", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getId() : null)")
+    @Mapping(target = "sessionUUID", ignore = true)
     AdForConsumerDTO toConsumerDto(Ad ad);
 
     // Mapear entidad a DTO para administrador
@@ -71,6 +74,8 @@ public interface AdMapper {
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true) // Se establece en el servicio según el archivo subido
+    @Mapping(target = "duration", ignore = true)
+    @Mapping(target = "version", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

@@ -64,7 +64,7 @@ public class Asset {
     @JoinColumn(name = "campaign_id", nullable = true)
     private Campaign campaign;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false) //One to one? por multilple no?
     @JoinColumn(name = "asset_definition_id")
     private GameAssetDefinition assetDefinition;
 
