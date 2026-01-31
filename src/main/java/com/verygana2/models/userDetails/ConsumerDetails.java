@@ -77,7 +77,7 @@ public class ConsumerDetails extends UserDetails {
     @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FavoriteProduct> favoriteProducts = new ArrayList<>();
 
-    @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
 
     @PrePersist
