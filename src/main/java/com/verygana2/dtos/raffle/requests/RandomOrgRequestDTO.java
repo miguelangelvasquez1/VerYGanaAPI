@@ -11,7 +11,9 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RandomOrgRequestDTO {
 
+    @Builder.Default
     private String jsonrpc = "2.0";
+    @Builder.Default
     private String method = "generateIntegers";
     private RandomOrgParams params;
     private String id;

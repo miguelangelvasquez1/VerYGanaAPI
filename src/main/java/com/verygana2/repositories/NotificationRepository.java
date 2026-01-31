@@ -9,6 +9,6 @@ import com.verygana2.models.Notification;
 
 @Repository
 public interface NotificationRepository extends JpaRepository<Notification, String> {
-    List<Notification> findByUserIdOrderByDateSentDesc(String userId);
+    List<Notification> findByUserIdOrderByDateSentDesc(Long userId);
     long countByUserIdAndIsReadFalse(Long userId);
 }

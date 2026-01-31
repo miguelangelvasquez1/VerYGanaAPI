@@ -225,5 +225,5 @@ audit:
   # Sorteos con API externa (Random.org)
 randomOrg:
     api-url: https://api.random.org/json-rpc/4/invoke
-    api-key: ${RANDOM_ORG_API_KEY}
+    api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
     timeout: 30000 # 30 segundos

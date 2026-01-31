@@ -181,7 +181,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
         // 3. Límite por usuario
         if (raffle.getMaxTicketsPerUser() != null) {
-            long currentUserTickets = raffleTicketRepository.countByConsumerIdAndRaffleIdAndStatus(
+            long currentUserTickets = raffleTicketRepository.countByTicketOwnerIdAndRaffleIdAndStatus(
                     consumerId,
                     raffle.getId(),
                     RaffleTicketStatus.ACTIVE);
@@ -212,7 +212,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         for (int i = 0; i < quantity; i++) {
             RaffleTicket ticket = new RaffleTicket();
             ticket.setRaffle(raffle);
-            ticket.setConsumer(consumer);
+            ticket.setTicketOwner(consumer);
             ticket.setSource(source);
             ticket.setSourceId(sourceId);
 
@@ -312,7 +312,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
 
-        return raffleTicketRepository.countByConsumerIdAndRaffleIdAndStatus(consumerId, raffleId, status);
+        return raffleTicketRepository.countByTicketOwnerIdAndRaffleIdAndStatus(consumerId, raffleId, status);
     }
 
     @Override
@@ -322,7 +322,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
 
-        return raffleTicketRepository.countByConsumerIdAndStatus(consumerId, status);
+        return raffleTicketRepository.countByTicketOwnerIdAndStatus(consumerId, status);
     }
 
     @Override
@@ -333,7 +333,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
         // Query que agrupe tickets por raffle
         List<Object[]> results = raffleTicketRepository
-                .countTicketsByConsumerGroupedByRaffle(consumerId);
+                .countTicketsByTicketOwnerGroupedByRaffle(consumerId);
 
         return results.stream()
                 .map(row -> TicketBalanceResponseDTO.builder()

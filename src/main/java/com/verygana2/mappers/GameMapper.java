@@ -29,6 +29,7 @@ public interface GameMapper {
         Campaign campaign
     );
 
+    @Mapping(target = "assetType", ignore = true)
     AssetDTO toAssetDto(Asset asset);
 
     // Para obtener las definiciones
