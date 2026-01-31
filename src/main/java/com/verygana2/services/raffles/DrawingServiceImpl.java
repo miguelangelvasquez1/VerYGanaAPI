@@ -223,7 +223,7 @@ public class DrawingServiceImpl implements DrawingService {
 
                 winner.setRaffle(raffle);
                 winner.setPrize(p);
-                winner.setWinner(winningTicket.getConsumer());
+                winner.setWinner(winningTicket.getTicketOwner());
                 winner.setWinningTicket(winningTicket);
                 winner.setDrawnAt(now);
 
@@ -231,7 +231,7 @@ public class DrawingServiceImpl implements DrawingService {
 
                 log.info("Winner created: Ticket={}, Consumer={}, Prize={}",
                         winningTicket.getTicketNumber(),
-                        winningTicket.getConsumer().getId(),
+                        winningTicket.getTicketOwner().getId(),
                         p.getTitle());
             }
         }

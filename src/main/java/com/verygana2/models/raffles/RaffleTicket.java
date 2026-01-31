@@ -57,4 +57,7 @@ public class RaffleTicket {
     @ManyToOne
     @JoinColumn(name = "consumer_id")
     private ConsumerDetails ticketOwner;
+
+    @Column(name = "is_winner", nullable = false)
+    private boolean isWinner;
 }

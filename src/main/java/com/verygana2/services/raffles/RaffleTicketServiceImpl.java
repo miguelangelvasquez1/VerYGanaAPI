@@ -212,7 +212,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         for (int i = 0; i < quantity; i++) {
             RaffleTicket ticket = new RaffleTicket();
             ticket.setRaffle(raffle);
-            ticket.setConsumer(consumer);
+            ticket.setTicketOwner(consumer);
             ticket.setSource(source);
             ticket.setSourceId(sourceId);
 
