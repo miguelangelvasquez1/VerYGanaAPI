@@ -50,6 +50,11 @@ CREATE TABLE audit_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-- probar refresh token
 - obtener session estandarizado
 - calcular la duración de un anuncio?
+- Flujo de juegos:
+    1. El juego se inicia con los parámetros de la url (session, userhash, branded flag, campaign_id)
+    2. El juego lee los parámetros y llama al backend para pedir los assets y configuración
+    3. El juego recibe los assets y configuración y empieza su ejecución
+
+    preguntar si devuelven session token, etc al pedir los assets y ajustar la estructura del json y ver como se meten los asstes al json

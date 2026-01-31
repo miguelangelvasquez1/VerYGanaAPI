@@ -85,7 +85,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ObjectNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleObjectNotFoundException(ObjectNotFoundException ex, WebRequest request) {
         log.warn("Object not found : {}", ex.getMessage());
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     // ==================== CONFLICTOS (409) ====================

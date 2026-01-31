@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class InitGameResponseDTO {
+public class InitGameResponseDTO { // DTO de respuesta con los assets
     
     private String sessionToken;
     private String userHash;

@@ -58,8 +58,7 @@ public class GameSession {
     private ZonedDateTime startTime = ZonedDateTime.now();
 
     @Column(name = "end_time", nullable = true)
-    @Builder.Default
-    private ZonedDateTime endTime = ZonedDateTime.now();
+    private ZonedDateTime endTime;
 
     @Column(name = "play_time", nullable = true)
     private Long playTime; // segundos?
@@ -84,13 +83,15 @@ public class GameSession {
     public static GameSession start(
             ConsumerDetails consumer,
             Game game,
-            DevicePlatform platform
+            DevicePlatform platform,
+            Campaign campaign
     ) {
         GameSession session = new GameSession();
         session.sessionToken = java.util.UUID.randomUUID().toString();
         session.userHash = consumer.getUserHash();
         session.consumer = consumer;
         session.game = game;
+        session.campaign = campaign;
         session.startTime = ZonedDateTime.now();
         session.completed = false;
         session.rewardGranted = false;

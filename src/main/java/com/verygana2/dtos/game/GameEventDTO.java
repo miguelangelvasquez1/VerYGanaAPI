@@ -11,5 +11,9 @@ public class GameEventDTO<T> {
     
     private String sessionToken;
     private String userHash;
-    private T payload; // Métricas periódicas, métricas finales, etc.
+    private Boolean isBrandedMode;
+    private Long campaignId;
+    private String gameId; // Titulo del juego
+    private T payload; // Métricas periódicas, métricas finales, pedir assets?, etc.\
+    private String technicalData; // Errores, load_time, etc
 }
