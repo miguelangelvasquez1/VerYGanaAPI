@@ -20,11 +20,14 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
@@ -46,6 +49,74 @@ public class AdController {
     private final AdService adService;
 
     // ==================== ENDPOINTS PARA ANUNCIANTES ====================
+
+    /**
+     * POST /api/ads/assets/prepare-upload
+     * PASO 1: Preparar la subida del asset del anuncio
+     * 
+     * Este endpoint:
+     * - Valida la metadata del archivo
+     * - Crea un registro de Asset en estado PENDING
+     * - Genera una URL pre-firmada de R2
+     * - Retorna el assetId y la URL para que el cliente suba el archivo
+     * 
+     * @param request Metadata del archivo a subir
+     * @param jwt Token JWT del usuario autenticado
+     * @return AssetId y URL pre-firmada para subir a R2
+     */
+    @PostMapping("/assets/prepare-upload")
+    public ResponseEntity<AdAssetUploadPermissionDTO> prepareAdAssetUpload(
+            @Valid @RequestBody FileUploadRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        
+        log.info("📤 [STEP 1] Preparando subida de asset para anuncio - Usuario: {}", jwt.getClaim("userId").toString());
+        
+        Long advertiserId = jwt.getClaim("userId");
+        
+        AdAssetUploadPermissionDTO permission = adService.prepareAdAssetUpload(
+            advertiserId,
+            request
+        );
+        
+        log.info("✅ [STEP 1] Permiso generado - AssetId: {}", permission.getAssetId());
+        
+        return ResponseEntity.ok(permission);
+    }
+
+    /**
+     * POST /api/ads
+     * PASO 2: Crear anuncio con asset ya subido
+     * 
+     * Este endpoint se llama DESPUÉS de que el cliente haya subido
+     * el archivo exitosamente a R2 usando la URL del paso 1.
+     * 
+     * El servicio:
+     * - Valida que el asset exista y pertenezca al usuario
+     * - Valida el archivo subido en R2 (mime type, tamaño)
+     * - Valida categorías y ubicaciones
+     * - Valida presupuesto del anunciante
+     * - Crea el anuncio en estado PENDING_APPROVAL
+     * 
+     * @param request Datos del anuncio + assetId
+     * @param jwt Token JWT del usuario autenticado
+     * @return ID del anuncio creado
+     */
+    @PostMapping("/create-with-asset")
+    public ResponseEntity<Void> createAd(
+            @Valid @RequestBody CreateAdRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        
+        log.info("📤 [STEP 2] Creando anuncio - Usuario: {}, AssetId: {}", 
+            jwt.getClaim("userId"), request.getAssetId());
+        
+        Long advertiserId = jwt.getClaim("userId");
+        
+        adService.createAdWithAsset(advertiserId, request);
+        
+        log.info("✅ [STEP 2] Anuncio creado - ID: {}");
+        
+        return ResponseEntity.status(HttpStatus.CREATED).build();
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADVERTISER')")

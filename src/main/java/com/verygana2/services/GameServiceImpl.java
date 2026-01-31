@@ -1,9 +1,13 @@
 package com.verygana2.services;
 
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,24 +16,29 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.EndSessionDTO;
+import com.verygana2.dtos.game.EndSessionDTO; 
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
-import com.verygana2.dtos.game.InitGameResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.UnauthorizedException;
-import com.verygana2.mappers.GameMapper;
+import com.verygana2.models.enums.AssetType;
 import com.verygana2.models.enums.DevicePlatform;
+import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameConfig;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameMetricDefinition;
 import com.verygana2.models.games.GameSession;
 import com.verygana2.models.games.GameSessionMetric;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
+import com.verygana2.repositories.games.GameConfigRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionMetricRepository;
@@ -49,6 +58,9 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class GameServiceImpl implements GameService {
 
+    @Value("${games.cdn-url}")
+    private String cdnUrl;
+
     @Value("${games.session-expiration-minutes}")
     private Integer sessionExpirationTime;
 
@@ -59,14 +71,15 @@ public class GameServiceImpl implements GameService {
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
     private final GameSessionRepository gameSessionRepository;
-    private final GameMapper gameMapper;
     private final GameMetricDefinitionRepository metricDefinitionRepository;
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
+    private final AssetRepository assetRepository;
+    private final GameConfigRepository gameConfigRepository;
     
     @Override
-    public InitGameResponseDTO initGameSponsored(InitGameRequestDTO request, Long userId) {
-        
+    public String initGameSponsored(InitGameRequestDTO request, Long userId) {
+         
         ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
 
         // 2. Validar juego
@@ -80,22 +93,32 @@ public class GameServiceImpl implements GameService {
             .orElseThrow(() -> new IllegalStateException("No active campaigns for this game"));
 
         // 4. Crear sesión
-        GameSession session = GameSession.start(consumer, game, resolvePlatform());
+        GameSession session = GameSession.start(consumer, game, resolvePlatform(), campaign);
 
         // 5. Persistir
         GameSession savedSession = gameSessionRepository.save(
             java.util.Objects.requireNonNull(session, "session must not be null"));
 
-        // 6. Construir respuesta
-        return gameMapper.toInitResponse(
-            savedSession,
-            game,
-            campaign
+        String sessionToken = savedSession.getSessionToken();
+        String userHash = savedSession.getUserHash();
+        String isBrandedMode = "true";
+        Long campaignId = campaign.getId();
+        String url = String.format(
+            "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            cdnUrl, game.getTitle(), sessionToken, userHash, isBrandedMode, campaignId
         );
+
+        return url;
+        // 6. Construir respuesta
+        // return gameMapper.toInitResponse(
+        //     savedSession,
+        //     game,
+        //     campaign
+        // );
     }
 
     @Override
-    public InitGameResponseDTO initGameNotSponsored(InitGameRequestDTO request, Long userId) {
+    public String initGameNotSponsored(InitGameRequestDTO request, Long userId) {
 
         // 2. Validar juego
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
@@ -112,12 +135,88 @@ public class GameServiceImpl implements GameService {
         // GameSession savedSession = gameSessionRepository.save(
         //     java.util.Objects.requireNonNull(session, "session must not be null"));
 
+        return game.getTitle();
         // 5. Construir respuesta
-        return gameMapper.toInitResponse(
-            null,
-            game,
-            null // No campaign for non-sponsored games
-        );
+        // return gameMapper.toInitResponse(
+        //     null,
+        //     game,
+        //     null // No campaign for non-sponsored games
+        // );
+    }
+
+    @Transactional(readOnly = true)
+    public ObjectNode getGameAssets(GameEventDTO<Void> req) {
+
+        if (req.getCampaignId() == null) {
+            throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
+        }
+
+        Campaign campaign = campaignRepository.findById(req.getCampaignId())
+            .orElseThrow(() ->
+                new ObjectNotFoundException(
+                    "Campaign not found with id: " + req.getCampaignId(), Campaign.class
+                )
+            );
+
+        List<GameConfig> configs = gameConfigRepository.findByCampaignId(req.getCampaignId());
+        List<Asset> assets = assetRepository.findByCampaignId(req.getCampaignId());
+
+        ObjectNode root = objectMapper.createObjectNode();
+
+        /* =======================
+        META
+        ======================= */
+        ObjectNode meta = objectMapper.createObjectNode();
+        meta.put("brand_id", campaign.getId().toString());
+        root.set("meta", meta);
+
+        /* =======================
+        HELPERS
+        ======================= */
+        Map<String, ObjectNode> blocks = new HashMap<>();
+
+        Function<String, ObjectNode> getBlock = blockKey ->
+            blocks.computeIfAbsent(blockKey, key -> {
+                ObjectNode node = objectMapper.createObjectNode();
+                root.set(key, node);
+                return node;
+            });
+
+        /* =======================
+        CONFIGS
+        ======================= */
+        for (GameConfig config : configs) {
+            GameConfigDefinition def = config.getDefinition();
+
+            String blockKey = def.getBlockKey(); // branding | root
+            String jsonKey  = def.getJsonKey();  // colors | texts | rewards
+
+            JsonNode valueNode = objectMapper.valueToTree(config.getValues());
+
+            if ("root".equals(blockKey)) {
+                // Se coloca directamente en el root
+                root.set(jsonKey, valueNode);
+            } else {
+                // Se coloca dentro del bloque correspondiente
+                ObjectNode block = getBlock.apply(blockKey);
+                block.set(jsonKey, valueNode);
+            }
+        }
+
+        /* =======================
+        ASSETS
+        ======================= */
+        for (Asset asset : assets) {
+            AssetType type = asset.getAssetDefinition().getAssetType();
+
+            String blockKey = type.getBlockKey(); // branding, audio, puzzle, etc
+            String jsonKey  = type.getJsonKey();  // logo_url, image_url, etc
+
+            ObjectNode block = getBlock.apply(blockKey);
+            block.put(jsonKey, asset.getObjectKey());
+        }
+
+        return root;
     }
 
     /**

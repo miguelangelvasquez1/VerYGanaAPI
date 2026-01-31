@@ -29,18 +29,20 @@ public interface AdMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "spentBudget", ignore = true)
     @Mapping(target = "currentLikes", constant = "0")
-    @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
-    @Mapping(target = "mediaType", ignore = true) // Se establece en el servicio según el archivo subido
+    @Mapping(target = "duration", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "asset", ignore = true)
     Ad toEntity(AdCreateDTO dto);
 
     // 🔹 Mapear entidad a DTO de respuesta
     @Mapping(target = "remainingBudget", expression = "java(entity.getRemainingBudget())")
     @Mapping(target = "remainingLikes", expression = "java(entity.getRemainingLikes())")
     @Mapping(target = "completionPercentage", expression = "java(entity.getCompletionPercentage())")
+    @Mapping(target = "contentUrl", ignore = true)
     AdResponseDTO toDto(Ad entity);
     @Mapping(target = "departmentName", source = "department.name")
     MunicipalityResponseDTO municipalityToDto(Municipality municipality);
@@ -48,11 +50,16 @@ public interface AdMapper {
     // 🔹 Mapear entidad a DTO para consumidor
     @Mapping(target = "advertiserName", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getCompanyName() : null)")
     @Mapping(target = "advertiserId", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getId() : null)")
+    @Mapping(target = "sessionUUID", ignore = true)
+    @Mapping(target = "contentUrl", ignore = true)
+    @Mapping(target = "mediaType", ignore = true)
     AdForConsumerDTO toConsumerDto(Ad ad);
 
     // Mapear entidad a DTO para administrador
     @Mapping(target = "advertiserName", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getCompanyName() : null)")
     @Mapping(target = "advertiserId", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getId() : null)")
+    @Mapping(target = "contentUrl", ignore = true)
+    @Mapping(target = "mediaType", ignore = true)
     AdForAdminDTO toAdminDto(Ad ad);
 
     // 🔹 Actualizar entidad existente desde un DTO
@@ -69,8 +76,9 @@ public interface AdMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
-    @Mapping(target = "contentUrl", ignore = true)
-    @Mapping(target = "mediaType", ignore = true) // Se establece en el servicio según el archivo subido
+    @Mapping(target = "duration", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "asset", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

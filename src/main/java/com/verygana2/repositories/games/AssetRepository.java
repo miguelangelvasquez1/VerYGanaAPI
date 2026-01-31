@@ -25,4 +25,6 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         @Param("status") AssetStatus status,
         @Param("threshold") ZonedDateTime threshold
     );
+
+    List<Asset> findByCampaignId(Long campaignId);
 }

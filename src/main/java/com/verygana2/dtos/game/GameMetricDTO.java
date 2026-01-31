@@ -14,5 +14,4 @@ public class GameMetricDTO {
     private MetricType type;
     private Object value;
 
-    private String technicalData; // Errores, load_time, etc
 }
