@@ -220,3 +220,9 @@ audit:
     max-pool-size: 10
     queue-capacity: 500
     thread-name-prefix: "audit-"
+
+  # Sorteos con API externa (Random.org)
+randomOrg:
+    api-url: https://api.random.org/json-rpc/4/invoke
+    api-key: ${RANDOM_ORG_API_KEY}
+    timeout: 30000 # 30 segundos

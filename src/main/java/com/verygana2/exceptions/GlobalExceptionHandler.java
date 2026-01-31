@@ -34,9 +34,9 @@ import lombok.extern.slf4j.Slf4j;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
-    
+
     // ==================== EXCEPCIONES GENÉRICAS ====================
-    
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Unexpected error: ", ex);
@@ -44,7 +44,7 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== AUTENTICACIÓN Y AUTORIZACIÓN ====================
-    
+
     @ExceptionHandler(AuthorizationDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAuthorizationDenied(
             AuthorizationDeniedException ex, WebRequest request) {
@@ -67,7 +67,7 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== RECURSOS NO ENCONTRADOS (404) ====================
-    
+
     @ExceptionHandler(AdNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleAdNotFoundException(
             AdNotFoundException ex, WebRequest request) {
@@ -83,13 +83,13 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ObjectNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleObjectNotFoundException(ObjectNotFoundException ex, WebRequest request){
+    public ResponseEntity<ErrorResponse> handleObjectNotFoundException(ObjectNotFoundException ex, WebRequest request) {
         log.warn("Object not found : {}", ex.getMessage());
         return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
     }
 
     // ==================== CONFLICTOS (409) ====================
-    
+
     @ExceptionHandler(DuplicateLikeException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateLikeException(
             DuplicateLikeException ex, WebRequest request) {
@@ -112,9 +112,9 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
-    
+
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalAccessException ex, WebRequest request){
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalAccessException ex, WebRequest request) {
         log.warn("Illegal argument: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
@@ -175,12 +175,19 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Database connection error", request);
     }
 
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRequestException(
+            InvalidRequestException ex, WebRequest request) {
+        log.warn("Invalid request error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     // ==================== VALIDACIONES JAKARTA ====================
-    
+
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolationException(
             ConstraintViolationException ex, WebRequest request) {
-        
+
         String messages = ex.getConstraintViolations()
                 .stream()
                 .map(ConstraintViolation::getMessage)
@@ -193,20 +200,20 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleMethodArgumentNotValidException(
             MethodArgumentNotValidException ex, WebRequest request) {
-        
+
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
 
         ErrorResponse errorResponse = ErrorResponse.builder()
-            .timestamp(Instant.now())
-            .status(HttpStatus.BAD_REQUEST.value())
-            .error("Validation Error")
-            .message("Validation failed for one or more fields")
-            .path(getPath(request))
-            .details(errors)
-            .build();
+                .timestamp(Instant.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .message("Validation failed for one or more fields")
+                .path(getPath(request))
+                .details(errors)
+                .build();
 
         log.warn("Validation failed: {}", errors);
         return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
@@ -234,18 +241,18 @@ public class GlobalExceptionHandler {
     }
 
     // ==================== MÉTODOS AUXILIARES ====================
-    
+
     private ResponseEntity<ErrorResponse> buildError(
             HttpStatus status, String message, WebRequest request) {
-        
+
         ErrorResponse error = ErrorResponse.builder()
-            .timestamp(Instant.now())
-            .status(status.value())
-            .error(status.getReasonPhrase())
-            .message(message)
-            .path(getPath(request))
-            .build();
-        
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(message)
+                .path(getPath(request))
+                .build();
+
         return new ResponseEntity<>(error, status);
     }
 

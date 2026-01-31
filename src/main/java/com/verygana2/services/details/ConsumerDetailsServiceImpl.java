@@ -35,7 +35,7 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("user id must be positive");
         }
-        return consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found", ConsumerDetails.class));
+        return consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found ", ConsumerDetails.class));
     }
 
     @Override

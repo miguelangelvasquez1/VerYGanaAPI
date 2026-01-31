@@ -13,6 +13,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.PrePersist;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -27,6 +28,13 @@ import lombok.EqualsAndHashCode;
 public class ConsumerDetails extends UserDetails {
 
     private String userHash;
+
+    @NotBlank(message = "the name cannot be empty")
+    @Size(max = 50)
+    private String userName;
+
+    @NotBlank(message = "the profile image cannot be empty")
+    private String profileImageUrl;
 
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)
@@ -57,6 +65,8 @@ public class ConsumerDetails extends UserDetails {
 
     private Integer age;
     private TargetGender gender;
+
+    private boolean hasPet;
     
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
@@ -67,6 +77,11 @@ public class ConsumerDetails extends UserDetails {
     @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<FavoriteProduct> favoriteProducts = new ArrayList<>();
 
-    @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
+
+    @PrePersist
+    public void onCreate (){
+        this.hasPet = false;
+    }
 }
