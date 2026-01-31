@@ -189,7 +189,6 @@ public class CampaignServiceImpl implements CampaignService {
             Asset asset = Asset.builder()
                 .objectKey(objectKey)
                 .sizeBytes(assetReq.getFileMetadata().getSizeBytes())
-                .assetType(definition.getAssetType())
                 .mediaType(definition.getMediaType())
                 .assetDefinition(definition)
                 .build();

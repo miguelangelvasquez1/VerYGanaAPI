@@ -2,7 +2,6 @@ package com.verygana2.models.games;
 
 import java.time.ZonedDateTime;
 import com.verygana2.models.enums.AssetStatus;
-import com.verygana2.models.enums.AssetType;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 
@@ -40,10 +39,6 @@ public class Asset {
 
     @Column(name = "size_bytes", nullable = false)
     private Long sizeBytes;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "asset_type", nullable = false)
-    private AssetType assetType; // Identificador del asset
         
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", nullable = false)

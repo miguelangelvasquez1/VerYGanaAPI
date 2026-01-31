@@ -61,16 +61,16 @@ public class AdMediaService {
         UploadResult result = storageService.uploadFile(file, folder, options);
 
         //Si hay un media previo, eliminarlo de la nube
-        if (ad.getContentUrl() != null) {
-            String previousPublicId = extractPublicIdFromUrl(ad.getContentUrl());
-            String resourceType = getResourceType(ad.getContentUrl());
-            boolean deleted = storageService.deleteFile(previousPublicId, resourceType);
-            if (deleted) log.info("Media previo eliminado: {}", previousPublicId);
-        }
+        // if (ad.getContentUrl() != null) {
+        //     String previousPublicId = extractPublicIdFromUrl(ad.getContentUrl());
+        //     String resourceType = getResourceType(ad.getContentUrl());
+        //     boolean deleted = storageService.deleteFile(previousPublicId, resourceType);
+        //     if (deleted) log.info("Media previo eliminado: {}", previousPublicId);
+        // }
         
-        // Actualizar entidad Ad
-        ad.setContentUrl(result.getSecureUrl());
-        ad = adRepository.save(ad);
+        // // Actualizar entidad Ad
+        // ad.setContentUrl(result.getSecureUrl());
+        // ad = adRepository.save(ad);
         
         log.info("Media subido exitosamente: {}, fecha: {}", result.getPublicId(), result.getCreatedAt());
         
@@ -88,23 +88,23 @@ public class AdMediaService {
         Ad ad = adRepository.findById(adId)
             .orElseThrow(() -> new AdNotFoundException(adId));
         
-        if (ad.getContentUrl() != null) {
-            // Extraer publicId de la URL
-            String publicId = extractPublicIdFromUrl(ad.getContentUrl());
-            String resourceType = getResourceType(ad.getContentUrl());
+        // if (ad.getContentUrl() != null) {
+        //     // Extraer publicId de la URL
+        //     String publicId = extractPublicIdFromUrl(ad.getContentUrl());
+        //     String resourceType = getResourceType(ad.getContentUrl());
             
-            // Eliminar del storage
-            boolean deleted = storageService.deleteFile(publicId, resourceType);
+        //     // Eliminar del storage
+        //     boolean deleted = storageService.deleteFile(publicId, resourceType);
             
-            if (deleted) {
-                ad.setContentUrl(null);
-                adRepository.save(ad);
-                log.info("Media eliminado exitosamente");
-            } else {
-                log.warn("No se pudo eliminar el media del storage");
-                throw new RuntimeException("No se pudo eliminar el media del storage");
-            }
-        }
+        //     if (deleted) {
+        //         ad.setContentUrl(null);
+        //         adRepository.save(ad);
+        //         log.info("Media eliminado exitosamente");
+        //     } else {
+        //         log.warn("No se pudo eliminar el media del storage");
+        //         throw new RuntimeException("No se pudo eliminar el media del storage");
+        //     }
+        // }
     }
 
     /**

@@ -1,36 +1,46 @@
 package com.verygana2.models.games;
 
 import java.time.ZonedDateTime;
+import java.util.Map;
 
-import org.springframework.data.annotation.Id;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
-public class GameConfig { // Un solo valor activo
+@Entity
+@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@Builder
+public class GameConfig { //Valores reales según schema, una entidad por colors, texts, rewards, etc.
     
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(optional = false)
+    @ManyToOne(optional = false, fetch = FetchType.LAZY)
     private GameConfigDefinition definition;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id", nullable = true)
+    @JoinColumn(name = "campaign_id")
     private Campaign campaign;
 
-    @Column(name = "numeric_value")
-    private Double numericValue;
-
-    @Column(name = "string_value")
-    private String stringValue;
-
-    @Column(name = "boolean_value")
-    private Boolean booleanValue;
+    /** Valores reales según schema */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "config_values", nullable = false)
+    private Map<String, Object> values;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;

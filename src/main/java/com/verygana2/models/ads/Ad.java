@@ -8,7 +8,6 @@ import java.util.List;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 
@@ -74,8 +73,6 @@ public class Ad {
     @Column(name = "reward_per_like", nullable = false, precision = 19, scale = 2)
     private BigDecimal rewardPerLike;
 
-    private Double duration; // Duración estimada del anuncio
-
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1, message = "Debe permitir al menos 1 like")
     @Max(value = 10000, message = "No puede exceder 10,000 likes")
@@ -86,6 +83,7 @@ public class Ad {
     @Builder.Default
     private Integer currentLikes = 0;
 
+    private Double duration; // Duración estimada del anuncio
     //CTR, metricas de engagement
 
     @Enumerated(EnumType.STRING)
@@ -121,15 +119,8 @@ public class Ad {
     @Builder.Default
     private List<AdLike> likes = new ArrayList<>();
 
-    @Column(length = 500)
-    private String contentUrl;
-
-    @Column(nullable = false)
-    @Enumerated(EnumType.STRING)
-    private MediaType mediaType;
-
     @Column(name = "target_url", length = 500)
-    private String targetUrl; // When de user clicks the ad, where to redirect
+    private String targetUrl; // When the user clicks the ad, where to redirect
 
     @ManyToMany
     @JoinTable(
@@ -150,6 +141,9 @@ public class Ad {
     @Builder.Default
     private List<Municipality> targetMunicipalities = new ArrayList<>();
 
+    @OneToOne(mappedBy = "ad", cascade = CascadeType.ALL)
+    private AdAsset asset;
+
     @Column(name = "min_age")
     @Min(value = 13, message = "La edad mínima debe ser 13")
     private Integer minAge;
@@ -164,6 +158,9 @@ public class Ad {
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason; // Si el anuncio es rechazado, se puede guardar la razón aquí
+
+
+    // HELPER METHODS ----------------------------------------------------------------------------------------------------
 
     @PrePersist
     protected void onCreate() {

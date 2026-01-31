@@ -36,6 +36,9 @@ public interface UserMapper {
     @Mapping(target = "age", ignore = true)
     @Mapping(target = "gender", ignore = true)
     @Mapping(target = "userHash", ignore = true)
+    @Mapping(target = "hasPet", ignore = true)
+    @Mapping(target = "profileImageUrl", ignore = true)
+    @Mapping(target = "userName", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----

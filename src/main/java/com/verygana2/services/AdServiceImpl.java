@@ -1,11 +1,15 @@
 package com.verygana2.services;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
@@ -16,10 +20,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.verygana2.dtos.FileUploadPermissionDTO;
+import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
@@ -32,10 +40,16 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
+import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.MediaType;
+import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.MunicipalityRepository;
@@ -43,12 +57,16 @@ import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AdMediaService;
+import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.specifications.AdSpecifications;
 import com.verygana2.utils.validators.DateValidator;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -70,8 +88,204 @@ public class AdServiceImpl implements AdService {
     private final TargetingValidator targetingValidator;
     private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
+    private final R2Service r2Service;
+    private final AdAssetRepository adAssetRepository;
+    private final AssetOrphanedService assetOrphanedService;
 
     // ==================== Consultas para Anunciantes ====================
+
+    /**
+     * PASO 1: Preparar la subida del asset del anuncio
+     * 
+     * Este método:
+     * - Valida la metadata del archivo
+     * - Determina el tipo de media (IMAGE o VIDEO) según content-type
+     * - Crea un registro de AdAsset en estado PENDING
+     * - Genera una URL pre-firmada de R2
+     * - Retorna el assetId y la URL para subir
+     * 
+     * @param advertiserId ID del anunciante
+     * @param request Metadata del archivo
+     * @return AssetId y URL pre-firmada
+     */
+    @Transactional
+    public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long advertiserId, FileUploadRequestDTO request) {
+
+        log.info("📤 Preparando subida de asset para anuncio - Advertiser: {}", advertiserId);
+
+        // 1. Validar que el advertiser existe
+        userRepository
+            .findById(Objects.requireNonNull(advertiserId, "advertiserId must not be null"))
+            .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + advertiserId));
+
+        // 2. Determinar tipo de media según content-type
+        MediaType mediaType = determineMediaType(request.getContentType());
+
+        // 3. Validar metadata del archivo
+        validateFileMetadata(request, mediaType);
+
+        // 4. Generar key única en R2
+        String objectKey = generateAdAssetObjectKey(advertiserId, request);
+
+        // 5. Crear asset en estado PENDING
+        AdAsset asset = AdAsset.builder()
+            .objectKey(objectKey)
+            .sizeBytes(request.getSizeBytes())
+            .mediaType(mediaType)
+            .status(AssetStatus.PENDING)
+            .uploadedAt(ZonedDateTime.now())
+            .build();
+
+        AdAsset savedAsset = adAssetRepository.save(Objects.requireNonNull(asset));
+
+        log.info("✅ Asset creado - ID: {}, ObjectKey: {}", savedAsset.getId(), objectKey);
+
+        // 6. Generar pre-signed URL de R2
+        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+            objectKey,
+            request.getContentType()
+        );
+
+        log.info("✅ Pre-signed URL generada para asset: {}", savedAsset.getId());
+
+        return AdAssetUploadPermissionDTO.builder()
+            .assetId(savedAsset.getId())
+            .permission(permission)
+            .build();
+    }
+
+    /**
+     * PASO 2: Crear anuncio con asset ya subido
+     * 
+     * Este método se llama DESPUÉS de que el frontend confirme
+     * que la subida a R2 fue exitosa.
+     * 
+     * Flujo:
+     * - Valida que el asset exista y pertenezca al usuario
+     * - Valida el archivo subido en R2 (mime type, tamaño)
+     * - Valida categorías y ubicaciones
+     * - Calcula y valida presupuesto
+     * - Crea el anuncio en estado PENDING_APPROVAL
+     * 
+     * @param advertiserId ID del anunciante
+     * @param request Datos del anuncio
+     * @return ID del anuncio creado
+     */
+    @Transactional
+    public void createAdWithAsset(Long advertiserId, CreateAdRequestDTO request) {
+
+        log.info("📤 Creando anuncio - Advertiser: {}, AssetId: {}", advertiserId, request.getAssetId());
+
+        AdAsset asset = null;
+
+        try {
+            // 1. Validar advertiser
+            User advertiser = userRepository
+                .findById(Objects.requireNonNull(advertiserId))
+                .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + advertiserId));
+
+            // 2. Validar y obtener asset
+            asset = adAssetRepository
+                .findById(Objects.requireNonNull(request.getAssetId()))
+                .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
+
+            // 4. Validar que el asset no esté ya asociado a un anuncio
+            if (asset.getAd() != null) {
+                throw new ValidationException("Asset ya está asociado a un anuncio: " + asset.getId());
+            }
+
+            // 5. Validar que el asset esté en estado PENDING
+            if (asset.getStatus() != AssetStatus.PENDING) {
+                throw new ValidationException("Asset no está en estado válido para crear anuncio: " + asset.getStatus());
+            }
+
+            // 6. Validar el archivo subido en R2
+            log.info("Validando archivo en R2: {}", asset.getObjectKey());
+            
+            MediaType mediaType = MediaType.valueOf(request.getMediaType());
+            Set<SupportedMimeType> allowedMimeTypes = getAllowedMimeTypesForMedia(mediaType);
+            long maxSizeBytes = getMaxSizeBytesForMedia(mediaType);
+
+            SupportedMimeType realMimeType = r2Service.validateUploadedObject(
+                asset.getObjectKey(),
+                asset.getSizeBytes(),
+                maxSizeBytes,
+                allowedMimeTypes
+            );
+
+            asset.setMimeType(realMimeType);
+            asset.setStatus(AssetStatus.VALIDATED);
+
+            log.info("✅ Archivo validado en R2 - MimeType: {}", realMimeType);
+
+            // 7. Validar categorías
+            List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
+
+            // 8. Validar ubicaciones (opcional)
+            List<Municipality> municipalities = Collections.emptyList();
+            if (request.getTargetMunicipalitiesCodes() != null && !request.getTargetMunicipalitiesCodes().isEmpty()) {
+                municipalities = targetingValidator.getValidatedMunicipalities(request.getTargetMunicipalitiesCodes());
+            }
+
+            // 9. Calcular presupuesto total
+            BigDecimal totalBudget = request.getRewardPerLike()
+                .multiply(BigDecimal.valueOf(request.getMaxLikes()));
+
+            log.info("Presupuesto calculado: {} (${} × {} likes)", 
+                totalBudget, request.getRewardPerLike(), request.getMaxLikes());
+
+            // 10. Validar saldo del advertiser
+            BigDecimal currentBalance = advertiser.getWallet().getBalance();
+            if (currentBalance.compareTo(totalBudget) < 0) {
+                throw new ValidationException(
+                    String.format("Saldo insuficiente. Requerido: $%s, Disponible: $%s", 
+                        totalBudget, currentBalance)
+                );
+            }
+
+            // 11. Crear anuncio, usar mapper
+            Ad ad = Ad.builder()
+                .title(request.getTitle())
+                .description(request.getDescription())
+                .rewardPerLike(request.getRewardPerLike())
+                .maxLikes(request.getMaxLikes())
+                .currentLikes(0)
+                .targetUrl(request.getTargetUrl())
+                .startDate(request.getStartDate())
+                .endDate(request.getEndDate())
+                .minAge(request.getMinAge())
+                .maxAge(request.getMaxAge())
+                .targetGender(TargetGender.valueOf(request.getTargetGender()))
+                .status(AdStatus.PENDING)
+                .advertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId))
+                .createdAt(ZonedDateTime.now())
+                .build();
+
+            // 12. Asociar categorías
+            ad.setCategories(categories);
+
+            // 13. Asociar ubicaciones
+            ad.setTargetMunicipalities(municipalities);
+
+            // 14. Persistir anuncio
+            Ad savedAd = adRepository.save(Objects.requireNonNull(ad));
+
+            // 15. Asociar asset al anuncio
+            asset.setAd(savedAd);
+            adAssetRepository.save(asset);
+
+            log.info("✅ Anuncio creado exitosamente - ID: {}, Status: {}", 
+                savedAd.getId(), savedAd.getStatus());
+
+        } catch (Exception e) {
+            // Si algo falla, marcar el asset como huérfano para limpieza posterior
+            if (asset != null) {
+                log.error("❌ Error creando anuncio, marcando asset como huérfano: {}", asset.getId());
+                assetOrphanedService.markAssetsAsOrphanedByIds(List.of(asset.getId()));
+            }
+            throw e;
+        }
+    }
 
     @Override
     public AdResponseDTO createAd(AdCreateDTO createDto, MultipartFile file, Long advertiserId) {
@@ -92,7 +306,6 @@ public class AdServiceImpl implements AdService {
         ad.setAdvertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId));
         ad.setCategories(selectedCategories);
         ad.setTargetMunicipalities(targetMunicipalities);
-        ad.setMediaType(createDto.getMediaType());
 
         Ad savedAd = adRepository.save(ad);
 
@@ -129,6 +342,7 @@ public class AdServiceImpl implements AdService {
             
             if (!codes.isEmpty()) {
                 targetMunicipalities = municipalityRepository.findAllById(codes);
+
             }
             
             ad.setTargetMunicipalities(targetMunicipalities);
@@ -138,9 +352,9 @@ public class AdServiceImpl implements AdService {
         
         Ad updatedAd = adRepository.save(ad);
 
-        if ((file == null || file.isEmpty()) && ad.getContentUrl() == null) {
-            throw new IllegalArgumentException("Se debe proporcionar un archivo multimedia");
-        }
+        // if ((file == null || file.isEmpty()) && ad.getContentUrl() == null) {
+        //     throw new IllegalArgumentException("Se debe proporcionar un archivo multimedia");
+        // }
 
         // Si se proporcionó un nuevo archivo, actualizar el media
         if (file != null && !file.isEmpty()) {
@@ -587,5 +801,95 @@ public class AdServiceImpl implements AdService {
     public Long getTotalLikesByAdvertiser(Long advertiserId) {
         Long total = adRepository.sumLikesByAdvertiserId(advertiserId);
         return total != null ? total : 0L;
+    }
+
+    // Métodos privados auxiliares -----------------------------
+
+    /**
+     * Determinar tipo de media según content-type
+     */
+    private MediaType determineMediaType(String contentType) {
+        if (contentType.startsWith("image/")) {
+            return MediaType.IMAGE;
+        } else if (contentType.startsWith("video/")) {
+            return MediaType.VIDEO;
+        } else {
+            throw new ValidationException("Content type no soportado: " + contentType);
+        }
+    }
+
+    /**
+     * Validar metadata del archivo
+     */
+    private void validateFileMetadata(FileUploadRequestDTO metadata, MediaType mediaType) {
+        // Validar tamaño según tipo de media
+        long maxSize = getMaxSizeBytesForMedia(mediaType);
+        
+        if (metadata.getSizeBytes() > maxSize) {
+            throw new ValidationException(
+                String.format("Archivo muy grande. Máximo permitido para %s: %d MB", 
+                    mediaType, maxSize / 1024 / 1024)
+            );
+        }
+
+        // Validar content-type
+        if (mediaType == MediaType.IMAGE && !metadata.getContentType().startsWith("image/")) {
+            throw new ValidationException("Content type debe ser image/* para media type IMAGE");
+        }
+        
+        if (mediaType == MediaType.VIDEO && !metadata.getContentType().startsWith("video/")) {
+            throw new ValidationException("Content type debe ser video/* para media type VIDEO");
+        }
+    }
+
+    /**
+     * Generar object key único para R2
+     */
+    private String generateAdAssetObjectKey(Long advertiserId, FileUploadRequestDTO metadata) {
+        String timestamp = String.valueOf(System.currentTimeMillis());
+        String uuid = UUID.randomUUID().toString().substring(0, 8);
+        String extension = getFileExtension(metadata.getOriginalFileName());
+        
+        return String.format("ads/advertiser-%d/%s-%s%s", 
+            advertiserId, timestamp, uuid, extension);
+    }
+
+    /**
+     * Obtener extensión del archivo
+     */
+    private String getFileExtension(String filename) {
+        int lastDot = filename.lastIndexOf('.');
+        if (lastDot == -1) {
+            return "";
+        }
+        return filename.substring(lastDot);
+    }
+
+    /**
+     * Obtener mime types permitidos según tipo de media
+     */
+    private Set<SupportedMimeType> getAllowedMimeTypesForMedia(MediaType mediaType) {
+        return switch (mediaType) {
+            case IMAGE -> Set.of(
+                SupportedMimeType.IMAGE_JPEG,
+                SupportedMimeType.IMAGE_PNG,
+                SupportedMimeType.IMAGE_WEBP
+            );
+            case VIDEO -> Set.of(
+                SupportedMimeType.VIDEO_MP4
+            );
+            default -> throw new ValidationException("Media type no soportado: " + mediaType);
+        };
+    }
+
+    /**
+     * Obtener tamaño máximo según tipo de media
+     */
+    private long getMaxSizeBytesForMedia(MediaType mediaType) {
+        return switch (mediaType) {
+            case IMAGE -> 5 * 1024 * 1024;      // 5 MB
+            case VIDEO -> 100 * 1024 * 1024;    // 100 MB
+            default -> throw new ValidationException("Media type no soportado: " + mediaType);
+        };
     }
 }

@@ -145,6 +145,7 @@ usersEarnings:
 # GAMES CONFIG
 # ============================================ 
 games:
+  cdn-url: ${GAMES_CDN_URL}
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
 
