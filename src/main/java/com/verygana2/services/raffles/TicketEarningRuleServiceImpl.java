@@ -333,7 +333,7 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         ZonedDateTime endOfDay = today.plusDays(1).atStartOfDay(ZoneId.of("America/Bogota"));
 
         // Query para contar tickets de hoy
-        long ticketsToday = ticketRepository.countByConsumerIdAndSourceAndIssuedAtBetween(
+        long ticketsToday = ticketRepository.countByTicketOwnerIdAndSourceAndIssuedAtBetween(
                 consumerId,
                 convertRuleTypeToSource(rule.getRuleType()),
                 startOfDay,
@@ -358,7 +358,7 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         }
 
         // Contar tickets totales emitidos por esta regla
-        long totalTickets = ticketRepository.countByConsumerIdAndSource(
+        long totalTickets = ticketRepository.countByTicketOwnerIdAndSource(
                 consumerId,
                 convertRuleTypeToSource(rule.getRuleType()));
 

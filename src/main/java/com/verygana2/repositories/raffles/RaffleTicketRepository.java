@@ -36,26 +36,26 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         /**
          * Cuenta tickets de un usuario en una rifa específica
          */
-        long countByConsumerIdAndRaffleId(Long consumerId, Long raffleId);
+        long countByTicketOwnerIdAndRaffleId(Long ticketOwnerId, Long raffleId);
 
         /**
          * Cuenta tickets de un usuario en una rifa segun el estado del ticket
          */
-        long countByConsumerIdAndRaffleIdAndStatus(
-                        Long consumerId,
+        long countByTicketOwnerIdAndRaffleIdAndStatus(
+                        Long ticketOwnerId,
                         Long raffleId,
                         RaffleTicketStatus status);
 
         /**
          * Cuenta tickets totales de un usuario (todas las rifas)
          */
-        long countByConsumerIdAndStatus(Long consumerId, RaffleTicketStatus status);
+        long countByTicketOwnerIdAndStatus(Long ticketOwnerId, RaffleTicketStatus status);
 
         /**
          * Cuenta tickets por fuente y rifa (para verificar límites)
          */
-        long countByConsumerIdAndRaffleIdAndSource(
-                        Long consumerId,
+        long countByTicketOwnerIdAndRaffleIdAndSource(
+                        Long ticketOwnerId,
                         Long raffleId,
                         RaffleTicketSource source);
 
@@ -63,35 +63,34 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
                         SELECT t.raffle.id, t.raffle.title, t.raffle.raffleType,
                                COUNT(t), t.raffle.drawDate, t.raffle.raffleStatus
                         FROM RaffleTicket t
-                        WHERE t.consumer.id = :consumerId
+                        WHERE t.ticketOwner.id = :ticketOwnerId
                         AND t.status = 'ACTIVE'
                         GROUP BY t.raffle.id, t.raffle.title, t.raffle.raffleType,
                                  t.raffle.drawDate, t.raffle.raffleStatus
                         ORDER BY t.raffle.drawDate DESC
                         """)
-        List<Object[]> countTicketsByConsumerGroupedByRaffle(@Param("consumerId") Long consumerId);
-
+        List<Object[]> countTicketsByTicketOwnerGroupedByRaffle(@Param("ticketOwnerId") Long ticketOwnerId);
         // ========== BÚSQUEDAS CON FILTROS ==========
 
         /**
          * Tickets de un usuario en una rifa con paginación
          */
-        Page<RaffleTicket> findByConsumerIdAndRaffleId(
-                        Long consumerId,
+        Page<RaffleTicket> findByTicketOwnerIdAndRaffleId(
+                        Long ticketOwnerId,
                         Long raffleId,
                         Pageable pageable);
 
         /**
          * Tickets de un usuario con filtros
          */
-        @Query("SELECT t FROM RaffleTicket t WHERE t.consumer.id = :consumerId " +
+        @Query("SELECT t FROM RaffleTicket t WHERE t.ticketOwner.id = :ticketOwnerId " +
                         "AND (:status IS NULL OR t.status = :status) " +
                         "AND (:source IS NULL OR t.source = :source) " +
                         "AND (:issuedFrom IS NULL OR t.issuedAt >= :issuedFrom) " +
                         "AND (:issuedTo IS NULL OR t.issuedAt <= :issuedTo) " +
                         "ORDER BY t.issuedAt DESC")
         Page<RaffleTicket> findUserTicketsWithFilters(
-                        @Param("consumerId") Long consumerId,
+                        @Param("ticketOwnerId") Long ticketOwnerId,
                         @Param("status") RaffleTicketStatus status,
                         @Param("source") RaffleTicketSource source,
                         @Param("issuedFrom") ZonedDateTime issuedFrom,
@@ -160,8 +159,8 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         /**
          * Cuenta tickets de un usuario por fuente en un rango de fechas
          */
-        long countByConsumerIdAndSourceAndIssuedAtBetween(
-                        Long consumerId,
+        long countByTicketOwnerIdAndSourceAndIssuedAtBetween(
+                        Long ticketOwnerId,
                         RaffleTicketSource source,
                         ZonedDateTime start,
                         ZonedDateTime end);
@@ -169,7 +168,7 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         /**
          * Cuenta tickets totales de un usuario por fuente
          */
-        long countByConsumerIdAndSource(
-                        Long consumerId,
+        long countByTicketOwnerIdAndSource(
+                        Long ticketOwnerId,
                         RaffleTicketSource source);
 }

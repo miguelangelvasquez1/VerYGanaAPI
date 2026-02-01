@@ -1,5 +1,6 @@
 package com.verygana2.models.raffles;
 
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
@@ -13,8 +14,8 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -25,9 +26,9 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "raffle_tickets", indexes = {
-        @Index(name = "idx_raffle_consumer", columnList = "raffle_id, consumer_id"),
+        @Index(name = "idx_raffle_consumer", columnList = "raffle_id, ticket_owner_id"),
         @Index(name = "idx_ticket_number", columnList = "ticket_number"),
-        @Index(name = "idx_consumer_tickets", columnList = "consumer_id, status")
+        @Index(name = "idx_consumer_tickets", columnList = "ticket_owner_id, status")
 }, uniqueConstraints = @UniqueConstraint(name = "unique_ticket", columnNames = "raffle_id, ticket_number"))
 @Data
 @AllArgsConstructor
@@ -55,9 +56,12 @@ public class RaffleTicket {
     private Raffle raffle;
 
     @ManyToOne
-    @JoinColumn(name = "consumer_id")
+    @JoinColumn(name = "ticketOwnerId")
     private ConsumerDetails ticketOwner;
 
-    @Column(name = "is_winner", nullable = false)
-    private boolean isWinner;
+    private Boolean isWinner;
+
+    private ZonedDateTime usedAt;
+
+    private ZonedDateTime issuedAt;
 }

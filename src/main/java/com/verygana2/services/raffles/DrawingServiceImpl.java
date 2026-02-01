@@ -263,7 +263,7 @@ public class DrawingServiceImpl implements DrawingService {
         Collections.shuffle(shuffledTickets, secureRandom);
         List<RaffleTicket> winners = shuffledTickets.subList(0, numberOfWinners);
 
-        winners.forEach(w -> w.setWinner(true));
+        winners.forEach(w -> w.setIsWinner(true));
         raffleTicketRepository.saveAll(winners);
 
         log.info("Internal draw completed. Winners: {}",
@@ -303,7 +303,7 @@ public class DrawingServiceImpl implements DrawingService {
                 winners.add(tickets.get(index));
             }
 
-            winners.forEach(w -> w.setWinner(true));
+            winners.forEach(w -> w.setIsWinner(true));
 
             raffleTicketRepository.saveAll(winners);
 
@@ -440,7 +440,7 @@ public class DrawingServiceImpl implements DrawingService {
                     .title("¡Felicidades! Has ganado en nuestra rifa 🎉")
                     .message("Estimado/a " + w.getUserName()
                             + ", nos complace anunciarte que has sido el ganador del premio en nuestra rifa oficial. Tu número de participación ha sido seleccionado de manera transparente y justa, y ahora podrás disfrutar de este reconocimiento especial.")
-                    .user(w)
+                    .user(w.getUser())
                     .build());
         });
 

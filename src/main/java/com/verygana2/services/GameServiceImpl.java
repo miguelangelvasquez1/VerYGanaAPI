@@ -109,12 +109,6 @@ public class GameServiceImpl implements GameService {
         );
 
         return url;
-        // 6. Construir respuesta
-        // return gameMapper.toInitResponse(
-        //     savedSession,
-        //     game,
-        //     campaign
-        // );
     }
 
     @Override
@@ -135,13 +129,12 @@ public class GameServiceImpl implements GameService {
         // GameSession savedSession = gameSessionRepository.save(
         //     java.util.Objects.requireNonNull(session, "session must not be null"));
 
-        return game.getTitle();
-        // 5. Construir respuesta
-        // return gameMapper.toInitResponse(
-        //     null,
-        //     game,
-        //     null // No campaign for non-sponsored games
-        // );
+        String url = String.format(
+            "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            cdnUrl, game.getTitle()
+        );
+
+        return url;
     }
 
     @Transactional(readOnly = true)
