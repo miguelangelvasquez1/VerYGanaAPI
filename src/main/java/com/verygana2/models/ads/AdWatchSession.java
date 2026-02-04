@@ -67,7 +67,7 @@ public class AdWatchSession {
         }
         if (expiresAt == null) {
 
-            double duration = ad.getDuration() != null ? ad.getDuration() : 0;
+            double duration = ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0;
             long durationSeconds = Math.round(duration);
             long marginSeconds = Math.max(300L, Math.round(duration * 0.1)); // 5 min de margen
 

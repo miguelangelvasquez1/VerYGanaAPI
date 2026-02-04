@@ -78,7 +78,7 @@ public class CampaignController {
     @PostMapping("/prepare")
     public ResponseEntity<List<AssetUploadPermissionDTO>> prepareCampaign(
             @Valid @RequestBody PrepareCampaignRequestDTO request,
-            @AuthenticationPrincipal Jwt jwt) {
+            @AuthenticationPrincipal Jwt jwt) { 
         
        List<AssetUploadPermissionDTO> permissions = 
             service.prepareAssetUploads(

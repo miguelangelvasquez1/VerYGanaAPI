@@ -54,6 +54,9 @@ public class AdAsset {
     @Column(nullable = false, length = 20)
     private AssetStatus status;
 
+    @Column(name = "duration_seconds")
+    private Double durationSeconds;
+    
     @OneToOne
     @JoinColumn(name = "ad_id")
     private Ad ad;

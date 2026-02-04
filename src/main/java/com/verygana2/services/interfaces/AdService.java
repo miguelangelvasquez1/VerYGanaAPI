@@ -4,11 +4,9 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
@@ -26,10 +24,8 @@ public interface AdService {
     void createAdWithAsset(Long advertiserId, CreateAdRequestDTO request);
 
     AdAssetUploadPermissionDTO prepareAdAssetUpload(Long advertiserId, FileUploadRequestDTO request);
-
-    AdResponseDTO createAd(AdCreateDTO createDto, MultipartFile file, Long advertiserId);
     
-    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, MultipartFile file, Long advertiserId);
+    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId);
 
     PagedResponse<AdResponseDTO> getFilteredAds(Long advertiserId, AdFilterDTO filters, Pageable pageable);
     

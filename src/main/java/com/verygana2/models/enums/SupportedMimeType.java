@@ -14,8 +14,7 @@ public enum SupportedMimeType {
     AUDIO_OGG("audio/ogg", MediaType.AUDIO),
 
     VIDEO_MP4("video/mp4", MediaType.VIDEO),
-
-    APPLICATION_JSON("application/json", MediaType.TEXT);
+    VIDEO_QUICK_TIME("video/quicktime", MediaType.VIDEO);
 
     private final String mime;
     private final MediaType mediaType;

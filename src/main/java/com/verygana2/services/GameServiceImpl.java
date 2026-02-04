@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -140,9 +141,12 @@ public class GameServiceImpl implements GameService {
     @Transactional(readOnly = true)
     public ObjectNode getGameAssets(GameEventDTO<Void> req) {
 
-        if (req.getCampaignId() == null) {
-            throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
-        }
+        //Borrar:
+        req.setCampaignId(14L);
+
+        // if (req.getCampaignId() == null) {
+        //     throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
+        // }
 
         Campaign campaign = campaignRepository.findById(req.getCampaignId())
             .orElseThrow(() ->
@@ -209,6 +213,17 @@ public class GameServiceImpl implements GameService {
             block.put(jsonKey, asset.getObjectKey());
         }
 
+        try { //borrar
+            
+            ObjectNode testNode = objectMapper.createObjectNode();
+            testNode.put("image_url", "https://cdn.verygana.com/public/games-test/image2_1200.png");
+
+            root.set("puzzle", testNode);
+
+            log.info("Game assets: {}", objectMapper.writeValueAsString(root));
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
         return root;
     }
 

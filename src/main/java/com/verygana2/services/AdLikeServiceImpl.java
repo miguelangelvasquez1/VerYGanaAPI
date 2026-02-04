@@ -160,7 +160,7 @@ public class AdLikeServiceImpl implements AdLikeService {
 
         // 3. Validar tiempo mínimo visto (ad.duration manda)
         long requiredSeconds = Math.round(
-            ad.getDuration() != null ? ad.getDuration() : 0
+            ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0
         );
 
         Duration watched = Duration.between(session.getStartedAt(), now);

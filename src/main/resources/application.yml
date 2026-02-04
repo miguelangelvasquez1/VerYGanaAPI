@@ -8,6 +8,8 @@ spring:
   # DATABASE CONFIGURATION
   # =====================
   datasource:
+    # Para Docker
+    # url: jdbc:mysql://host.docker.internal:3306/verygana    
     # Para Railway (PostgreSQL) - usa variables de entorno
     url: ${DATABASE_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota}
     username: ${DB_USERNAME:root}

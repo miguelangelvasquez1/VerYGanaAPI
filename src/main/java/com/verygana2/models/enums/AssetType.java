@@ -9,7 +9,7 @@ public enum AssetType {
     BANNER("branding", "banner_url"),
     ICON("branding", "icon_url"),
     THUMBNAIL("branding", "thumbnail_url"),
-    BACKGROUND("branding", "background_url"),
+    BACKGROUND("branding", "logo_watermark_url"),
     SPRITE("branding", "sprite_url"),
     SOUNDTRACK("audio", "soundtrack_url"),
     SOUND_EFFECT("audio", "sound_effect_url");

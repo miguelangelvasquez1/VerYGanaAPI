@@ -7,6 +7,7 @@ import java.util.List;
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.models.Category;
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.MediaType;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdResponseDTO {
+public class AdResponseDTO { // Response for advertiser
     
     private Long id;
     private String title;
@@ -42,5 +43,6 @@ public class AdResponseDTO {
     private Integer maxAge;
     private String targetGender;
     private String rejectionReason;
+    private MediaType mediaType;
     private List<MunicipalityResponseDTO> targetMunicipalities;
 }

@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
+import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.exceptions.StorageException;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.storage.config.R2Config;
@@ -38,6 +39,8 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
+import software.amazon.awssdk.services.s3.presigner.model.PresignedGetObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedPutObjectRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 
@@ -55,6 +58,8 @@ public class R2Service {
 
     @Autowired
     private R2Config r2Config;
+
+    private static final String PRIVATE_PREFIX = "private/";
 
     /**
      * Genera URL pre-firmada para subir un objeto desde el cliente.
@@ -74,11 +79,12 @@ public class R2Service {
         try {
             // Validar parámetros
             validateObjectKey(objectKey); //Poner loggers audit, evitar sobreescritura?
+            String privateKey = PRIVATE_PREFIX + objectKey;
             
             // Crear request de pre-signed URL
             PutObjectRequest putRequest = PutObjectRequest.builder()
                 .bucket(r2Config.getBucketName())
-                .key(objectKey)
+                .key(privateKey)
                 .contentType(contentType)
                 .build();
 
@@ -92,11 +98,10 @@ public class R2Service {
                 r2Presigner.presignPutObject(presignRequest);
 
             String uploadUrl = presignedRequest.url().toString();
-            String publicUrl = buildPublicUrl(objectKey);
 
             log.info("Pre-signed URL generada para: {}", objectKey);
 
-            return new FileUploadPermissionDTO(uploadUrl, publicUrl, DEFAULT_UPLOAD_EXPIRATION.getSeconds());
+            return new FileUploadPermissionDTO(uploadUrl, DEFAULT_UPLOAD_EXPIRATION.getSeconds());
 
         } catch (Exception e) {
             log.error("Error generando pre-signed URL para {}: {}", objectKey, e.getMessage());
@@ -113,10 +118,11 @@ public class R2Service {
      */
     public SupportedMimeType validateUploadedObject(String objectKey, long expectedSizeBytes, long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
         try {
+            String privateKey = PRIVATE_PREFIX + objectKey;
             HeadObjectResponse head = r2Client.headObject(
                 HeadObjectRequest.builder()
                     .bucket(r2Config.getBucketName())
-                    .key(objectKey)
+                    .key(privateKey)
                     .build()
             );
 
@@ -125,7 +131,7 @@ public class R2Service {
 
             // 1. Validar tamaño máximo absoluto (política)
             if (realSize > maxSizeBytes) {
-                deleteObject(objectKey);
+                deleteObject(privateKey);
                 throw new ValidationException(
                     "Archivo excede tamaño máximo permitido. Máximo: " + maxSizeBytes + ", real: " + realSize
                 );
@@ -133,7 +139,7 @@ public class R2Service {
 
             // 2. Validar tamaño exacto contra lo declarado
             if (realSize != expectedSizeBytes) {
-                deleteObject(objectKey);
+                deleteObject(privateKey);
                 throw new ValidationException(
                     "Tamaño inválido. Esperado: " + expectedSizeBytes + ", real: " + realSize
                 );
@@ -142,16 +148,16 @@ public class R2Service {
             // 3. Validar content-type almacenado en R2 contra definidos (política)
             if (detectedMime == null || !allowedMimeTypes.contains(detectedMime)) {
                 log.info("realContent: " + detectedMime + ", allowedMime: " + allowedMimeTypes);
-                deleteObject(objectKey);
+                deleteObject(privateKey);
                 throw new ValidationException(
                     "Content-Type inválido: " + detectedMime
                 );
             }
 
             // 4. Validar content-type REAL (fuente de verdad)
-            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(objectKey));
+            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(privateKey));
             if (!allowedMimeTypes.contains(detectedRealMime)) {
-                deleteObject(objectKey);
+                deleteObject(privateKey);
                 throw new ValidationException(
                     "Content-Type real inválido: " + detectedRealMime
                 );
@@ -367,19 +373,19 @@ public class R2Service {
      */
     public String buildPublicUrl(String objectKey) {
 
-        if (r2Config.getCdnDomain() != null && !r2Config.getCdnDomain().isEmpty()) {
-            return String.format("https://%s/%s", r2Config.getCdnDomain(), objectKey);
+        // CDN custom (PRODUCCIÓN)
+        if (r2Config.getCdnDomain() != null && !r2Config.getCdnDomain().isBlank()) {
+            return String.format("https://%s/%s",
+                r2Config.getCdnDomain(),
+                objectKey
+            );
         }
-        
-        return String.format("https://pub-62444f33ebfb47b89addd611efd14277.r2.dev/%s",
+
+        // Fallback controlado (DEV / STAGING)
+        return String.format("https://%s.r2.dev/%s",
+            r2Config.getAccountId(),
             objectKey
         );
-
-        // Fallback a URL pública de R2
-        // return String.format("https://%s.r2.cloudflarestorage.com/%s",
-        //     r2Config.getAccountId(),
-        //     objectKey
-        // );
     }
 
     /**
@@ -421,6 +427,24 @@ public class R2Service {
             log.error("Error copiando objeto: {}", e.getMessage());
             throw new StorageException("Error copiando objeto", e);
         }
+    }
+
+    /**
+     * Genera URL pre-firmada para hacer GET de un objeto
+     */
+    public String generatePresignedUrl(String objectKey, int expiresInSeconds) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+            .bucket(r2Config.getBucketName())
+            .key(objectKey)
+            .build();
+
+        GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+            .signatureDuration(Duration.ofSeconds(expiresInSeconds))
+            .getObjectRequest(getObjectRequest)
+            .build();
+
+        PresignedGetObjectRequest presignedRequest = r2Presigner.presignGetObject(presignRequest);
+        return presignedRequest.url().toString();
     }
 
     /**
