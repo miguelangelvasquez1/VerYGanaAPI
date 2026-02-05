@@ -27,14 +27,13 @@ public class GameConfigDefinition {
     private Game game;
 
     @Column(name = "block_key", nullable = false)
-    private String blockKey;
+    private String blockKey; // root, branding
 
-    /** branding, colors, audio, texts */
     @Column(name = "json_key", nullable = false)
-    private String jsonKey; // colors, audio, etc
+    private String jsonKey; // colors, rewards, texts, etc
 
     @Column(name = "config_schema", columnDefinition = "json", nullable = false)
-    private String schema;
+    private String schema; // json de los nodos hijos con su tipo de dato
 
     @Column(name = "required", nullable = false)
     private boolean required;

@@ -265,7 +265,7 @@ public class GameServiceImpl implements GameService {
 
         session.setCompleted(true);
         session.setEndTime(end);
-        session.setPlayTime(
+        session.setPlayTimeSeconds(
             java.time.Duration.between(session.getStartTime(), end).getSeconds()
         );
         session.setScore(event.getPayload().getFinalScore());

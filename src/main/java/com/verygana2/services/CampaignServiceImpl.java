@@ -129,9 +129,10 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         // 3. Presupuesto
-        if (request.getBudget() != null) {
-            validateBudgetChange(campaign, request.getBudget());
-            campaign.setBudget(request.getBudget());
+        BigDecimal currentBudget = BigDecimal.valueOf(request.getBudgetCoins()).multiply(request.getCoinValue());
+        if (currentBudget != null) {
+            validateBudgetChange(campaign, currentBudget);
+            campaign.setBudget(currentBudget);
         }
 
         // 4. Target URL
@@ -233,7 +234,8 @@ public class CampaignServiceImpl implements CampaignService {
             AdvertiserDetails advertiser = advertiserRepository.findById(Objects.requireNonNull(advertiserId))
                 .orElseThrow(() -> new ValidationException("Anunciante no existe"));
 
-            if (advertiser.getUser().getWallet().getBalance().compareTo(request.getBudget()) < 0) {
+            BigDecimal currentBudget = BigDecimal.valueOf(request.getBudgetCoins()).multiply(request.getCoinValue());
+            if (advertiser.getUser().getWallet().getBalance().compareTo(currentBudget) < 0) {
                 throw new ValidationException("Saldo insuficiente");
             }
 

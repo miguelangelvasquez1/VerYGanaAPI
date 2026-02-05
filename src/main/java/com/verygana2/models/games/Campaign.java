@@ -29,6 +29,7 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -52,6 +53,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class Campaign {
+
+    @Version
+    private Long version;
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -70,7 +75,7 @@ public class Campaign {
     @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Asset> assets;
 
-    // Stats persisitdas
+    // Stats persistidas
     @Column(name = "sessions_played") // Total sessions on this campaign
     @Builder.Default
     private Long sessionsPlayed = 0L;
@@ -83,13 +88,29 @@ public class Campaign {
     @Builder.Default
     private Long totalPlayTimeSeconds = 0L;
 
+    // Rewards config --------------------
+
+    @Column(name = "coin_value", precision = 12, scale = 4, nullable = false)
+    private BigDecimal coinValue;
+    @Column(name = "completion_coins", nullable = false)
+    private Integer completionCoins; //completionCoins > maxCoinsPerSession
+    @Column(name = "budget_coins", nullable = false)
+    private Integer budgetCoins;
+    @Column(name = "spent_coins", nullable = false)
+    @Builder.Default
+    private Integer spentCoins = 0;
+
+    @Column(name = "max_coins_per_session", nullable = false)
+    private Integer maxCoinsPerSession;
+    @Column(name = "max_session_per_user_per_day", nullable = false)
+    private Integer maxSessionsPerUserPerDay;
 
     @Column(name = "budget", precision = 12, scale = 2, nullable = false)
-    private BigDecimal budget;
+    private BigDecimal budget; //Calculated: coinValue * budgetCoins
 
     @Column(name = "spent", precision = 12, scale = 2, nullable = false)
     @Builder.Default
-    private BigDecimal spent = BigDecimal.ZERO;
+    private BigDecimal spent = BigDecimal.ZERO; // Calculated: coinValue * spentCoins
 
     @Column(name = "start_date")
     private ZonedDateTime startDate; // Could be null, meaning it starts immediately
@@ -147,6 +168,43 @@ public class Campaign {
     void onCreate() {
         createdAt = ZonedDateTime.now();
         updatedAt = createdAt;
+
+        if (coinValue == null || coinValue.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("coinValue must be greater than 0");
+        }
+
+        if (budgetCoins == null || budgetCoins <= 0) {
+            throw new IllegalStateException("budgetCoins must be greater than 0");
+        }
+
+        if (maxCoinsPerSession == null || maxCoinsPerSession <= 0) {
+            throw new IllegalStateException("maxCoinsPerSession must be greater than 0");
+        }
+
+        if (completionCoins == null || completionCoins < 0) {
+            throw new IllegalStateException("completionCoins cannot be negative");
+        }
+
+        if (maxCoinsPerSession < completionCoins) {
+            throw new IllegalStateException(
+                "maxCoinsPerSession must be greater than or equal to completionCoins"
+            );
+        }
+
+        if (maxSessionsPerUserPerDay == null || maxSessionsPerUserPerDay <= 0) {
+            throw new IllegalStateException("maxSessionsPerUserPerDay must be greater than 0");
+        }
+
+        if (minAge != null && maxAge != null && minAge > maxAge) {
+            throw new IllegalStateException("minAge cannot be greater than maxAge");
+        }
+
+        // Calculate derived values defensively
+        this.budget = coinValue.multiply(BigDecimal.valueOf(budgetCoins));
+
+        if (spent == null) {
+            this.spent = BigDecimal.ZERO;
+        }
     }
 
     @PreUpdate

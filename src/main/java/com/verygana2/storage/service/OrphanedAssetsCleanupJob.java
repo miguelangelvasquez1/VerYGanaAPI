@@ -43,7 +43,7 @@ public class OrphanedAssetsCleanupJob {
 
         ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
 
-        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold); //falta poner pending assets si llevan mucho como pendign y tambien el trabajo de remove para assets de nauncios
 
         log.info("Cleanup job: {} assets candidatos", assets.size());
 

@@ -58,16 +58,24 @@ public interface CampaignMapper {
     // Estado inicial
     @Mapping(target = "status", expression = "java(CampaignStatus.DRAFT)")
     // Datos editables del request
-    @Mapping(target = "budget", source = "request.budget")
     @Mapping(target = "targetUrl", source = "request.targetUrl")
     @Mapping(target = "minAge", source = "request.minAge")
     @Mapping(target = "maxAge", source = "request.maxAge")
     @Mapping(target = "targetGender", source = "request.targetGender")
+    @Mapping(target = "coinValue", source = "request.coinValue")
+    @Mapping(target = "completionCoins", source = "request.completionCoins")
+    @Mapping(target = "budgetCoins", source = "request.budgetCoins")
+    @Mapping(target = "maxCoinsPerSession", source = "request.maxCoinsPerSession")
+    @Mapping(target = "maxSessionsPerUserPerDay", source = "request.maxSessionsPerUserPerDay")
     // Targeting relacional (se setea luego en el service)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true)
     // Auditoría
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    // Additional unmapped properties
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "spentCoins", ignore = true)
+    @Mapping(target = "budget", ignore = true)
     Campaign toEntity(CreateCampaignRequestDTO request, Game game, AdvertiserDetails advertiser);
 }

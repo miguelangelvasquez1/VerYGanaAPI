@@ -11,11 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GameConfigDTO {
 
-    private MetaDTO meta;
-
-    private Map<String, Object> branding;
-    private Map<String, Object> puzzle;
-    private Map<String, Object> audio;
+    private Map<String, Object> game_config;
+    private Map<String, Object> colors;
     private Map<String, Object> texts;
     private Map<String, Object> rewards;
+    private Map<String, Object> game;
+
+
 }

@@ -98,7 +98,7 @@ public class CampaignController {
     public ResponseEntity<Boolean> createCampaign(
             @RequestParam Long gameId,
             @AuthenticationPrincipal Jwt jwt,
-            @RequestBody CreateCampaignRequestDTO request) {
+            @RequestBody @Valid CreateCampaignRequestDTO request) {
         
         Long userId = jwt.getClaim("userId");
         service.createCampaignWithAssets(
