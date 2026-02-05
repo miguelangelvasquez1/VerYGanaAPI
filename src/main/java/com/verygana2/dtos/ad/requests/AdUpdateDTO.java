@@ -4,7 +4,6 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.TargetGender;
 
 import jakarta.validation.constraints.DecimalMax;
@@ -41,8 +40,6 @@ public class AdUpdateDTO {
     private ZonedDateTime startDate;
     
     private ZonedDateTime endDate;
-
-    private MediaType mediaType;
     
     @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
     private String targetUrl;

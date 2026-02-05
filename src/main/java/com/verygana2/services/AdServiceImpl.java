@@ -15,15 +15,14 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.multipart.MultipartFile;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
@@ -47,7 +46,6 @@ import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
-import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
@@ -56,10 +54,10 @@ import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
-import com.verygana2.storage.service.AdMediaService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.specifications.AdSpecifications;
+import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.DateValidator;
 import com.verygana2.utils.validators.TargetingValidator;
 
@@ -84,13 +82,13 @@ public class AdServiceImpl implements AdService {
     private final AdMapper adMapper;
     private final CategoryService categoryService;
     private final MunicipalityRepository municipalityRepository;
-    private final AdMediaService adMediaService;
     private final TargetingValidator targetingValidator;
     private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
     private final R2Service r2Service;
     private final AdAssetRepository adAssetRepository;
     private final AssetOrphanedService assetOrphanedService;
+    private final AssetDurationService mediaMetadataService;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -110,8 +108,6 @@ public class AdServiceImpl implements AdService {
      */
     @Transactional
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long advertiserId, FileUploadRequestDTO request) {
-
-        log.info("📤 Preparando subida de asset para anuncio - Advertiser: {}", advertiserId);
 
         // 1. Validar que el advertiser existe
         userRepository
@@ -134,19 +130,16 @@ public class AdServiceImpl implements AdService {
             .mediaType(mediaType)
             .status(AssetStatus.PENDING)
             .uploadedAt(ZonedDateTime.now())
+            .ad(null)
             .build();
 
         AdAsset savedAsset = adAssetRepository.save(Objects.requireNonNull(asset));
-
-        log.info("✅ Asset creado - ID: {}, ObjectKey: {}", savedAsset.getId(), objectKey);
 
         // 6. Generar pre-signed URL de R2
         FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
             objectKey,
             request.getContentType()
         );
-
-        log.info("✅ Pre-signed URL generada para asset: {}", savedAsset.getId());
 
         return AdAssetUploadPermissionDTO.builder()
             .assetId(savedAsset.getId())
@@ -174,32 +167,25 @@ public class AdServiceImpl implements AdService {
     @Transactional
     public void createAdWithAsset(Long advertiserId, CreateAdRequestDTO request) {
 
-        log.info("📤 Creando anuncio - Advertiser: {}, AssetId: {}", advertiserId, request.getAssetId());
-
         AdAsset asset = null;
 
         try {
-            // 1. Validar advertiser
             User advertiser = userRepository
                 .findById(Objects.requireNonNull(advertiserId))
                 .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + advertiserId));
 
-            // 2. Validar y obtener asset
             asset = adAssetRepository
                 .findById(Objects.requireNonNull(request.getAssetId()))
                 .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
 
-            // 4. Validar que el asset no esté ya asociado a un anuncio
             if (asset.getAd() != null) {
                 throw new ValidationException("Asset ya está asociado a un anuncio: " + asset.getId());
             }
 
-            // 5. Validar que el asset esté en estado PENDING
             if (asset.getStatus() != AssetStatus.PENDING) {
                 throw new ValidationException("Asset no está en estado válido para crear anuncio: " + asset.getStatus());
             }
 
-            // 6. Validar el archivo subido en R2
             log.info("Validando archivo en R2: {}", asset.getObjectKey());
             
             MediaType mediaType = MediaType.valueOf(request.getMediaType());
@@ -216,12 +202,11 @@ public class AdServiceImpl implements AdService {
             asset.setMimeType(realMimeType);
             asset.setStatus(AssetStatus.VALIDATED);
 
-            log.info("✅ Archivo validado en R2 - MimeType: {}", realMimeType);
+            Double durationSeconds = resolveAssetDuration(asset);
+            asset.setDurationSeconds(durationSeconds);
 
-            // 7. Validar categorías
             List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
 
-            // 8. Validar ubicaciones (opcional)
             List<Municipality> municipalities = Collections.emptyList();
             if (request.getTargetMunicipalitiesCodes() != null && !request.getTargetMunicipalitiesCodes().isEmpty()) {
                 municipalities = targetingValidator.getValidatedMunicipalities(request.getTargetMunicipalitiesCodes());
@@ -230,9 +215,6 @@ public class AdServiceImpl implements AdService {
             // 9. Calcular presupuesto total
             BigDecimal totalBudget = request.getRewardPerLike()
                 .multiply(BigDecimal.valueOf(request.getMaxLikes()));
-
-            log.info("Presupuesto calculado: {} (${} × {} likes)", 
-                totalBudget, request.getRewardPerLike(), request.getMaxLikes());
 
             // 10. Validar saldo del advertiser
             BigDecimal currentBalance = advertiser.getWallet().getBalance();
@@ -244,81 +226,31 @@ public class AdServiceImpl implements AdService {
             }
 
             // 11. Crear anuncio, usar mapper
-            Ad ad = Ad.builder()
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .rewardPerLike(request.getRewardPerLike())
-                .maxLikes(request.getMaxLikes())
-                .currentLikes(0)
-                .targetUrl(request.getTargetUrl())
-                .startDate(request.getStartDate())
-                .endDate(request.getEndDate())
-                .minAge(request.getMinAge())
-                .maxAge(request.getMaxAge())
-                .targetGender(TargetGender.valueOf(request.getTargetGender()))
-                .status(AdStatus.PENDING)
-                .advertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId))
-                .createdAt(ZonedDateTime.now())
-                .build();
+            AdvertiserDetails advertiserDetails =
+                entityManager.getReference(AdvertiserDetails.class, advertiserId);
 
-            // 12. Asociar categorías
+            Ad ad = adMapper.toEntity(request, advertiserDetails);
+
             ad.setCategories(categories);
-
-            // 13. Asociar ubicaciones
             ad.setTargetMunicipalities(municipalities);
 
-            // 14. Persistir anuncio
             Ad savedAd = adRepository.save(Objects.requireNonNull(ad));
 
             // 15. Asociar asset al anuncio
             asset.setAd(savedAd);
             adAssetRepository.save(asset);
 
-            log.info("✅ Anuncio creado exitosamente - ID: {}, Status: {}", 
-                savedAd.getId(), savedAd.getStatus());
-
         } catch (Exception e) {
-            // Si algo falla, marcar el asset como huérfano para limpieza posterior
             if (asset != null) {
-                log.error("❌ Error creando anuncio, marcando asset como huérfano: {}", asset.getId());
-                assetOrphanedService.markAssetsAsOrphanedByIds(List.of(asset.getId()));
+                log.error("Error creando anuncio, marcando asset como huérfano: {}", asset.getId());
+                assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
         }
     }
 
     @Override
-    public AdResponseDTO createAd(AdCreateDTO createDto, MultipartFile file, Long advertiserId) {
-        log.info("Creating ad for advertiser: {}", advertiserId);
-
-        DateValidator.validateStartBeforeEnd(createDto.getStartDate(), createDto.getEndDate(),
-    "La fecha de fin debe ser posterior a la de inicio");
-
-        // Validar que no exista un anuncio activo con el mismo título
-        if (adRepository.existsByAdvertiserIdAndTitle(advertiserId, createDto.getTitle())) {
-            throw new InvalidAdStateException("Ya existe un anuncio activo con ese título");
-        }
-
-        List<Category> selectedCategories = categoryService.getValidatedCategories(createDto.getCategoryIds());
-        List<Municipality> targetMunicipalities = targetingValidator.getValidatedMunicipalities(createDto.getTargetMunicipalitiesCodes());
-        
-        Ad ad = adMapper.toEntity(createDto);
-        ad.setAdvertiser(entityManager.getReference(AdvertiserDetails.class, advertiserId));
-        ad.setCategories(selectedCategories);
-        ad.setTargetMunicipalities(targetMunicipalities);
-
-        Ad savedAd = adRepository.save(ad);
-
-        //Llamar al servicio de almacenamiento
-        adMediaService.uploadAdMedia(savedAd.getId(), file, createDto.getMediaType());
-
-        log.info("Ad created successfully with ID: {}", savedAd.getId());
-        
-        return adMapper.toDto(savedAd);
-    }
-
-    @Override
-    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, MultipartFile file, Long advertiserId) {
+    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId) {
         log.info("Updating ad {} for advertiser {}", adId, advertiserId);
 
         DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
@@ -351,37 +283,69 @@ public class AdServiceImpl implements AdService {
         adMapper.updateEntityFromDto(updateDto, ad);
         
         Ad updatedAd = adRepository.save(ad);
-
-        // if ((file == null || file.isEmpty()) && ad.getContentUrl() == null) {
-        //     throw new IllegalArgumentException("Se debe proporcionar un archivo multimedia");
-        // }
-
-        // Si se proporcionó un nuevo archivo, actualizar el media
-        if (file != null && !file.isEmpty()) {
-            try {
-                adMediaService.uploadAdMedia(updatedAd.getId(), file, updateDto.getMediaType());
-                log.info("Media updated for ad {}", adId);
-            } catch (Exception e) {
-                log.error("Error updating media for ad {}: {}", adId, e.getMessage());
-                throw new RuntimeException("Error al actualizar el archivo multimedia", e);
-            }
-        }
+    
+        AdResponseDTO responseDto = adMapper.toDto(updatedAd);
+        responseDto.setContentUrl(r2Service.generatePresignedUrl("private/" + updatedAd.getAsset().getObjectKey(), 200));
 
         log.info("Ad {} updated successfully by advertiser {}", adId, advertiserId);
-        return adMapper.toDto(updatedAd);
+        return responseDto;
     }
 
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<AdResponseDTO> getFilteredAds(Long advertiserId, AdFilterDTO filters, Pageable pageable) {
+
         Specification<Ad> spec = AdSpecifications.hasAdvertiser(advertiserId)
             .and(AdSpecifications.hasStatus(filters.getStatus()))
             .and(AdSpecifications.hasSearchTerm(filters.getSearchTerm()))
             .and(AdSpecifications.inDateRange(filters.getStartDate(), filters.getEndDate()))
             .and(AdSpecifications.inCategories(filters.getCategoryIds()));
 
-        Page<Ad> ads = adRepository.findAll(spec, Objects.requireNonNull(pageable));
-        return PagedResponse.from(ads.map(adMapper::toDto));
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+
+        Pageable fixedSortPageable = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
+        Page<Ad> adsPage = adRepository.findAll(spec, fixedSortPageable);
+
+        Page<AdResponseDTO> dtoPage = adsPage.map(ad -> {
+
+            AdResponseDTO dto = adMapper.toDto(ad);
+
+            AdAsset asset = ad.getAsset();
+            dto.setMediaType(asset != null ? asset.getMediaType() : null);
+            if (asset == null) {
+                dto.setContentUrl(null);
+                return dto;
+            }
+            
+            switch (ad.getStatus()) {
+
+                case PENDING:
+                case REJECTED:
+                    // Asset privado → presigned URL
+                    dto.setContentUrl(
+                        r2Service.generatePresignedUrl("private/" + asset.getObjectKey(), 200));
+                    break;
+
+                case APPROVED:
+                case ACTIVE:
+                case PAUSED:
+                case COMPLETED:
+                case EXPIRED:
+                    // Asset público → CDN
+                    dto.setContentUrl(
+                        r2Service.buildPublicUrl("public/" + asset.getObjectKey())
+                    );
+                    break;
+
+                case BLOCKED:
+                default:
+                    dto.setContentUrl(null);
+            }
+
+            return dto;
+        });
+
+        return PagedResponse.from(dtoPage);
     }
 
     @Override
@@ -876,7 +840,8 @@ public class AdServiceImpl implements AdService {
                 SupportedMimeType.IMAGE_WEBP
             );
             case VIDEO -> Set.of(
-                SupportedMimeType.VIDEO_MP4
+                SupportedMimeType.VIDEO_MP4,
+                SupportedMimeType.VIDEO_QUICK_TIME
             );
             default -> throw new ValidationException("Media type no soportado: " + mediaType);
         };
@@ -890,6 +855,28 @@ public class AdServiceImpl implements AdService {
             case IMAGE -> 5 * 1024 * 1024;      // 5 MB
             case VIDEO -> 100 * 1024 * 1024;    // 100 MB
             default -> throw new ValidationException("Media type no soportado: " + mediaType);
+        };
+    }
+
+    private Double resolveAssetDuration(AdAsset asset) {
+
+        return switch (asset.getMediaType()) {
+
+            case IMAGE -> 6.0; // regla de negocio fija
+
+            case VIDEO -> {
+                Double duration = mediaMetadataService
+                    .getVideoDurationSeconds(asset.getObjectKey());
+
+                if (duration < 5 || duration > 30) {
+                    throw new ValidationException(
+                        "Duración de video no permitida: " + duration + "s"
+                    );
+                }
+
+                yield duration;
+            }
+            default -> throw new IllegalArgumentException("Unexpected value: " + asset.getMediaType());
         };
     }
 }

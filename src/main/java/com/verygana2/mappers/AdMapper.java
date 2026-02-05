@@ -9,39 +9,41 @@ import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import com.verygana2.dtos.MunicipalityResponseDTO;
-import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
+import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.models.userDetails.AdvertiserDetails;
 
 @Mapper(componentModel = "spring")
 public interface AdMapper {
 
     // 🔹 Crear entidad a partir de DTO
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "advertiser", ignore = true)
-    @Mapping(target = "likes", ignore = true)
+    @Mapping(target = "currentLikes", constant = "0")
     @Mapping(target = "status", expression = "java(com.verygana2.models.enums.AdStatus.PENDING)")
     @Mapping(target = "createdAt", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "spentBudget", ignore = true)
-    @Mapping(target = "currentLikes", constant = "0")
-    @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "rejectionReason", ignore = true)
-    @Mapping(target = "totalBudget", ignore = true)
-    @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
-    @Mapping(target = "duration", ignore = true)
+    @Mapping(target = "advertiser", source = "advertiser")
+    @Mapping(target = "targetGender", expression = "java(com.verygana2.models.enums.TargetGender.valueOf(request.getTargetGender()))")
     @Mapping(target = "version", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "totalBudget", ignore = true)
+    @Mapping(target = "spentBudget", ignore = true)
+    @Mapping(target = "likes", ignore = true)
+    @Mapping(target = "categories", ignore = true)
+    @Mapping(target = "targetMunicipalities", ignore = true)
     @Mapping(target = "asset", ignore = true)
-    Ad toEntity(AdCreateDTO dto);
+    @Mapping(target = "rejectionReason", ignore = true)
+    Ad toEntity(CreateAdRequestDTO request, AdvertiserDetails advertiser);
 
     // 🔹 Mapear entidad a DTO de respuesta
     @Mapping(target = "remainingBudget", expression = "java(entity.getRemainingBudget())")
     @Mapping(target = "remainingLikes", expression = "java(entity.getRemainingLikes())")
     @Mapping(target = "completionPercentage", expression = "java(entity.getCompletionPercentage())")
+    @Mapping(target = "mediaType", expression = "java(entity.getAsset() != null ? entity.getAsset().getMediaType() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     AdResponseDTO toDto(Ad entity);
     @Mapping(target = "departmentName", source = "department.name")
@@ -76,7 +78,6 @@ public interface AdMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
-    @Mapping(target = "duration", ignore = true)
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "asset", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales

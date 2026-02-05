@@ -16,13 +16,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
-
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.ad.requests.AdCreateDTO;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
@@ -65,11 +61,12 @@ public class AdController {
      * @return AssetId y URL pre-firmada para subir a R2
      */
     @PostMapping("/assets/prepare-upload")
+    @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdAssetUploadPermissionDTO> prepareAdAssetUpload(
             @Valid @RequestBody FileUploadRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
         
-        log.info("📤 [STEP 1] Preparando subida de asset para anuncio - Usuario: {}", jwt.getClaim("userId").toString());
+        log.info("📤 [STEP 1] Preparando subida de asset para anuncio - Usuario: {}, {}", jwt.getClaim("userId").toString(), request);
         
         Long advertiserId = jwt.getClaim("userId");
         
@@ -101,7 +98,8 @@ public class AdController {
      * @param jwt Token JWT del usuario autenticado
      * @return ID del anuncio creado
      */
-    @PostMapping("/create-with-asset")
+    @PostMapping("/assets")
+    @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<Void> createAd(
             @Valid @RequestBody CreateAdRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -112,34 +110,19 @@ public class AdController {
         Long advertiserId = jwt.getClaim("userId");
         
         adService.createAdWithAsset(advertiserId, request);
-        
-        log.info("✅ [STEP 2] Anuncio creado - ID: {}");
+        log.info("✅ [STEP 2] Anuncio creado exitosamente");
         
         return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @PostMapping
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> createAd(
-            @Valid @RequestPart("ad") AdCreateDTO createDto,
-            @RequestPart("file") MultipartFile file,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        log.info("Creating ad for advertiser: {}" + jwt.getClaim("userId"));
-        AdResponseDTO ad = adService.createAd(createDto, file, jwt.getClaim("userId"));
-        
-        return ResponseEntity.status(HttpStatus.CREATED).body(ad);
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADVERTISER')")
     public ResponseEntity<AdResponseDTO> updateAd(
             @PathVariable Long id,
-            @Valid @RequestPart("ad") AdUpdateDTO updateDto,
-            @RequestPart(value = "file", required = false) MultipartFile file,
+            @Valid @RequestBody AdUpdateDTO updateDto,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.updateAd(id, updateDto, file, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.updateAd(id, updateDto, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 

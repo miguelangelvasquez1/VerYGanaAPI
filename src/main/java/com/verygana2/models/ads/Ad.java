@@ -83,7 +83,6 @@ public class Ad {
     @Builder.Default
     private Integer currentLikes = 0;
 
-    private Double duration; // Duración estimada del anuncio
     //CTR, metricas de engagement
 
     @Enumerated(EnumType.STRING)
@@ -106,7 +105,7 @@ public class Ad {
     @Transient
     private BigDecimal totalBudget; // Se puede calcular como rewardPerLike * maxLikes
 
-    @Builder.Default
+    @Builder.Default    
     @Transient
     private BigDecimal spentBudget = BigDecimal.ZERO; // Se puede calcular como rewardPerLike * currentLikes
 

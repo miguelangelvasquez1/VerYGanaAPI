@@ -12,9 +12,6 @@ public class FileUploadPermissionDTO { //Poner id de la entidad que contiene el 
     /** URL firmada para subir (PUT) */
     private String uploadUrl;
 
-    /** URL pública CDN definitiva */
-    private String publicUrl;
-
     /** Tiempo de expiración en segundos */
     private Long expiresInSeconds;
 }
