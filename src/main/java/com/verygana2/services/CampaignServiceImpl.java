@@ -15,9 +15,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
@@ -38,11 +42,13 @@ import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameAssetDefinition;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.userDetails.AdvertiserDetails;
 import com.verygana2.repositories.details.AdvertiserDetailsRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameAssetDefinitionRepository;
+import com.verygana2.repositories.games.GameConfigDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.CampaignService;
 import com.verygana2.services.interfaces.CategoryService;
@@ -66,6 +72,7 @@ public class CampaignServiceImpl implements CampaignService {
     @PersistenceContext
     private EntityManager entityManager;
 
+    private final ObjectMapper objectMapper;
     private final AdvertiserDetailsRepository advertiserRepository;
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
@@ -74,6 +81,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final CampaignRepository campaignRepository;
     private final GameRepository gameRepository;
     private final GameAssetDefinitionRepository assetDefinitionRepository;
+    private final GameConfigDefinitionRepository gameConfigDefinitionRepository;
     private final AssetRepository assetRepository;
     private final GameMapper gameMapper;
     private final R2Service r2Service;
@@ -310,6 +318,30 @@ public class CampaignServiceImpl implements CampaignService {
     @Override
     public PagedResponse<GameDTO> getAvailableGames(Long advertiserId, Pageable pageable) {
         return PagedResponse.from(gameRepository.findGamesWithoutCampaign(advertiserId, pageable));
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public List<GameConfigDefinitionDTO> getConfigDefinitionByGame(Long gameId) {
+
+        List<GameConfigDefinition> defs = gameConfigDefinitionRepository.findByGameId(gameId);
+
+        return defs.stream().map(def -> {
+
+            Map<String, Object> schema;
+            try {
+                schema = objectMapper.readValue(def.getSchema(), new TypeReference<Map<String, Object>>() {});
+            } catch (JsonProcessingException e) {
+                throw new ValidationException("Error processing schema for config definition: " + def.getJsonKey(), e);
+            }
+
+            return new GameConfigDefinitionDTO(
+                def.getJsonKey(),
+                def.isRequired(),
+                def.getDescription(),
+                schema
+            );
+        }).toList();
     }
 
     @Transactional(readOnly = true)

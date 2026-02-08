@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
@@ -95,11 +96,11 @@ public class CampaignController {
      * Paso 2: Crear campaña con assets ya subidos
      */
     @PostMapping("/create")
-    public ResponseEntity<Boolean> createCampaign(
+    public ResponseEntity<Boolean> createCampaign(  //mandar esto bien y crear los gameconfig en el backend, depsues probar bien el formulario dinamico.
             @RequestParam Long gameId,
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid CreateCampaignRequestDTO request) {
-        
+        log.info(request.toString());
         Long userId = jwt.getClaim("userId");
         service.createCampaignWithAssets(
             gameId, 
@@ -117,6 +118,12 @@ public class CampaignController {
 
         Long userId = jwt.getClaim("userId");
         return service.getAvailableGames(userId, pageable);
+    }
+
+    @GetMapping("/config-definitions/{gameId}")
+    public ResponseEntity<List<GameConfigDefinitionDTO>> getGameConfigDefinitions(@PathVariable Long gameId) {
+        List<GameConfigDefinitionDTO> config = service.getConfigDefinitionByGame(gameId);
+        return ResponseEntity.ok(config);
     }
     
     @GetMapping("/{gameId}/asset-definitions")

@@ -11,11 +11,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GameConfigDTO {
 
-    private Map<String, Object> game_config;
-    private Map<String, Object> colors;
-    private Map<String, Object> texts;
-    private Map<String, Object> rewards;
-    private Map<String, Object> game;
-
-
+    private Map<String, Object> config;
+    private Map<String, String> colors;
+    private Map<String, String> texts;
+    private Map<String, Object> specifications;/** Configuración específica del juego (libre) */
 }

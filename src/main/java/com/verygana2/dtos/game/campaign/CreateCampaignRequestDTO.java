@@ -3,8 +3,10 @@ package com.verygana2.dtos.game.campaign;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.verygana2.dtos.game.GameConfigDTO;
 import com.verygana2.models.enums.TargetGender;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
@@ -65,4 +67,8 @@ public class CreateCampaignRequestDTO {
     private TargetGender targetGender; // ALL, MALE, FEMALE
 
     private List<String> targetMunicipalityCodes; // Opcional, puede ser vacío
+
+    @NotNull(message = "La configuración del juego es requerida")
+    @Valid
+    private GameConfigDTO gameConfig;
 }
