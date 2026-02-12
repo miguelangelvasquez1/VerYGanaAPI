@@ -70,8 +70,9 @@ public class GameController {
 
     @PostMapping("/metrics")
     public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event, @AuthenticationPrincipal Jwt jwt) {
-        Long userId = jwt.getClaim("userId");
-        gameService.submitGameMetrics(event, userId);
+        // Long userId = jwt.getClaim("userId");
+        System.out.println(event.toString());
+        gameService.submitGameMetrics(event);
         return ResponseEntity.ok().build();
     }
 

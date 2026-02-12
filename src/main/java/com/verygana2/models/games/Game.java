@@ -37,8 +37,11 @@ public class Game {
     @Column(name = "description", nullable = false)
     private String description;
 
+    // segun el equipo de desarrollo
+    private String deliveryType; // PATH, QUERY
+
     @Column(name = "url", nullable = false)
-    private String url;
+    private String url; //objectKey
 
     @Column(name = "front_page_url", nullable = false)
     private String frontPageUrl;

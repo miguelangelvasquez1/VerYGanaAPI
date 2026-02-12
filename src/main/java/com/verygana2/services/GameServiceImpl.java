@@ -59,7 +59,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class GameServiceImpl implements GameService {
 
-    @Value("${games.cdn-url}")
+    @Value("${cloudflare.r2.games-worker-domain}")
     private String cdnUrl;
 
     @Value("${games.session-expiration-minutes}")
@@ -130,12 +130,51 @@ public class GameServiceImpl implements GameService {
         // GameSession savedSession = gameSessionRepository.save(
         //     java.util.Objects.requireNonNull(session, "session must not be null"));
 
-        String url = String.format(
-            "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-            cdnUrl, game.getTitle()
-        );
+        String sessionToken = "public"; // no sponsored
+        String userHash = userId.toString();
+        boolean brandedMode = false;
+        String campaignId = "none";
+        String baseUrl;
 
-        return url;
+        if (game.getDeliveryType().equals("PATH")) {
+
+            // /games/{objectKey}/
+            baseUrl = String.format(
+                "%s/%s/",
+                cdnUrl,
+                game.getUrl() //cambair attribute name
+            );
+
+        } else if (game.getDeliveryType().equals("QUERY")) {
+
+            // /games/main/?game=snake
+            // baseUrl = String.format(
+            //     "https://%s/Build2/?game_title=%s",
+            //     cdnUrl,
+            //     game.getUrl()
+            // );
+            baseUrl = String.format(
+                "http://localhost:60057/?game_title=%s",
+                game.getUrl()
+            );
+
+        } else {
+            throw new IllegalStateException("Unsupported routing type");
+        }
+
+        // String url = String.format(
+        //     "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+        //     cdnUrl, game.getTitle()
+        // );
+
+        return String.format(
+            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl,
+            sessionToken,
+            userHash,
+            brandedMode,
+            campaignId //no se pone si es no branded?
+        );
     }
 
     @Transactional(readOnly = true)
@@ -231,9 +270,9 @@ public class GameServiceImpl implements GameService {
      * Recibe y guarda métricas de una sesión de juego
      */
     @Override
-    public void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event, Long userId) {
+    public void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event) {
         // Validar sesión y permisos
-        GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash(), userId);
+        GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
 
         // Obtener definiciones de métricas del juego
         List<GameMetricDefinition> definitions = metricDefinitionRepository
@@ -259,7 +298,7 @@ public class GameServiceImpl implements GameService {
     @Override
     public void completeSession(GameEventDTO<EndSessionDTO> event, Long userId) {
 
-        GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash(), userId);
+        GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
 
         ZonedDateTime end = ZonedDateTime.now();
 
@@ -286,7 +325,7 @@ public class GameServiceImpl implements GameService {
         return DevicePlatform.MOBILE; // 1 = web, 2 = android, 3 = ios
     }
 
-    private GameSession validateSessionOwnership(String sessionToken, String userHash, Long userId) {
+    private GameSession validateSessionOwnership(String sessionToken, String userHash) {
 
         GameSession session = gameSessionRepository.findBySessionToken(
             java.util.Objects.requireNonNull(sessionToken, "sessionToken must not be null"))
@@ -296,9 +335,9 @@ public class GameServiceImpl implements GameService {
             throw new UnauthorizedException("Session does not belong to user");
         }
 
-        if (!session.getConsumer().getId().equals(userId)) {
-            throw new UnauthorizedException("Session does not belong to user");
-        }
+        // if (!session.getConsumer().getId().equals(userId)) {
+        //     throw new UnauthorizedException("Session does not belong to user");
+        // }
 
         if (session.getStartTime().plusMinutes(sessionExpirationTime).isBefore(ZonedDateTime.now())) {
             throw new BusinessException("Session expired");

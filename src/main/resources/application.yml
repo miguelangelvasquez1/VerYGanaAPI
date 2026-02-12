@@ -10,14 +10,15 @@ spring:
   datasource:
     # Para Docker
     # url: jdbc:mysql://host.docker.internal:3306/verygana
-    # url: jdbc:mysql://interchange.proxy.rlwy.net:52331/railway?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    # url: jdbc:postgresql://dpg-d66gfsmsb7us73f305j0-a.oregon-postgres.render.com:5432/verygana_eyf3
     # username: root
-    # password: RpDDRVtCZjLBGTLWgVVPlKLPYdbCqNzB
+    # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
+
     # Para Railway (PostgreSQL) - usa variables de entorno
     url: ${DATABASE_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
-    driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
+    # driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
 
   # =====================
   # JPA/HIBERNATE CONFIGURATION
@@ -29,7 +30,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        dialect: ${HIBERNATE_DIALECT:org.hibernate.dialect.MySQL8Dialect}
         jdbc:
           time_zone: America/Bogota
 
@@ -85,6 +85,7 @@ cloudflare:
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
     bucket-name: ${R2_BUCKET_NAME:verygana-campaigns}
     cdn-domain: ${R2_CDN_DOMAIN:} # Opcional: cdn.verygana.com
+    games-worker-domain: ${R2_GAMES_WORKER_DOMAIN:games.verygana.com}
     endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
 
 # Configuración de limpieza de huérfanos

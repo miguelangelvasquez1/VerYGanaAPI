@@ -12,6 +12,7 @@ public class PublicPaths {
         "/api/webhooks/**",
         "/api/payments/wompi/config",
         "/api/payments/wompi/pse/banks",
-        "/games/assets"
+        "/games/assets",
+        "/games/metrics"
         }; 
 }
