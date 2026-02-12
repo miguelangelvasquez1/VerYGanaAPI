@@ -7,9 +7,7 @@ import java.util.List;
 
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
-import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleType;
-import com.verygana2.models.userDetails.AdminDetails;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -21,8 +19,6 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -45,6 +41,9 @@ public class Raffle {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @OneToMany(mappedBy = "raffle", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<RaffleRule> raffleRules;
 
     @Column(nullable = false)
     @Size(max = 200, message = "Raffle title cannot exceed 200 characters")
@@ -70,6 +69,12 @@ public class Raffle {
     @Column(name = "draw_date", nullable = false)
     private ZonedDateTime drawDate;
 
+    @Column(name = "max_tickets_per_user")
+    private Long maxTicketsPerUser;
+
+    @Column(name = "max_total_tickets")
+    private Long maxTotalTickets; // null = sin límite
+
     @Column(name = "total_tickets_issued")
     private Long totalTicketsIssued;
 
@@ -90,7 +95,7 @@ public class Raffle {
     private String drawProof;
 
     @OneToMany(mappedBy = "raffle")
-    private List<RaffleTicket> tickets;
+    private List<RaffleTicket> issuedTickets;
 
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;
@@ -98,59 +103,20 @@ public class Raffle {
     @Column(name = "updated_at", nullable = false)
     private ZonedDateTime updatedAt;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "created_by")
-    private AdminDetails createdBy;
+    @Column(name = "created_by", nullable = false)
+    private Long createdBy;
+
+    @Column(name = "modified_by")
+    private Long modifiedBy;
 
     @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
     private String termsAndConditions;
-
-    // ========== LÍMITES GLOBALES ==========
     
-    @Column(name = "max_total_tickets")
-    private Long maxTotalTickets; // null = sin límite
-
-    @Column(name = "max_tickets_per_user")
-    private Long maxTicketsPerUser;
-
-    // ========== LÍMITES POR FUENTE ==========
-    
-    @Column(name = "max_tickets_from_purchases")
-    private Long maxTicketsFromPurchases;
-    
-    @Column(name = "max_tickets_from_ads")
-    private Long maxTicketsFromAds;
-    
-    @Column(name = "max_tickets_from_games")
-    private Long maxTicketsFromGames;
-    
-    @Column(name = "max_tickets_from_referrals")
-    private Long maxTicketsFromReferrals;
-
-    @Column(name = "max_tickets_platform_gifts")
-    private Long maxTicketsFromPlatformGifts;
-    
-    // ========== CONTADORES ACTUALES ==========
-    
-    @Column(name = "current_tickets_from_purchases")
-    private Long currentTicketsFromPurchases = 0L;
-    
-    @Column(name = "current_tickets_from_ads")
-    private Long currentTicketsFromAds = 0L;
-    
-    @Column(name = "current_tickets_from_games")
-    private Long currentTicketsFromGames = 0L;
-    
-    @Column(name = "current_tickets_from_referrals")
-    private Long currentTicketsFromReferrals = 0L;
-
-    @Column(name = "max_tickets_from_platform_gifts")
-    private Long currentTicketsFromPlatformGifts;
 
     @PrePersist
     public void onCreate() {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-        this.raffleStatus = RaffleStatus.ACTIVE;
+        this.raffleStatus = RaffleStatus.DRAFT;
         this.createdAt = now;
         this.updatedAt = now;
         this.totalTicketsIssued = 0L;
@@ -193,59 +159,52 @@ public class Raffle {
             .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    /**
-     * Verifica si se pueden emitir más tickets de una fuente específica
-     */
-    public boolean canIssueTicketsFromSource(RaffleTicketSource source, int quantity) {
-        Long max = getMaxForSource(source);
-        if (max == null) return true; // Sin límite
-        
-        Long current = getCurrentForSource(source);
-        return (current + quantity) <= max;
-    }
-    
-    /**
-     * Verifica si se alcanzó el límite total
-     */
     public boolean hasReachedTotalLimit() {
-        if (maxTotalTickets == null) return false;
+        if (maxTotalTickets == null) {
+            return false;
+        }
         return totalTicketsIssued >= maxTotalTickets;
     }
-    
-    /**
-     * Incrementa el contador de una fuente específica
-     */
-    public void incrementSourceCounter(RaffleTicketSource source, int quantity) {
-        switch (source) {
-            case PURCHASE -> currentTicketsFromPurchases += quantity;
-            case ADS_WATCHED -> currentTicketsFromAds += quantity;
-            case GAME_ACHIEVEMENT -> currentTicketsFromGames += quantity;
-            case REFERRAL -> currentTicketsFromReferrals += quantity;
-            case PLATFORM_GIFT -> currentTicketsFromPlatformGifts += quantity;
+
+    public Long getAvailableTickets() {
+        if (maxTotalTickets == null) {
+            return null;
         }
-        totalTicketsIssued += quantity;
+        return Math.max(0, maxTotalTickets - totalTicketsIssued);
     }
-    
-    private Long getMaxForSource(RaffleTicketSource source) {
-        return switch (source) {
-            case PURCHASE -> maxTicketsFromPurchases;
-            case ADS_WATCHED -> maxTicketsFromAds;
-            case GAME_ACHIEVEMENT -> maxTicketsFromGames;
-            case REFERRAL -> maxTicketsFromReferrals;
-            case PLATFORM_GIFT -> maxTicketsFromPlatformGifts;
-            default -> null;
-        };
+
+    public void incrementTicketCount(int quantity) {
+        if (quantity <= 0) {
+            throw new IllegalArgumentException("Quantity must be positive");
+        }
+        this.totalTicketsIssued += quantity;
     }
-    
-    private Long getCurrentForSource(RaffleTicketSource source) {
-        return switch (source) {
-            case PURCHASE -> currentTicketsFromPurchases;
-            case ADS_WATCHED -> currentTicketsFromAds;
-            case GAME_ACHIEVEMENT -> currentTicketsFromGames;
-            case REFERRAL -> currentTicketsFromReferrals;
-            case PLATFORM_GIFT -> currentTicketsFromPlatformGifts;
-            default -> 0L;
-        };
+
+    public void incrementParticipantCount() {
+        this.totalParticipants++;
+    }
+
+    public boolean isActiveAndNotExpired() {
+        if (raffleStatus != RaffleStatus.ACTIVE) {
+            return false;
+        }
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        return now.isBefore(endDate);
+    }
+
+    public List<RaffleRule> getActiveRules() {
+        return raffleRules.stream()
+                .filter(RaffleRule::isActive)
+                .filter(config -> config.getTicketEarningRule().isActive())
+                .toList();
+    }
+
+    public boolean canBeDrawn() {
+        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        return raffleStatus == RaffleStatus.CLOSED &&
+               now.isAfter(drawDate) &&
+               !prizes.isEmpty() &&
+               totalTicketsIssued > 0;
     }
 
 }

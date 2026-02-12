@@ -18,6 +18,7 @@ import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.raffle.requests.CreatePrizeRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
+import com.verygana2.dtos.raffle.requests.CreateRaffleRuleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
@@ -31,30 +32,64 @@ import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
-import com.verygana2.repositories.raffles.PrizeRepository;
+import com.verygana2.models.raffles.RaffleRule;
+import com.verygana2.models.raffles.TicketEarningRule;
 import com.verygana2.repositories.raffles.RaffleParticipationRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
+import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class RaffleServiceImpl implements RaffleService {
 
     private final RaffleRepository raffleRepository;
+    private final TicketEarningRuleRepository ticketEarningRuleRepository;
     private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleParticipationRepository raffleParticipationRepository;
-    private final PrizeRepository prizeRepository;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
 
-    @SuppressWarnings("null")
     @Override
     public EntityCreatedResponseDTO createRaffle(CreateRaffleRequestDTO request) {
 
+        log.info("🎫 Creating raffle: {}", request.getTitle());
+
+        log.info("Validating dates...");
+        validateDates(request);
+
+        log.info("Validating prizes...");
+        validatePrizes(request.getPrizes());
+
+        log.info("Validating rules");
+        validateRules(request);
+
+        Raffle raffle = raffleMapper.toRaffle(request);
+
+        List<Prize> rafflePrizes = request.getPrizes().stream().map(prizeRequest -> {
+            Prize prize = prizeMapper.toPrize(prizeRequest);
+            prize.setRaffle(raffle);
+            return prize;
+        }).toList();
+
+        List<RaffleRule> raffleRules = request.getRules().stream()
+                .map(ruleRequest -> createRaffleRule(raffle, ruleRequest)).toList();
+
+        raffle.setPrizes(rafflePrizes);
+        raffle.setRaffleRules(raffleRules);
+
+        Raffle savedRaffle = raffleRepository.save(raffle);
+
+        return new EntityCreatedResponseDTO(savedRaffle.getId(), "Raffle created successfully", Instant.now());
+    }
+
+    private void validateDates(CreateRaffleRequestDTO request) {
         if (!request.getDrawDate().isAfter(request.getEndDate())) {
             throw new InvalidRequestException("Draw date must be after end date");
         }
@@ -62,33 +97,92 @@ public class RaffleServiceImpl implements RaffleService {
         if (!request.getEndDate().isAfter(request.getStartDate())) {
             throw new InvalidRequestException("End date must be after start date");
         }
+    }
 
-        long uniquePositions = request.getPrizes().stream()
+    private void validatePrizes(List<CreatePrizeRequestDTO> prizes) {
+
+        long uniquePositions = prizes.stream()
                 .map(CreatePrizeRequestDTO::getPosition)
                 .distinct()
                 .count();
 
-        if (uniquePositions != request.getPrizes().size()) {
+        if (uniquePositions != prizes.size()) {
             throw new InvalidRequestException("Prize positions must be unique");
         }
 
-        Raffle raffle = raffleMapper.toRaffle(request);
+        // Validar que las posiciones sean consecutivas (opcional)
+        List<Integer> positions = prizes.stream()
+                .map(CreatePrizeRequestDTO::getPosition)
+                .sorted()
+                .toList();
 
-        Raffle savedRaffle = raffleRepository.save(raffle);
+        for (int i = 0; i < positions.size(); i++) {
+            if (positions.get(i) != (i + 1)) {
+                throw new InvalidRequestException(
+                        "Prize positions must be consecutive starting from 1");
+            }
+        }
+    }
 
-        List<Prize> rafflePrizes = request.getPrizes().stream().map(prizeRequest -> {
-            Prize prize = prizeMapper.toPrize(prizeRequest);
-            prize.setRaffle(savedRaffle);
-            return prize;
-        }).toList();
+    @SuppressWarnings("null")
+    private void validateRules(CreateRaffleRequestDTO request) {
 
-        prizeRepository.saveAll(rafflePrizes);
+        // 1. Validar que no haya reglas duplicadas
+        long uniqueRules = request.getRules().stream()
+                .map(CreateRaffleRuleRequestDTO::getTicketEarningRuleId)
+                .distinct()
+                .count();
 
-        return new EntityCreatedResponseDTO(savedRaffle.getId(), "Raffle created successfully", Instant.now());
+        if (uniqueRules != request.getRules().size()) {
+            throw new InvalidRequestException("Duplicate rules are not allowed");
+        }
+
+        // 2. Validar que las reglas existan
+        for (CreateRaffleRuleRequestDTO ruleRequest : request.getRules()) {
+            if (!ticketEarningRuleRepository.existsById(ruleRequest.getTicketEarningRuleId())) {
+                throw new InvalidRequestException(
+                        "Ticket earning rule not found: " + ruleRequest.getTicketEarningRuleId());
+            }
+        }
+
+        // 3. Validar que la suma de límites = maxTotalTickets
+        long sumOfSourceLimits = request.getRules().stream()
+                .mapToLong(CreateRaffleRuleRequestDTO::getMaxTicketsBySource)
+                .sum();
+
+        if (request.getMaxTotalTickets() != null && sumOfSourceLimits != request.getMaxTotalTickets()) {
+            throw new InvalidRequestException(
+                    String.format(
+                            "Sum of source limits (%d) must equal maxTotalTickets (%d)",
+                            sumOfSourceLimits,
+                            request.getMaxTotalTickets()));
+        }
+
+        // 4. Validar maxTicketsPerUser
+        if (request.getMaxTicketsPerUser() != null &&
+                request.getMaxTotalTickets() != null &&
+                request.getMaxTicketsPerUser() > request.getMaxTotalTickets()) {
+            throw new InvalidRequestException(
+                    "maxTicketsPerUser cannot exceed maxTotalTickets");
+        }
+    }
+
+    @SuppressWarnings("null")
+    private RaffleRule createRaffleRule(Raffle raffle, CreateRaffleRuleRequestDTO request) {
+        TicketEarningRule ticketRule = ticketEarningRuleRepository.findById(request.getTicketEarningRuleId())
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Ticket earning rule with id: " + request.getTicketEarningRuleId() + " not found ",
+                        TicketEarningRule.class));
+        RaffleRule rule = new RaffleRule();
+        rule.setRaffle(raffle);
+        rule.setTicketEarningRule(ticketRule);
+        rule.setMaxTicketsBySource(request.getMaxTicketsBySource());
+
+        return rule;
     }
 
     @Override
-    public EntityUpdatedResponseDTO updateRaffle(Long raffleId, UpdateRaffleRequestDTO request) {
+    public EntityUpdatedResponseDTO updateRaffle(Long adminId, Long raffleId, UpdateRaffleRequestDTO request) {
 
         if (!request.getDrawDate().isAfter(request.getEndDate())) {
             throw new InvalidRequestException("Draw date must be after end date");
@@ -100,9 +194,11 @@ public class RaffleServiceImpl implements RaffleService {
 
         Raffle raffleUpdated = getRaffleById(raffleId);
 
+        raffleUpdated.setModifiedBy(adminId);
         raffleUpdated.setTitle(request.getTitle());
         raffleUpdated.setDescription(request.getDescription());
         raffleUpdated.setRaffleType(request.getRaffleType());
+        raffleUpdated.setRequiresPet(request.getRequiresPet());
         raffleUpdated.setStartDate(request.getStartDate());
         raffleUpdated.setEndDate(request.getEndDate());
         raffleUpdated.setDrawDate(request.getDrawDate());
@@ -150,7 +246,7 @@ public class RaffleServiceImpl implements RaffleService {
 
     @Override
     public RaffleResponseDTO getRaffleResponseDTOById(Long raffleId) {
-        
+
         if (raffleId == null || raffleId <= 0) {
             throw new IllegalArgumentException("Raffle id must be positive");
         }
@@ -197,6 +293,11 @@ public class RaffleServiceImpl implements RaffleService {
         }
 
         return raffleParticipationRepository.findLeaderboard(raffleId, PageRequest.of(0, 10));
+    }
+
+    @Override
+    public List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate) {
+        return raffleRepository.findActiveRaffleByDrawDate(drawDate);
     }
 
 }

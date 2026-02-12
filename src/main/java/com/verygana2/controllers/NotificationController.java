@@ -1,32 +1,34 @@
 package com.verygana2.controllers;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.notification.responses.NotificationResponseDTO;
 import com.verygana2.services.interfaces.NotificationService;
 
 @RestController
 @RequestMapping("/notifications")
 public class NotificationController {
-    
+
     @Autowired
     private NotificationService notificationService;
 
-    // Obtener la lista de notificaciones de un usuario con su id como argumento y las ordena en orden descendente
-    // @GetMapping("/{userId}")
-    // public ResponseEntity<List<Notification>> getByUserIdOrderByDateSentDesc (@PathVariable String userId){
-    //     List<Notification> foundNotifications = notificationService.getByUserIdOrderByDateSentDesc(userId);
-    //     return ResponseEntity.ok(foundNotifications);
-    // }
+    @GetMapping
+    public ResponseEntity<List<NotificationResponseDTO>> getByUserIdOrderByDateSentDesc(@AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(notificationService.getByUserIdOrderByDateSentDesc(userId));
+    }
 
-    // Obtener el número de notificaciones no leídas por el usuario pasando su id como argumento
-    @GetMapping("/unread/{userId}")
-    public ResponseEntity<Long> getCountByUserIdAndReadFalse(@PathVariable Long userId){
-        Long count = notificationService.getCountByUserIdAndReadFalse(userId);
-        return ResponseEntity.ok(count);
+    @GetMapping("/unread/count")
+    public ResponseEntity<Long> getCountByUserIdAndReadFalse(@AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(notificationService.getCountByUserIdAndReadFalse(userId));
     }
 }

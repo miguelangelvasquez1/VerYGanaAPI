@@ -37,7 +37,6 @@ public class RaffleWinner {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "raffle_id", nullable = false)
     private Raffle raffle;
-
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "prize_id", nullable = false)
     private Prize prize;

@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces.raffles;
 
 
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -20,7 +21,7 @@ import com.verygana2.models.raffles.Raffle;
 public interface RaffleService {
     
     EntityCreatedResponseDTO createRaffle(CreateRaffleRequestDTO request);
-    EntityUpdatedResponseDTO updateRaffle(Long raffleId, UpdateRaffleRequestDTO request);
+    EntityUpdatedResponseDTO updateRaffle(Long adminId, Long raffleId, UpdateRaffleRequestDTO request);
     void activateRaffle(Long raffleId);
     void closeRaffle(Long raffleId);
     Raffle getRaffleById(Long raffleId);
@@ -28,4 +29,5 @@ public interface RaffleService {
     PagedResponse<RaffleResponseDTO> getRafflesByStatusAndType(RaffleStatus status, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
     List<ParticipantLeaderboardDTO> getRaffleLeaderBoard(Long raffleId);
+    List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);
 }

@@ -6,9 +6,13 @@ import org.mapstruct.Mapping;
 import com.verygana2.dtos.raffle.requests.CreatePrizeRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleRuleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
+import com.verygana2.dtos.raffle.responses.TicketEarningRuleResponseDTO;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
+import com.verygana2.models.raffles.RaffleRule;
+import com.verygana2.models.raffles.TicketEarningRule;
 
 @Mapper(componentModel = "spring")
 public interface RaffleMapper {
@@ -18,16 +22,11 @@ public interface RaffleMapper {
     @Mapping(target = "totalTicketsIssued", ignore = true)
     @Mapping(target = "totalParticipants", ignore = true)
     @Mapping(target = "drawProof", ignore = true)
-    @Mapping(target = "tickets", ignore = true)
+    @Mapping(target = "issuedTickets", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "maxTicketsFromPlatformGifts", ignore = true)
-    @Mapping(target = "currentTicketsFromPurchases", ignore = true)
-    @Mapping(target = "currentTicketsFromAds", ignore = true)
-    @Mapping(target = "currentTicketsFromGames", ignore = true)
-    @Mapping(target = "currentTicketsFromReferrals", ignore = true)
-    @Mapping(target = "currentTicketsFromPlatformGifts", ignore = true)
+    @Mapping(target = "raffleRules", ignore = true)
     Raffle toRaffle (CreateRaffleRequestDTO request);
 
     @Mapping(target = "id", ignore = true)
@@ -39,7 +38,14 @@ public interface RaffleMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Prize toPrize (CreatePrizeRequestDTO request);
 
+    @Mapping(target = "rules", source = "raffleRules")
     RaffleResponseDTO toRaffleResponseDTO (Raffle raffle);
+
+    @Mapping(target = "raffleId", source = "id")
+    @Mapping(target = "ticketEarningRuleResponseDTO", source = "ticketEarningRule")
+    RaffleRuleResponseDTO toRaffleResponseDTO (RaffleRule raffleRule);
+
+    TicketEarningRuleResponseDTO toRuleResponseDTO (TicketEarningRule ticketEarningRule);
 
     @Mapping(target = "ticketsBySource", ignore = true)
     RaffleStatsResponseDTO toRaffleStatsResponseDTO (Raffle raffle);

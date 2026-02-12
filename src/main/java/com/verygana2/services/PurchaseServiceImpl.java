@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
+import com.verygana2.dtos.raffle.responses.TicketEarningResult;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
@@ -43,7 +44,7 @@ import com.verygana2.services.interfaces.ProductService;
 import com.verygana2.services.interfaces.PurchaseService;
 import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
-
+import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 
@@ -63,6 +64,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final ConsumerDetailsService consumerDetailsService;
     private final ProductStockRepository productStockRepository;
     private final EmailService emailService;
+    private final TicketDeliveryService ticketDeliveryService;
     private final PurchaseMapper purchaseMapper;
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
@@ -149,6 +151,13 @@ public class PurchaseServiceImpl implements PurchaseService {
         // envio de correos para notificar venta a cada vendedor (emailService)
         emailService.sendSellerSaleNotification(finalPurchase);
 
+        // Regalar boletos de rifas si cumple con las condiciones
+        TicketEarningResult ticketResult = ticketDeliveryService.processTicketEarningForPurchase(consumerId,
+                finalPurchase.getId(), finalPurchase.getTotal());
+        log.info("Tickets earned: {} across {} raffles",
+                ticketResult.getTotalTicketsIssued(),
+                ticketResult.getRafflesSuccessful());
+
         return new EntityCreatedResponseDTO(finalPurchase.getId(), "Purchase registered succesfully", Instant.now());
     }
 
@@ -179,7 +188,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
             for (int i = 0; i < itemRequest.getQuantity(); i++) {
                 ProductStock availableCode = productStockRepository.findNextAvailableForProduct(product.getId())
-                .orElseThrow(() -> new InsufficientStockException(product.getName()));
+                        .orElseThrow(() -> new InsufficientStockException(product.getName()));
 
                 availableCode.markAsReserved();
                 productStockRepository.saveAndFlush(availableCode);
@@ -213,7 +222,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         savedPurchase = purchaseRepository.save(savedPurchase);
 
-        for(PurchaseItem item : savedPurchase.getItems()){
+        for (PurchaseItem item : savedPurchase.getItems()) {
             if (item.getAssignedProductStock() != null) {
                 ProductStock stock = item.getAssignedProductStock();
                 stock.markAsSold(item);
@@ -343,7 +352,8 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     public PurchaseResponseDTO getPurchaseResponseDTO(Long purchaseId, Long consumerId) {
-        Purchase purchase = purchaseRepository.findByIdAndConsumerIdWithItems(purchaseId, consumerId).orElseThrow(() -> new ObjectNotFoundException("Purchase with id:" + purchaseId + " not found", Purchase.class));
+        Purchase purchase = purchaseRepository.findByIdAndConsumerIdWithItems(purchaseId, consumerId).orElseThrow(
+                () -> new ObjectNotFoundException("Purchase with id:" + purchaseId + " not found", Purchase.class));
         return purchaseMapper.toPurchaseResponseDTO(purchase);
     }
 
@@ -356,6 +366,9 @@ public class PurchaseServiceImpl implements PurchaseService {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
 
-        return purchaseRepository.findByIdAndConsumerId(purchaseId, consumerId).orElseThrow(() -> new ObjectNotFoundException("Purchase with id: " + purchaseId + " and consumer id: " + consumerId + "not found", Purchase.class));
+        return purchaseRepository.findByIdAndConsumerId(purchaseId, consumerId)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Purchase with id: " + purchaseId + " and consumer id: " + consumerId + "not found",
+                        Purchase.class));
     }
 }

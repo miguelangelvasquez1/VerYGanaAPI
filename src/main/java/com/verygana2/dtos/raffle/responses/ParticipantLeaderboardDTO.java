@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 public class ParticipantLeaderboardDTO {
     private Long consumerId;
     private String userName;
-    private String profileImageUrl;
+    private String avatarUrl;
     private Long ticketsCount;
     private Double winProbability;
 }

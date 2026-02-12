@@ -38,18 +38,17 @@ public class UserRaffleTicketController {
     public ResponseEntity<PagedResponse<RaffleTicketResponseDTO>> getUserTickets(@AuthenticationPrincipal Jwt jwt,
             @RequestParam(value = "status", required = false) RaffleTicketStatus status,
             @RequestParam(value = "source", required = false) RaffleTicketSource source,
-            @RequestParam(value = "issuedFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime issuedFrom,
-            @RequestParam(value = "issuedTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime issuedTo,
+            @RequestParam(value = "issuedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime issuedAt,
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
 
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity
-                .ok(raffleTicketService.getUserTickets(consumerId, status, source, issuedFrom, issuedTo, pageable));
+                .ok(raffleTicketService.getUserTickets(consumerId, status, source, issuedAt, pageable));
     }
 
     @GetMapping("/balance")
     public ResponseEntity<Long> getUserTotalTickets(@AuthenticationPrincipal Jwt jwt,
-            @RequestParam(value = "status", required = false) RaffleTicketStatus status) {
+            @RequestParam("status") RaffleTicketStatus status) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleTicketService.getUserTotalTickets(consumerId, status));
     }
@@ -64,7 +63,7 @@ public class UserRaffleTicketController {
     @GetMapping("/balance/raffle/{raffleId}")
     public ResponseEntity<Long> getUserTicketBalanceInRaffle(@AuthenticationPrincipal Jwt jwt,
             @PathVariable Long raffleId, 
-            @RequestParam(value = "status", required = false) RaffleTicketStatus status) {
+            @RequestParam("status") RaffleTicketStatus status) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleTicketService.getUserTicketBalanceInRaffle(consumerId, raffleId, status));
     }

@@ -33,8 +33,8 @@ public class ConsumerDetails extends UserDetails {
     @Size(max = 50)
     private String userName;
 
-    @NotBlank(message = "the profile image cannot be empty")
-    private String profileImageUrl;
+    @NotBlank(message = "the avatar cannot be empty")
+    private String avatarUrl;
 
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)

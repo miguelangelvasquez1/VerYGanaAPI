@@ -45,18 +45,6 @@ public class CreateRaffleRequestDTO {
     @PositiveOrZero(message = "Max tickets per user cannot be negative")
     private Long maxTicketsPerUser;
 
-    @PositiveOrZero(message = "Max tickets from purchases cannot be negative")
-    private Long maxTicketsFromPurchases;
-
-    @PositiveOrZero(message = "Max tickets from ads cannot be negative")
-    private Long maxTicketsFromAds;
-
-    @PositiveOrZero(message = "Max tickets from games cannot be negative")
-    private Long maxTicketsFromGames;
-
-    @PositiveOrZero(message = "Max tickets from referrals cannot be negative")
-    private Long maxTicketsFromReferrals;
-
     @NotNull(message = "Requires pet? is required")
     private boolean requiresPet;
 
@@ -66,6 +54,10 @@ public class CreateRaffleRequestDTO {
     @NotNull(message = "Raffle prizes cannot be null")
     @Size(min = 1, message = "At least one prize is required")
     private List<CreatePrizeRequestDTO> prizes;
+
+    @NotNull(message = "Raffle rules cannot be null")
+    @Size(min = 1, message = "At least one rule is required")
+    private List<CreateRaffleRuleRequestDTO> rules;
 
     @NotBlank(message = "Terms and conditions are required")
     @Size(max = 5000)

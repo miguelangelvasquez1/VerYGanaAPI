@@ -1,9 +1,11 @@
 package com.verygana2.models;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.NotificationType;
+import com.verygana2.models.userDetails.UserDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,9 +53,9 @@ public class Notification {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private UserDetails user;
 
-    private ZonedDateTime dateSent;
+    private Instant dateSent;
 
     @PrePersist
     public void onCreate(){

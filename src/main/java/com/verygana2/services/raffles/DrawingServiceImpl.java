@@ -1,6 +1,7 @@
 package com.verygana2.services.raffles;
 
 import java.security.SecureRandom;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.jmx.access.InvalidInvocationException;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,48 +60,44 @@ public class DrawingServiceImpl implements DrawingService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public DrawResultResponseDTO conductDraw(Long raffleId, Integer numberOfWinners) {
+    public DrawResultResponseDTO conductDraw(Long raffleId) {
 
-        log.info("=== STARTING RAFFLE DRAW === Raffle ID: {}, Winners: {}", raffleId, numberOfWinners);
+        log.info("=== STARTING RAFFLE DRAW === Raffle ID: {}, Winners: {}", raffleId);
 
         // ========== 1. VALIDAR RIFA ==========
 
         Raffle raffle = validateRaffleForDraw(raffleId);
 
+        log.info("Validating prizes...");
         // ========== 2. VALIDAR PREMIOS ==========
         List<Prize> prizes = validatePrizes(raffle);
 
-        // Si numberOfWinners no se especifica, usar cantidad de premios
-        if (numberOfWinners == null) {
-            numberOfWinners = prizes.stream()
-                    .mapToInt(Prize::getQuantity)
-                    .sum();
-        }
+        Integer numberOfWinners = prizes.size();
 
         // ========== 3. OBTENER TICKETS ACTIVOS ==========
-
         List<RaffleTicket> tickets = getActiveTickets(raffle);
-
         // ========== 4. EJECUTAR SORTEO ==========
 
+        log.info("Executing draw...");
         List<RaffleTicket> winningTickets = executeDraw(raffle, tickets, numberOfWinners);
 
         // ========== 5. CREAR REGISTROS DE GANADORES ==========
-
+        log.info("Creating winner records...");
         List<RaffleWinner> winners = createWinnerRecords(raffle, prizes, winningTickets);
 
         // ========== 6. GENERAR PROOF ==========
-
+        log.info("Generating draw proof...");
         String drawProof = generateDrawProof(raffle.getId(), winners);
         raffle.setDrawProof(drawProof);
 
         // ========== 7. ACTUALIZAR ESTADO DE LA RIFA ==========
-
+        log.info("Updating raffle status...");
         updateRaffleStatus(raffle);
+        log.debug("Raffle status updated : {}", raffle.getRaffleStatus());
 
         // ========== 8. EXPIRAR TICKETS NO GANADORES ==========
-
-        expireNonWinningTickets(raffle.getId());
+        log.info("Expiring no winning tickets...");
+        expireTickets(raffle.getId());
 
         log.info("=== DRAW COMPLETED === Raffle: {}, Winners: {}", raffleId, winners.size());
 
@@ -377,7 +375,7 @@ public class DrawingServiceImpl implements DrawingService {
     /**
      * 8. Expira todos los tickets que no ganaron
      */
-    private void expireNonWinningTickets(Long raffleId) {
+    private void expireTickets(Long raffleId) {
         ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
         int expiredCount = raffleTicketRepository.expireTicketsByRaffle(raffleId, now);
 
@@ -422,6 +420,7 @@ public class DrawingServiceImpl implements DrawingService {
     }
 
     @Override
+    @Async("notificationExecutor")
     public void notifyWinners(Long raffleId) {
 
         if (raffleId == null || raffleId <= 0) {
@@ -440,7 +439,8 @@ public class DrawingServiceImpl implements DrawingService {
                     .title("¡Felicidades! Has ganado en nuestra rifa 🎉")
                     .message("Estimado/a " + w.getUserName()
                             + ", nos complace anunciarte que has sido el ganador del premio en nuestra rifa oficial. Tu número de participación ha sido seleccionado de manera transparente y justa, y ahora podrás disfrutar de este reconocimiento especial.")
-                    .user(w.getUser())
+                    .user(w)
+                    .dateSent(Instant.now())
                     .build());
         });
 
@@ -448,7 +448,7 @@ public class DrawingServiceImpl implements DrawingService {
             notificationRepository.saveAll(notifications);
             log.info("Notifications sent successfully to {} winners", winners.size());
         } catch (Exception e) {
-        
+
             log.error("Failed to send notifications to winners", e);
         }
     }

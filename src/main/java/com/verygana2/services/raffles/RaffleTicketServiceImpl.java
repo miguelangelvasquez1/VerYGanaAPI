@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.raffle.requests.IssueTicketRequestDTO;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
@@ -22,16 +21,20 @@ import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleParticipation;
+import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.RaffleTicket;
 import com.verygana2.models.raffles.TicketAuditLog;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.raffles.RaffleParticipationRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
+import com.verygana2.repositories.raffles.RaffleRuleRespository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketAuditLogRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.services.interfaces.raffles.RaffleRuleService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 
@@ -46,6 +49,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleRepository raffleRepository;
+    private final RaffleRuleRespository raffleRuleRespository;
+    private final RaffleRuleService raffleRuleService;
     private final RaffleService raffleService;
     private final RaffleTicketMapper raffleTicketMapper;
     private final ConsumerDetailsService consumerDetailsService;
@@ -54,51 +59,67 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     // Emitir tiquetes de una rifa a un usuario
     @Override
-    public List<RaffleTicketResponseDTO> issueTickets(IssueTicketRequestDTO request) {
-        // Validar que sourceId esté presente cuando la fuente lo requiere
-        validateSourceId(request);
+    public List<RaffleTicketResponseDTO> issueTickets(Long consumerId, Long raffleId, Integer quantity,
+            RaffleTicketSource source, Long sourceId) {
 
-        // Emitir tickets
-        return issueTicketsAux(request);
+        log.info("🎫 ENTRY: issueTickets(consumerId={}, raffleId={}, quantity={}, source={}, sourceId={})",
+                consumerId, raffleId, quantity, source, sourceId);
+
+        validateSourceId(sourceId, source);
+
+        return issueTicketsAux(consumerId, raffleId, quantity, source, sourceId);
     }
 
     /**
      * Método auxiliar que realiza la emisión de tickets
      */
     @SuppressWarnings("null")
-    private List<RaffleTicketResponseDTO> issueTicketsAux(IssueTicketRequestDTO request) {
+    private List<RaffleTicketResponseDTO> issueTicketsAux(Long consumerId, Long raffleId, Integer quantity,
+            RaffleTicketSource source, Long sourceId) {
 
-        // 1. VALIDAR Y OBTENER ENTIDADES
-        Raffle raffle = validateAndGetRaffle(request.getRaffleId());
-        ConsumerDetails consumer = validateAndGetConsumer(request.getConsumerId());
+        log.info("Starting ticket issuance process...");
 
-        // 2. VALIDAR ELEGIBILIDAD DEL USUARIO
+        log.debug("Validating and fetching raffle...");
+        Raffle raffle = validateAndGetRaffle(raffleId);
+        log.info("Raffle validated: ID={}, Status={}, Type={}",
+                raffle.getId(), raffle.getRaffleStatus(), raffle.getRaffleType());
+
+        log.debug("Validating and fetching consumer...");
+        ConsumerDetails consumer = validateAndGetConsumer(consumerId);
+        log.info("Consumer validated: ID={}, HasPet={}",
+                consumer.getId(), consumer.isHasPet());
+
+        log.debug("Validating user eligibility...");
         validateUserEligibility(consumer, raffle.getRaffleType());
+        log.info("User eligibility validated");
 
-        // 3. VALIDAR LÍMITES
-        validateLimits(raffle, consumer.getId(), request.getQuantity(), request.getSource());
+        log.debug("Validating limits...");
+        validateLimits(raffle, consumer.getId(), quantity, source);
+        log.info("Limits validated");
 
-        // 4. GENERAR Y GUARDAR TICKETS
+        log.debug("Generating {} tickets...", quantity);
         List<RaffleTicket> tickets = generateTickets(
                 raffle,
                 consumer,
-                request.getQuantity(),
-                request.getSource(),
-                request.getSourceId());
+                quantity,
+                source,
+                sourceId);
+        log.info("Generated {} tickets", tickets.size());
 
+        log.debug("Saving tickets to database...");
         List<RaffleTicket> savedTickets = raffleTicketRepository.saveAll(tickets);
+        log.info("Saved {} tickets to database", savedTickets.size());
 
-        // 5. ACTUALIZAR CONTADORES EN RAFFLE
-        updateRaffleCounters(raffle, request.getQuantity(), request.getSource());
+        log.debug("Updating counters...");
+        updateAllCounters(raffle, consumer, quantity, source);
+        log.info("Counters updated");
 
-        // 6. ACTUALIZAR O CREAR PARTICIPACIÓN
-        updateParticipation(consumer, raffle, request.getQuantity());
+        log.debug("Creating audit logs...");
+        createAuditLogs(savedTickets, source, sourceId);
+        log.info("Audit logs created");
 
-        // 7. CREAR LOGS DE AUDITORÍA
-        createAuditLogs(savedTickets, request.getSource(), request.getSourceId());
-
-        log.info("Issued {} tickets to consumer {} for raffle {} from source {}",
-                request.getQuantity(), consumer.getId(), raffle.getId(), request.getSource());
+        log.info("Successfully issued {} tickets to consumer {} for raffle {} from source {}",
+                quantity, consumer.getId(), raffle.getId(), source);
 
         return savedTickets.stream().map(raffleTicketMapper::toRaffleTicketResponseDTO).toList();
     }
@@ -106,14 +127,11 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     /**
      * Valida que sourceId esté presente para fuentes que lo requieren
      */
-    private void validateSourceId(IssueTicketRequestDTO request) {
-        boolean requiresSourceId = request.getSource() == RaffleTicketSource.PURCHASE
-                || request.getSource() == RaffleTicketSource.REFERRAL
-                || request.getSource() == RaffleTicketSource.GAME_ACHIEVEMENT;
+    private void validateSourceId(Long sourceId, RaffleTicketSource source) {
 
-        if (requiresSourceId && (request.getSourceId() == null || request.getSourceId() <= 0)) {
+        if (sourceId == null || sourceId <= 0) {
             throw new InvalidRequestException(
-                    "Source ID is required for source type: " + request.getSource());
+                    "Source ID is required for source type: " + source);
         }
     }
 
@@ -149,24 +167,37 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
      * Valida que el usuario pueda participar en el tipo de rifa
      */
     private void validateUserEligibility(ConsumerDetails consumer, RaffleType raffleType) {
+        log.debug("Checking eligibility: RaffleType={}, UserHasPet={}",
+                raffleType, consumer.isHasPet());
+
         if (raffleType == RaffleType.PREMIUM && !consumer.isHasPet()) {
+            log.error("User {} cannot participate in PREMIUM raffle (no pet registered)",
+                    consumer.getId());
+
             throw new InvalidRequestException(
                     "Premium raffles require the user to have a registered pet");
         }
+        log.debug("User is eligible for {} raffle", raffleType);
     }
 
     /**
      * Valida todos los límites antes de emitir tickets
      */
     private void validateLimits(Raffle raffle, Long consumerId, int quantity, RaffleTicketSource source) {
+        log.debug("Validating limits for {} tickets...", quantity);
 
         // 1. Límite total de la rifa
+        log.debug("Total: {}/{}", raffle.getTotalTicketsIssued(), raffle.getMaxTotalTickets());
+
         if (raffle.hasReachedTotalLimit()) {
+            log.error("Raffle has reached maximum total tickets");
             throw new LimitReachedException("Raffle has reached maximum total tickets");
         }
 
         if (raffle.getMaxTotalTickets() != null &&
                 (raffle.getTotalTicketsIssued() + quantity) > raffle.getMaxTotalTickets()) {
+            log.error("Cannot issue {} tickets. Only {} remaining",
+                    quantity, raffle.getMaxTotalTickets() - raffle.getTotalTicketsIssued());
             throw new LimitReachedException(
                     String.format("Cannot issue %d tickets. Only %d tickets remaining",
                             quantity,
@@ -174,9 +205,18 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         }
 
         // 2. Límite por fuente
-        if (!raffle.canIssueTicketsFromSource(source, quantity)) {
+        log.debug("Checking source limit for {} ...", source);
+        TicketEarningRuleType ruleType = convertSourceToRuleType(source);
+        log.debug("Converted {} to {}", source, ruleType);
+        RaffleRule rule = raffleRuleService.getByRaffleIdAndRuleType(raffle.getId(), ruleType);
+        log.debug("Source: {}/{}", rule.getCurrentTicketsBySource(), rule.getMaxTicketsBySource());
+
+        if (!rule.canIssueTickets(quantity)) {
+            log.error("Maximum tickets from source {} reached. Remaining: {}", 
+                source, rule.getRemainingTickets());
             throw new LimitReachedException(
-                    String.format("Maximum tickets from source %s reached for this raffle", source));
+                    String.format("Maximum tickets from source %s reached for this raffle. Remaining: %d",
+                            source, rule.getRemainingTickets()));
         }
 
         // 3. Límite por usuario
@@ -186,13 +226,18 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
                     raffle.getId(),
                     RaffleTicketStatus.ACTIVE);
 
+            log.debug("User: {}/{}", currentUserTickets, raffle.getMaxTicketsPerUser());
+
             if ((currentUserTickets + quantity) > raffle.getMaxTicketsPerUser()) {
+                log.error("User has reached maximum tickets. Current: {}, Max: {}", 
+                    currentUserTickets, raffle.getMaxTicketsPerUser());
                 throw new LimitReachedException(
                         String.format("User has reached maximum tickets per user. Current: %d, Max: %d",
                                 currentUserTickets,
                                 raffle.getMaxTicketsPerUser()));
             }
         }
+        log.debug("All limits validated successfully");
     }
 
     /**
@@ -236,12 +281,21 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         return String.format("RAFFLE-%d-%06d", raffleId, sequentialNumber);
     }
 
-    /**
-     * Actualiza los contadores de la rifa
-     */
-    private void updateRaffleCounters(Raffle raffle, int quantity, RaffleTicketSource source) {
-        raffle.incrementSourceCounter(source, quantity);
+    private void updateAllCounters(Raffle raffle, ConsumerDetails consumer, int quantity, RaffleTicketSource source) {
+
+        // 1. Actualizar contador total de la rifa
+        raffle.incrementTicketCount(quantity);
         raffleRepository.save(raffle);
+
+        // 2. Actualizar contador de RaffleDetails (por fuente)
+        TicketEarningRuleType ruleType = convertSourceToRuleType(source);
+        RaffleRule rule = raffleRuleService.getByRaffleIdAndRuleType(raffle.getId(), ruleType);
+
+        rule.incrementIssuedCount(quantity);
+        raffleRuleRespository.save(rule);
+
+        // 3. Actualizar o crear participación del usuario
+        updateParticipation(consumer, raffle, quantity);
     }
 
     /**
@@ -255,6 +309,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
                     newParticipation.setConsumer(consumer);
                     newParticipation.setRaffle(raffle);
                     newParticipation.setTicketsCount(0L);
+                    raffle.incrementParticipantCount();
                     return newParticipation;
                 });
 
@@ -349,27 +404,27 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     @Override
     public PagedResponse<RaffleTicketResponseDTO> getUserTickets(Long consumerId, RaffleTicketStatus status,
-            RaffleTicketSource source, ZonedDateTime issuedFrom, ZonedDateTime issuedTo, Pageable pageable) {
+            RaffleTicketSource source, ZonedDateTime issuedAt, Pageable pageable) {
 
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Raffle id must be positive");
         }
         Page<RaffleTicketResponseDTO> page = raffleTicketRepository
-                .findUserTicketsWithFilters(consumerId, status, source, issuedFrom, issuedTo, pageable)
+                .findUserTicketsWithFilters(consumerId, status, source, issuedAt, pageable)
                 .map(raffleTicketMapper::toRaffleTicketResponseDTO);
         return PagedResponse.from(page);
     }
 
     @Override
     public PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
-            RaffleTicketSource source, ZonedDateTime issuedFrom, ZonedDateTime issuedTo, Pageable pageable) {
+            RaffleTicketSource source, ZonedDateTime issuedAt, Pageable pageable) {
 
         if (raffleId == null || raffleId <= 0) {
             throw new IllegalArgumentException("Raffle id must be positive");
         }
 
         Page<RaffleTicketResponseDTO> page = raffleTicketRepository
-                .findRaffleTicketsWithFilters(raffleId, status, source, issuedFrom, issuedTo, pageable)
+                .findRaffleTicketsWithFilters(raffleId, status, source, issuedAt, pageable)
                 .map(raffleTicketMapper::toRaffleTicketResponseDTO);
         return PagedResponse.from(page);
 
@@ -394,6 +449,18 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
                 ZonedDateTime.now(ZoneId.of("America/Bogota")));
 
         log.info("Expired {} tickets for raffle {}", expiredCount, raffleId);
+    }
+
+    // ==================== UTILIDADES ====================
+
+    private TicketEarningRuleType convertSourceToRuleType(RaffleTicketSource source) {
+        return switch (source) {
+            case PURCHASE -> TicketEarningRuleType.PURCHASE;
+            case GAME_ACHIEVEMENT -> TicketEarningRuleType.GAME_ACHIEVEMENT;
+            case REFERRAL -> TicketEarningRuleType.REFERRAL;
+            case ADS_WATCHED -> TicketEarningRuleType.ADS_WATCHED;
+            default -> throw new InvalidRequestException("Unknown source type: " + source);
+        };
     }
 
 }

@@ -1,7 +1,6 @@
 package com.verygana2.models;
 
 import java.time.ZonedDateTime;
-import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -18,7 +17,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.Data;
@@ -53,9 +51,6 @@ public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private Wallet wallet;
-
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Notification> notifications;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;

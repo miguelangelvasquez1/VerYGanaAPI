@@ -86,15 +86,13 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         @Query("SELECT t FROM RaffleTicket t WHERE t.ticketOwner.id = :ticketOwnerId " +
                         "AND (:status IS NULL OR t.status = :status) " +
                         "AND (:source IS NULL OR t.source = :source) " +
-                        "AND (:issuedFrom IS NULL OR t.issuedAt >= :issuedFrom) " +
-                        "AND (:issuedTo IS NULL OR t.issuedAt <= :issuedTo) " +
+                        "AND (:issuedAt IS NULL OR t.issuedAt >= :issuedAt) " +
                         "ORDER BY t.issuedAt DESC")
         Page<RaffleTicket> findUserTicketsWithFilters(
                         @Param("ticketOwnerId") Long ticketOwnerId,
                         @Param("status") RaffleTicketStatus status,
                         @Param("source") RaffleTicketSource source,
-                        @Param("issuedFrom") ZonedDateTime issuedFrom,
-                        @Param("issuedTo") ZonedDateTime issuedTo,
+                        @Param("issuedAt") ZonedDateTime issuedAt,
                         Pageable pageable);
 
         /**
@@ -103,15 +101,13 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         @Query("SELECT t FROM RaffleTicket t WHERE t.raffle.id = :raffleId " +
                         "AND (:status IS NULL OR t.status = :status) " +
                         "AND (:source IS NULL OR t.source = :source) " +
-                        "AND (:issuedFrom IS NULL OR t.issuedAt >= :issuedFrom) " +
-                        "AND (:issuedTo IS NULL OR t.issuedAt <= :issuedTo) " +
+                        "AND (:issuedAt IS NULL OR t.issuedAt >= :issuedAt) " +
                         "ORDER BY t.issuedAt DESC")
         Page<RaffleTicket> findRaffleTicketsWithFilters(
                         @Param("raffleId") Long raffleId,
                         @Param("status") RaffleTicketStatus status,
                         @Param("source") RaffleTicketSource source,
-                        @Param("issuedFrom") ZonedDateTime issuedFrom,
-                        @Param("issuedTo") ZonedDateTime issuedTo,
+                        @Param("issuedAt") ZonedDateTime issuedAt,
                         Pageable pageable);
 
         // ========== TICKETS PARA SORTEO ==========
