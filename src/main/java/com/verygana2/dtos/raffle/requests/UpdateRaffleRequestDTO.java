@@ -27,6 +27,9 @@ public class UpdateRaffleRequestDTO {
     @NotNull(message = "Raffle type cannot be null")
     private RaffleType raffleType;
 
+    @NotNull(message = "requires pet? is required")
+    private Boolean requiresPet;
+
     @NotNull(message = "Raffle start date cannot be null")
     private ZonedDateTime startDate;
 

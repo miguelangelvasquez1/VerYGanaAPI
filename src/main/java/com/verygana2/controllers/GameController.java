@@ -57,14 +57,22 @@ public class GameController {
     @GetMapping("/assets")
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         // Json
-        ObjectNode assets = gameService.getGameAssets(req);
-        return ResponseEntity.ok(assets);
+        if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+            return ResponseEntity.ok(HangmanGameAssets.ASSETS);
+
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+            return ResponseEntity.ok(HangmanAssets.ASSETS);
+        }
+        return ResponseEntity.badRequest().body(null);
+        // ObjectNode assets = gameService.getGameAssets(req);
+        // return ResponseEntity.ok(assets);
     }
 
     @PostMapping("/metrics")
     public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event, @AuthenticationPrincipal Jwt jwt) {
-        Long userId = jwt.getClaim("userId");
-        gameService.submitGameMetrics(event, userId);
+        // Long userId = jwt.getClaim("userId");
+        System.out.println(event.toString());
+        gameService.submitGameMetrics(event);
         return ResponseEntity.ok().build();
     }
 

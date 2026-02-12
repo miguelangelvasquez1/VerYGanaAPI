@@ -17,7 +17,7 @@ public interface GameService {
     String initGameSponsored(InitGameRequestDTO request, Long userId);
     String initGameNotSponsored(InitGameRequestDTO request, Long userId);
     ObjectNode getGameAssets(GameEventDTO<Void> req);
-    void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event, Long userId);
+    void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event);
     void completeSession(GameEventDTO<EndSessionDTO> event, Long userId);
     PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable);
 }

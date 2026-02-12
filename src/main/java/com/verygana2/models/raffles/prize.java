@@ -38,7 +38,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Prize {
-    
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -127,7 +126,6 @@ public class Prize {
         this.updatedAt = now;
         this.prizeStatus = PrizeStatus.PENDING;
         this.claimedCount = 0;
-        this.requiresShipping = true;
     }
 
     @PreUpdate

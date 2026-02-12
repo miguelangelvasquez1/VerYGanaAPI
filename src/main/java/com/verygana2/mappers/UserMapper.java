@@ -20,7 +20,6 @@ public interface UserMapper {
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(ConsumerRegisterDTO dto);
@@ -37,8 +36,9 @@ public interface UserMapper {
     @Mapping(target = "gender", ignore = true)
     @Mapping(target = "userHash", ignore = true)
     @Mapping(target = "hasPet", ignore = true)
-    @Mapping(target = "profileImageUrl", ignore = true)
+    @Mapping(target = "avatarUrl", ignore = true)
     @Mapping(target = "userName", ignore = true)
+    @Mapping(target = "notifications", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----
@@ -47,13 +47,13 @@ public interface UserMapper {
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(AdvertiserRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
+    @Mapping(target = "notifications", ignore = true)
     AdvertiserDetails toAdvertiserDetails(AdvertiserRegisterDTO dto);
 
     // ---- SELLER ----
@@ -62,12 +62,12 @@ public interface UserMapper {
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
     User toUser(SellerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
+    @Mapping(target = "notifications", ignore = true)
     SellerDetails toSellerDetails(SellerRegisterDTO dto);
 }

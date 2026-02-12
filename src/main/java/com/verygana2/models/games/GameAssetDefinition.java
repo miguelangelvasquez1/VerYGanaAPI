@@ -25,7 +25,7 @@ public class GameAssetDefinition {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "code", nullable = false) //borrar?
+    @Column(name = "code", nullable = false)
     private String code; // "background_image", "logo", "sfx_win"
 
     /** Juego al que pertenece esta definición */
@@ -46,11 +46,15 @@ public class GameAssetDefinition {
     @Column(name = "max_size_bytes", nullable = false)
     private long maxSizeBytes;
 
-    // @Column(name = "resolution", nullable = false)
-    // private long resolution, FRECUENCIA; min, max?
+    @Column(name = "required_width", nullable = false)
+    private Integer requiredWidth;
+    @Column(name = "required_height", nullable = false)
+    private Integer requiredHeight;
 
-    // private int requiredWidth;
-    // private int requiredHeight;
+    @Column(name = "aspect_ratio_width", nullable = false)
+    private Integer aspectRatioWidth;   // ej: 16
+    @Column(name = "aspect_ratio_height", nullable = false)
+    private Integer aspectRatioHeight;  // ej: 9
 
     /** ¿Es obligatorio para lanzar una campaña? */
     @Column(name = "required", nullable = false)

@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
@@ -34,6 +35,8 @@ public interface CampaignService {
             CreateCampaignRequestDTO request);
 
     PagedResponse<GameDTO> getAvailableGames(Long advertiserId, Pageable pageable);
+
+    List<GameConfigDefinitionDTO> getConfigDefinitionByGame(Long gameId);
 
     List<GameAssetDefinitionDTO> getAssetsByGame(Long gameId);
 }

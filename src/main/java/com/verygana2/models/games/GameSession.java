@@ -60,8 +60,11 @@ public class GameSession {
     @Column(name = "end_time", nullable = true)
     private ZonedDateTime endTime;
 
-    @Column(name = "play_time", nullable = true)
-    private Long playTime; // segundos?
+    @Column(name = "coins_earned")
+    private Long coinsEarned;
+
+    @Column(name = "play_time_seconds", nullable = true)
+    private Long playTimeSeconds;
 
     @Column(name = "device_platform", nullable = false)
     @Enumerated(EnumType.STRING)
@@ -96,7 +99,7 @@ public class GameSession {
         session.completed = false;
         session.rewardGranted = false;
         session.score = null;
-        session.playTime = null;
+        session.playTimeSeconds = null;
         session.devicePlatform = platform;
         session.metrics = new ArrayList<>();
         session.endTime = null;

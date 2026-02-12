@@ -24,9 +24,12 @@ public class RaffleResponseDTO {
     private ZonedDateTime startDate;
     private ZonedDateTime endDate;
     private ZonedDateTime drawDate;
+    private Long maxTicketsPerUser;
+    private Long maxTotalTickets;
     private Long totalTicketsIssued;
     private Long totalParticipants;
     private List<PrizeResponseDTO> prizes;
+    private List<RaffleRuleResponseDTO> rules;
     private boolean requiresPet;
     private DrawMethod drawMethod;
     private String drawProof;

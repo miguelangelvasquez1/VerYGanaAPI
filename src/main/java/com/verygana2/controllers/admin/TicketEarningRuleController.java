@@ -6,25 +6,28 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
-import com.verygana2.dtos.raffle.requests.CreateRuleRequestDTO;
-import com.verygana2.dtos.raffle.requests.UpdateRuleRequestDTO;
-import com.verygana2.dtos.raffle.responses.RuleResponseDTO;
-import com.verygana2.models.enums.raffles.RuleType;
+import com.verygana2.dtos.raffle.requests.CreateTicketEarningRuleRequestDTO;
+import com.verygana2.dtos.raffle.requests.UpdateTicketEarningRuleRequestDTO;
+import com.verygana2.dtos.raffle.responses.TicketEarningRuleResponseDTO;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.services.interfaces.raffles.TicketEarningRuleService;
 
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
+
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
@@ -38,14 +41,18 @@ public class TicketEarningRuleController {
 
     @PostMapping
     public ResponseEntity<EntityCreatedResponseDTO> createTicketEarningRule(
-            @RequestBody @Valid CreateRuleRequestDTO request) {
-        return ResponseEntity.ok(ticketEarningRuleService.createTicketEarningRule(request));
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid CreateTicketEarningRuleRequestDTO request) {
+        Long adminId = jwt.getClaim("userId");
+        return ResponseEntity.ok(ticketEarningRuleService.createTicketEarningRule(adminId, request));
     }
 
     @PutMapping("/{ruleId}")
-    public ResponseEntity<EntityUpdatedResponseDTO> updateTicketEarningRule(@PathVariable Long ruleId,
-            @RequestBody @Valid UpdateRuleRequestDTO request) {
-        return ResponseEntity.ok(ticketEarningRuleService.updateTicketEarningRule(ruleId, request));
+    public ResponseEntity<EntityUpdatedResponseDTO> updateTicketEarningRule(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long ruleId,
+            @RequestBody @Valid UpdateTicketEarningRuleRequestDTO request) {
+        Long adminId = jwt.getClaim("userId");
+        return ResponseEntity.ok(ticketEarningRuleService.updateTicketEarningRule(adminId, ruleId, request));
     }
 
     @DeleteMapping("/{ruleId}")
@@ -55,15 +62,15 @@ public class TicketEarningRuleController {
     }
 
     @GetMapping
-    public ResponseEntity<List<RuleResponseDTO>> getTicketEarningRulesList(
-            @RequestParam(value = "type", required = false) RuleType type,
-            @RequestParam(value = "isActive", required = false) boolean isActive,
+    public ResponseEntity<List<TicketEarningRuleResponseDTO>> getTicketEarningRulesList(
+            @RequestParam(value = "type", required = false) TicketEarningRuleType type,
+            @RequestParam(value = "isActive", required = false) Boolean isActive,
             @PageableDefault(size = 10, page = 0) Pageable pageable) {
         return ResponseEntity.ok(ticketEarningRuleService.getTicketEarningRulesList(type, isActive, pageable));
     }
 
     @GetMapping("/{ruleId}")
-    public ResponseEntity<RuleResponseDTO> getTicketEarningRule(@PathVariable Long ruleId) {
+    public ResponseEntity<TicketEarningRuleResponseDTO> getTicketEarningRule(@PathVariable Long ruleId) {
         return ResponseEntity.ok(ticketEarningRuleService.getTicketEarningRuleResponseDTOById(ruleId));
     }
 

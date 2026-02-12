@@ -31,12 +31,11 @@ public class RaffleController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<RaffleResponseDTO>> getRafflesByStatusAndType (
-            @RequestParam("status") RaffleStatus status, @RequestParam("type") RaffleType type,
+            @RequestParam(value = "status", required = false) RaffleStatus status, @RequestParam(value = "type", required = false) RaffleType type,
             @PageableDefault(size = 10, page = 0, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         return ResponseEntity.ok(raffleService.getRafflesByStatusAndType(status, type, pageable));
     }
-
 
     @GetMapping("/{raffleId}")
     public ResponseEntity<RaffleResponseDTO> getRaffleById (@PathVariable Long raffleId){

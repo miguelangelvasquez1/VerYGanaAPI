@@ -8,7 +8,7 @@ import com.verygana2.models.raffles.RaffleWinner;
 
 public interface DrawingService {
 
-    DrawResultResponseDTO conductDraw (Long raffleId, Integer numberOfWinners);
+    DrawResultResponseDTO conductDraw (Long raffleId);
 
     List<RaffleTicket> randomInternalDraw(List<RaffleTicket> tickets, Integer numberOfWinners);
     List<RaffleTicket> randomExternalDraw(List<RaffleTicket> tickets, Integer numberOfWinners);

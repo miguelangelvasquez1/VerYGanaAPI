@@ -5,6 +5,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -45,9 +47,10 @@ public class RaffleAdminController {
     }
 
     @PutMapping("/{raffleId}")
-    public ResponseEntity<EntityUpdatedResponseDTO> updateRaffle(@PathVariable Long raffleId,
+    public ResponseEntity<EntityUpdatedResponseDTO> updateRaffle(@AuthenticationPrincipal Jwt jwt, @PathVariable Long raffleId,
             @RequestBody UpdateRaffleRequestDTO request) {
-        return ResponseEntity.ok(raffleService.updateRaffle(raffleId, request));
+                Long adminId = jwt.getClaim("userId");
+        return ResponseEntity.ok(raffleService.updateRaffle(adminId, raffleId, request));
     }
 
     @PatchMapping("/{raffleId}/activate")
@@ -64,8 +67,8 @@ public class RaffleAdminController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<RaffleResponseDTO>> getRafflesByStatusAndType(
-            @RequestParam(value = "status", required = false) RaffleStatus status,
-            @RequestParam(value = "type", required = false) RaffleType type,
+            @RequestParam(value = "status") RaffleStatus status,
+            @RequestParam(value = "type") RaffleType type,
             @PageableDefault(size = 10, page = 0, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
         return ResponseEntity.ok(raffleService.getRafflesByStatusAndType(status, type, pageable));
@@ -78,10 +81,9 @@ public class RaffleAdminController {
 
     @PostMapping("/{raffleId}/draw")
     public ResponseEntity<DrawResultResponseDTO> conductDraw(
-            @PathVariable Long raffleId,
-            @RequestParam(value = "numberOfWinners", required = false) Integer numberOfWinners) {
+            @PathVariable Long raffleId) {
 
-        return ResponseEntity.ok(drawingService.conductDraw(raffleId, numberOfWinners));
+        return ResponseEntity.ok(drawingService.conductDraw(raffleId));
     }
 
     @GetMapping("/{raffleId}/verify")

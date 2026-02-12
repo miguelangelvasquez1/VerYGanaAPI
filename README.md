@@ -56,6 +56,9 @@ docker compose up --build
 docker compose restart (solo cambio de .env)
 mvn spring-boot:run
 
+docker build -t miguelvasquez777/verygana-api:latest .
+docker push miguelvasquez777/verygana-api:latest
+
 
 - obtener session estandarizado
 - Flujo de juegos:

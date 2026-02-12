@@ -24,6 +24,13 @@ public class CampaignDTO {
     private Long gameId;
     private String gameTitle;
 
+    private BigDecimal coinValue;
+    private Integer completionCoins;
+    private Integer budgetCoins;
+    private Integer spentCoins;
+    private Integer maxCoinsPerSession;
+    private Integer maxSessionsPerUserPerDay;
+
     // Presupuesto
     private BigDecimal budget;
     private BigDecimal spent;

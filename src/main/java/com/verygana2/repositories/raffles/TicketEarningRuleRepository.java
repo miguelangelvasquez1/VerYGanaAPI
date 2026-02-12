@@ -9,8 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.raffles.RaffleType;
-import com.verygana2.models.enums.raffles.RuleType;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.TicketEarningRule;
 
 @Repository
@@ -19,22 +18,23 @@ public interface TicketEarningRuleRepository extends JpaRepository<TicketEarning
     /**
      * Encuentra reglas activas por tipo, ordenadas por prioridad
      */
-    List<TicketEarningRule> findByRuleTypeAndIsActiveTrueOrderByPriorityDesc(RuleType ruleType);
+    List<TicketEarningRule> findByRuleTypeAndIsActiveTrueOrderByPriorityDesc(TicketEarningRuleType ruleType);
 
     /**
      * Encuentra reglas por tipo y por estado ordenadas por prioridad
      */
-    List<TicketEarningRule> findByRuleTypeAndIsActiveOrderByPriorityDesc(RuleType ruleType, boolean isActive, Pageable pageable);
+    @Query("""
+            SELECT r FROM TicketEarningRule r 
+            WHERE (:ruleType IS NULL OR r.ruleType = :ruleType)
+            AND (:isActive IS NULL OR r.isActive = :isActive)
+            ORDER BY r.priority DESC 
+            """)
+    List<TicketEarningRule> findByRuleTypeAndIsActiveOrderByPriorityDesc(@Param("ruleType") TicketEarningRuleType ruleType, @Param("isActive") Boolean isActive, Pageable pageable);
     
     /**
      * Todas las reglas activas
      */
     List<TicketEarningRule> findByIsActiveTrueOrderByPriorityDesc();
-    
-    /**
-     * Reglas por tipo de rifa
-     */
-    List<TicketEarningRule> findByAppliesToRaffleTypeAndIsActiveTrue(RaffleType raffleType);
     
     /**
      * Busca regla por nombre
@@ -45,15 +45,6 @@ public interface TicketEarningRuleRepository extends JpaRepository<TicketEarning
      * Verifica si existe una regla con ese nombre
      */
     boolean existsByRuleName(String ruleName);
-    
-    /**
-     * Reglas activas que aún tienen cupo disponible
-     */
-    @Query("SELECT r FROM TicketEarningRule r WHERE r.isActive = true " +
-           "AND (r.maxUsesGlobal IS NULL OR r.currentUsesCount < r.maxUsesGlobal) " +
-           "AND r.ruleType = :ruleType " +
-           "ORDER BY r.priority DESC")
-    List<TicketEarningRule> findAvailableRulesByType(@Param("ruleType") RuleType ruleType);
     
     /**
      * Cuenta reglas activas

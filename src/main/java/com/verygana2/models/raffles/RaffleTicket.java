@@ -1,5 +1,6 @@
 package com.verygana2.models.raffles;
 
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
@@ -17,6 +18,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.Size;
@@ -64,4 +66,11 @@ public class RaffleTicket {
     private ZonedDateTime usedAt;
 
     private ZonedDateTime issuedAt;
+
+    @PrePersist
+    public void onCreate (){
+        this.status = RaffleTicketStatus.ACTIVE;
+        this.issuedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.isWinner = false;
+    }
 }

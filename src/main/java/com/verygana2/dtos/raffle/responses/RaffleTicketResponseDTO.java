@@ -18,6 +18,7 @@ public class RaffleTicketResponseDTO {
     private String ticketNumber;
     private RaffleTicketSource source;
     private Long sourceId;
-    private RaffleResponseDTO raffle;
+    private Long raffleId;
     private ZonedDateTime issuedAt;
+    private ZonedDateTime usedAt;
 }

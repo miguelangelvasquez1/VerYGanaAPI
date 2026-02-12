@@ -32,8 +32,8 @@ public class RaffleWinnerController {
     }
 
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    @GetMapping("/my-wins")
-    public ResponseEntity<List<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "title", direction = Sort.Direction.DESC) Pageable pageable){
+    @GetMapping("/my-prizes")
+    public ResponseEntity<List<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "drawnAt", direction = Sort.Direction.DESC) Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, pageable));
     }

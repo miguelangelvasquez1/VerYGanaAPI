@@ -7,6 +7,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -17,6 +18,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
+@Table(name = "game_config_definitions")
 public class GameConfigDefinition {
     
     @Id
@@ -27,14 +29,13 @@ public class GameConfigDefinition {
     private Game game;
 
     @Column(name = "block_key", nullable = false)
-    private String blockKey;
+    private String blockKey; // root, branding
 
-    /** branding, colors, audio, texts */
     @Column(name = "json_key", nullable = false)
-    private String jsonKey; // colors, audio, etc
+    private String jsonKey; // colors, rewards, texts, etc
 
     @Column(name = "config_schema", columnDefinition = "json", nullable = false)
-    private String schema;
+    private String schema; // json de los nodos hijos con su tipo de dato
 
     @Column(name = "required", nullable = false)
     private boolean required;

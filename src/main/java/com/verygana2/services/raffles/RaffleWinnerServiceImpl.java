@@ -22,8 +22,8 @@ import lombok.RequiredArgsConstructor;
 @Transactional
 public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
-    private RaffleWinnerRepository raffleWinnerRepository;
-    private RaffleWinnerMapper raffleWinnerMapper;
+    private final RaffleWinnerRepository raffleWinnerRepository;
+    private final RaffleWinnerMapper raffleWinnerMapper;
 
     @Transactional(readOnly = true)
     @Override
@@ -39,7 +39,6 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     public List<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Pageable pageable) {
 
         List<RaffleWinner> wins = raffleWinnerRepository.findByWinnerId(consumerId, pageable);
-        
         return wins.stream().map(w -> {
             Prize prize = w.getPrize();
             return PrizeWonResponseDTO.builder()
