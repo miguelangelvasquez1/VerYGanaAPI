@@ -3,6 +3,7 @@ package com.verygana2.repositories.raffles;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -31,7 +32,7 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
     /**
      * Encuentra todos los premios ganados por un usuario
      */
-    List<RaffleWinner> findByWinnerId(Long consumerId, Pageable pageable);
+    Page<RaffleWinner> findByWinnerId(Long consumerId, Pageable pageable);
     
     /**
      * Verifica si un usuario ganó en una rifa específica

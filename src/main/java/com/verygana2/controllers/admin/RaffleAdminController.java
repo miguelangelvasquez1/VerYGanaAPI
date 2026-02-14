@@ -47,9 +47,10 @@ public class RaffleAdminController {
     }
 
     @PutMapping("/{raffleId}")
-    public ResponseEntity<EntityUpdatedResponseDTO> updateRaffle(@AuthenticationPrincipal Jwt jwt, @PathVariable Long raffleId,
+    public ResponseEntity<EntityUpdatedResponseDTO> updateRaffle(@AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long raffleId,
             @RequestBody UpdateRaffleRequestDTO request) {
-                Long adminId = jwt.getClaim("userId");
+        Long adminId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleService.updateRaffle(adminId, raffleId, request));
     }
 
@@ -89,6 +90,11 @@ public class RaffleAdminController {
     @GetMapping("/{raffleId}/verify")
     public ResponseEntity<Boolean> verifyDrawIntegrity(@PathVariable Long raffleId) {
         return ResponseEntity.ok(drawingService.verifyDrawIntegrity(raffleId));
+    }
+
+    @GetMapping("/count")
+    public ResponseEntity<Long> countRafflesByStatus(@RequestParam("status") RaffleStatus status) {
+        return ResponseEntity.ok(raffleService.countRafflesByStatus(status));
     }
 
 }

@@ -3,10 +3,12 @@ package com.verygana2.services.raffles;
 
 import java.util.List;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 import com.verygana2.mappers.raffles.RaffleWinnerMapper;
@@ -36,10 +38,10 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
     @Transactional(readOnly = true)
     @Override
-    public List<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Pageable pageable) {
+    public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Pageable pageable) {
 
-        List<RaffleWinner> wins = raffleWinnerRepository.findByWinnerId(consumerId, pageable);
-        return wins.stream().map(w -> {
+        Page<RaffleWinner> wins = raffleWinnerRepository.findByWinnerId(consumerId, pageable);
+        return PagedResponse.from(wins.map(w -> {
             Prize prize = w.getPrize();
             return PrizeWonResponseDTO.builder()
                     .prizeId(prize.getId())
@@ -57,7 +59,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
                     .isClaimed(w.isPrizeClaimed())
                     .claimedAt(w.getPrizeClaimedAt())
                     .build();
-        }).toList();
+        }));
     }
 
     @Override

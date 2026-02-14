@@ -154,7 +154,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:60057/?game_title=%s",
+                "http://localhost:3000/?game_title=%s",
                 game.getUrl()
             );
 

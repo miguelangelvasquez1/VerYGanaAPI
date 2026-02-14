@@ -16,6 +16,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.services.interfaces.raffles.RaffleService;
@@ -30,11 +31,11 @@ public class RaffleController {
     private final RaffleService raffleService;
 
     @GetMapping
-    public ResponseEntity<PagedResponse<RaffleResponseDTO>> getRafflesByStatusAndType (
-            @RequestParam(value = "status", required = false) RaffleStatus status, @RequestParam(value = "type", required = false) RaffleType type,
+    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByStatusAndType(
+            @RequestParam(value = "status") RaffleStatus status,
+            @RequestParam(value = "type") RaffleType type,
             @PageableDefault(size = 10, page = 0, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-
-        return ResponseEntity.ok(raffleService.getRafflesByStatusAndType(status, type, pageable));
+        return ResponseEntity.ok(raffleService.getSummaryRafflesByStatusAndType(status, type, pageable));
     }
 
     @GetMapping("/{raffleId}")
@@ -51,8 +52,5 @@ public class RaffleController {
     public ResponseEntity<List<ParticipantLeaderboardDTO>> getRaffleLeaderboard (@PathVariable Long raffleId){
         return ResponseEntity.ok(raffleService.getRaffleLeaderBoard(raffleId));
     }
-
-    
-
 
 }

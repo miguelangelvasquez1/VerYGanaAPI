@@ -23,4 +23,5 @@ public interface TicketEarningRuleService {
     void deleteTicketEarningRule(Long ruleId);
     void activateTicketEarningRule(Long ruleId);
     void deactivateTicketEarningRule (Long ruleId);
+    Long countActiveTicketEarningRules();
 }

@@ -8,6 +8,7 @@ import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleRuleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketEarningRuleResponseDTO;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
@@ -27,6 +28,7 @@ public interface RaffleMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "raffleRules", ignore = true)
+    @Mapping(target = "modifiedBy", ignore = true)
     Raffle toRaffle (CreateRaffleRequestDTO request);
 
     @Mapping(target = "id", ignore = true)
@@ -37,6 +39,9 @@ public interface RaffleMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     Prize toPrize (CreatePrizeRequestDTO request);
+
+    @Mapping(target = "prizeCount", expression = "java(getPrizeCount(raffle))")
+    RaffleSummaryResponseDTO toRaffleSummaryResponseDTO (Raffle raffle);
 
     @Mapping(target = "rules", source = "raffleRules")
     RaffleResponseDTO toRaffleResponseDTO (Raffle raffle);
@@ -49,4 +54,8 @@ public interface RaffleMapper {
 
     @Mapping(target = "ticketsBySource", ignore = true)
     RaffleStatsResponseDTO toRaffleStatsResponseDTO (Raffle raffle);
+
+    default Integer getPrizeCount (Raffle raffle){
+        return raffle.getPrizes().size();
+    }
 }

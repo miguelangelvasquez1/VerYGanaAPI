@@ -58,10 +58,10 @@ public class GameController {
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         // Json
         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-            return ResponseEntity.ok(HangmanGameAssets.ASSETS);
+            return ResponseEntity.ok(AvoidTheBombGameAssets.ASSETS);
 
         } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-            return ResponseEntity.ok(HangmanAssets.ASSETS);
+            return ResponseEntity.ok(AvoidTheBombGameAssets.ASSETS);
         }
         return ResponseEntity.badRequest().body(null);
         // ObjectNode assets = gameService.getGameAssets(req);

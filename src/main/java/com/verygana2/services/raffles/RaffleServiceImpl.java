@@ -23,6 +23,7 @@ import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.mappers.raffles.PrizeMapper;
@@ -258,6 +259,14 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
+    public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status,
+            RaffleType type, Pageable pageable) {
+
+        Page<Raffle> rafflesFound = raffleRepository.findByRaffleStatusAndRaffleType(status, type, pageable);
+        return PagedResponse.from(rafflesFound.map(raffleMapper::toRaffleSummaryResponseDTO));
+    }
+
+    @Override
     public PagedResponse<RaffleResponseDTO> getRafflesByStatusAndType(RaffleStatus status, RaffleType type,
             Pageable pageable) {
 
@@ -298,6 +307,11 @@ public class RaffleServiceImpl implements RaffleService {
     @Override
     public List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate) {
         return raffleRepository.findActiveRaffleByDrawDate(drawDate);
+    }
+
+    @Override
+    public Long countRafflesByStatus(RaffleStatus status) {
+        return raffleRepository.countByRaffleStatus(status);
     }
 
 }
