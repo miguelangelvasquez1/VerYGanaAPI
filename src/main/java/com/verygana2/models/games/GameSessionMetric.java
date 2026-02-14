@@ -10,6 +10,8 @@ import com.verygana2.models.enums.MetricType;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -39,6 +41,7 @@ public class GameSessionMetric {
     private String metricKey; // "moves", "accuracy", "reaction_time"
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private MetricType metricType; // INT, DECIMAL, BOOLEAN, STRING
 
     @JdbcTypeCode(SqlTypes.JSON)

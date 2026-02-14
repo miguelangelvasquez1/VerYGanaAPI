@@ -300,6 +300,8 @@ public class CampaignServiceImpl implements CampaignService {
             // 8. Persistir
             Campaign savedCampaign = campaignRepository.save(Objects.requireNonNull(campaign));
 
+            // mover los assets a public
+
             log.info("Campaña creada exitosamente: ID {}, {} assets", 
                 savedCampaign.getId(), savedCampaign.getAssets().size());
             // if (true) throw new ValidationException("Excepción de prueba");
