@@ -13,6 +13,8 @@ import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.models.enums.MetricType;
 import com.verygana2.models.games.GameMetricDefinition;
 
+import jakarta.validation.ValidationException;
+
 @Component
 public class MetricValidator {
 
@@ -23,7 +25,7 @@ public class MetricValidator {
 
         if (definitions == null || definitions.isEmpty()) {
             if (metrics != null && !metrics.isEmpty()) {
-                throw new IllegalArgumentException("Game does not accept metrics");
+                throw new ValidationException("Game does not accept metrics");
             }
             return;
         }

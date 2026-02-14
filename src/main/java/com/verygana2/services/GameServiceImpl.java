@@ -104,9 +104,37 @@ public class GameServiceImpl implements GameService {
         String userHash = savedSession.getUserHash();
         String isBrandedMode = "true";
         Long campaignId = campaign.getId();
+        String baseUrl;
+
+        if (game.getDeliveryType().equals("PATH")) {
+
+            // /games/{objectKey}/
+            baseUrl = String.format(
+                "%s/%s/",
+                cdnUrl,
+                game.getUrl() //cambair attribute name
+            );
+
+        } else if (game.getDeliveryType().equals("QUERY")) {
+
+            // /games/main/?game=snake
+            // baseUrl = String.format(
+            //     "https://%s/Build2/?game_title=%s",
+            //     cdnUrl,
+            //     game.getUrl()
+            // );
+            baseUrl = String.format(
+                "http://localhost:63374/?game_title=%s",
+                game.getUrl()
+            );
+
+        } else {
+            throw new IllegalStateException("Unsupported routing type");
+        }
+
         String url = String.format(
-            "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-            cdnUrl, game.getTitle(), sessionToken, userHash, isBrandedMode, campaignId
+            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl, sessionToken, userHash, isBrandedMode, campaignId
         );
 
         return url;
@@ -154,7 +182,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:60057/?game_title=%s",
+                "http://localhost:63374/?game_title=%s",
                 game.getUrl()
             );
 
@@ -180,12 +208,9 @@ public class GameServiceImpl implements GameService {
     @Transactional(readOnly = true)
     public ObjectNode getGameAssets(GameEventDTO<Void> req) {
 
-        //Borrar:
-        req.setCampaignId(14L);
-
-        // if (req.getCampaignId() == null) {
-        //     throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
-        // }
+        if (req.getCampaignId() == null) {
+            throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
+        }
 
         Campaign campaign = campaignRepository.findById(req.getCampaignId())
             .orElseThrow(() ->
@@ -245,7 +270,7 @@ public class GameServiceImpl implements GameService {
         for (Asset asset : assets) {
             AssetType type = asset.getAssetDefinition().getAssetType();
 
-            String blockKey = type.getBlockKey(); // branding, audio, puzzle, etc
+            String blockKey = type.getBlockKey(); // branding, audio, game, etc
             String jsonKey  = type.getJsonKey();  // logo_url, image_url, etc
 
             ObjectNode block = getBlock.apply(blockKey);
@@ -279,6 +304,7 @@ public class GameServiceImpl implements GameService {
             .findByGameId(session.getGame().getId());
 
         List<GameMetricDTO> metrics = event.getPayload();
+
         // Validar métricas contra definiciones
         metricValidator.validateMetrics(metrics, definitions);
 

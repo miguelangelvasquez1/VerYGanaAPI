@@ -49,7 +49,7 @@ public interface RaffleParticipationRepository extends JpaRepository<RaffleParti
         SELECT DISTINCT new com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO(
             p.consumer.id,
             p.consumer.userName,
-            p.consumer.avatar,
+            p.consumer.avatarUrl,
             p.ticketsCount,
             (CAST(p.ticketsCount AS double) * 100.0 / CAST(p.raffle.totalTicketsIssued AS double))
         )

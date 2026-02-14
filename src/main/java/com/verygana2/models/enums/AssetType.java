@@ -8,7 +8,7 @@ import lombok.Getter;
 public enum AssetType {
     
     // BRANDING ASSETS
-    LOGO("branding", "main_logo_url"),
+    LOGO("branding", "main_image_url"),
     WATERMARK("branding", "logo_watermark_url"),
     BANNER("branding", "banner_url"),
     ICON("branding", "icon_url"),
