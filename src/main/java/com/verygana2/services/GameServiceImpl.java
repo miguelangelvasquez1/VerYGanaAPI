@@ -1,10 +1,9 @@
 package com.verygana2.services;
 
 import java.time.ZonedDateTime;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
@@ -14,32 +13,26 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO; 
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
+import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.UnauthorizedException;
-import com.verygana2.models.enums.AssetType;
 import com.verygana2.models.enums.DevicePlatform;
-import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
-import com.verygana2.models.games.GameConfig;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameMetricDefinition;
 import com.verygana2.models.games.GameSession;
 import com.verygana2.models.games.GameSessionMetric;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
-import com.verygana2.repositories.games.GameConfigRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionMetricRepository;
@@ -75,9 +68,26 @@ public class GameServiceImpl implements GameService {
     private final GameMetricDefinitionRepository metricDefinitionRepository;
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
-    private final AssetRepository assetRepository;
-    private final GameConfigRepository gameConfigRepository;
     
+    public GameSchemaResponse getLatestGameSchema(Long gameId) {
+
+        Game game = gameRepository.findByIdAndActiveTrue(gameId)
+                .orElseThrow(() -> new IllegalArgumentException("Game not available"));
+
+        GameConfigDefinition configDefinition = game.getConfigDefinitions()
+                .stream()
+                .max(Comparator.comparing(GameConfigDefinition::getVersion))
+                .orElseThrow(() -> new IllegalStateException("Game has no config definition"));
+
+        return new GameSchemaResponse(
+                game.getId(),
+                game.getTitle(),
+                configDefinition.getVersion().toString(),
+                configDefinition.getJsonSchema(),
+                configDefinition.getUiSchema()
+        );
+    }
+
     @Override
     public String initGameSponsored(InitGameRequestDTO request, Long userId) {
          
@@ -89,7 +99,7 @@ public class GameServiceImpl implements GameService {
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
             .orElseThrow(() -> new IllegalArgumentException("Game not available"));
 
-        // 3. Seleccionar campaña válida para el juego
+            // 3. Seleccionar campaña válida para el juego
         Campaign campaign = campaignRepository.findRandomActiveCampaignByGameId(gameId)
             .orElseThrow(() -> new IllegalStateException("No active campaigns for this game"));
 
@@ -105,7 +115,7 @@ public class GameServiceImpl implements GameService {
         String isBrandedMode = "true";
         Long campaignId = campaign.getId();
         String baseUrl;
-
+        
         if (game.getDeliveryType().equals("PATH")) {
 
             // /games/{objectKey}/
@@ -124,17 +134,18 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:63374/?game_title=%s",
+                "http://localhost:56591/?game_title=%s",
                 game.getUrl()
             );
+            
 
         } else {
             throw new IllegalStateException("Unsupported routing type");
         }
 
         String url = String.format(
-            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-            baseUrl, sessionToken, userHash, isBrandedMode, campaignId
+            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s&enable_restart=%s",
+            baseUrl, sessionToken, userHash, isBrandedMode, campaignId, "false"
         );
 
         return url;
@@ -182,7 +193,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:63374/?game_title=%s",
+                "http://localhost:63035/?game_title=%s",
                 game.getUrl()
             );
 
@@ -196,18 +207,18 @@ public class GameServiceImpl implements GameService {
         // );
 
         return String.format(
-            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s&enable_restart=%s",
             baseUrl,
             sessionToken,
             userHash,
             brandedMode,
-            campaignId //no se pone si es no branded?
+            campaignId, //no se pone si es no branded?
+            "true"
         );
     }
 
     @Transactional(readOnly = true)
-    public ObjectNode getGameAssets(GameEventDTO<Void> req) {
-
+    public Map<String,Object> getGameAssets(GameEventDTO<Void> req) {
         if (req.getCampaignId() == null) {
             throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
         }
@@ -218,77 +229,7 @@ public class GameServiceImpl implements GameService {
                     "Campaign not found with id: " + req.getCampaignId(), Campaign.class
                 )
             );
-
-        List<GameConfig> configs = gameConfigRepository.findByCampaignId(req.getCampaignId());
-        List<Asset> assets = assetRepository.findByCampaignId(req.getCampaignId());
-
-        ObjectNode root = objectMapper.createObjectNode();
-
-        /* =======================
-        META
-        ======================= */
-        ObjectNode meta = objectMapper.createObjectNode();
-        meta.put("brand_id", campaign.getId().toString());
-        root.set("meta", meta);
-
-        /* =======================
-        HELPERS
-        ======================= */
-        Map<String, ObjectNode> blocks = new HashMap<>();
-
-        Function<String, ObjectNode> getBlock = blockKey ->
-            blocks.computeIfAbsent(blockKey, key -> {
-                ObjectNode node = objectMapper.createObjectNode();
-                root.set(key, node);
-                return node;
-            });
-
-        /* =======================
-        CONFIGS
-        ======================= */
-        for (GameConfig config : configs) {
-            GameConfigDefinition def = config.getDefinition();
-
-            String blockKey = def.getBlockKey(); // branding | root
-            String jsonKey  = def.getJsonKey();  // colors | texts | rewards
-
-            JsonNode valueNode = objectMapper.valueToTree(config.getValues());
-
-            if ("root".equals(blockKey)) {
-                // Se coloca directamente en el root
-                root.set(jsonKey, valueNode);
-            } else {
-                // Se coloca dentro del bloque correspondiente
-                ObjectNode block = getBlock.apply(blockKey);
-                block.set(jsonKey, valueNode);
-            }
-        }
-
-        /* =======================
-        ASSETS
-        ======================= */
-        for (Asset asset : assets) {
-            AssetType type = asset.getAssetDefinition().getAssetType();
-
-            String blockKey = type.getBlockKey(); // branding, audio, game, etc
-            String jsonKey  = type.getJsonKey();  // logo_url, image_url, etc
-
-            ObjectNode block = getBlock.apply(blockKey);
-            block.put(jsonKey, asset.getObjectKey());
-        }
-
-        try { //borrar
-            
-            ObjectNode testNode = objectMapper.createObjectNode();
-            testNode.put("image_url", "https://cdn.verygana.com/public/games-test/image2_1200.png");
-
-            root.set("puzzle", testNode);
-
-            log.info("Game assets: {}", objectMapper.writeValueAsString(root));
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-        return root;
+        return campaign.getConfigData();
     }
 
     /**

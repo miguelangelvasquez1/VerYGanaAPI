@@ -67,7 +67,7 @@ public class AuthController {
         log.info("Login attempt for user: {} from {}", request.getIdentifier(), clientType);
 
         Authentication authentication = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a UserDetailsService
+                new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a CustomUserDetailsService
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 

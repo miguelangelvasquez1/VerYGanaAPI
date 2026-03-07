@@ -4,6 +4,10 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
@@ -30,6 +34,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import jakarta.validation.ValidationException;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -64,6 +69,15 @@ public class Campaign {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "game_id", nullable = false)
     private Game game;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "config_definition_id", nullable = false)
+    private GameConfigDefinition configDefinition;
+
+    // Full JSON config stored as JSONB
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "config_data", columnDefinition = "json", nullable = false)
+    private Map<String, Object> configData;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "advertiser_id", nullable = false)
@@ -170,33 +184,33 @@ public class Campaign {
         updatedAt = createdAt;
 
         if (coinValue == null || coinValue.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalStateException("coinValue must be greater than 0");
+            throw new ValidationException("coinValue must be greater than 0");
         }
 
         if (budgetCoins == null || budgetCoins <= 0) {
-            throw new IllegalStateException("budgetCoins must be greater than 0");
+            throw new ValidationException("budgetCoins must be greater than 0");
         }
 
         if (maxCoinsPerSession == null || maxCoinsPerSession <= 0) {
-            throw new IllegalStateException("maxCoinsPerSession must be greater than 0");
+            throw new ValidationException("maxCoinsPerSession must be greater than 0");
         }
 
         if (completionCoins == null || completionCoins < 0) {
-            throw new IllegalStateException("completionCoins cannot be negative");
+            throw new ValidationException("completionCoins cannot be negative");
         }
 
         if (maxCoinsPerSession < completionCoins) {
-            throw new IllegalStateException(
+            throw new ValidationException(
                 "maxCoinsPerSession must be greater than or equal to completionCoins"
             );
         }
 
         if (maxSessionsPerUserPerDay == null || maxSessionsPerUserPerDay <= 0) {
-            throw new IllegalStateException("maxSessionsPerUserPerDay must be greater than 0");
+            throw new ValidationException("maxSessionsPerUserPerDay must be greater than 0");
         }
 
         if (minAge != null && maxAge != null && minAge > maxAge) {
-            throw new IllegalStateException("minAge cannot be greater than maxAge");
+            throw new ValidationException("minAge cannot be greater than maxAge");
         }
 
         // Calculate derived values defensively

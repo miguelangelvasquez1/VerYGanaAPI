@@ -9,8 +9,10 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.games.Asset;
+import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -32,18 +34,46 @@ import lombok.extern.slf4j.Slf4j;
 public class OrphanedAssetsCleanupJob {
 
     private final AssetRepository assetRepository;
+    private final StoryMediaAssetRepository storyMediaAssetRepository;
     private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
     private int maxAgeHours;
 
+    // Para Impact Stories
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // cada hora
+    public void cleanupImpactStoriesAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<StoryMediaAsset> assets = storyMediaAssetRepository.findDeletableAssets( StoryMediaAsset.MediaAssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} assets candidatos", assets.size());
+
+        for (StoryMediaAsset asset : assets) {
+            try {
+                r2Service.deleteObject(asset.getObjectKey());
+                asset.setStatus(StoryMediaAsset.MediaAssetStatus.DELETED);
+                storyMediaAssetRepository.save(asset);
+
+                log.info("Asset {} eliminado de R2", asset.getId());
+                // Opcional: enviar métricas a sistema de monitoreo
+                // metricsService.recordCleanup(deletedCount, durationSeconds);
+
+            } catch (Exception e) {
+                log.warn("No se pudo eliminar asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    } 
+
+    // Para campaigns
     @Transactional //    @Scheduled(cron = "${cleanup.orphaned-assets.cron:0 0 2 * * ?}")
     @Scheduled(cron = "0 0 * * * *") // cada hora
     public void cleanupAssets() {
 
         ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
 
-        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold); //falta poner pending assets si llevan mucho como pendign y tambien el trabajo de remove para assets de nauncios
+        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold); //falta poner pending assets si llevan mucho como pendign y tambien el trabajo de remove para assets de anuncios
 
         log.info("Cleanup job: {} assets candidatos", assets.size());
 

@@ -8,10 +8,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.enums.AssetStatus;
-import com.verygana2.models.games.Asset;
 import com.verygana2.repositories.AdAssetRepository;
+import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -24,28 +25,29 @@ public class AssetOrphanedService {
     
     private final AssetRepository assetRepository;
     private final AdAssetRepository adAssetRepository;
+    private final StoryMediaAssetRepository storyMediaAssetRepository;
+
+    // Hacer el del foro
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markAsOrphanedImpactStoryAsset(Long assetId) {
+        storyMediaAssetRepository.findById(assetId).ifPresent(asset -> {
+            asset.setStatus(StoryMediaAsset.MediaAssetStatus.DELETED);
+            storyMediaAssetRepository.save(asset);
+        });
+    }
 
     /**
-     * Marca assets como huérfanos cuando falla la creación de campaña (Para que no haga rollback por la excepción)
+     * Para asset de campaigns.
      */
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markAssetsAsOrphanedByIds(Collection<Long> assetIds) {
-
-        List<Asset> assets = assetRepository.findAllById(Objects.requireNonNull(assetIds));
-
-        for (Asset asset : assets) {
-
-            if (asset.getCampaign() != null) {
-                continue;
-            }
-
-            if (asset.getStatus() == AssetStatus.VALIDATED ||
-                asset.getStatus() == AssetStatus.PENDING) {
-
-                asset.setStatus(AssetStatus.ORPHANED);
-            }
-        }
+    public void markAsOrphaned(Long assetId) {
+        assetRepository.findById(assetId).ifPresent(asset -> {
+            asset.setStatus(AssetStatus.ORPHANED);
+            assetRepository.save(asset);
+        });
     }
+
     /**
      * Para ad assets
      */

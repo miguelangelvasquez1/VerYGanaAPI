@@ -27,7 +27,7 @@ public class AssetDurationService {
     public Double getVideoDurationSeconds(String objectKey) {
         try {
             // Genera presigned URL con expiración corta (ffprobe es rápido)
-            String presignedUrl = r2Service.generatePresignedUrl(PRIVATE_PREFIX + objectKey, 60);  // 60 segundos sobra
+            String presignedUrl = r2Service.getPrivateObject(PRIVATE_PREFIX + objectKey, 60);  // 60 segundos sobra
 
             FFprobeResult result = FFprobe.atPath()
                 .setShowFormat(true)

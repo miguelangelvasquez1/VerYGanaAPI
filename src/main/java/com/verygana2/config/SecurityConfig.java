@@ -142,6 +142,24 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) ->
+            writeErrorResponse(request, response,
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "Unauthorized",
+                "Invalid or expired JWT");
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) ->
+            writeErrorResponse(request, response,
+                HttpServletResponse.SC_FORBIDDEN,
+                "Forbidden",
+                "Insufficient permissions");
+    }
+
     private void writeErrorResponse(HttpServletRequest request,
                                     HttpServletResponse response,
                                     int status,
@@ -159,23 +177,5 @@ public class SecurityConfig {
 
         String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(body);
         response.getWriter().write(json);
-    }
-
-    @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) ->
-            writeErrorResponse(request, response,
-                HttpServletResponse.SC_UNAUTHORIZED,
-                "Unauthorized",
-                "Invalid or expired JWT");
-    }
-
-    @Bean
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) ->
-            writeErrorResponse(request, response,
-                HttpServletResponse.SC_FORBIDDEN,
-                "Forbidden",
-                "Insufficient permissions");
     }
 }
