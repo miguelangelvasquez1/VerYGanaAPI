@@ -30,11 +30,11 @@ public final class Match3Assets {
         // BRANDING
         ObjectNode branding = MAPPER.createObjectNode();
         ObjectNode images = MAPPER.createObjectNode();
-        images.put("main_logo_url", "https://cdn-icons-png.flaticon.com/512/2917/2917995.png");
+        images.put("main_logo_url", "");
         images.put("main_logo_offset_y", 60.0);
-        images.put("logo_watermark_url", "https://cdn-icons-png.flaticon.com/512/3050/3050526.png");
+        images.put("logo_watermark_url", "");
         images.put("logo_watermark_offset_y", 0.0);
-        images.put("background_url", "https://img.freepik.com/free-vector/gradient-galaxy-background_23-2148983652.jpg");
+        images.put("background_url", "");
         images.put("background_color_hex", "#8B4789");
         images.put("grid_background_url", "");
         images.put("grid_background_color_hex", "#9B59B6");
@@ -68,12 +68,6 @@ public final class Match3Assets {
         ObjectNode game = MAPPER.createObjectNode();
         ArrayNode tiles = MAPPER.createArrayNode();
         String[] tileUrls = {
-            "https://cdn-icons-png.flaticon.com/512/3050/3050526.png",
-            "https://cdn-icons-png.flaticon.com/512/2917/2917995.png",
-            "https://cdn-icons-png.flaticon.com/512/3022/3022433.png",
-            "https://cdn-icons-png.flaticon.com/512/833/833472.png",
-            "https://cdn-icons-png.flaticon.com/512/2838/2838590.png",
-            "https://cdn-icons-png.flaticon.com/512/2965/2965279.png"
         };
         for (int i = 0; i < tileUrls.length; i++) {
             ObjectNode tile = MAPPER.createObjectNode();

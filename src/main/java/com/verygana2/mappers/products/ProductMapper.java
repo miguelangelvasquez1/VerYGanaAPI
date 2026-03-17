@@ -93,11 +93,6 @@ public interface ProductMapper {
     CreateProductRequestDTO toCreateOrEditProductRequestDTO(Product product);
 
     @AfterMapping
-    default void calculateStock(@MappingTarget ProductSummaryResponseDTO dto, Product product) {
-        dto.setStock(product.getAvailableStock());
-    }
-
-    @AfterMapping
     default void calculateStock(@MappingTarget ProductResponseDTO dto, Product product) {
         dto.setStock(product.getAvailableStock());
     }

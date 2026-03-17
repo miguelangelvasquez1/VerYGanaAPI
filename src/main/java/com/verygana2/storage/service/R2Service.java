@@ -74,12 +74,47 @@ public class R2Service {
      *      <li>Tiempo de expiración en segundos</li>
      *  </ul>
      */
-    public FileUploadPermissionDTO generateUploadUrl(String objectKey, String contentType) {
+    public FileUploadPermissionDTO generatePrivateUploadUrl(String objectKey, String contentType) {
         
         try {
             // Validar parámetros
             validateObjectKey(objectKey); //Poner loggers audit, evitar sobreescritura?
             String privateKey = PRIVATE_PREFIX + objectKey;
+            
+            // Crear request de pre-signed URL
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(r2Config.getBucketName())
+                .key(privateKey)
+                .contentType(contentType)
+                .build();
+
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(DEFAULT_UPLOAD_EXPIRATION)
+                .putObjectRequest(putRequest)
+                .build();
+
+            // Generar URL firmada
+            PresignedPutObjectRequest presignedRequest = 
+                r2Presigner.presignPutObject(presignRequest);
+
+            String uploadUrl = presignedRequest.url().toString();
+
+            log.info("Pre-signed URL generada para: {}", objectKey);
+
+            return new FileUploadPermissionDTO(uploadUrl, DEFAULT_UPLOAD_EXPIRATION.getSeconds());
+
+        } catch (Exception e) {
+            log.error("Error generando pre-signed URL para {}: {}", objectKey, e.getMessage());
+            throw new StorageException("Error generando URL de subida", e);
+        }
+    }
+
+    public FileUploadPermissionDTO generatePublicUploadUrl(String objectKey, String contentType) {
+        
+        try {
+            // Validar parámetros
+            validateObjectKey(objectKey); //Poner loggers audit, evitar sobreescritura?
+            String privateKey = objectKey;
             
             // Crear request de pre-signed URL
             PutObjectRequest putRequest = PutObjectRequest.builder()
@@ -118,7 +153,7 @@ public class R2Service {
      */
     public SupportedMimeType validateUploadedObject(String objectKey, long expectedSizeBytes, long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
         try {
-            String privateKey = PRIVATE_PREFIX + objectKey;
+            String privateKey = objectKey;
             HeadObjectResponse head = r2Client.headObject(
                 HeadObjectRequest.builder()
                     .bucket(r2Config.getBucketName())

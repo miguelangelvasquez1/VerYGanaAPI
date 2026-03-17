@@ -136,7 +136,7 @@ public class AdServiceImpl implements AdService {
         AdAsset savedAsset = adAssetRepository.save(Objects.requireNonNull(asset));
 
         // 6. Generar pre-signed URL de R2
-        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+        FileUploadPermissionDTO permission = r2Service.generatePrivateUploadUrl(
             objectKey,
             request.getContentType()
         );

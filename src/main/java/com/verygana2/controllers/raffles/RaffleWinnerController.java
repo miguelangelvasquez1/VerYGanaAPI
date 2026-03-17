@@ -30,7 +30,7 @@ public class RaffleWinnerController {
 
     @GetMapping("/raffle/{raffleId}")
     public ResponseEntity<List<WinnerSummaryResponseDTO>> getRaffleWinners (@PathVariable Long raffleId){
-        return ResponseEntity.ok(raffleWinnerService.getRaffleWinnersList(raffleId));
+        return ResponseEntity.ok(raffleWinnerService.getRaffleWinnersByRaffleId(raffleId));
     }
 
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
@@ -38,6 +38,11 @@ public class RaffleWinnerController {
     public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "drawnAt", direction = Sort.Direction.DESC) Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, pageable));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<WinnerSummaryResponseDTO>> getLastWinners (){
+        return ResponseEntity.ok(raffleWinnerService.getLastRaffleWinners());
     }
 
     //Aqui iria el metodo de reclamar premio pero aun no lo he hecho

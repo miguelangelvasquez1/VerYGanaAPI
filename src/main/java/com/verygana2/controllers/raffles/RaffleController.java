@@ -30,6 +30,7 @@ public class RaffleController {
 
     private final RaffleService raffleService;
 
+    // Para admin
     @GetMapping
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByStatusAndType(
             @RequestParam(value = "status") RaffleStatus status,
@@ -52,5 +53,17 @@ public class RaffleController {
     public ResponseEntity<List<ParticipantLeaderboardDTO>> getRaffleLeaderboard (@PathVariable Long raffleId){
         return ResponseEntity.ok(raffleService.getRaffleLeaderBoard(raffleId));
     }
+
+    // Para usuarios
+    @GetMapping("/lives")
+    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(){
+        return ResponseEntity.ok(raffleService.getLiveRaffles());
+    }
+
+    @GetMapping("/actives")
+    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(@RequestParam("type") RaffleType type, @RequestParam("pageNumber") int pageNumber){
+        return ResponseEntity.ok(raffleService.getActiveRaffles(type, pageNumber));
+    }
+
 
 }

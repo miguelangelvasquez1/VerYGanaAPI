@@ -25,8 +25,8 @@ public final class AvoidTheBombAssets {
         gameConfig.put("max_up_force", 17.0);
         gameConfig.put("side_force", 2.5);
         gameConfig.put("gravity_multiplier", 1.0);
-        gameConfig.put("good_points", 10);
-        gameConfig.put("bonus_points", 50);
+        gameConfig.put("good_points", 100);
+        gameConfig.put("bonus_points", 1000);
         gameConfig.put("freeze_duration", 5.0);
         gameConfig.put("double_score_duration", 10.0);
         gameConfig.put("freeze_overlay_color_hex", "#0000FF4D");
@@ -34,14 +34,14 @@ public final class AvoidTheBombAssets {
 
         ObjectNode branding = MAPPER.createObjectNode();
         ObjectNode images = MAPPER.createObjectNode();
-        images.put("main_image_url", "https://cdn-icons-png.flaticon.com/512/415/415682.png");
-        images.put("logo_watermark_url", "https://cdn-icons-png.flaticon.com/512/3050/3050526.png");
+        images.put("main_image_url", "https://plus.unsplash.com/premium_photo-1731748291108-f7a803c552b4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGJvbWJ8ZW58MHx8MHx8fDA%3D");
+        images.put("logo_watermark_url", "https://plus.unsplash.com/premium_photo-1731748291108-f7a803c552b4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGJvbWJ8ZW58MHx8MHx8fDA%3D");
         branding.set("images", images);
 
         ObjectNode shaderBg = MAPPER.createObjectNode();
         ObjectNode back = MAPPER.createObjectNode();
         back.put("Enabled", true);
-        back.put("SpriteUrl", "https://img.freepik.com/free-vector/tropical-leaves-background_23-2148302992.jpg");
+        back.put("SpriteUrl", "https://plus.unsplash.com/premium_photo-1731748291108-f7a803c552b4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGJvbWJ8ZW58MHx8MHx8fDA%3D");
         back.put("ColorHex", "#FFFFFFFF");
         back.put("ScrollSpeedX", 0.05);
         back.put("ScrollSpeedY", 0.0);
@@ -61,18 +61,18 @@ public final class AvoidTheBombAssets {
 
         ObjectNode game = MAPPER.createObjectNode();
         ArrayNode goodObjects = MAPPER.createArrayNode();
-        goodObjects.add("https://cdn-icons-png.flaticon.com/512/415/415682.png");
-        goodObjects.add("https://cdn-icons-png.flaticon.com/512/765/765560.png");
-        goodObjects.add("https://cdn-icons-png.flaticon.com/512/590/590779.png");
+        goodObjects.add("https://images.unsplash.com/photo-1689659700109-db8a16a7da0a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
+        goodObjects.add("https://images.unsplash.com/photo-1689659700109-db8a16a7da0a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
+        goodObjects.add("https://images.unsplash.com/photo-1689659700109-db8a16a7da0a?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
         game.set("good_objects_urls", goodObjects);
 
         ArrayNode bombObjects = MAPPER.createArrayNode();
-        bombObjects.add("https://cdn-icons-png.flaticon.com/512/1670/1670870.png");
+        bombObjects.add("https://plus.unsplash.com/premium_photo-1731748291108-f7a803c552b4?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fGJvbWJ8ZW58MHx8MHx8fDA%3D");
         game.set("bomb_objects_urls", bombObjects);
 
         ArrayNode bonusItems = MAPPER.createArrayNode();
-        bonusItems.add(createBonus("https://cdn-icons-png.flaticon.com/512/2838/2838590.png", 1, 0.3));
-        bonusItems.add(createBonus("https://cdn-icons-png.flaticon.com/512/833/833472.png", 3, 0.2));
+        bonusItems.add(createBonus("https://images.unsplash.com/photo-1566563255308-753861417000?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", 1, 0.3));
+        bonusItems.add(createBonus("https://images.unsplash.com/photo-1566563255308-753861417000?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D", 3, 0.2));
         game.set("bonus_items", bonusItems);
 
         game.put("click_effect_url", "");
@@ -80,20 +80,20 @@ public final class AvoidTheBombAssets {
         root.set("game", game);
 
         ObjectNode audio = MAPPER.createObjectNode();
-        audio.put("music_url", "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8e1c4c0.mp3");
-        audio.put("win_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_0d0e1b1d9e.mp3");
-        audio.put("lose_url", "https://cdn.pixabay.com/download/audio/2022/03/15/audio_688cfb3a52.mp3");
-        audio.put("bomb_url", "https://cdn.pixabay.com/download/audio/2022/03/24/audio_ce0e1c5fb5.mp3");
-        audio.put("normal_item_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_12b0c7443c.mp3");
-        audio.put("bonus_item_url", "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3");
-        audio.put("click_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_12b0c7443c.mp3");
+        audio.put("music_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("win_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("lose_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("bomb_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("normal_item_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("bonus_item_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("click_url", "https://games.verygana.com/asset_tests/alarm.mp3");
         root.set("audio", audio);
 
         ObjectNode texts = MAPPER.createObjectNode();
-        texts.put("victory_title", "VICTORY");
-        texts.put("victory_phrase", "You made it!");
-        texts.put("defeat_title", "GAME OVER");
-        texts.put("defeat_phrase", "Try again!");
+        texts.put("victory_title", "VICTORY PRUEBA");
+        texts.put("victory_phrase", "You made it! PRUEBA");
+        texts.put("defeat_title", "GAME OVER PRUEBA");
+        texts.put("defeat_phrase", "Try again! PRUEBA");
         root.set("texts", texts);
 
         ASSETS = root;

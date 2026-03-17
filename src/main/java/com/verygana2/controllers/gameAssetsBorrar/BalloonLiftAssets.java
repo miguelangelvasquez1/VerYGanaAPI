@@ -20,7 +20,7 @@ public final class BalloonLiftAssets {
 
         // GAME_CONFIG
         ObjectNode gameConfig = MAPPER.createObjectNode();
-        gameConfig.put("time_limit", 120);
+        gameConfig.put("time_limit", 20);
         gameConfig.put("difficulty", "normal");
         gameConfig.put("max_attempts", 3);
         root.set("game_config", gameConfig);
@@ -96,7 +96,7 @@ public final class BalloonLiftAssets {
 
         // REWARDS
         ObjectNode rewards = MAPPER.createObjectNode();
-        rewards.put("coins_per_action", 1);
+        rewards.put("coins_per_action", 20);
         rewards.put("coins_on_completion", 30);
         root.set("rewards", rewards);
 

@@ -205,7 +205,7 @@ public class CampaignServiceImpl implements CampaignService {
             Asset createdAsset = assetRepository.save(Objects.requireNonNull(asset));
 
             // Obtener pre-signed URL de R2
-            FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+            FileUploadPermissionDTO permission = r2Service.generatePrivateUploadUrl(
                 objectKey,
                 assetReq.getFileMetadata().getContentType());
 

@@ -10,7 +10,8 @@ import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 
 public interface RaffleWinnerService {
 
-    List<WinnerSummaryResponseDTO> getRaffleWinnersList (Long raffleId);
+    List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId (Long raffleId);
     PagedResponse<PrizeWonResponseDTO> getWonPrizesList (Long consumerId, Pageable pageable);
+    List<WinnerSummaryResponseDTO> getLastRaffleWinners();
     void claimPrize ();
 }

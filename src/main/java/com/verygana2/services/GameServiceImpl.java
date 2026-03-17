@@ -124,7 +124,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:63374/?game_title=%s",
+                "http://localhost:54959/?game_title=%s",
                 game.getUrl()
             );
 
@@ -182,7 +182,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:63374/?game_title=%s",
+                "http://localhost:54959/?game_title=%s",
                 game.getUrl()
             );
 
