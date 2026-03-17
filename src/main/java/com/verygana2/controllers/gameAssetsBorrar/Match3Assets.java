@@ -4,76 +4,95 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-/**
- * Configuración completa del juego Match 3 (Tres en Raya / Candy Crush)
- */
 public final class Match3Assets {
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
     public static final ObjectNode ASSETS;
 
     static {
         ObjectNode root = MAPPER.createObjectNode();
+        root.set("meta", MAPPER.createObjectNode().put("brand_id", "default"));
 
-        // META
-        root.set("meta", MAPPER.createObjectNode().put("brand_id", "MATCH3_DEFAULT"));
-
-        // GAME_CONFIG
+        // game_config
         ObjectNode gameConfig = MAPPER.createObjectNode();
-        gameConfig.put("time_limit", 180);
+        gameConfig.put("time_limit", 60);
         gameConfig.put("difficulty", "normal");
         gameConfig.put("max_attempts", 3);
-        gameConfig.put("target_tiles", 20);
-        gameConfig.put("total_levels", 5);
+        gameConfig.put("target_tiles", 10);
+        gameConfig.put("total_levels", 1);
         root.set("game_config", gameConfig);
 
-        // BRANDING
+        // branding
         ObjectNode branding = MAPPER.createObjectNode();
         ObjectNode images = MAPPER.createObjectNode();
-        images.put("main_logo_url", "");
-        images.put("main_logo_offset_y", 60.0);
-        images.put("logo_watermark_url", "");
+        images.put("main_logo_url", "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO");
+        images.put("main_logo_offset_y", 0.0);
+        images.put("logo_watermark_url", "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK");
         images.put("logo_watermark_offset_y", 0.0);
         images.put("background_url", "");
-        images.put("background_color_hex", "#8B4789");
-        images.put("grid_background_url", "");
-        images.put("grid_background_color_hex", "#9B59B6");
+        images.put("background_color_hex", "#FFFFFF");
+        images.put("grid_background_url", "https://placehold.co/400x400/222222/444444.png?text=Grid+BG");
+        images.put("grid_background_color_hex", "#FFFFFF");
         branding.set("images", images);
 
         ObjectNode bgConfig = MAPPER.createObjectNode();
-        bgConfig.set("Front", createLayer("", "#FFFFFF00", false, 1.0));
-        bgConfig.set("Back", createLayer("", "#9B59B6FF", true, 0.2));
+        ObjectNode front = MAPPER.createObjectNode();
+        front.put("SpriteUrl", ""); front.put("ColorHex", "#FFFFFF"); front.put("Enabled", true);
+        front.put("Speed", 0.2); front.put("Rotation", 0.0); front.put("LayoutMode", "TiledSquare"); front.put("AspectRatio", 1.0);
+        bgConfig.set("Front", front);
+        ObjectNode back = MAPPER.createObjectNode();
+        back.put("SpriteUrl", "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG");
+        back.put("ColorHex", "#FFFFFF"); back.put("Enabled", true); back.put("Speed", 0.05);
+        back.put("Rotation", 0.0); back.put("LayoutMode", "Stretched"); back.put("AspectRatio", 1.77);
+        bgConfig.set("Back", back);
         branding.set("background_config", bgConfig);
-
-        // Audio dentro de branding
-        ObjectNode audio = MAPPER.createObjectNode();
-        audio.put("music_url", "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8e1c4c0.mp3");
-        audio.put("victory_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_0d0e1b1d9e.mp3");
-        audio.put("lose_url", "https://cdn.pixabay.com/download/audio/2022/03/15/audio_688cfb3a52.mp3");
-        audio.put("coin_url", "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8e1c4c0.mp3");
-        audio.put("obstacle_url", "https://cdn.pixabay.com/download/audio/2022/03/24/audio_ce0e1c5fb5.mp3");
-        branding.set("audio", audio);
-
-        // Texts dentro de branding
-        ObjectNode texts = MAPPER.createObjectNode();
-        texts.put("victory_title", "¡VICTORIA!");
-        texts.put("victory_phrase", "¡Felicidades, completaste el nivel!");
-        texts.put("defeat_title", "DERROTA");
-        texts.put("defeat_phrase", "Se acabó el tiempo. Inténtalo de nuevo.");
-        branding.set("texts", texts);
-
         root.set("branding", branding);
 
-        // GAME - Tiles
+        // audio
+        ObjectNode audio = MAPPER.createObjectNode();
+        audio.put("music_url", "https://games.verygana.com/asset_tests/music-guitar.wav");
+        audio.put("victory_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("lose_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("match_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("swap_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        root.set("audio", audio);
+
+        // texts
+        ObjectNode texts = MAPPER.createObjectNode();
+        texts.put("victory_title", "¡VICTORIA!");
+        texts.put("victory_phrase", "¡Nivel Completado!");
+        texts.put("defeat_title", "¡INTÉNTALO DE NUEVO!");
+        texts.put("defeat_phrase", "Se acabó el tiempo.");
+        root.set("texts", texts);
+
+        // rewards
+        ObjectNode rewards = MAPPER.createObjectNode();
+        rewards.put("coins_per_action", 20);
+        rewards.put("coins_on_completion", 200);
+        rewards.put("combo_multiplier", 0.0);
+        root.set("rewards", rewards);
+
+        // personalization
+        ObjectNode personalization = MAPPER.createObjectNode();
+        personalization.put("coin_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN");
+        personalization.put("coin_count_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT");
+        root.set("personalization", personalization);
+
+        // game
         ObjectNode game = MAPPER.createObjectNode();
         ArrayNode tiles = MAPPER.createArrayNode();
-        String[] tileUrls = {
+        String[][] tileData = {
+            {"1", "https://placehold.co/128x128/FF0000/FFFFFF.png?text=1", "10"},
+            {"2", "https://placehold.co/128x128/00FF00/FFFFFF.png?text=2", "10"},
+            {"3", "https://placehold.co/128x128/0000FF/FFFFFF.png?text=3", "10"},
+            {"4", "https://placehold.co/128x128/FFFF00/000000.png?text=4", "10"},
+            {"5", "https://placehold.co/128x128/FF00FF/FFFFFF.png?text=5+Star", "15"},
+            {"6", "https://placehold.co/128x128/00FFFF/000000.png?text=6+Star", "15"}
         };
-        for (int i = 0; i < tileUrls.length; i++) {
+        for (String[] t : tileData) {
             ObjectNode tile = MAPPER.createObjectNode();
-            tile.put("id", i + 1);
-            tile.put("sprite_url", tileUrls[i]);
-            tile.put("score", 10 + (i * 5));
+            tile.put("id", Integer.parseInt(t[0]));
+            tile.put("sprite_url", t[1]);
+            tile.put("score", Integer.parseInt(t[2]));
             tiles.add(tile);
         }
         game.set("tiles", tiles);
@@ -82,27 +101,10 @@ public final class Match3Assets {
         ASSETS = root;
     }
 
-    private static ObjectNode createLayer(String url, String color, boolean enabled, double speed) {
-        ObjectNode layer = MAPPER.createObjectNode();
-        layer.put("SpriteUrl", url);
-        layer.put("ColorHex", color);
-        layer.put("Enabled", enabled);
-        layer.put("Speed", speed);
-        layer.put("Rotation", 0);
-        layer.put("LayoutMode", "Stretched");
-        layer.put("AspectRatio", 1.77);
-        return layer;
-    }
-
     private Match3Assets() {}
-
     public static ObjectNode getAssets() { return ASSETS; }
-
     public static String getAssetsAsString() {
-        try {
-            return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
-        } catch (Exception e) {
-            return ASSETS.toString();
-        }
+        try { return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
+        } catch (Exception e) { return ASSETS.toString(); }
     }
 }

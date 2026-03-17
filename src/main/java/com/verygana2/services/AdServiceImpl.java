@@ -136,7 +136,8 @@ public class AdServiceImpl implements AdService {
         AdAsset savedAsset = adAssetRepository.save(Objects.requireNonNull(asset));
 
         // 6. Generar pre-signed URL de R2
-        FileUploadPermissionDTO permission = r2Service.generatePrivateUploadUrl(
+        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+            true,
             objectKey,
             request.getContentType()
         );
@@ -193,6 +194,7 @@ public class AdServiceImpl implements AdService {
             long maxSizeBytes = getMaxSizeBytesForMedia(mediaType);
 
             SupportedMimeType realMimeType = r2Service.validateUploadedObject(
+                true,
                 asset.getObjectKey(),
                 asset.getSizeBytes(),
                 maxSizeBytes,
@@ -285,7 +287,7 @@ public class AdServiceImpl implements AdService {
         Ad updatedAd = adRepository.save(ad);
     
         AdResponseDTO responseDto = adMapper.toDto(updatedAd);
-        responseDto.setContentUrl(r2Service.generatePresignedUrl("private/" + updatedAd.getAsset().getObjectKey(), 200));
+        responseDto.setContentUrl(r2Service.getPrivateObject("private/" + updatedAd.getAsset().getObjectKey(), 200));
 
         log.info("Ad {} updated successfully by advertiser {}", adId, advertiserId);
         return responseDto;
@@ -323,7 +325,7 @@ public class AdServiceImpl implements AdService {
                 case REJECTED:
                     // Asset privado → presigned URL
                     dto.setContentUrl(
-                        r2Service.generatePresignedUrl("private/" + asset.getObjectKey(), 200));
+                        r2Service.getPrivateObject("private/" + asset.getObjectKey(), 200));
                     break;
 
                 case APPROVED:
@@ -436,6 +438,7 @@ public class AdServiceImpl implements AdService {
             log.info("Reanudando sesión activa {}", activeSession.get().getId());
             AdWatchSession session = activeSession.get();
             AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
+            dto.setContentUrl(session.getAd().getAsset().getObjectKey());
             dto.setSessionUUID(session.getId());
             return Optional.of(dto);
         }
@@ -454,6 +457,7 @@ public class AdServiceImpl implements AdService {
         // Posibilidad de fallback de nivel 2 con los anuncios vistos
 
         AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
+        dto.setContentUrl(ad.getAsset().getObjectKey());
         dto.setSessionUUID(session.getId());
 
         return Optional.of(dto);
@@ -865,8 +869,9 @@ public class AdServiceImpl implements AdService {
             case IMAGE -> 6.0; // regla de negocio fija
 
             case VIDEO -> {
-                Double duration = mediaMetadataService
-                    .getVideoDurationSeconds(asset.getObjectKey());
+                    Double duration = mediaMetadataService
+                        .getVideoDurationSeconds(asset.getObjectKey());
+                    // Double duration = 30.0;
 
                 if (duration < 5 || duration > 30) {
                     throw new ValidationException(

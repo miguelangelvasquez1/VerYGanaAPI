@@ -11,28 +11,19 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.verygana2.controllers.gameAssetsBorrar.AvoidTheBombAssets;
-import com.verygana2.controllers.gameAssetsBorrar.BallBounceAssets;
-import com.verygana2.controllers.gameAssetsBorrar.BalloonLiftAssets;
-import com.verygana2.controllers.gameAssetsBorrar.CatchItAssets;
-import com.verygana2.controllers.gameAssetsBorrar.HangmanAssets;
-import com.verygana2.controllers.gameAssetsBorrar.Match3Assets;
-import com.verygana2.controllers.gameAssetsBorrar.MemoryAssets;
-import com.verygana2.controllers.gameAssetsBorrar.SudokuAssets;
-import com.verygana2.controllers.gameAssetsBorrar.TapToRotateAssets;
-import com.verygana2.controllers.gameAssetsBorrar.WhackAMoleAssets;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
+import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.services.interfaces.GameService;
 
 import jakarta.validation.Valid;
@@ -67,33 +58,32 @@ public class GameController {
 
     // Método para que el juego obtenga los assets
     @PostMapping("/assets")
-    public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
+    public ResponseEntity<Map<String, Object>> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         // Json
-        if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-            return ResponseEntity.ok(HangmanAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-            return ResponseEntity.ok(TapToRotateAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
-            return ResponseEntity.ok(MemoryAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
-            return ResponseEntity.ok(SudokuAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
-            return ResponseEntity.ok(Match3Assets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
-            return ResponseEntity.ok(BalloonLiftAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
-            return ResponseEntity.ok(AvoidTheBombAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
-            return ResponseEntity.ok(BallBounceAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
-            return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
-            return ResponseEntity.ok(CatchItAssets.ASSETS);
-        }
-        return ResponseEntity.badRequest().body(null);
-        // log.info(req.toString());
-        // ObjectNode assets = gameService.getGameAssets(req);
-        // return ResponseEntity.ok(assets);
+        // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+        //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+        //     return ResponseEntity.ok(MemoryAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
+        //     return ResponseEntity.ok(HangmanAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
+        //     return ResponseEntity.ok(SudokuAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
+        //     return ResponseEntity.ok(Match3Assets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
+        //     return ResponseEntity.ok(BalloonLiftAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
+        //     return ResponseEntity.ok(AvoidTheBombAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
+        //     return ResponseEntity.ok(BallBounceAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
+        //     return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
+        //     return ResponseEntity.ok(CatchItAssets.ASSETS);
+        // }
+        // return ResponseEntity.badRequest().body(null);
+        Map<String, Object> assets = gameService.getGameAssets(req);
+        return ResponseEntity.ok(assets);
     }
 
     @PostMapping("/metrics")
@@ -101,7 +91,7 @@ public class GameController {
         // Long userId = jwt.getClaim("userId");
         if (event.getIsBrandedMode() == false) return ResponseEntity.ok().build();
         System.out.println(event.toString());
-        gameService.submitGameMetrics(event);
+        // gameService.submitGameMetrics(event);
         return ResponseEntity.ok().build();
     }
 
@@ -117,13 +107,19 @@ public class GameController {
         return gameService.getAvailableGamesPage(pageable);
     }
 
-    //@GetMapping("/{gameId}")
-    //public Game getGameDetails (@PathVariable Long gameId){
-    //};
-
-    //@GetMapping("{gameId}/config")
-    //public GameConfigDTO getGameConfig (@PathVariable Long gameId){
-    //}
+    /**
+     * Get JSON Schema for a specific game
+     * 
+     * GET /api/games/{id}/schema
+     * Response: { "gameId": 1, "version": "1.0.0", "jsonSchema": {...}, "uiSchema": {...} }
+     */
+    @GetMapping("/{id}/schema")
+    public ResponseEntity<GameSchemaResponse> getGameSchema(@PathVariable Long id) {
+        log.info("Getting schema for game: {}", id);
+        
+        GameSchemaResponse response = gameService.getLatestGameSchema(id);
+        return ResponseEntity.ok(response);
+    }
 
     //GetMetrics by sessionId
 

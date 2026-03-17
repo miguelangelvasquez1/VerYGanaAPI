@@ -2,6 +2,7 @@ package com.verygana2.controllers;
 
 import java.util.List;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -13,17 +14,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
+import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
-import com.verygana2.dtos.game.campaign.PrepareCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignStatusRequest;
 import com.verygana2.services.interfaces.CampaignService;
@@ -72,43 +72,40 @@ public class CampaignController {
         return ResponseEntity.noContent().build();
     }
 
-    /**
-     * POST /api/campaigns/prepare
-     * Paso 1: Validar y obtener URLs de subida
-     */
-    @PostMapping("/prepare")
-    public ResponseEntity<List<AssetUploadPermissionDTO>> prepareCampaign(
-            @Valid @RequestBody PrepareCampaignRequestDTO request,
-            @AuthenticationPrincipal Jwt jwt) { 
+    @PostMapping("/assets/upload-url")
+    public ResponseEntity<AssetUploadPermissionDTO> generateUploadUrl(
+        @Valid @RequestBody FileUploadRequestDTO request,
+        @AuthenticationPrincipal Jwt jwt) {
+        log.info("Request for upload URL: {}", request.getOriginalFileName());
         
-       List<AssetUploadPermissionDTO> permissions = 
-            service.prepareAssetUploads(
-                request.getGameId(),
-                jwt.getClaim("userId"),
-                request.getAssets()
-            );
+        Long userId = jwt.getClaim("userId");
+        AssetUploadPermissionDTO response = service.generateUploadUrl(request, userId);
         
-        return ResponseEntity.ok(permissions);
+        return ResponseEntity.ok(response);
+    }
+    
+    @PostMapping("/assets/confirm")
+    public ResponseEntity<Void> confirmUpload(
+        @Valid @RequestBody AssetConfirmRequest request
+    ) {
+        log.info("Confirming upload for asset: {}", request.getAssetId());
+        
+        service.confirmUpload(request);
+        
+        return ResponseEntity.ok().build();
     }
 
-    /**
-     * POST /api/campaigns/create
-     * Paso 2: Crear campaña con assets ya subidos
-     */
-    @PostMapping("/create")
-    public ResponseEntity<Boolean> createCampaign(  //mandar esto bien y crear los gameconfig en el backend, depsues probar bien el formulario dinamico.
-            @RequestParam Long gameId,
-            @AuthenticationPrincipal Jwt jwt,
-            @RequestBody @Valid CreateCampaignRequestDTO request) {
-        log.info(request.toString());
-        Long userId = jwt.getClaim("userId");
-        service.createCampaignWithAssets(
-            gameId, 
-            userId, 
-            request
-        );
+    @PostMapping
+    public ResponseEntity<Void> createCampaign(
+        @Valid @RequestBody CreateCampaignRequestDTO request,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        log.info("Creating campaign");
         
-        return ResponseEntity.ok(true);
+        Long userId = jwt.getClaim("userId");
+        service.createCampaign(request, userId);
+        
+        return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @GetMapping("/games")
@@ -118,12 +115,6 @@ public class CampaignController {
 
         Long userId = jwt.getClaim("userId");
         return service.getAvailableGames(userId, pageable);
-    }
-
-    @GetMapping("/config-definitions/{gameId}")
-    public ResponseEntity<List<GameConfigDefinitionDTO>> getGameConfigDefinitions(@PathVariable Long gameId) {
-        List<GameConfigDefinitionDTO> config = service.getConfigDefinitionByGame(gameId);
-        return ResponseEntity.ok(config);
     }
     
     @GetMapping("/{gameId}/asset-definitions")

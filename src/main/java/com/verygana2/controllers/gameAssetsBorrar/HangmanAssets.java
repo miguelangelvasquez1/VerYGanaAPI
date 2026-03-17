@@ -4,228 +4,128 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-/**
- * Configuración completa del juego Hangman (Ahorcado)
- * Basado en la documentación JSON del juego
- */
 public final class HangmanAssets {
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
-
     public static final ObjectNode ASSETS;
 
     static {
         ObjectNode root = MAPPER.createObjectNode();
+        root.set("meta", MAPPER.createObjectNode().put("brand_id", "default"));
 
-        /* ================= META ================= */
-        ObjectNode meta = MAPPER.createObjectNode();
-        meta.put("brand_id", "HANGMAN_DEFAULT");
-        root.set("meta", meta);
+        // branding
+        ObjectNode branding = MAPPER.createObjectNode();
+        ObjectNode images = MAPPER.createObjectNode();
+        images.put("main_image_url", "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO");
+        images.put("main_image_offset_y", 0);
+        images.put("logo_watermark_url", "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK");
+        images.put("logo_watermark_offset_y", 0);
+        images.put("keyboard_sprite_url", "https://placehold.co/64x64/00FF00/000000.png?text=KEY");
+        branding.set("images", images);
 
-        /* ================= GAME_CONFIG ================= */
+        ObjectNode shaderBg = MAPPER.createObjectNode();
+        ObjectNode back = MAPPER.createObjectNode();
+        back.put("ColorHex", "#FFFFFF"); back.put("Speed", 0.2); back.put("Rotation", 0); back.put("Alpha", 1);
+        ObjectNode backTiling = MAPPER.createObjectNode(); backTiling.put("x", 1); backTiling.put("y", 1);
+        back.set("Tiling", backTiling);
+        ObjectNode backDir = MAPPER.createObjectNode(); backDir.put("x", 1); backDir.put("y", 0);
+        back.set("Direction", backDir);
+        back.put("SpriteUrl", "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG");
+        shaderBg.set("Back", back);
+        ObjectNode front = MAPPER.createObjectNode();
+        front.put("ColorHex", "#FFFFFF00"); front.put("Speed", 0.5); front.put("Rotation", 0); front.put("Alpha", 0);
+        ObjectNode frontTiling = MAPPER.createObjectNode(); frontTiling.put("x", 1); frontTiling.put("y", 1);
+        front.set("Tiling", frontTiling);
+        ObjectNode frontDir = MAPPER.createObjectNode(); frontDir.put("x", 1); frontDir.put("y", 0);
+        front.set("Direction", frontDir);
+        front.put("SpriteUrl", "");
+        shaderBg.set("Front", front);
+        branding.set("shader_background_config", shaderBg);
+        branding.putNull("parallax_config");
+        root.set("branding", branding);
+
+        // game_config
         ObjectNode gameConfig = MAPPER.createObjectNode();
-        gameConfig.put("time_limit", 40);
+        gameConfig.put("time_limit", 60);
         gameConfig.put("difficulty", "normal");
         gameConfig.put("max_attempts", 6);
         root.set("game_config", gameConfig);
 
-        /* ================= BRANDING ================= */
-        ObjectNode branding = MAPPER.createObjectNode();
-
-        // Images
-        ObjectNode images = MAPPER.createObjectNode();
-        images.put("main_image_url", "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8");
-        images.put("main_image_offset_y", 50);
-        images.put("logo_watermark_url", "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8");
-        images.put("logo_watermark_offset_y", 0);
-        images.put("keyboard_sprite_url", "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8");
-        branding.set("images", images);
-
-        // Shader Background Config
-        ObjectNode shaderBgConfig = MAPPER.createObjectNode();
-        
-        ObjectNode backLayer = MAPPER.createObjectNode();
-        backLayer.put("SpriteUrl", "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8");
-        backLayer.put("Enabled", true);
-        backLayer.put("ColorHex", "#FFFFFFFF");
-        backLayer.put("Speed", 0.1);
-        backLayer.put("Alpha", 1.0);
-        
-        ObjectNode backTiling = MAPPER.createObjectNode();
-        backTiling.put("x", 1);
-        backTiling.put("y", 1);
-        backLayer.set("Tiling", backTiling);
-        
-        ObjectNode backDirection = MAPPER.createObjectNode();
-        backDirection.put("x", 1);
-        backDirection.put("y", 0);
-        backLayer.set("Direction", backDirection);
-        backLayer.put("Rotation", 0);
-        
-        shaderBgConfig.set("Back", backLayer);
-
-        ObjectNode frontLayer = MAPPER.createObjectNode();
-        frontLayer.put("SpriteUrl", "");
-        frontLayer.put("Enabled", false);
-        frontLayer.put("ColorHex", "#FFFFFF00");
-        frontLayer.put("Speed", 0.05);
-        frontLayer.put("Alpha", 0.3);
-        
-        ObjectNode frontTiling = MAPPER.createObjectNode();
-        frontTiling.put("x", 1);
-        frontTiling.put("y", 1);
-        frontLayer.set("Tiling", frontTiling);
-        
-        ObjectNode frontDirection = MAPPER.createObjectNode();
-        frontDirection.put("x", 0);
-        frontDirection.put("y", 1);
-        frontLayer.set("Direction", frontDirection);
-        frontLayer.put("Rotation", 0);
-        
-        shaderBgConfig.set("Front", frontLayer);
-    branding.set("shader_background_config", shaderBgConfig);
-
-        branding.putNull("parallax_config");
-
-        root.set("branding", branding);
-
-        /* ================= GAME ================= */
+        // game
         ObjectNode game = MAPPER.createObjectNode();
-        game.put("font_color_hex", "#2C3E50");
+        game.put("font_color_hex", "#FFFFFF");
 
-        // Words list
         ArrayNode words = MAPPER.createArrayNode();
-        words.add(createWord("ADVENTURE", "Exciting journey or experience", 100));
-        words.add(createWord("BUTTERFLY", "Colorful flying insect", 120));
-        // words.add(createWord("CHOCOLATE", "Sweet brown treat", 120));
-        // words.add(createWord("DIAMOND", "Precious gemstone", 100));
-        // words.add(createWord("ELEPHANT", "Large grey animal with trunk", 120));
-        // words.add(createWord("FREEDOM", "State of being free", 100));
-        // words.add(createWord("GUITAR", "Musical string instrument", 100));
-        // words.add(createWord("HAPPINESS", "Feeling of joy", 120));
-        // words.add(createWord("ISLAND", "Land surrounded by water", 100));
-        // words.add(createWord("JUNGLE", "Dense tropical forest", 100));
-        // words.add(createWord("KITCHEN", "Room for cooking", 100));
-        // words.add(createWord("LIBRARY", "Place with many books", 100));
-        // words.add(createWord("MOUNTAIN", "Very high hill", 120));
-        // words.add(createWord("NATURE", "The natural world", 100));
-        // words.add(createWord("OCEAN", "Large body of salt water", 80));
-        // words.add(createWord("PLANET", "Celestial body orbiting a star", 100));
-        // words.add(createWord("RAINBOW", "Colorful arc in the sky", 100));
-        // words.add(createWord("SUNRISE", "Dawn, start of the day", 100));
-        // words.add(createWord("TREASURE", "Hidden valuable items", 120));
-        // words.add(createWord("UMBRELLA", "Protection from rain", 120));
+        String[][] wordData = {
+            {"ABC", "Celestial Bodies", "50"},
+            {"ABC", "Natural Satellite", "50"},
+            {"ABC", "Above Us", "50"}
+        };
+        for (String[] w : wordData) {
+            ObjectNode wordNode = MAPPER.createObjectNode();
+            wordNode.put("word", w[0]); wordNode.put("hint", w[1]); wordNode.put("score", Integer.parseInt(w[2]));
+            words.add(wordNode);
+        }
         game.set("words", words);
 
-        // Power-ups config
-        ArrayNode powerUpsConfig = MAPPER.createArrayNode();
-        powerUpsConfig.add(createPowerUp(
-            "RevealLetter",
-            "Revelar Letra",
-            "#3498DBFF",
-            50,
-            "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"
-        ));
-        powerUpsConfig.add(createPowerUp(
-            "ZapOptions",
-            "Eliminar Opciones",
-            "#4ff61cff",
-            30,
-            "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"
-        ));
-        powerUpsConfig.add(createPowerUp(
-            "ExtraLife",
-            "Vida Extra",
-            "#E74C3CFF",
-            100,
-            "https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"
-        ));
-        game.set("power_ups_config", powerUpsConfig);
+        ArrayNode powerUps = MAPPER.createArrayNode();
+        String[][] puData = {
+            {"RevealLetter", "Hint", "#ffffffff", "50", "https://placehold.co/64x64/FFFF00/000000.png?text=HINT"},
+            {"ZapOptions", "Zap", "#ffffffff", "30", "https://placehold.co/64x64/00FFFF/000000.png?text=ZAP"},
+            {"ExtraLife", "Life", "#ffffffff", "100", "https://placehold.co/64x64/FF00FF/FFFFFF.png?text=LIFE"}
+        };
+        for (String[] pu : puData) {
+            ObjectNode puNode = MAPPER.createObjectNode();
+            puNode.put("type", pu[0]); puNode.put("display_name", pu[1]); puNode.put("color_hex", pu[2]);
+            puNode.put("cost", Integer.parseInt(pu[3])); puNode.put("icon_url", pu[4]);
+            powerUps.add(puNode);
+        }
+        game.set("power_ups_config", powerUps);
 
-        // Hangman progress images
-        ArrayNode hangmanProgressUrls = MAPPER.createArrayNode();
-        hangmanProgressUrls.add("https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"); // Paso 1 - Base
-        hangmanProgressUrls.add("https://plus.unsplash.com/premium_photo-1770052048194-323a3e8f656a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw2fHx8ZW58MHx8fHx8"); // Paso 2 - Poste vertical
-        hangmanProgressUrls.add("https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"); // Paso 3 - Poste horizontal
-        hangmanProgressUrls.add("https://plus.unsplash.com/premium_photo-1770052048194-323a3e8f656a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw2fHx8ZW58MHx8fHx8"); // Paso 4 - Cuerda
-        hangmanProgressUrls.add("https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"); // Paso 5 - Cabeza
-        hangmanProgressUrls.add("https://plus.unsplash.com/premium_photo-1770052048194-323a3e8f656a?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxmZWF0dXJlZC1waG90b3MtZmVlZHw2fHx8ZW58MHx8fHx8"); // Paso 6 - Cuerpo completo
-        hangmanProgressUrls.add("https://images.unsplash.com/photo-1761839258753-85d8eecbbc29?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDF8MHxmZWF0dXJlZC1waG90b3MtZmVlZHwxfHx8ZW58MHx8fHx8"); // Paso 7 - Ahorcado completo (pierde)
-        game.set("hangman_progress_urls", hangmanProgressUrls);
-
+        ArrayNode hangmanUrls = MAPPER.createArrayNode();
+        for (int i = 1; i <= 7; i++) {
+            hangmanUrls.add("https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_" + i);
+        }
+        game.set("hangman_progress_urls", hangmanUrls);
         root.set("game", game);
 
-        /* ================= AUDIO ================= */
+        // audio
         ObjectNode audio = MAPPER.createObjectNode();
-        audio.put("music_url", "https://games.verygana.com/asset_tests/alarm.mp3");
-        audio.put("click_url", "https://games.verygana.com/asset_tests/item_select.wav");
-        audio.put("victory_sound_url", "https://games.verygana.com/asset_tests/alarm.mp3");
-        audio.put("defeat_sound_url", "https://games.verygana.com/asset_tests/alarm.mp3");
-        audio.put("reveal_sound_url", "https://games.verygana.com/asset_tests/alarm.mp3");
-        audio.put("zap_sound_url", "https://games.verygana.com/asset_tests/alarm.mp3");
-        audio.put("life_sound_url", "https://games.verygana.com/asset_tests/alarm.mp3");
+        audio.put("victory_sound_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("defeat_sound_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("click_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("music_url", "https://games.verygana.com/asset_tests/music-guitar.wav");
+        audio.put("reveal_sound_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("zap_sound_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("life_sound_url", "https://games.verygana.com/asset_tests/slash.mp3");
         root.set("audio", audio);
 
-        /* ================= TEXTS ================= */
+        // texts
         ObjectNode texts = MAPPER.createObjectNode();
-        texts.put("victory_title", "¡VICTORIA!");
-        texts.put("victory_phrase", "¡Felicidades! este es un mensaje de prueba");
+        texts.put("victory_phrase", "Congratulations! You Won!");
+        texts.put("victory_title", "VICTORY!");
+        texts.put("defeat_phrase", "Try Again");
         texts.put("defeat_title", "GAME OVER");
-        texts.put("defeat_phrase", "¡Inténtalo de nuevo! este es un lol");
         root.set("texts", texts);
 
-        /* ================= REWARDS ================= */
+        // rewards
         ObjectNode rewards = MAPPER.createObjectNode();
-        rewards.put("coins_per_action", 5);
-        rewards.put("coins_on_completion", 50);
+        rewards.put("coins_per_action", 20);
+        rewards.put("coins_on_completion", 100);
         root.set("rewards", rewards);
+
+        // personalization
+        ObjectNode personalization = MAPPER.createObjectNode();
+        personalization.put("coin_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN");
+        personalization.put("coin_count_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT");
+        root.set("personalization", personalization);
 
         ASSETS = root;
     }
 
-    /**
-     * Crea un objeto de palabra con sus propiedades
-     */
-    private static ObjectNode createWord(String word, String hint, int score) {
-        ObjectNode w = MAPPER.createObjectNode();
-        w.put("word", word);
-        w.put("hint", hint);
-        w.put("score", score);
-        return w;
-    }
-
-    /**
-     * Crea un objeto de power-up con sus propiedades
-     */
-    private static ObjectNode createPowerUp(String type, String displayName, String colorHex, int cost, String iconUrl) {
-        ObjectNode p = MAPPER.createObjectNode();
-        p.put("type", type);
-        p.put("display_name", displayName);
-        p.put("color_hex", colorHex);
-        p.put("cost", cost);
-        p.put("icon_url", iconUrl);
-        return p;
-    }
-
-    private HangmanAssets() {
-        // Private constructor to prevent instantiation
-    }
-
-    /**
-     * Obtiene la configuración completa del juego en formato JSON
-     */
-    public static ObjectNode getAssets() {
-        return ASSETS;
-    }
-
-    /**
-     * Obtiene la configuración completa como String JSON
-     */
+    private HangmanAssets() {}
+    public static ObjectNode getAssets() { return ASSETS; }
     public static String getAssetsAsString() {
-        try {
-            return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
-        } catch (Exception e) {
-            return ASSETS.toString();
-        }
+        try { return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
+        } catch (Exception e) { return ASSETS.toString(); }
     }
 }

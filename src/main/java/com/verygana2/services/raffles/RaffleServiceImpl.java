@@ -113,7 +113,8 @@ public class RaffleServiceImpl implements RaffleService {
             RaffleImageAsset savedRaffleAsset = raffleImageAssetRepository.save(raffleAsset);
             createdAssetIds.add(savedRaffleAsset.getId());
 
-            FileUploadPermissionDTO raffleImagePermission = r2Service.generatePublicUploadUrl(
+            FileUploadPermissionDTO raffleImagePermission = r2Service.generateUploadUrl(
+                    false,
                     raffleObjectKey,
                     raffleImageMetadata.getContentType());
 
@@ -136,7 +137,8 @@ public class RaffleServiceImpl implements RaffleService {
                 PrizeImageAsset savedPrizeAsset = prizeImageAssetRepository.save(prizeAsset);
                 createdAssetIds.add(savedPrizeAsset.getId());
 
-                FileUploadPermissionDTO prizePermission = r2Service.generatePublicUploadUrl(
+                FileUploadPermissionDTO prizePermission = r2Service.generateUploadUrl(
+                        false,
                         prizeObjectKey,
                         prizeMeta.getContentType());
 
@@ -208,6 +210,7 @@ public class RaffleServiceImpl implements RaffleService {
             log.info("Validating raffle image in R2: {}", raffleAsset.getObjectKey());
 
             SupportedMimeType raffleMime = r2Service.validateUploadedObject(
+                    false,
                     raffleAsset.getObjectKey(),
                     raffleAsset.getSizeBytes(),
                     RaffleImagePolicy.MAX_IMAGE_SIZE_BYTES,
@@ -238,6 +241,7 @@ public class RaffleServiceImpl implements RaffleService {
                 log.info("Validating prize image [{}] in R2: {}", i, prizeAsset.getObjectKey());
 
                 SupportedMimeType prizeMime = r2Service.validateUploadedObject(
+                        false,
                         prizeAsset.getObjectKey(),
                         prizeAsset.getSizeBytes(),
                         RaffleImagePolicy.MAX_IMAGE_SIZE_BYTES,
@@ -580,11 +584,11 @@ public class RaffleServiceImpl implements RaffleService {
     public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status,
             RaffleType type, Pageable pageable) {
 
-        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByRaffleStatusAndRaffleType(status, type, pageable);
+        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByRaffleStatusAndRaffleType(status, type,
+                pageable);
         rafflesFound.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(rafflesFound);
     }
-
 
     @Override
     public RaffleStatsResponseDTO getRaffleStats(Long raffleId) {
@@ -625,7 +629,7 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public List<RaffleSummaryResponseDTO> getLiveRaffles(){
+    public List<RaffleSummaryResponseDTO> getLiveRaffles() {
         return raffleRepository.findLiveRaffles();
     }
 
@@ -634,7 +638,5 @@ public class RaffleServiceImpl implements RaffleService {
         Pageable pageable = PageRequest.of(pageNumber, 10);
         return PagedResponse.from(raffleRepository.findActiveRaffles(type, pageable));
     }
-
-    
 
 }
