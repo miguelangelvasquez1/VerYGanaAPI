@@ -13,6 +13,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
@@ -28,14 +30,19 @@ public class RaffleWinnerController {
 
     @GetMapping("/raffle/{raffleId}")
     public ResponseEntity<List<WinnerSummaryResponseDTO>> getRaffleWinners (@PathVariable Long raffleId){
-        return ResponseEntity.ok(raffleWinnerService.getRaffleWinnersList(raffleId));
+        return ResponseEntity.ok(raffleWinnerService.getRaffleWinnersByRaffleId(raffleId));
     }
 
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     @GetMapping("/my-prizes")
-    public ResponseEntity<List<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "drawnAt", direction = Sort.Direction.DESC) Pageable pageable){
+    public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "drawnAt", direction = Sort.Direction.DESC) Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, pageable));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<WinnerSummaryResponseDTO>> getLastWinners (){
+        return ResponseEntity.ok(raffleWinnerService.getLastRaffleWinners());
     }
 
     //Aqui iria el metodo de reclamar premio pero aun no lo he hecho

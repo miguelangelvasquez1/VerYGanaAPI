@@ -22,11 +22,11 @@ public final class BallBounceAssets {
         branding.set("images", images);
 
         ObjectNode shaderBg = MAPPER.createObjectNode();
-        shaderBg.put("PrimaryColorHex", "#1a0b2e");
-        shaderBg.put("SecondaryColorHex", "#2d1b4e");
-        shaderBg.put("ParticleColorHex", "#432c7a");
-        shaderBg.put("Speed", 0.5);
-        shaderBg.put("Difficulty", 1.0);
+        shaderBg.put("PrimaryColorHex", "#001F5B"); // Azul oscuro Red Bull
+        shaderBg.put("SecondaryColorHex", "#D00027"); // Rojo Red Bull
+        shaderBg.put("ParticleColorHex", "#FFD700"); // Dorado energético
+        shaderBg.put("Speed", 1.2);
+        shaderBg.put("Difficulty", 1.5);
         shaderBg.put("UseShader", true);
         ObjectNode front = MAPPER.createObjectNode();
         front.put("Enabled", false);
@@ -190,10 +190,18 @@ public final class BallBounceAssets {
         ASSETS = root;
     }
 
-    private BallBounceAssets() {}
-    public static ObjectNode getAssets() { return ASSETS; }
+    private BallBounceAssets() {
+    }
+
+    public static ObjectNode getAssets() {
+        return ASSETS;
+    }
+
     public static String getAssetsAsString() {
-        try { return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
-        } catch (Exception e) { return ASSETS.toString(); }
+        try {
+            return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
+        } catch (Exception e) {
+            return ASSETS.toString();
+        }
     }
 }

@@ -67,6 +67,8 @@ public class ConsumerDetails extends UserDetails {
     private TargetGender gender;
 
     private boolean hasPet;
+
+    
     
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))

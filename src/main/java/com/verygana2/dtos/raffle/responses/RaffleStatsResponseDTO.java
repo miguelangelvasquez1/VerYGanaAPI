@@ -14,13 +14,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class RaffleStatsResponseDTO {
     private Long id;
-    private String title;
-    private Long totalTicketsIssued;
-    private Long totalParticipants;
-    private Long currentTicketsFromPurchases;
-    private Long currentTicketsFromAds;
-    private Long currentTicketsFromGames;
-    private Long currentTicketsFromReferrals;
+    private Long maxTicketsFromPurchases;
+    private Long maxTicketsFromAds;
+    private Long maxTicketsFromGames;
+    private Long maxTicketsFromReferrals;
     private BigDecimal totalPrizesValue;
     private Map<RaffleTicketSource, Long> ticketsBySource;
 }

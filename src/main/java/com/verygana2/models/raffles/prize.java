@@ -42,6 +42,9 @@ public class Prize {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @OneToOne(mappedBy = "prize", fetch = FetchType.LAZY)
+    private PrizeImageAsset imageAsset;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "raffle_id", nullable = false)
     private Raffle raffle;
@@ -63,10 +66,6 @@ public class Prize {
     @NotNull
     @Column(name = "value", nullable = false, precision = 10, scale = 2)
     private BigDecimal value;
-
-    @Column(name = "image_url")
-    @Size(max = 500, message = "Image URL cannot exceed 500 characters")
-    private String imageUrl;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "prize_type")

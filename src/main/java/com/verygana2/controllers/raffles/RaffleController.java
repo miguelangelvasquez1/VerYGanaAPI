@@ -16,6 +16,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.services.interfaces.raffles.RaffleService;
@@ -29,12 +30,13 @@ public class RaffleController {
 
     private final RaffleService raffleService;
 
+    // Para admin
     @GetMapping
-    public ResponseEntity<PagedResponse<RaffleResponseDTO>> getRafflesByStatusAndType (
-            @RequestParam(value = "status", required = false) RaffleStatus status, @RequestParam(value = "type", required = false) RaffleType type,
+    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByStatusAndType(
+            @RequestParam(value = "status") RaffleStatus status,
+            @RequestParam(value = "type") RaffleType type,
             @PageableDefault(size = 10, page = 0, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-
-        return ResponseEntity.ok(raffleService.getRafflesByStatusAndType(status, type, pageable));
+        return ResponseEntity.ok(raffleService.getSummaryRafflesByStatusAndType(status, type, pageable));
     }
 
     @GetMapping("/{raffleId}")
@@ -52,7 +54,16 @@ public class RaffleController {
         return ResponseEntity.ok(raffleService.getRaffleLeaderBoard(raffleId));
     }
 
-    
+    // Para usuarios
+    @GetMapping("/lives")
+    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(){
+        return ResponseEntity.ok(raffleService.getLiveRaffles());
+    }
+
+    @GetMapping("/actives")
+    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(@RequestParam("type") RaffleType type, @RequestParam("pageNumber") int pageNumber){
+        return ResponseEntity.ok(raffleService.getActiveRaffles(type, pageNumber));
+    }
 
 
 }

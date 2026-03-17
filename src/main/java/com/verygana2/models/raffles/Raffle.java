@@ -1,7 +1,7 @@
 package com.verygana2.models.raffles;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -20,6 +20,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -42,6 +43,9 @@ public class Raffle {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @OneToOne(mappedBy = "raffle", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private RaffleResult raffleResult;
+
     @OneToMany(mappedBy = "raffle", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleRule> raffleRules;
 
@@ -51,6 +55,9 @@ public class Raffle {
 
     @Column(columnDefinition = "TEXT")
     private String description;
+
+    @OneToOne(mappedBy = "raffle", fetch = FetchType.LAZY)
+    private RaffleImageAsset imageAsset;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "raffle_type", nullable = false)
@@ -91,9 +98,6 @@ public class Raffle {
     @Column(name = "draw_method", nullable = false)
     private DrawMethod drawMethod;
 
-    @Column(name = "draw_proof", columnDefinition = "TEXT")
-    private String drawProof;
-
     @OneToMany(mappedBy = "raffle")
     private List<RaffleTicket> issuedTickets;
 
@@ -111,33 +115,20 @@ public class Raffle {
 
     @Column(name = "terms_and_conditions", columnDefinition = "TEXT")
     private String termsAndConditions;
-    
 
     @PrePersist
     public void onCreate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.raffleStatus = RaffleStatus.DRAFT;
         this.createdAt = now;
         this.updatedAt = now;
         this.totalTicketsIssued = 0L;
         this.totalParticipants = 0L;
-        this.requiresPet = false;
-        validateDates();
     }
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
-        validateDates();
-    }
-
-    private void validateDates() {
-        if (endDate != null && startDate != null && endDate.isBefore(startDate)) {
-            throw new IllegalStateException("End date must be after start date");
-        }
-        if (drawDate != null && endDate != null && drawDate.isBefore(endDate)) {
-            throw new IllegalStateException("Draw date must be after end date");
-        }
+        this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
     /**
@@ -145,9 +136,9 @@ public class Raffle {
      */
     public Prize getMainPrize() {
         return prizes.stream()
-            .filter(p -> p.getPosition() == 1)
-            .findFirst()
-            .orElse(null);
+                .filter(p -> p.getPosition() == 1)
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -155,8 +146,8 @@ public class Raffle {
      */
     public BigDecimal getTotalPrizesValue() {
         return prizes.stream()
-            .map(Prize::getValue)
-            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .map(Prize::getValue)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     public boolean hasReachedTotalLimit() {
@@ -188,7 +179,7 @@ public class Raffle {
         if (raffleStatus != RaffleStatus.ACTIVE) {
             return false;
         }
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         return now.isBefore(endDate);
     }
 
@@ -200,11 +191,11 @@ public class Raffle {
     }
 
     public boolean canBeDrawn() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         return raffleStatus == RaffleStatus.CLOSED &&
-               now.isAfter(drawDate) &&
-               !prizes.isEmpty() &&
-               totalTicketsIssued > 0;
+                now.isAfter(drawDate) &&
+                !prizes.isEmpty() &&
+                totalTicketsIssued > 0;
     }
 
 }

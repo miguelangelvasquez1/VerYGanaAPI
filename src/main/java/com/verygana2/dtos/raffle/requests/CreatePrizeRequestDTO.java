@@ -32,9 +32,6 @@ public class CreatePrizeRequestDTO {
     @Positive(message = "Prize value must be positive")
     private BigDecimal value;
 
-    @NotBlank(message = "Prize image is required")
-    private String imageUrl;
-
     @NotNull(message = "Prize type cannot be null")
     private PrizeType prizeType;
 

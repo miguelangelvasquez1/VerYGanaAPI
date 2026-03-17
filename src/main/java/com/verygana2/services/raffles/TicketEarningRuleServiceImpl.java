@@ -249,4 +249,9 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         rule.setReferralAddedQuantity(request.getReferralAddedQuantity());
     }
 
+    @Override
+    public Long countActiveTicketEarningRules() {
+        return ruleRepository.countByIsActiveTrue();
+    }
+
 }

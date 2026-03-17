@@ -15,7 +15,7 @@ spring:
     # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
 
     # Para Railway (PostgreSQL) - usa variables de entorno
-    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=America/Bogota}
+    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
     # driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
@@ -31,7 +31,7 @@ spring:
       hibernate:
         format_sql: true
         jdbc:
-          time_zone: America/Bogota
+          time_zone: UTC
 
   # =====================
   # MULTIPART/FILE UPLOAD
@@ -117,7 +117,7 @@ logging:
     root: INFO
     com.verygana2: DEBUG
     com.verygana2.repositories: DEBUG
-    com.verygana2.services: INFO
+    com.verygana2.services: DEBUG
     com.verygana2.services.storage: DEBUG
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
@@ -159,12 +159,22 @@ games:
 # WOMPI CONFIG
 # ============================================ 
 # Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
-wompi:
-  public-key: ${WOMPI_PUBLIC_KEY:pub_test_EJEMPLO}
-  private-key: ${WOMPI_PRIVATE_KEY:prv_test_EJEMPLO}
-  event-secret: ${WOMPI_EVENT_SECRET:event_secret_EJEMPLO}
-  api-url: ${WOMPI_API_URL:https://sandbox.wompi.co/v1}
-  currency: COP
+# wompi:
+#   public-key: ${WOMPI_PUBLIC_KEY}
+#   private-key: ${WOMPI_PRIVATE_KEY}
+#   integrity-key: ${WOMPI_INTEGRITY_KEY}
+#   events-key: ${WOMPI_EVENTS_KEY}
+#   checkout-base-url: https://checkout.wompi.co/p/
+#   api-base-url: https://production.wompi.co/v1
+
+# # application-sandbox.yml  (activa con: spring.profiles.active=sandbox)
+# wompi:
+#   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
+#   private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
+#   integrity-key: ${WOMPI_SANDBOX_INTEGRITY_KEY}
+#   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
+#   checkout-base-url: https://checkout.wompi.co/p/
+#   api-base-url: https://sandbox.wompi.co/v1
   
 payment:
   min-deposit: 5000      # $5.000 COP

@@ -29,15 +29,18 @@ import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
+import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleTicket;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.NotificationRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
+import com.verygana2.repositories.raffles.RaffleResultRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
 import com.verygana2.services.interfaces.raffles.DrawingService;
+import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RandomOrgService;
 
@@ -50,8 +53,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class DrawingServiceImpl implements DrawingService {
     private final RaffleRepository raffleRepository;
+    private final RaffleResultRepository raffleResultRepository;
     private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleService raffleService;
+    private final RaffleResultService raffleResultService;
     private final RandomOrgService randomOrgService;
     private final PrizeRepository prizeRepository;
     private final NotificationRepository notificationRepository;
@@ -81,14 +86,17 @@ public class DrawingServiceImpl implements DrawingService {
         log.info("Executing draw...");
         List<RaffleTicket> winningTickets = executeDraw(raffle, tickets, numberOfWinners);
 
+        log.info("Creating raffle result...");
+        RaffleResult result = createRaffleResult(raffle);
+
         // ========== 5. CREAR REGISTROS DE GANADORES ==========
         log.info("Creating winner records...");
-        List<RaffleWinner> winners = createWinnerRecords(raffle, prizes, winningTickets);
+        List<RaffleWinner> winners = createWinnerRecords(result, prizes, winningTickets);
 
         // ========== 6. GENERAR PROOF ==========
         log.info("Generating draw proof...");
         String drawProof = generateDrawProof(raffle.getId(), winners);
-        raffle.setDrawProof(drawProof);
+        result.setDrawProof(drawProof);
 
         // ========== 7. ACTUALIZAR ESTADO DE LA RIFA ==========
         log.info("Updating raffle status...");
@@ -113,10 +121,9 @@ public class DrawingServiceImpl implements DrawingService {
                 .numberOfWinners(winners.size())
                 .winners(winners.stream()
                         .map(w -> WinnerSummaryResponseDTO.builder()
-                                .winnerId(w.getId())
-                                .consumerId(w.getWinner().getId())
-                                .consumerName(w.getWinner().getUserName())
-                                .ticketNumber(w.getWinningTicket().getTicketNumber())
+                                .userName(w.getWinner().getUserName())
+                                .raffleTitle(raffle.getTitle())
+                                .prizeValue(w.getPrize().getValue())
                                 .prizeTitle(w.getPrize().getTitle())
                                 .position(w.getPrize().getPosition())
                                 .build())
@@ -133,8 +140,8 @@ public class DrawingServiceImpl implements DrawingService {
 
         Raffle raffle = raffleService.getRaffleById(raffleId);
 
-        if (raffle.getRaffleStatus() != RaffleStatus.CLOSED) {
-            throw new InvalidRaffleStatusException(String.format("Cannot draw raffle with status: %s. Must be CLOSED",
+        if (raffle.getRaffleStatus() != RaffleStatus.LIVE) {
+            throw new InvalidRaffleStatusException(String.format("Cannot draw raffle with status: %s. Must be LIVE",
                     raffle.getRaffleStatus()));
         }
 
@@ -205,10 +212,15 @@ public class DrawingServiceImpl implements DrawingService {
         return winners;
     }
 
-    private List<RaffleWinner> createWinnerRecords(Raffle raffle, List<Prize> prizes,
+    private RaffleResult createRaffleResult (Raffle raffle){
+        RaffleResult result = new RaffleResult();
+        result.setRaffle(raffle);
+        return raffleResultRepository.save(result);
+    }
+
+    private List<RaffleWinner> createWinnerRecords(RaffleResult result, List<Prize> prizes,
             List<RaffleTicket> winningTickets) {
         List<RaffleWinner> winners = new ArrayList<>();
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
 
         int ticketIndex = 0;
 
@@ -219,11 +231,10 @@ public class DrawingServiceImpl implements DrawingService {
                 RaffleTicket winningTicket = winningTickets.get(ticketIndex++);
                 RaffleWinner winner = new RaffleWinner();
 
-                winner.setRaffle(raffle);
+                winner.setRaffleResult(result);
                 winner.setPrize(p);
                 winner.setWinner(winningTicket.getTicketOwner());
                 winner.setWinningTicket(winningTicket);
-                winner.setDrawnAt(now);
 
                 winners.add(winner);
 
@@ -340,11 +351,16 @@ public class DrawingServiceImpl implements DrawingService {
                     .numberOfWinners(winners.size())
                     .winners(winners.stream()
                             .map(w -> WinnerProofResponseDTO.builder()
-                                    .position(w.getPrize().getPosition())
+                            .userName(w.getWinner().getUserName())
                                     .ticketNumber(w.getWinningTicket().getTicketNumber())
-                                    .consumerId(w.getWinner().getId())
+                                    .position(w.getPrize().getPosition())
                                     .prizeTitle(w.getPrize().getTitle())
-                                    .drawnAt(w.getDrawnAt())
+                                    .prizeType(w.getPrize().getPrizeType())
+                                    .prizeValue(w.getPrize().getValue())
+                                    .prizeClaimed(w.isPrizeClaimed())
+                                    .claimDeadline(w.getClaimDeadline())
+                                    .prizeClaimedAt(w.getPrizeClaimedAt())
+                                    .prizeTrackingNumber(w.getPrizeTrackingNumber())
                                     .build())
                             .toList())
                     .build();
@@ -387,22 +403,22 @@ public class DrawingServiceImpl implements DrawingService {
 
         log.info("Verifying draw integrity for raffle {}", raffleId);
 
-        Raffle raffle = raffleService.getRaffleById(raffleId);
+        RaffleResult result = raffleResultService.getByRaffleId(raffleId);
 
         // Verificar que tiene proof
-        if (raffle.getDrawProof() == null || raffle.getDrawProof().isBlank()) {
+        if (result.getDrawProof() == null || result.getDrawProof().isBlank()) {
             log.warn("Raffle {} has no draw proof", raffleId);
             return false;
         }
 
         // Verificar que está en estado COMPLETED
-        if (raffle.getRaffleStatus() != RaffleStatus.COMPLETED) {
+        if (result.getRaffle().getRaffleStatus() != RaffleStatus.COMPLETED) {
             log.warn("Raffle {} is not in COMPLETED status", raffleId);
             return false;
         }
 
         // Verificar que tiene ganadores
-        long winnerCount = raffleWinnerRepository.countByRaffleId(raffleId);
+        long winnerCount = raffleWinnerRepository.countByRaffleResultId(result.getId());
         if (winnerCount == 0) {
             log.warn("Raffle {} has no winners", raffleId);
             return false;
@@ -410,7 +426,7 @@ public class DrawingServiceImpl implements DrawingService {
 
         // Verificar integridad del proof JSON
         try {
-            objectMapper.readTree(raffle.getDrawProof());
+            objectMapper.readTree(result.getDrawProof());
             log.info("Draw integrity verification passed for raffle {}", raffleId);
             return true;
         } catch (JsonProcessingException e) {
@@ -421,15 +437,15 @@ public class DrawingServiceImpl implements DrawingService {
 
     @Override
     @Async("notificationExecutor")
-    public void notifyWinners(Long raffleId) {
+    public void notifyWinners(Long raffleResultId) {
 
-        if (raffleId == null || raffleId <= 0) {
-            throw new IllegalArgumentException("Raffle id must be positive");
+        if (raffleResultId == null || raffleResultId <= 0) {
+            throw new IllegalArgumentException("Raffle result id must be positive");
         }
 
-        log.info("Winner notifications triggered for raffle {}", raffleId);
+        log.info("Winner notifications triggered for raffle result {}", raffleResultId);
 
-        List<ConsumerDetails> winners = raffleWinnerRepository.findByRaffleId(raffleId).stream().map(t -> t.getWinner())
+        List<ConsumerDetails> winners = raffleWinnerRepository.findByRaffleResultId(raffleResultId).stream().map(t -> t.getWinner())
                 .toList();
         List<Notification> notifications = new ArrayList<>(winners.size());
 
@@ -462,12 +478,12 @@ public class DrawingServiceImpl implements DrawingService {
 
         log.info("Results published for raffle {}", raffleId);
 
-        Raffle raffle = raffleService.getRaffleById(raffleId);
+        RaffleResult result = raffleResultService.getByRaffleId(raffleId);
 
-        List<RaffleWinner> winners = raffleWinnerRepository.findByRaffleId(raffleId);
+        List<RaffleWinner> winners = raffleWinnerRepository.findByRaffleResultId(result.getId());
 
         log.info("Published results: Raffle '{}' - {} winners",
-                raffle.getTitle(),
+                result.getRaffle().getTitle(),
                 winners.size());
 
         // notificationService.notifyAllParticipants(raffleId);
