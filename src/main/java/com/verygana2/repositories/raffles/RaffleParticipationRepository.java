@@ -46,20 +46,21 @@ public interface RaffleParticipationRepository extends JpaRepository<RaffleParti
      * Ordena por cantidad de tickets descendente
      */
     @Query("""
-        SELECT DISTINCT new com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO(
-            p.consumer.id,
-            p.consumer.userName,
-            p.consumer.avatarUrl,
-            p.ticketsCount,
-            (CAST(p.ticketsCount AS double) * 100.0 / CAST(p.raffle.totalTicketsIssued AS double))
-        )
-        FROM RaffleParticipation p
-        WHERE p.raffle.id = :raffleId
-        AND p.ticketsCount > 0
-        ORDER BY p.ticketsCount DESC
-        """)
-    List<ParticipantLeaderboardDTO> findLeaderboard(
-        @Param("raffleId") Long raffleId,
-        Pageable pageable
+    SELECT
+        p.consumer.id,
+        p.consumer.userName,
+        av.imageUrl,
+        p.ticketsCount,
+        (CAST(p.ticketsCount AS double) * 100.0 
+            / CAST(p.raffle.totalTicketsIssued AS double))
+    FROM RaffleParticipation p
+    JOIN p.consumer.avatar av
+    WHERE p.raffle.id = :raffleId
+    AND p.ticketsCount > 0
+    ORDER BY p.ticketsCount DESC
+    """)
+    List<Object[]> findLeaderboard(
+            @Param("raffleId") Long raffleId,
+            Pageable pageable
     );
 }

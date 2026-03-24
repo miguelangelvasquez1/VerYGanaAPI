@@ -1,9 +1,11 @@
 package com.verygana2.dtos.user;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import com.verygana2.models.Category;
 
+import com.verygana2.models.enums.Gender;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -36,4 +38,25 @@ public class ConsumerRegisterDTO {
     @Size(min = 1, message = "At least one preference must be selected")
     @NotNull(message = "Preferences are required")
     private List<Category> categories;
+
+    @NotBlank(message = "Username is required")
+    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters")
+    @Pattern(
+            regexp = "^[a-zA-Z0-9._]+$",
+            message = "Username only allows letters, numbers, dot and underscore"
+    )
+    private String userName;
+
+    private String referredByCode;
+
+    @NotNull(message = "Avatar is required")
+    private Long avatarId;
+
+    @NotNull(message = "Birth date is required")
+    @Past(message = "Birth date must be in the past")
+    private LocalDate birthDate;
+
+    @NotNull(message = "Gender is required")
+    private Gender gender;
+
 }
