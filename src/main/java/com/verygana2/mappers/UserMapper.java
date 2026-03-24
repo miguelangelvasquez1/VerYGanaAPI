@@ -5,6 +5,7 @@ import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -56,4 +57,7 @@ public interface UserMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
+
+    @Mapping(target = "email", source = "details.user.email")
+    CommercialInitialDataResponseDTO toCommercialInitialDataResponseDTO(CommercialDetails details);
 }
