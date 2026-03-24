@@ -40,6 +40,7 @@ import com.verygana2.repositories.raffles.RaffleResultRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
 import com.verygana2.services.interfaces.raffles.DrawingService;
+import com.verygana2.services.interfaces.raffles.RaffleEventPublisherService;
 import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RandomOrgService;
@@ -56,6 +57,7 @@ public class DrawingServiceImpl implements DrawingService {
     private final RaffleResultRepository raffleResultRepository;
     private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleService raffleService;
+    private final RaffleEventPublisherService raffleEventPublisherService;
     private final RaffleResultService raffleResultService;
     private final RandomOrgService randomOrgService;
     private final PrizeRepository prizeRepository;
@@ -81,7 +83,11 @@ public class DrawingServiceImpl implements DrawingService {
 
         // ========== 3. OBTENER TICKETS ACTIVOS ==========
         List<RaffleTicket> tickets = getActiveTickets(raffle);
-        // ========== 4. EJECUTAR SORTEO ==========
+
+        // ========== 4. EJECUTAR SORTEO — agregar evento ==========
+        raffle.setRaffleStatus(RaffleStatus.DRAWING);
+        raffleRepository.save(raffle);
+        raffleEventPublisherService.publishDrawingStarted(raffleId, raffle.getTotalTicketsIssued(), prizes.size());
 
         log.info("Executing draw...");
         List<RaffleTicket> winningTickets = executeDraw(raffle, tickets, numberOfWinners);
@@ -109,9 +115,12 @@ public class DrawingServiceImpl implements DrawingService {
 
         log.info("=== DRAW COMPLETED === Raffle: {}, Winners: {}", raffleId, winners.size());
 
-        // ========== 9. NOTIFICAR Y PUBLICAR (ASYNC) ==========
+        // ========== 9. REVELAR, NOTIFICAR GANADORES Y TERMINAR SORTEO (ASYNC)
+        // ==========
+        List<RaffleWinner> initializedWinners = initializeWinnersForAsync(winners);
+        raffleEventPublisherService.publishWinnersWithDelay(raffleId, initializedWinners, raffle.getTitle());
 
-        // Estos métodos se ejecutan de forma asíncrona
+        // Notificaciones in-app también async
         notifyWinners(raffleId);
         publishResults(raffleId);
 
@@ -128,7 +137,7 @@ public class DrawingServiceImpl implements DrawingService {
                                 .position(w.getPrize().getPosition())
                                 .build())
                         .toList())
-                .message("Draw completed successfully")
+                .message("Draw Initiated successfully, winners will be revealed live.")
                 .build();
     }
 
@@ -212,7 +221,7 @@ public class DrawingServiceImpl implements DrawingService {
         return winners;
     }
 
-    private RaffleResult createRaffleResult (Raffle raffle){
+    private RaffleResult createRaffleResult(Raffle raffle) {
         RaffleResult result = new RaffleResult();
         result.setRaffle(raffle);
         return raffleResultRepository.save(result);
@@ -351,7 +360,7 @@ public class DrawingServiceImpl implements DrawingService {
                     .numberOfWinners(winners.size())
                     .winners(winners.stream()
                             .map(w -> WinnerProofResponseDTO.builder()
-                            .userName(w.getWinner().getUserName())
+                                    .userName(w.getWinner().getUserName())
                                     .ticketNumber(w.getWinningTicket().getTicketNumber())
                                     .position(w.getPrize().getPosition())
                                     .prizeTitle(w.getPrize().getTitle())
@@ -445,7 +454,8 @@ public class DrawingServiceImpl implements DrawingService {
 
         log.info("Winner notifications triggered for raffle result {}", raffleResultId);
 
-        List<ConsumerDetails> winners = raffleWinnerRepository.findByRaffleResultId(raffleResultId).stream().map(t -> t.getWinner())
+        List<ConsumerDetails> winners = raffleWinnerRepository.findByRaffleResultId(raffleResultId).stream()
+                .map(t -> t.getWinner())
                 .toList();
         List<Notification> notifications = new ArrayList<>(winners.size());
 
@@ -487,6 +497,27 @@ public class DrawingServiceImpl implements DrawingService {
                 winners.size());
 
         // notificationService.notifyAllParticipants(raffleId);
+    }
+
+
+    // Metodos privados
+
+    /**
+     * Fuerza la inicialización de todas las relaciones lazy que
+     * publishWinnersWithDelay necesita fuera de la transacción.
+     * Debe llamarse dentro de la transacción de conductDraw().
+     */
+    private List<RaffleWinner> initializeWinnersForAsync(List<RaffleWinner> winners) {
+        winners.forEach(w -> {
+            // Forzar carga de cada relación lazy accediendo a un campo
+            w.getWinner().getUserName();
+            w.getWinningTicket().getTicketNumber();
+            w.getPrize().getTitle();
+            w.getPrize().getValue();
+            w.getPrize().getPrizeType();
+            w.getPrize().getPosition();
+        });
+        return winners;
     }
 
 }

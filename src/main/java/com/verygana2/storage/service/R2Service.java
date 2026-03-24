@@ -48,7 +48,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Slf4j
 public class R2Service {
 
-    private static final Duration DEFAULT_UPLOAD_EXPIRATION = Duration.ofMinutes(5);
+    private static final Duration DEFAULT_UPLOAD_EXPIRATION = Duration.ofMinutes(15);
 
     @Autowired
     private S3Client r2Client;

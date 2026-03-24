@@ -13,7 +13,6 @@ import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleRuleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
-import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketEarningRuleResponseDTO;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
@@ -60,10 +59,6 @@ public interface RaffleMapper {
     @Mapping(target = "imageAsset", ignore = true)
     Prize toPrize(CreatePrizeRequestDTO request);
 
-    @Mapping(target = "prizeCount", expression = "java(getPrizeCount(raffle))")
-    @Mapping(target = "imageUrl", source = "imageAsset.objectKey")
-    RaffleSummaryResponseDTO toRaffleSummaryResponseDTO(Raffle raffle);
-
     @Mapping(target = "rules", source = "raffleRules")
     @Mapping(target = "imageUrl", ignore = true)
     RaffleResponseDTO toRaffleResponseDTO(Raffle raffle);
@@ -87,4 +82,5 @@ public interface RaffleMapper {
     default Long getPrizeCount(Raffle raffle) {
         return raffle.getPrizes() != null ? (long) raffle.getPrizes().size() : 0;
     }
+
 }

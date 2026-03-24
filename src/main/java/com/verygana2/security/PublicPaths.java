@@ -14,6 +14,9 @@ public class PublicPaths {
         "/api/payments/wompi/pse/banks",
         "/games/assets",
         "/games/metrics",
-        "/api/payments/webhook"
+        "/api/payments/webhook",
+        "/api/raffles/**",
+        "/ws/**",
+        "/ws/info/**"
         }; 
 }

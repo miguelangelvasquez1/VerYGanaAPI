@@ -630,13 +630,17 @@ public class RaffleServiceImpl implements RaffleService {
 
     @Override
     public List<RaffleSummaryResponseDTO> getLiveRaffles() {
-        return raffleRepository.findLiveRaffles();
+        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles();
+        lives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        return lives;
     }
 
     @Override
     public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, int pageNumber) {
         Pageable pageable = PageRequest.of(pageNumber, 10);
-        return PagedResponse.from(raffleRepository.findActiveRaffles(type, pageable));
+        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, pageable);
+        actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        return PagedResponse.from(actives);
     }
 
 }

@@ -40,7 +40,7 @@ public class RaffleWinnerController {
         return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, pageable));
     }
 
-    @GetMapping
+    @GetMapping("/last")
     public ResponseEntity<List<WinnerSummaryResponseDTO>> getLastWinners (){
         return ResponseEntity.ok(raffleWinnerService.getLastRaffleWinners());
     }
