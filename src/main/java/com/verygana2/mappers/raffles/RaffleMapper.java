@@ -73,10 +73,14 @@ public interface RaffleMapper {
     TicketEarningRuleResponseDTO toRuleResponseDTO(TicketEarningRule ticketEarningRule);
 
     @Mapping(target = "ticketsBySource", ignore = true)
+    @Mapping(target = "maxTicketsFromPurchases", ignore = true)
+    @Mapping(target = "maxTicketsFromAds", ignore = true)
+    @Mapping(target = "maxTicketsFromGames", ignore = true)
+    @Mapping(target = "maxTicketsFromReferrals", ignore = true)
     RaffleStatsResponseDTO toRaffleStatsResponseDTO(Raffle raffle);
 
-    default Integer getPrizeCount(Raffle raffle) {
-        return raffle.getPrizes() != null ? raffle.getPrizes().size() : 0;
+    default Long getPrizeCount(Raffle raffle) {
+        return raffle.getPrizes() != null ? (long) raffle.getPrizes().size() : 0;
     }
 
 }

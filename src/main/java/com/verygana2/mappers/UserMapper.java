@@ -39,6 +39,7 @@ public interface UserMapper {
     @Mapping(target = "avatarUrl", ignore = true)
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
+    @Mapping(target = "municipality", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- ADVERTISER ----

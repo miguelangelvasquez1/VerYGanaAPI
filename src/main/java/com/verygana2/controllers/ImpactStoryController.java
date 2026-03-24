@@ -41,6 +41,7 @@ public class ImpactStoryController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
+    
     public ResponseEntity<Page<ImpactStoryResponseDTO>> findAll(
             @RequestParam(required = false) StoryStatus status,
             @PageableDefault(size = 10, sort = "storyDate", direction = Sort.Direction.DESC)
@@ -93,6 +94,6 @@ public class ImpactStoryController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         impactStoryService.delete(id);
-        return ResponseEntity.noContent().build(); //hacer el hero de foro
+        return ResponseEntity.noContent().build();
     }
 }
