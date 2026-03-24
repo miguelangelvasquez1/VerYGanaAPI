@@ -5,11 +5,9 @@ import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
-import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.models.userDetails.SellerDetails;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -40,6 +38,8 @@ public interface UserMapper {
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "municipality", ignore = true)
+    @Mapping(target = "referrals", ignore = true)
+    @Mapping(target = "referredBy", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- COMMERCIAL ----
@@ -56,19 +56,4 @@ public interface UserMapper {
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
-
-    // ---- SELLER ----
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "role", constant = "SELLER")
-    @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "ACTIVE")
-    @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "verification", ignore = true)
-    @Mapping(target = "wallet", ignore = true)
-    User toUser(SellerRegisterDTO dto);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    @Mapping(target = "notifications", ignore = true)
-    SellerDetails toSellerDetails(SellerRegisterDTO dto);
 }

@@ -16,5 +16,6 @@ public interface PrizeMapper {
     @Mapping(target = "winner", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "imageAsset", ignore = true)
     Prize toPrize (CreatePrizeRequestDTO request);
 }

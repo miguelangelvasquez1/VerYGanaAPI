@@ -23,7 +23,6 @@ import com.verygana2.dtos.auth.RefreshRequest;
 import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
-import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.utils.audit.AuditLevel;
@@ -210,11 +209,5 @@ public class AuthController {
     public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO consumerRegisterRequest) {
         userService.registerCommercial(consumerRegisterRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body("Commercial registered successfully");
-    }
-
-    @PostMapping("/register/seller") //Devolver UserResponse o ConsumerRespone
-    public ResponseEntity<?> registerSeller(@Valid @RequestBody SellerRegisterDTO consumerRegisterRequest) {
-        userService.registerSeller(consumerRegisterRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Seller registered successfully");
     }
 }

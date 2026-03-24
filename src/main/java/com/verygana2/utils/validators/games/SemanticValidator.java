@@ -17,6 +17,7 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Component
 @Slf4j
+@SuppressWarnings("unchecked")
 public class SemanticValidator {
     
     public List<ValidationError> validate(Map<String, Object> configData, String gameCode) {

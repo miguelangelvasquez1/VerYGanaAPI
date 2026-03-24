@@ -16,6 +16,7 @@ import com.verygana2.dtos.raffle.websocket.WinnerRevealPayloadDTO;
 import com.verygana2.models.enums.raffles.DrawEventType;
 import com.verygana2.models.raffles.Raffle;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 @Component
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class RaffleDrawStateCache {
 
     // Clase interna que representa el estado completo de un sorteo en curso
+    @Data
     private static class DrawState {
         DrawEventType phase;
         List<WinnerRevealPayloadDTO> revealedWinners;

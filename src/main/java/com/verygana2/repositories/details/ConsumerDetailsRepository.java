@@ -3,9 +3,6 @@ package com.verygana2.repositories.details;
 import java.util.List;
 import java.util.Optional;
 
-
-import com.verygana2.dtos.user.ConsumerRegisterDTO;
-import com.verygana2.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

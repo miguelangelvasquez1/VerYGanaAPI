@@ -1,7 +1,6 @@
 package com.verygana2.services;
 
 import com.verygana2.models.Avatar;
-import com.verygana2.services.details.ConsumerDetailsServiceImpl;
 import com.verygana2.services.interfaces.AvatarService;
 import com.verygana2.services.interfaces.ReferralService;
 import org.hibernate.ObjectNotFoundException;
@@ -11,12 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
-import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.WalletService;
@@ -41,22 +38,6 @@ public class UserServiceImpl implements UserService {
     private final WalletService walletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
-
-    public User registerSeller(SellerRegisterDTO dto) {
-        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
-
-        User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-
-        SellerDetails details = userMapper.toSellerDetails(dto);
-        details.setUser(user);
-        user.setUserDetails(details);
-
-        User savedUser = userRepository.save(user);
-        walletService.createWallet(savedUser);
-
-        return savedUser;
-    }
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());

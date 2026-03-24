@@ -132,6 +132,8 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                 .totalTickets(totalTickets)
                 .build();
 
+       
+        @SuppressWarnings("unused")
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                 .type(DrawEventType.WAITING_ROOM_UPDATE)
                 .raffleId(raffleId)

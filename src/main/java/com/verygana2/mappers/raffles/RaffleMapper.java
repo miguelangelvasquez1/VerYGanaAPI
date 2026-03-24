@@ -34,6 +34,8 @@ public interface RaffleMapper {
     @Mapping(target = "modifiedBy", ignore = true)
     @Mapping(target = "imageAsset", ignore = true)
     @Mapping(target = "prizes", ignore = true)
+    @Mapping(target = "raffleResult", ignore = true)
+    @Mapping(target = "activeRules", ignore = true)
     Raffle toRaffle(CreateRaffleRequestDTO request);
 
     @AfterMapping

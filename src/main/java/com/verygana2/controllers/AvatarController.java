@@ -1,7 +1,6 @@
 package com.verygana2.controllers;
 
 import com.verygana2.dtos.avatar.AvatarResponseDTO;
-import com.verygana2.models.Avatar;
 import com.verygana2.services.interfaces.AvatarService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
