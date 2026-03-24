@@ -5,12 +5,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.dtos.user.AdvertiserRegisterDTO;
+import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.dtos.user.SellerRegisterDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.UserRepository;
@@ -49,13 +49,13 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 
-    public User registerAdvertiser(AdvertiserRegisterDTO dto) {
+    public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        AdvertiserDetails details = userMapper.toAdvertiserDetails(dto);
+        CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
 

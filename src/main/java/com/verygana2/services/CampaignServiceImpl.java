@@ -44,8 +44,7 @@ import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameAssetDefinition;
 import com.verygana2.models.games.GameConfigDefinition;
-import com.verygana2.models.userDetails.AdvertiserDetails;
-import com.verygana2.repositories.details.AdvertiserDetailsRepository;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameAssetDefinitionRepository;
@@ -102,7 +101,7 @@ public class CampaignServiceImpl implements CampaignService {
         
         // Generate unique asset key
         String assetKey = UUID.randomUUID().toString();
-        String objectKey = String.format("campaigns/advertiser-%s/%s/%s", userId, assetType.getValue(), assetKey);
+        String objectKey = String.format("campaigns/commercial-%s/%s/%s", userId, assetType.getValue(), assetKey);
         
         // Generate presigned upload URL from R2
         FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
@@ -245,8 +244,8 @@ public class CampaignServiceImpl implements CampaignService {
             .minAge(request.getTargetAudience().getMinAge())
             .maxAge(request.getTargetAudience().getMaxAge())
 
-            // Relación con advertiser
-            .advertiser(entityManager.getReference(AdvertiserDetails.class, userId))
+            // Relación con commercial
+            .commercial(entityManager.getReference(CommercialDetails.class, userId))
             .build();
         
         campaign = campaignRepository.save(campaign);
@@ -260,8 +259,8 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
-    public List<CampaignDTO> getAdvertiserCampaigns(Long advertiserId) {
-        List<Campaign> campaigns = campaignRepository.findByAdvertiserId(advertiserId);
+    public List<CampaignDTO> getCommercialCampaigns(Long commercialId) {
+        List<Campaign> campaigns = campaignRepository.findByCommercialId(commercialId);
         return campaigns.stream().map(campaignMapper::toDto).toList();
     }
 
@@ -272,7 +271,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
 
         // 1. Autorización
-        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+        if (!campaign.getCommercial().getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
         }
 
@@ -297,7 +296,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
 
         // 1. Autorización
-        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+        if (!campaign.getCommercial().getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
         }
 
@@ -330,8 +329,8 @@ public class CampaignServiceImpl implements CampaignService {
 
     @Transactional(readOnly = true)
     @Override
-    public PagedResponse<GameDTO> getAvailableGames(Long advertiserId, Pageable pageable) {
-        return PagedResponse.from(gameRepository.findGamesWithoutCampaign(advertiserId, pageable));
+    public PagedResponse<GameDTO> getAvailableGames(Long commercialId, Pageable pageable) {
+        return PagedResponse.from(gameRepository.findGamesWithoutCampaign(commercialId, pageable));
     }
 
     @Transactional(readOnly = true)
@@ -576,7 +575,7 @@ public class CampaignServiceImpl implements CampaignService {
             throw new ValidationException("El presupuesto no puede ser menor al monto ya gastado");
         }
 
-        BigDecimal availableBalance = campaign.getAdvertiser().getUser().getWallet().getBalance();
+        BigDecimal availableBalance = campaign.getCommercial().getUser().getWallet().getBalance();
 
         if (newBudget.compareTo(availableBalance.add(campaign.getSpent())) > 0) { // Mirar lógica de los saldos
             throw new ValidationException("Saldo insuficiente");

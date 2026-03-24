@@ -13,7 +13,7 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.TargetGender;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -49,7 +49,7 @@ import lombok.NoArgsConstructor;
     name = "campaigns",
     indexes = {
         @Index(name = "idx_campaign_game", columnList = "game_id"),
-        @Index(name = "idx_campaign_advertiser", columnList = "advertiser_id"),
+        @Index(name = "idx_campaign_commercial", columnList = "commercial_id"),
         @Index(name = "idx_campaign_status", columnList = "status")
     }
 )
@@ -80,8 +80,8 @@ public class Campaign {
     private Map<String, Object> configData;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "advertiser_id", nullable = false)
-    private AdvertiserDetails advertiser;
+    @JoinColumn(name = "commercial_id", nullable = false)
+    private CommercialDetails commercial;
 
     @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameSession> gameSessions;

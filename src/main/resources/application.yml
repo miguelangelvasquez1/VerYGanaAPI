@@ -15,7 +15,7 @@ spring:
     # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
 
     # Para Railway (PostgreSQL) - usa variables de entorno
-    url: ${DATABASE_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
     # driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}

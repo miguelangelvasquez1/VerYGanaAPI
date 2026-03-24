@@ -5,9 +5,7 @@ import lombok.Data;
 
 @Data
 @AllArgsConstructor
-public class AdvertiserRegisterRequest {
-    private String companyName;
-    private String email;
-    private String phoneNumber;
+public class CommercialLoginRequest {
+    private String identifier;
     private String password;
 }

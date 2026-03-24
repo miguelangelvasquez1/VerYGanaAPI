@@ -64,7 +64,7 @@ public class GameAssetDefinition {
     @Column(name = "multiple", nullable = false)
     private boolean multiple;
 
-    /** Descripción funcional para frontend / advertiser */
+    /** Descripción funcional para frontend / commercial */
     @Column(name = "description")
     private String description;
 

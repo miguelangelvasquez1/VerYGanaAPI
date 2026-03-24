@@ -16,7 +16,7 @@ import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(componentModel = "spring")
 public interface AdMapper {
@@ -26,7 +26,7 @@ public interface AdMapper {
     @Mapping(target = "currentLikes", constant = "0")
     @Mapping(target = "status", expression = "java(com.verygana2.models.enums.AdStatus.PENDING)")
     @Mapping(target = "createdAt", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "advertiser", source = "advertiser")
+    @Mapping(target = "commercial", source = "commercial")
     @Mapping(target = "targetGender", expression = "java(com.verygana2.models.enums.TargetGender.valueOf(request.getTargetGender()))")
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -37,7 +37,7 @@ public interface AdMapper {
     @Mapping(target = "targetMunicipalities", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
-    Ad toEntity(CreateAdRequestDTO request, AdvertiserDetails advertiser);
+    Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta
     @Mapping(target = "remainingBudget", expression = "java(entity.getRemainingBudget())")
@@ -50,16 +50,16 @@ public interface AdMapper {
     MunicipalityResponseDTO municipalityToDto(Municipality municipality);
 
     // 🔹 Mapear entidad a DTO para consumidor
-    @Mapping(target = "advertiserName", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getCompanyName() : null)")
-    @Mapping(target = "advertiserId", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getId() : null)")
+    @Mapping(target = "commercialName", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getCompanyName() : null)")
+    @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "sessionUUID", ignore = true)
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true)
     AdForConsumerDTO toConsumerDto(Ad ad);
 
     // Mapear entidad a DTO para administrador
-    @Mapping(target = "advertiserName", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getCompanyName() : null)")
-    @Mapping(target = "advertiserId", expression = "java(ad.getAdvertiser() != null ? ad.getAdvertiser().getId() : null)")
+    @Mapping(target = "commercialName", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getCompanyName() : null)")
+    @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true)
     AdForAdminDTO toAdminDto(Ad ad);
@@ -67,7 +67,7 @@ public interface AdMapper {
     // 🔹 Actualizar entidad existente desde un DTO
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "advertiser", ignore = true)
+    @Mapping(target = "commercial", ignore = true)
     @Mapping(target = "likes", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

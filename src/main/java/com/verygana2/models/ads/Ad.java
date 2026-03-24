@@ -9,7 +9,7 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.TargetGender;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMax;
@@ -38,7 +38,7 @@ import lombok.NoArgsConstructor;
         // Índice para búsqueda por fecha de inicio
         @Index(name = "idx_ads_start_date", columnList = "start_date"),
         // Índice por anunciante
-        @Index(name = "idx_ads_advertiser", columnList = "advertiser_id"),
+        @Index(name = "idx_ads_commercial", columnList = "commercial_id"),
         // Índice para anuncios activos ordenados por fecha de creación
         @Index(name = "idx_ads_active_created", columnList = "status, created_at"),
         // Índice para anuncios completados
@@ -111,8 +111,8 @@ public class Ad {
 
     @NotNull(message = "El anunciante es obligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "advertiser_id", nullable = false, foreignKey = @ForeignKey(name = "fk_ad_advertiser"))
-    private AdvertiserDetails advertiser;
+    @JoinColumn(name = "commercial_id", nullable = false, foreignKey = @ForeignKey(name = "fk_ad_commercial"))
+    private CommercialDetails commercial;
 
     @OneToMany(mappedBy = "ad", fetch = FetchType.LAZY)
     @Builder.Default

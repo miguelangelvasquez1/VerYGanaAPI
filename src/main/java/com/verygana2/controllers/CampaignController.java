@@ -42,10 +42,10 @@ public class CampaignController {
     private final CampaignService service;
 
     @GetMapping
-    public ResponseEntity<List<CampaignDTO>> getAdvertiserCampaigns(
+    public ResponseEntity<List<CampaignDTO>> getCommercialCampaigns(
             @AuthenticationPrincipal Jwt jwt) {
 
-        return ResponseEntity.ok(service.getAdvertiserCampaigns(jwt.getClaim("userId")));
+        return ResponseEntity.ok(service.getCommercialCampaigns(jwt.getClaim("userId")));
     }
 
     @PatchMapping("/update-status/{campaignId}")

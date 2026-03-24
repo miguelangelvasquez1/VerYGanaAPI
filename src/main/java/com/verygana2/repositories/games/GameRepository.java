@@ -41,8 +41,8 @@ public interface GameRepository extends JpaRepository<Game, Long> {
         AND g.id NOT IN (
             SELECT c.game.id
             FROM Campaign c
-            WHERE c.advertiser.id = :advertiserId
+            WHERE c.commercial.id = :commercialId
         )
     """)
-    Page<GameDTO> findGamesWithoutCampaign(@Param("advertiserId") Long advertiserId, Pageable pageable);
+    Page<GameDTO> findGamesWithoutCampaign(@Param("commercialId") Long commercialId, Pageable pageable);
 }

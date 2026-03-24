@@ -18,7 +18,7 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(
     componentModel = "spring",
@@ -47,7 +47,7 @@ public interface CampaignMapper {
     @Mapping(target = "id", ignore = true)
     // Relaciones principales
     @Mapping(target = "game", source = "game")
-    @Mapping(target = "advertiser", source = "advertiser")
+    @Mapping(target = "commercial", source = "commercial")
     // Assets y sesiones (se asocian después)
     @Mapping(target = "assets", expression = "java(new ArrayList<>())")
     @Mapping(target = "gameSessions", ignore = true)
@@ -83,7 +83,7 @@ public interface CampaignMapper {
     @Mapping(target = "minAge", ignore = true)
     @Mapping(target = "maxAge", ignore = true)
     @Mapping(target = "targetGender", ignore = true)
-    Campaign toEntity(CreateCampaignRequestDTO request, Game game, AdvertiserDetails advertiser);
+    Campaign toEntity(CreateCampaignRequestDTO request, Game game, CommercialDetails commercial);
 
     // Helper to convert JsonNode to Map<String,Object> for MapStruct
     default Map<String, Object> map(JsonNode value) {

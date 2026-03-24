@@ -4,7 +4,7 @@ import jakarta.validation.constraints.*;
 import lombok.Data;
 
 @Data
-public class AdvertiserRegisterDTO {
+public class CommercialRegisterDTO {
 
     @Email(message = "Invalid email format")
     @NotBlank(message = "Email is required")

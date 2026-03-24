@@ -61,17 +61,17 @@ public class AdController {
      * @return AssetId y URL pre-firmada para subir a R2
      */
     @PostMapping("/assets/prepare-upload")
-    @PreAuthorize("hasRole('ADVERTISER')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AdAssetUploadPermissionDTO> prepareAdAssetUpload(
             @Valid @RequestBody FileUploadRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
         
         log.info("📤 [STEP 1] Preparando subida de asset para anuncio - Usuario: {}, {}", jwt.getClaim("userId").toString(), request);
         
-        Long advertiserId = jwt.getClaim("userId");
+        Long commercialId = jwt.getClaim("userId");
         
         AdAssetUploadPermissionDTO permission = adService.prepareAdAssetUpload(
-            advertiserId,
+            commercialId,
             request
         );
         
@@ -99,7 +99,7 @@ public class AdController {
      * @return ID del anuncio creado
      */
     @PostMapping("/assets")
-    @PreAuthorize("hasRole('ADVERTISER')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Void> createAd(
             @Valid @RequestBody CreateAdRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -107,16 +107,16 @@ public class AdController {
         log.info("📤 [STEP 2] Creando anuncio - Usuario: {}, AssetId: {}", 
             jwt.getClaim("userId"), request.getAssetId());
         
-        Long advertiserId = jwt.getClaim("userId");
+        Long commercialId = jwt.getClaim("userId");
         
-        adService.createAdWithAsset(advertiserId, request);
+        adService.createAdWithAsset(commercialId, request);
         log.info("✅ [STEP 2] Anuncio creado exitosamente");
         
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADVERTISER')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AdResponseDTO> updateAd(
             @PathVariable Long id,
             @Valid @RequestBody AdUpdateDTO updateDto,
@@ -127,7 +127,7 @@ public class AdController {
     }
 
     @GetMapping("/my-ads/filter")
-    @PreAuthorize("hasRole('ADVERTISER')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PagedResponse<AdResponseDTO>> getFilteredAds(
             @AuthenticationPrincipal Jwt jwt,
             @ModelAttribute AdFilterDTO filters,
@@ -138,22 +138,22 @@ public class AdController {
     }
 
     @PostMapping("/{id}/activate")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> activateAdAsAdvertiser(
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<AdResponseDTO> activateAdAsCommercial(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.activateAdAsAdvertiser(id, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.activateAdAsCommercial(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 
     @PostMapping("/{id}/pause")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdResponseDTO> pauseAdAsAdvertiser(
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<AdResponseDTO> pauseAdAsCommrcial(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdResponseDTO ad = adService.pauseAdAsAdvertiser(id, jwt.getClaim("userId"));
+        AdResponseDTO ad = adService.pauseAdAsCommercial(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
     }
 
@@ -187,7 +187,7 @@ public class AdController {
     //Stats anunciantes
 
     @GetMapping("/{id}/stats")
-    @PreAuthorize("hasRole('ADVERTISER')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AdStatsDTO> getAdStats(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
@@ -197,11 +197,11 @@ public class AdController {
     }
 
     @GetMapping("/my-stats")
-    @PreAuthorize("hasRole('ADVERTISER')")
-    public ResponseEntity<AdStatsDTO> getAdvertiserStats(
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<AdStatsDTO> getCommercialStats(
             @AuthenticationPrincipal Jwt jwt) {
         
-        AdStatsDTO stats = adService.getAdvertiserStats(jwt.getClaim("userId"));
+        AdStatsDTO stats = adService.getCommercialStats(jwt.getClaim("userId"));
         return ResponseEntity.ok(stats);
     }
 

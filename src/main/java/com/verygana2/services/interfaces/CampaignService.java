@@ -23,13 +23,13 @@ public interface CampaignService {
 
     void createCampaign(CreateCampaignRequestDTO request, Long userId);
 
-    List<CampaignDTO> getAdvertiserCampaigns(Long advertiserId);
+    List<CampaignDTO> getCommercialCampaigns(Long commercialId);
 
     void updateCampaignStatus(Long campaignId, Long userId, CampaignStatus newStatus);
 
     void updateCampaign(Long campaignId, Long userId, UpdateCampaignRequestDTO request);
     
-    PagedResponse<GameDTO> getAvailableGames(Long advertiserId, Pageable pageable);
+    PagedResponse<GameDTO> getAvailableGames(Long commercialId, Pageable pageable);
 
     List<GameAssetDefinitionDTO> getAssetsByGame(Long gameId);
 }
