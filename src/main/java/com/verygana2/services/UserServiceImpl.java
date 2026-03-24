@@ -1,5 +1,9 @@
 package com.verygana2.services;
 
+import com.verygana2.models.Avatar;
+import com.verygana2.services.details.ConsumerDetailsServiceImpl;
+import com.verygana2.services.interfaces.AvatarService;
+import com.verygana2.services.interfaces.ReferralService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,12 +25,17 @@ import com.verygana2.utils.generators.UserHashGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.LocalDate;
+import java.time.Period;
+
 @Slf4j
 @Transactional
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
 
+    private final ReferralService referralService;
+    private final AvatarService avatarService;
     private final UserHashGenerator userHashGenerator;
     private final UserRepository userRepository;
     private final WalletService walletService;
@@ -65,6 +74,12 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 
+    private String normalizeUsername(String u) {
+        return u == null ? null : u.trim();
+    }
+    private int calculateAge(LocalDate birthDate) {
+        return Period.between(birthDate, LocalDate.now()).getYears();
+    }
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -75,6 +90,13 @@ public class UserServiceImpl implements UserService {
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
+        Avatar avatar = avatarService.getActiveAvatarOrThrow(dto.getAvatarId());
+        details.setAvatar(avatar);
+        details.setUserName(normalizeUsername(dto.getUserName()));
+        details.setGender(dto.getGender());
+        details.setAge(calculateAge(dto.getBirthDate()));
+
+        referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
         userRepository.saveAndFlush(user);
         
