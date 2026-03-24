@@ -3,19 +3,14 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.verygana2.models.Category;
+
 import com.verygana2.models.Municipality;
-import com.verygana2.models.enums.TargetGender;
+import com.verygana2.models.Avatar;
+import com.verygana2.models.Category;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
-import jakarta.persistence.CascadeType;
-import jakarta.persistence.Entity;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.OneToMany;
-import jakarta.persistence.PrePersist;
+import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -31,12 +26,16 @@ public class ConsumerDetails extends UserDetails {
 
     private String userHash;
 
-    @NotBlank(message = "the name cannot be empty")
-    @Size(max = 50)
+    @NotBlank(message = "Username is required")
+    @Size(min = 3, max = 20, message = "Username must be between 3 and 20 characters")
+    @Column(nullable = false, length = 20)
     private String userName;
 
-    @NotBlank(message = "the avatar cannot be empty")
-    private String avatarUrl;
+    // ConsumerDetails — DESPUÉS (correcto)
+    @NotNull(message = "Avatar is required")  // ← NotNull para objetos/entidades
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "avatar_id")
+    private Avatar avatar;
 
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)
@@ -54,8 +53,6 @@ public class ConsumerDetails extends UserDetails {
     @Max(value = 100, message = "dailyAdCount cannot exceed 100")
     private Integer dailyAdCount;
 
-    @Size(max = 20, message = "Referral code must be at most 20 characters")
-    private String referralCode;
 
     @NotBlank(message = "Department is required")
     @Size(max = 50)
@@ -68,13 +65,12 @@ public class ConsumerDetails extends UserDetails {
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)
     private Municipality municipality;
-
     private Integer age;
-    private TargetGender gender;
+
+    @Enumerated(EnumType.STRING)
+    private Gender gender;
 
     private boolean hasPet;
-
-    
     
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
@@ -92,4 +88,15 @@ public class ConsumerDetails extends UserDetails {
     public void onCreate (){
         this.hasPet = false;
     }
+
+    @Column(name = "referral_code", nullable = false, length = 16, updatable = false)
+    private String referralCode;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "referred_by_consumer_id")
+    private ConsumerDetails referredBy;
+
+    @OneToMany(mappedBy = "referredBy")
+    private List<ConsumerDetails> referrals = new ArrayList<>();
+
 }

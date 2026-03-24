@@ -1,8 +1,11 @@
 package com.verygana2.repositories.details;
 
+import java.util.List;
 import java.util.Optional;
 
 
+import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.models.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,4 +20,19 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             WHERE c.id = :consumerId
             """)
     Optional<ConsumerDetails> findConsumerProfileById(@Param("consumerId") Long consumerId);
+
+    Optional<ConsumerDetails> findByReferralCode(String referralCode);
+
+    boolean existsByReferralCode(String referralCode);
+
+    Optional<ConsumerDetails> findByUserEmail(String email);
+    int countByReferredBy(ConsumerDetails referredBy);
+
+    @Query("""
+        SELECT c FROM ConsumerDetails c
+        JOIN FETCH c.user u
+        WHERE c.referredBy = :referrer
+        ORDER BY u.registeredDate DESC
+        """)
+    List<ConsumerDetails> findReferralsByReferrer(@Param("referrer") ConsumerDetails referrer);
 }

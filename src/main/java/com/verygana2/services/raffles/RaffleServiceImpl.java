@@ -615,7 +615,17 @@ public class RaffleServiceImpl implements RaffleService {
             throw new IllegalArgumentException("Raffle id must be positive");
         }
 
-        return raffleParticipationRepository.findLeaderboard(raffleId, PageRequest.of(0, 10));
+        return raffleParticipationRepository
+                .findLeaderboard(raffleId, PageRequest.of(0, 10))
+                .stream()
+                .map(row -> new ParticipantLeaderboardDTO(
+                        (Long)   row[0],
+                        (String) row[1],
+                        (String) row[2],
+                        (Long)   row[3],
+                        (Double) row[4]
+                ))
+                .toList();
     }
 
     @Override
