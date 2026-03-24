@@ -118,6 +118,7 @@ public class Raffle {
 
     @PrePersist
     public void onCreate() {
+
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.raffleStatus = RaffleStatus.DRAFT;
         this.createdAt = now;

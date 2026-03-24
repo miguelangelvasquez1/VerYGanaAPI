@@ -28,12 +28,22 @@ public interface RaffleResultMapper {
     @Mapping(target = "ticketNumber", source = "winningTicket.ticketNumber")
     @Mapping(target = "position", source = "prize.position")
     @Mapping(target = "prizeTitle", source = "prize.title")
-    @Mapping(target = "prizeImageUrl", expression =  "java(getPrizeImageUrl(prize.imageAsset.objectKey))")
+    @Mapping(target = "prizeImageUrl", expression =  "java(getPrizeImageUrl(winner.getPrize().getImageAsset().getObjectKey()))")
     @Mapping(target = "prizeType", source = "prize.prizeType")
     @Mapping(target = "prizeValue", source = "prize.value")
     WinnerDetailResponseDTO toWinnerDetailDTO(RaffleWinner winner);
 
     default String getPrizeImageUrl (String objectKey) {
         return "https://" + objectKey;
+    }
+
+    default String toDisplayName(com.verygana2.models.userDetails.ConsumerDetails consumer) {
+        if (consumer == null) {
+            return "Unknown User";
+        }
+        String firstName = consumer.getName() != null ? consumer.getName() : "";
+        String lastName = consumer.getLastName() != null ? consumer.getLastName() : "";
+        String displayName = (firstName + " " + lastName).trim();
+        return displayName.isEmpty() ? "Unknown User" : displayName;
     }
 }

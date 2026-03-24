@@ -27,10 +27,12 @@ import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
+import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
+import com.verygana2.exceptions.surveys.SurveyNotActiveException;
+import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
-import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 
 @RestControllerAdvice
@@ -156,10 +158,24 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(ValidationException.class)
-    public ResponseEntity<ErrorResponse> handleValidationException(
-            ValidationException ex, WebRequest request) {
-        log.warn("Validation error: {}", ex.getMessage());
+    @ExceptionHandler(SurveyNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleSurveyNotFoundException(
+            SurveyNotFoundException ex, WebRequest request) {
+        log.warn("Survey not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(SurveyNotActiveException.class)
+    public ResponseEntity<ErrorResponse> handleSurveyNotActiveException(
+            SurveyNotActiveException ex, WebRequest request) {
+        log.warn("Survey not active: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(SurveyAlreadyCompletedException.class)
+    public ResponseEntity<ErrorResponse> handleSurveyAlreadyCompletedException(
+            SurveyAlreadyCompletedException ex, WebRequest request) {
+        log.warn("Survey already completed: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 

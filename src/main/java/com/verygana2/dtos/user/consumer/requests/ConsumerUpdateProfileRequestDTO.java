@@ -16,5 +16,5 @@ public class ConsumerUpdateProfileRequestDTO {
     @NotBlank(message = "Department cannot be empty")
     private String department;
     @NotBlank(message = "Municipality cannot be empty")
-    private String municipality;
+    private String municipalityName;
 }
