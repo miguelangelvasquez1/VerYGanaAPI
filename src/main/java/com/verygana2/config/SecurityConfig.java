@@ -84,7 +84,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of("*"));
         // configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8081", "https://games.verygana.com"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type", "Upgrade", "Connection"));
         configuration.setAllowCredentials(true); // Necesario para cookies
         configuration.setExposedHeaders(List.of("Set-Cookie"));
         configuration.setMaxAge(3600L);

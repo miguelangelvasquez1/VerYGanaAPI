@@ -23,7 +23,7 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "raffle_winners", indexes = {
-        @Index(name = "idx_raffle_winners", columnList = "raffle_id"),
+        @Index(name = "idx_raffle_winners", columnList = "raffleResult_id"),
         @Index(name = "idx_consumer_wins", columnList = "winner_consumer_id")
 })
 @Data
