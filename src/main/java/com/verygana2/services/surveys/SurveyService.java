@@ -88,6 +88,12 @@ public class SurveyService {
         return mapper.toResponse(saved);
     }
 
+    public PagedResponse<SurveySummaryResponse> getAllSurveysForCommercial(Pageable pageable, Long userId) {
+        Page<SurveySummaryResponse> page = surveyRepository.findAllByCreatorId(pageable, userId)
+            .map(mapper::toSummaryResponse);
+        return PagedResponse.from(page);
+    }
+
     public PagedResponse<SurveySummaryResponse> getAllSurveys(Pageable pageable) {
         Page<SurveySummaryResponse> page = surveyRepository.findAll(pageable)
             .map(mapper::toSummaryResponse);

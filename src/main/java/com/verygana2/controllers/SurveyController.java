@@ -68,7 +68,7 @@ public class SurveyController {
      * Returns the full survey with all questions (user must not have completed it).
      */
     @GetMapping("/{surveyId}")
-    public ResponseEntity<SurveyResponseDTO> getSurveyDetail(
+    public ResponseEntity<SurveyResponseDTO> getSurveyDetailForCommercial(
             @PathVariable Long surveyId,
             @AuthenticationPrincipal Jwt jwt) {
  
@@ -97,14 +97,14 @@ public class SurveyController {
 
     // FOR ADMIN:
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     @GetMapping("/cost-per-response")
     public ResponseEntity<Map<String, BigDecimal>> getCostPerResponse() {
 
         return ResponseEntity.ok(Map.of("costPerResponse", pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY)));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     @PostMapping
     public ResponseEntity<SurveyResponseDTO> createSurvey(
             @Valid @RequestBody CreateSurveyRequest request,
@@ -114,6 +114,17 @@ public class SurveyController {
             .body(surveyService.createSurvey(request, jwt.getClaim("userId")));
     }
 
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    @GetMapping("/commercial")
+    public ResponseEntity<PagedResponse<SurveySummaryResponse>> getAllSurveysForCommercial(
+            @PageableDefault(size = 10) Pageable pageable,
+            @AuthenticationPrincipal Jwt jwt) {
+ 
+        return ResponseEntity.ok(surveyService.getAllSurveysForCommercial(pageable, jwt.getClaim("userId")));
+    }
+
+    // ADMIN ENPOINTS -------------------------------------------------------------------------------
+
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin")
     public ResponseEntity<PagedResponse<SurveySummaryResponse>> getAllSurveysForAdmin(
@@ -122,7 +133,7 @@ public class SurveyController {
         return ResponseEntity.ok(surveyService.getAllSurveys(pageable));
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN')")
     @GetMapping("/admin/{surveyId}")
     public ResponseEntity<SurveyResponseDTO> getSurveyDetailForAdmin(
             @PathVariable Long surveyId) {
@@ -134,7 +145,7 @@ public class SurveyController {
      * PATCH /api/v1/admin/surveys/{surveyId}/publish
      * Moves a DRAFT survey to ACTIVE.
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN')")
     @PatchMapping("/{surveyId}/publish")
     public ResponseEntity<SurveyResponseDTO> publishSurvey(
             @PathVariable Long surveyId) {
@@ -146,7 +157,7 @@ public class SurveyController {
      * PATCH /api/v1/admin/surveys/{surveyId}/status
      * Updates the survey status (PAUSED, CLOSED, ACTIVE, DRAFT).
      */
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN')")
     @PatchMapping("/{surveyId}/status")
     public ResponseEntity<SurveyResponseDTO> updateStatus(
             @PathVariable Long surveyId,

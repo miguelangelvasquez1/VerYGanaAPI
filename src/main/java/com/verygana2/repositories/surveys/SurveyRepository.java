@@ -16,6 +16,8 @@ import com.verygana2.models.surveys.Survey;
 @Repository
 public interface SurveyRepository extends JpaRepository<Survey, Long> {
  
+    Page<Survey>findAllByCreatorId(Pageable page, Long creatorId);    
+
     /**
      * Fetches active surveys that the user hasn't answered yet,
      * scored by how many targeting criteria match the user's profile.
