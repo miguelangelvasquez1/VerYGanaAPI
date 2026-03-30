@@ -20,22 +20,22 @@ import com.verygana2.models.enums.AdStatus;
 
 public interface AdService {
     
-    // Para advertisers
-    void createAdWithAsset(Long advertiserId, CreateAdRequestDTO request);
+    // Para commercials
+    void createAdWithAsset(Long commercialId, CreateAdRequestDTO request);
 
-    AdAssetUploadPermissionDTO prepareAdAssetUpload(Long advertiserId, FileUploadRequestDTO request);
+    AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request);
     
-    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId);
+    AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId);
 
-    PagedResponse<AdResponseDTO> getFilteredAds(Long advertiserId, AdFilterDTO filters, Pageable pageable);
+    PagedResponse<AdResponseDTO> getFilteredAds(Long commercialId, AdFilterDTO filters, Pageable pageable);
     
     AdResponseDTO getAdById(Long adId);
 
     Ad getAdEntityById(Long adId);
 
-    AdResponseDTO activateAdAsAdvertiser(Long adId, Long advertiserId);
+    AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId);
         
-    AdResponseDTO pauseAdAsAdvertiser(Long adId, Long advertiserId);
+    AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId);
     
     // Consultas para consumers
     Optional<AdForConsumerDTO> getNextAdForUser(Long userId);
@@ -58,9 +58,9 @@ public interface AdService {
     Page<AdForAdminDTO> getPendingApprovalAds(Pageable pageable);
     
     // Estadísticas
-    AdStatsDTO getAdStats(Long adId, Long advertiserId);
+    AdStatsDTO getAdStats(Long adId, Long commercialId);
     
-    AdStatsDTO getAdvertiserStats(Long advertiserId);
+    AdStatsDTO getCommercialStats(Long commercialId);
     
     Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable);
     
@@ -75,11 +75,11 @@ public interface AdService {
     boolean canAdReceiveLike(Long adId);
     
     // Utilidades
-    Long countAdsByAdvertiser(Long advertiserId);
+    Long countAdsByCommercial(Long commercialId);
     
-    Long countAdsByAdvertiserAndStatus(Long advertiserId, AdStatus status);
+    Long countAdsByCommercialAndStatus(Long commercialId, AdStatus status);
     
-    // BigDecimal getTotalSpentByAdvertiser(Long advertiserId);
+    // BigDecimal getTotalSpentByCommercial(Long commercialId);
     
-    Long getTotalLikesByAdvertiser(Long advertiserId);
+    Long getTotalLikesByCommercial(Long commercialId);
 }

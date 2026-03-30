@@ -20,4 +20,22 @@ public class AsyncConfig {
         executor.initialize();
         return executor;
     }
+
+    /**
+     * Executor dedicado para las revelaciones de ganadores.
+     * Pool pequeño porque los sorteos no son concurrentes normalmente,
+     * pero soporta hasta 5 sorteos simultáneos sin problemas.
+     */
+    @Bean(name = "drawRevealExecutor")
+    public Executor drawRevealExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2);
+        executor.setMaxPoolSize(5);
+        executor.setQueueCapacity(10);
+        executor.setThreadNamePrefix("draw-reveal-");
+        executor.setWaitForTasksToCompleteOnShutdown(true); // No cortar revelaciones en medio
+        executor.setAwaitTerminationSeconds(60);            // Esperar hasta 60s al apagar
+        executor.initialize();
+        return executor;
+    }
 }

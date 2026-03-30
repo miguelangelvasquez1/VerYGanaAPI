@@ -23,9 +23,9 @@ import com.verygana2.models.enums.AdWatchSessionStatus;
 public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationExecutor<Ad> {
 
        // Consultas para el anunciante
-       Page<Ad> findByAdvertiserId(Long advertiserId, Pageable pageable);
+       Page<Ad> findByCommercialId(Long commercialId, Pageable pageable);
 
-       Optional<Ad> findByIdAndAdvertiserId(Long id, Long advertiserId);
+       Optional<Ad> findByIdAndCommercialId(Long id, Long commercialId);
 
        List<Ad> findByStatus(AdStatus status);
 
@@ -46,19 +46,19 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      Pageable pageable);
 
        // Consultas de estadísticas
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.advertiser.id = :advertiserId")
-       Long countByAdvertiserId(@Param("advertiserId") Long advertiserId);
+       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId")
+       Long countByCommercialId(@Param("commercialId") Long commercialId);
 
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.advertiser.id = :advertiserId AND a.status = :status")
-       Long countByAdvertiserIdAndStatus(
-                     @Param("advertiserId") Long advertiserId,
+       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status = :status")
+       Long countByCommercialIdAndStatus(
+                     @Param("commercialId") Long commercialId,
                      @Param("status") AdStatus status);
 
-       // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.advertiser.id = :advertiserId")
-       // BigDecimal sumSpentBudgetByAdvertiserId(@Param("advertiserId") Long advertiserId);
+       // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.commercial.id = :commercialId")
+       // BigDecimal sumSpentBudgetByCommercialId(@Param("commercialId") Long commercialId);
 
-       @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.advertiser.id = :advertiserId")
-       Long sumLikesByAdvertiserId(@Param("advertiserId") Long advertiserId);
+       @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.commercial.id = :commercialId")
+       Long sumLikesByCommercialId(@Param("commercialId") Long commercialId);
 
        // Anuncios que necesitan ser desactivados automáticamente
        @Query("SELECT a FROM Ad a WHERE " +
@@ -71,11 +71,11 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        Page<Ad> findPendingApproval(Pageable pageable);
 
        // Búsqueda por texto
-       @Query("SELECT a FROM Ad a WHERE a.advertiser.id = :advertiserId " +
+       @Query("SELECT a FROM Ad a WHERE a.commercial.id = :commercialId " +
                      "AND (LOWER(a.title) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
                      "OR LOWER(a.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
-       Page<Ad> searchByAdvertiser(
-                     @Param("advertiserId") Long advertiserId,
+       Page<Ad> searchByCommercial(
+                     @Param("commercialId") Long commercialId,
                      @Param("searchTerm") String searchTerm,
                      Pageable pageable);
 
@@ -91,15 +91,15 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        Page<Ad> findTopAdsByLikes(Pageable pageable);
 
        // Anuncios por rango de fechas
-       @Query("SELECT a FROM Ad a WHERE a.advertiser.id = :advertiserId " +
+       @Query("SELECT a FROM Ad a WHERE a.commercial.id = :commercialId " +
                      "AND a.createdAt BETWEEN :startDate AND :endDate")
-       List<Ad> findByAdvertiserIdAndDateRange(
-                     @Param("advertiserId") Long advertiserId,
+       List<Ad> findByCommercialIdAndDateRange(
+                     @Param("commercialId") Long commercialId,
                      @Param("startDate") ZonedDateTime startDate,
                      @Param("endDate") ZonedDateTime endDate);
 
-       // Verificar si existe un anuncio activo con el mismo título para un advertiser
-       boolean existsByAdvertiserIdAndTitle(Long advertiserId, String title);
+       // Verificar si existe un anuncio activo con el mismo título para un commercial
+       boolean existsByCommercialIdAndTitle(Long commercialId, String title);
 
        // ------------------------ Consultas para usuarios consumer --------------------------
 

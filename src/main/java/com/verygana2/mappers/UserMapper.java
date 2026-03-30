@@ -3,13 +3,12 @@ package com.verygana2.mappers;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
-import com.verygana2.dtos.user.AdvertiserRegisterDTO;
+import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
-import com.verygana2.dtos.user.SellerRegisterDTO;
+import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.models.User;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.models.userDetails.SellerDetails;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -39,35 +38,26 @@ public interface UserMapper {
     @Mapping(target = "avatar", ignore = true)
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
+    @Mapping(target = "municipality", ignore = true)
+    @Mapping(target = "referrals", ignore = true)
+    @Mapping(target = "referredBy", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
-    // ---- ADVERTISER ----
+    // ---- COMMERCIAL ----
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "role", constant = "ADVERTISER")
+    @Mapping(target = "role", constant = "COMMERCIAL")
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "wallet", ignore = true)
-    User toUser(AdvertiserRegisterDTO dto);
+    User toUser(CommercialRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
-    AdvertiserDetails toAdvertiserDetails(AdvertiserRegisterDTO dto);
+    CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
-    // ---- SELLER ----
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "role", constant = "SELLER")
-    @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "ACTIVE")
-    @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
-    @Mapping(target = "verification", ignore = true)
-    @Mapping(target = "wallet", ignore = true)
-    User toUser(SellerRegisterDTO dto);
-
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "user", ignore = true)
-    @Mapping(target = "notifications", ignore = true)
-    SellerDetails toSellerDetails(SellerRegisterDTO dto);
+    @Mapping(target = "email", source = "details.user.email")
+    CommercialInitialDataResponseDTO toCommercialInitialDataResponseDTO(CommercialDetails details);
 }

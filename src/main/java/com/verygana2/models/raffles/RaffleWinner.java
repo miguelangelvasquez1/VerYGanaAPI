@@ -1,6 +1,6 @@
 package com.verygana2.models.raffles;
 
-
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -23,8 +23,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "raffle_winners", indexes = {
-    @Index(name = "idx_raffle_winners", columnList = "raffle_id"),
-    @Index(name = "idx_consumer_wins", columnList = "winner_consumer_id")
+        @Index(name = "idx_raffle_winners", columnList = "raffleResult_id"),
+        @Index(name = "idx_consumer_wins", columnList = "winner_consumer_id")
 })
 @Data
 @NoArgsConstructor
@@ -35,8 +35,9 @@ public class RaffleWinner {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "raffle_id", nullable = false)
-    private Raffle raffle;
+    @JoinColumn(name = "raffleResult_id", nullable = false)
+    private RaffleResult raffleResult;
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "prize_id", nullable = false)
     private Prize prize;
@@ -48,7 +49,10 @@ public class RaffleWinner {
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "winning_ticket_id", nullable = false)
     private RaffleTicket winningTicket;
-    
+
+    @Column(name = "created_at", nullable = false)
+    private ZonedDateTime createdAt;
+
     @Column(name = "prize_claimed")
     private boolean prizeClaimed;
 
@@ -58,12 +62,13 @@ public class RaffleWinner {
     @Column(name = "prize_tracking_number")
     private String prizeTrackingNumber;
 
-    @Column(name = "drawn_at", nullable = false)
-    private ZonedDateTime drawnAt;
+    @Column(name = "claim_deadline")
+    private ZonedDateTime claimDeadline;
 
     @PrePersist
-    public void onCreate(){
+    public void onCreate() {
         this.prizeClaimed = false;
+        this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
+        this.claimDeadline = createdAt.plusDays(30);
     }
 }
-

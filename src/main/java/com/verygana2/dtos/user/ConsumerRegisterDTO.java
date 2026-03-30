@@ -33,7 +33,7 @@ public class ConsumerRegisterDTO {
     private String department;
 
     @NotBlank(message = "Municipality is required")
-    private String municipality;
+    private String municipalityName;
 
     @Size(min = 1, message = "At least one preference must be selected")
     @NotNull(message = "Preferences are required")

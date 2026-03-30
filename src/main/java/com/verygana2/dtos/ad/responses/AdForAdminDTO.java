@@ -45,6 +45,6 @@ public class AdForAdminDTO {
     private String rejectionReason;
     private List<MunicipalityResponseDTO> targetMunicipalities;
 
-    private Long advertiserId;
-    private String advertiserName;
+    private Long commercialId;
+    private String commercialName;
 }

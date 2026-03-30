@@ -48,7 +48,7 @@ import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignReques
 @Slf4j
 public class R2Service {
 
-    private static final Duration DEFAULT_UPLOAD_EXPIRATION = Duration.ofMinutes(5);
+    private static final Duration DEFAULT_UPLOAD_EXPIRATION = Duration.ofMinutes(15);
 
     @Autowired
     private S3Client r2Client;
@@ -60,6 +60,7 @@ public class R2Service {
     private R2Config r2Config;
 
     private static final String PRIVATE_PREFIX = "private/";
+    private static final String PUBLIC_PREFIX = "public/";
 
     /**
      * Genera URL pre-firmada para subir un objeto desde el cliente.
@@ -74,12 +75,12 @@ public class R2Service {
      *      <li>Tiempo de expiración en segundos</li>
      *  </ul>
      */
-    public FileUploadPermissionDTO generateUploadUrl(String objectKey, String contentType) {
+    public FileUploadPermissionDTO generateUploadUrl(boolean isPrivate, String objectKey, String contentType) {
         
         try {
             // Validar parámetros
             validateObjectKey(objectKey); //Poner loggers audit, evitar sobreescritura?
-            String privateKey = PRIVATE_PREFIX + objectKey;
+            String privateKey = (isPrivate ? PRIVATE_PREFIX : PUBLIC_PREFIX) + objectKey;
             
             // Crear request de pre-signed URL
             PutObjectRequest putRequest = PutObjectRequest.builder()
@@ -116,13 +117,13 @@ public class R2Service {
      * @param maxSizeBytes tamaño máximo esperado del archivo según políticas.
      * @param allowedMimeTypes tipos esperados.
      */
-    public SupportedMimeType validateUploadedObject(String objectKey, long expectedSizeBytes, long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
+    public SupportedMimeType validateUploadedObject(boolean isPrivate, String objectKey, long expectedSizeBytes, long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
         try {
-            String privateKey = PRIVATE_PREFIX + objectKey;
+            String key = (isPrivate ? PRIVATE_PREFIX : PUBLIC_PREFIX) + objectKey;
             HeadObjectResponse head = r2Client.headObject(
                 HeadObjectRequest.builder()
                     .bucket(r2Config.getBucketName())
-                    .key(privateKey)
+                    .key(key)
                     .build()
             );
 
@@ -131,7 +132,7 @@ public class R2Service {
 
             // 1. Validar tamaño máximo absoluto (política)
             if (realSize > maxSizeBytes) {
-                deleteObject(privateKey);
+                deleteObject(key);
                 throw new ValidationException(
                     "Archivo excede tamaño máximo permitido. Máximo: " + maxSizeBytes + ", real: " + realSize
                 );
@@ -139,7 +140,7 @@ public class R2Service {
 
             // 2. Validar tamaño exacto contra lo declarado
             if (realSize != expectedSizeBytes) {
-                deleteObject(privateKey);
+                deleteObject(key);
                 throw new ValidationException(
                     "Tamaño inválido. Esperado: " + expectedSizeBytes + ", real: " + realSize
                 );
@@ -148,16 +149,16 @@ public class R2Service {
             // 3. Validar content-type almacenado en R2 contra definidos (política)
             if (detectedMime == null || !allowedMimeTypes.contains(detectedMime)) {
                 log.info("realContent: " + detectedMime + ", allowedMime: " + allowedMimeTypes);
-                deleteObject(privateKey);
+                deleteObject(key);
                 throw new ValidationException(
                     "Content-Type inválido: " + detectedMime
                 );
             }
 
             // 4. Validar content-type REAL (fuente de verdad)
-            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(privateKey));
+            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(key));
             if (!allowedMimeTypes.contains(detectedRealMime)) {
-                deleteObject(privateKey);
+                deleteObject(key);
                 throw new ValidationException(
                     "Content-Type real inválido: " + detectedRealMime
                 );
@@ -432,10 +433,10 @@ public class R2Service {
     /**
      * Genera URL pre-firmada para hacer GET de un objeto
      */
-    public String generatePresignedUrl(String objectKey, int expiresInSeconds) {
+    public String getPrivateObject(String objectKey, int expiresInSeconds) {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
             .bucket(r2Config.getBucketName())
-            .key(objectKey)
+            .key(PRIVATE_PREFIX + objectKey)
             .build();
 
         GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()

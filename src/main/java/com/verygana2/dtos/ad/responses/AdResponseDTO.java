@@ -18,7 +18,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdResponseDTO { // Response for advertiser
+public class AdResponseDTO { // Response for commercial
     
     private Long id;
     private String title;

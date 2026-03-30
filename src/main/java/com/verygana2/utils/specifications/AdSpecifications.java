@@ -10,9 +10,9 @@ import com.verygana2.models.enums.AdStatus;
 
 public class AdSpecifications {
 
-    public static Specification<Ad> hasAdvertiser(Long advertiserId) {
+    public static Specification<Ad> hasCommercial(Long commercialId) {
         return (root, query, cb) ->
-            cb.equal(root.get("advertiser").get("id"), advertiserId);
+            cb.equal(root.get("commercial").get("id"), commercialId);
     }
 
     public static Specification<Ad> hasStatus(AdStatus status) {

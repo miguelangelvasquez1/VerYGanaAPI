@@ -1,0 +1,399 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Sudoku Game Configuration",
+  "type": "object",
+  "required": ["meta", "branding", "game_config", "game", "audio"],
+  "properties": {
+    "meta": {
+      "type": "object",
+      "title": "Campaign Metadata",
+      "required": ["campaign_id", "campaign_name", "version"],
+      "properties": {
+        "campaign_id": {
+          "type": "string",
+          "title": "Campaign ID",
+          "minLength": 1
+        },
+        "campaign_name": {
+          "type": "string",
+          "title": "Campaign Name",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "title": "Config Version",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "default": "1.0.0"
+        },
+        "last_updated": {
+          "type": "string",
+          "format": "date-time",
+          "title": "Last Updated"
+        }
+      }
+    },
+    "branding": {
+      "type": "object",
+      "title": "Visual Branding",
+      "required": ["logo", "theme_color"],
+      "properties": {
+        "logo": {
+          "type": "string",
+          "title": "Logo URL",
+          "format": "uri"
+        },
+        "background_image": {
+          "type": "string",
+          "title": "Background Image URL",
+          "format": "uri"
+        },
+        "theme_color": {
+          "type": "string",
+          "title": "Primary Theme Color",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "default": "#4A90E2"
+        },
+        "secondary_color": {
+          "type": "string",
+          "title": "Secondary Color",
+          "pattern": "^#[0-9A-Fa-f]{6}$",
+          "default": "#FFFFFF"
+        }
+      }
+    },
+    "game_config": {
+      "type": "object",
+      "title": "Sudoku Board Configuration",
+      "required": ["grid_size", "tiles", "cell_style"],
+      "properties": {
+        "grid_size": {
+          "type": "integer",
+          "title": "Grid Size",
+          "enum": [9],
+          "default": 9,
+          "description": "Sudoku must be 9x9"
+        },
+        "tiles": {
+          "type": "array",
+          "title": "Tile Configuration",
+          "minItems": 81,
+          "maxItems": 81,
+          "items": {
+            "type": "object",
+            "required": ["id", "value", "editable"],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 80
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9,
+                "description": "0 = empty"
+              },
+              "editable": {
+                "type": "boolean",
+                "description": "Can player edit this cell?"
+              },
+              "highlight": {
+                "type": "boolean",
+                "default": false
+              }
+            }
+          }
+        },
+        "cell_style": {
+          "type": "object",
+          "title": "Cell Visual Style",
+          "required": ["border_color", "background_color"],
+          "properties": {
+            "border_color": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "default": "#000000"
+            },
+            "background_color": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "default": "#FFFFFF"
+            },
+            "highlight_color": {
+              "type": "string",
+              "pattern": "^#[0-9A-Fa-f]{6}$",
+              "default": "#FFFACD"
+            },
+            "font_size": {
+              "type": "integer",
+              "minimum": 12,
+              "maximum": 48,
+              "default": 24
+            }
+          }
+        },
+        "hint_system": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "max_hints": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10,
+              "default": 3
+            },
+            "hint_icon": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "game": {
+      "type": "object",
+      "title": "Game Mechanics",
+      "required": ["levels", "timer", "scoring"],
+      "properties": {
+        "levels": {
+          "type": "array",
+          "title": "Difficulty Levels",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "difficulty", "prefilled_cells"],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "difficulty": {
+                "type": "string",
+                "enum": ["easy", "medium", "hard", "expert"]
+              },
+              "prefilled_cells": {
+                "type": "integer",
+                "minimum": 17,
+                "maximum": 60,
+                "description": "Number of cells filled at start"
+              },
+              "time_bonus": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Bonus points for fast completion"
+              }
+            }
+          }
+        },
+        "timer": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "time_limit": {
+              "type": "integer",
+              "minimum": 60,
+              "description": "Time limit in seconds (0 = unlimited)"
+            },
+            "show_timer": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        },
+        "scoring": {
+          "type": "object",
+          "required": ["enabled"],
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "base_points": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 10
+            },
+            "combo_multiplier": {
+              "type": "number",
+              "minimum": 1.0,
+              "maximum": 5.0,
+              "default": 1.5
+            },
+            "penalty_wrong_answer": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 5
+            }
+          }
+        },
+        "powerups": {
+          "type": "array",
+          "title": "Available Powerups",
+          "items": {
+            "type": "object",
+            "required": ["id", "name", "type", "icon"],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["hint", "auto_solve_cell", "check_errors", "undo"]
+              },
+              "icon": {
+                "type": "string",
+                "format": "uri"
+              },
+              "cost": {
+                "type": "integer",
+                "minimum": 0,
+                "default": 0
+              },
+              "cooldown": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Cooldown in seconds"
+              }
+            }
+          }
+        }
+      }
+    },
+    "audio": {
+      "type": "object",
+      "title": "Audio Configuration",
+      "required": ["background_music"],
+      "properties": {
+        "background_music": {
+          "type": "string",
+          "title": "Background Music URL",
+          "format": "uri"
+        },
+        "music_volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.5
+        },
+        "sfx": {
+          "type": "object",
+          "title": "Sound Effects",
+          "properties": {
+            "cell_select": {
+              "type": "string",
+              "format": "uri"
+            },
+            "correct_answer": {
+              "type": "string",
+              "format": "uri"
+            },
+            "wrong_answer": {
+              "type": "string",
+              "format": "uri"
+            },
+            "victory": {
+              "type": "string",
+              "format": "uri"
+            },
+            "hint_used": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "sfx_volume": {
+          "type": "number",
+          "minimum": 0.0,
+          "maximum": 1.0,
+          "default": 0.7
+        }
+      }
+    },
+    "texts": {
+      "type": "object",
+      "title": "UI Texts & Localization",
+      "required": ["language", "ui_texts"],
+      "properties": {
+        "language": {
+          "type": "string",
+          "enum": ["en", "es", "fr", "de", "pt"],
+          "default": "en"
+        },
+        "ui_texts": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "default": "Sudoku Challenge"
+            },
+            "start_button": {
+              "type": "string",
+              "default": "Start Game"
+            },
+            "pause_button": {
+              "type": "string",
+              "default": "Pause"
+            },
+            "hint_button": {
+              "type": "string",
+              "default": "Hint"
+            },
+            "victory_message": {
+              "type": "string",
+              "default": "Congratulations! You won!"
+            },
+            "game_over_message": {
+              "type": "string",
+              "default": "Time's up! Try again."
+            }
+          }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object",
+      "title": "Rewards Configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "victory_rewards": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["type", "amount"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["coins", "gems", "xp", "item"]
+              },
+              "amount": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "icon": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -17,6 +17,7 @@ import lombok.NoArgsConstructor;
 public class RaffleResponseDTO {
 
     private Long id;
+    private String imageUrl;
     private String title;
     private String description;
     private RaffleType raffleType;
@@ -32,7 +33,6 @@ public class RaffleResponseDTO {
     private List<RaffleRuleResponseDTO> rules;
     private boolean requiresPet;
     private DrawMethod drawMethod;
-    private String drawProof;
     private String termsAndConditions;
 
 }

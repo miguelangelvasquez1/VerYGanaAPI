@@ -4,136 +4,125 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-/**
- * Configuración completa del juego Sudoku
- */
 public final class SudokuAssets {
-
     private static final ObjectMapper MAPPER = new ObjectMapper();
-
     public static final ObjectNode ASSETS;
 
     static {
         ObjectNode root = MAPPER.createObjectNode();
+        root.set("meta", MAPPER.createObjectNode().put("brand_id", "default"));
 
-        /* ================= META ================= */
-        ObjectNode meta = MAPPER.createObjectNode();
-        meta.put("brand_id", "SUDOKU_DEFAULT");
-        root.set("meta", meta);
-
-        /* ================= GAME_CONFIG ================= */
+        // game_config
         ObjectNode gameConfig = MAPPER.createObjectNode();
         gameConfig.put("time_limit", 300);
         gameConfig.put("difficulty", "normal");
         gameConfig.put("max_errors", 3);
-        gameConfig.put("empty_cells", 40);
+        gameConfig.put("empty_cells", 2);
         gameConfig.put("warning_threshold", 0.15);
         gameConfig.put("use_countdown", true);
+        gameConfig.put("enable_powerups", true);
+
+        ArrayNode levels = MAPPER.createArrayNode();
+        int[][] levelData = {{1, 2, 300, 5}, {2, 2, 600, 5}};
+        for (int[] ld : levelData) {
+            ObjectNode lvl = MAPPER.createObjectNode();
+            lvl.put("id", ld[0]); lvl.put("empty_cells", ld[1]); lvl.put("time_limit", ld[2]); lvl.put("max_errors", ld[3]);
+            lvl.put("use_countdown", true); lvl.put("enable_powerups", true);
+            levels.add(lvl);
+        }
+        gameConfig.set("levels", levels);
         root.set("game_config", gameConfig);
 
-        /* ================= BRANDING ================= */
+        // branding
         ObjectNode branding = MAPPER.createObjectNode();
-
-        // Images
         ObjectNode images = MAPPER.createObjectNode();
-        images.put("main_logo_url", "https://cdn-icons-png.flaticon.com/512/2917/2917242.png");
-        images.put("main_logo_offset_y", 50.0);
-        images.put("logo_watermark_url", "https://cdn-icons-png.flaticon.com/512/5337/5337564.png");
+        images.put("main_logo_url", "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO");
+        images.put("main_logo_offset_y", 0.0);
+        images.put("logo_watermark_url", "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK");
         images.put("logo_watermark_offset_y", 0.0);
-        images.put("background_url", "https://img.freepik.com/free-vector/white-abstract-background_23-2148806276.jpg");
-        images.put("background_color_hex", "#F5F5F5");
-        images.put("cell_background_url", "");
-        images.put("button_background_url", "");
+        images.put("background_url", "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG");
+        images.put("background_color_hex", "#1a1a2e");
+        images.put("cell_background_url", "https://placehold.co/128x128/FFFFFF/000000.png?text=CELL");
+        images.put("button_background_url", "https://placehold.co/128x128/FFFFFF/000000.png?text=BTN");
+        images.put("bomb_url", "https://placehold.co/128x128/FF0000/FFFFFF.png?text=BOMB");
+        images.put("horizontal_url", "https://placehold.co/256x32/00FF00/000000.png?text=HORIZ");
+        images.put("vertical_url", "https://placehold.co/32x256/00FF00/000000.png?text=VERT");
         branding.set("images", images);
 
-        // Background Config
-        ObjectNode backgroundConfig = MAPPER.createObjectNode();
+        ObjectNode bgConfig = MAPPER.createObjectNode();
         ObjectNode front = MAPPER.createObjectNode();
-        front.put("SpriteUrl", "");
-        front.put("ColorHex", "#FFFFFF40");
-        front.put("Enabled", false);
-        front.put("Speed", 0.3);
-        front.put("Rotation", 0);
-        front.put("LayoutMode", "TiledSquare");
-        front.put("AspectRatio", 1.0);
-        backgroundConfig.set("Front", front);
-
+        front.put("SpriteUrl", ""); front.put("ColorHex", "#FFFFFF"); front.put("Enabled", false);
+        front.put("Speed", 0.2); front.put("Rotation", 0.0); front.put("LayoutMode", "TiledSquare"); front.put("AspectRatio", 1.0);
+        bgConfig.set("Front", front);
         ObjectNode back = MAPPER.createObjectNode();
-        back.put("SpriteUrl", "");
-        back.put("ColorHex", "#E8F4F8");
-        back.put("Enabled", true);
-        back.put("Speed", 0.1);
-        back.put("Rotation", 0);
-        back.put("LayoutMode", "Stretched");
-        back.put("AspectRatio", 1.77);
-        backgroundConfig.set("Back", back);
-        branding.set("background_config", backgroundConfig);
+        back.put("SpriteUrl", "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG");
+        back.put("ColorHex", "#FFFFFF"); back.put("Enabled", true); back.put("Speed", 0.05);
+        back.put("Rotation", 0.0); back.put("LayoutMode", "Stretched"); back.put("AspectRatio", 1.77);
+        bgConfig.set("Back", back);
+        branding.set("background_config", bgConfig);
 
-        // Colors
         ObjectNode colors = MAPPER.createObjectNode();
-        colors.put("selected_hex", "#FFD700");
-        colors.put("unselected_hex", "#FFFFFF");
-        colors.put("text_normal_hex", "#2C3E50");
-        colors.put("text_fixed_hex", "#34495E");
-        colors.put("grid_bg_hex", "#FFFFFF");
-        colors.put("cell_bg_hex", "#F8F9FA");
-        colors.put("btn_bg_hex", "#E3F2FD");
+        colors.put("selected_hex", "#FFD700"); colors.put("unselected_hex", "#FFFFFF");
+        colors.put("text_normal_hex", "#000000"); colors.put("text_fixed_hex", "#000080");
+        colors.put("grid_bg_hex", "#FFFFFF"); colors.put("cell_bg_hex", "#FFFFFF"); colors.put("btn_bg_hex", "#EEE");
         branding.set("colors", colors);
-
         root.set("branding", branding);
 
-        /* ================= GAME ================= */
+        // audio
+        ObjectNode audio = MAPPER.createObjectNode();
+        audio.put("music_url", "https://games.verygana.com/asset_tests/music-guitar.wav");
+        audio.put("click_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("error_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("rocket_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("whoosh_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("bomb_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("victory_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("lose_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("win_game_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        root.set("audio", audio);
+
+        // texts
+        ObjectNode texts = MAPPER.createObjectNode();
+        texts.put("victory_title", "¡EXCELENTE!");
+        texts.put("victory_phrase", "Has resuelto el Sudoku correctamente.");
+        texts.put("defeat_title", "GAME OVER");
+        texts.put("defeat_phrase", "Se acabaron los intentos.");
+        texts.put("label_difficulty", "Nivel");
+        texts.put("label_time", "Tiempo");
+        texts.put("label_errors", "Fallos");
+        texts.put("label_score", "Llaves");
+        root.set("texts", texts);
+
+        // rewards
+        ObjectNode rewards = MAPPER.createObjectNode();
+        rewards.put("coins_per_action", 20); //por numero colocado
+        rewards.put("coins_on_completion", 200);
+        root.set("rewards", rewards);
+
+        // personalization
+        ObjectNode personalization = MAPPER.createObjectNode();
+        personalization.put("coin_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN");
+        personalization.put("coin_count_url", "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT");
+        root.set("personalization", personalization);
+
+        // game
         ObjectNode game = MAPPER.createObjectNode();
-        
-        // Tiles (números personalizados, vacío = usar números default)
         ArrayNode tiles = MAPPER.createArrayNode();
-        for (int i = 0; i < 9; i++) {
+        for (int i = 1; i <= 9; i++) {
             ObjectNode tile = MAPPER.createObjectNode();
-            tile.put("url", ""); // Vacío = usar números por defecto
+            tile.put("url", "https://placehold.co/128x128/FFFFFF/000000.png?text=" + i);
             tiles.add(tile);
         }
         game.set("tiles", tiles);
         root.set("game", game);
 
-        /* ================= AUDIO ================= */
-        ObjectNode audio = MAPPER.createObjectNode();
-        audio.put("music_url", "https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8e1c4c0.mp3");
-        audio.put("click_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_12b0c7443c.mp3");
-        audio.put("error_url", "https://cdn.pixabay.com/download/audio/2022/03/15/audio_688cfb3a52.mp3");
-        audio.put("rocket_url", "https://cdn.pixabay.com/download/audio/2022/05/27/audio_1808fbf07a.mp3");
-        audio.put("whoosh_url", "https://cdn.pixabay.com/download/audio/2021/08/09/audio_bb630cc098.mp3");
-        audio.put("bomb_url", "https://cdn.pixabay.com/download/audio/2022/03/24/audio_ce0e1c5fb5.mp3");
-        audio.put("victory_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_0d0e1b1d9e.mp3");
-        audio.put("lose_url", "https://cdn.pixabay.com/download/audio/2022/03/15/audio_688cfb3a52.mp3");
-        audio.put("win_game_url", "https://cdn.pixabay.com/download/audio/2021/08/04/audio_0d0e1b1d9e.mp3");
-        root.set("audio", audio);
-
-        /* ================= TEXTS ================= */
-        ObjectNode texts = MAPPER.createObjectNode();
-        texts.put("victory_title", "¡VICTORIA!");
-        texts.put("victory_phrase", "Nivel Completado");
-        texts.put("defeat_title", "DERROTA");
-        texts.put("defeat_phrase", "Inténtalo de nuevo");
-        texts.put("label_difficulty", "Dificultad");
-        texts.put("label_time", "Tiempo");
-        texts.put("label_errors", "Errores");
-        texts.put("label_score", "Llaves");
-        root.set("texts", texts);
-
         ASSETS = root;
     }
 
     private SudokuAssets() {}
-
-    public static ObjectNode getAssets() {
-        return ASSETS;
-    }
-
+    public static ObjectNode getAssets() { return ASSETS; }
     public static String getAssetsAsString() {
-        try {
-            return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
-        } catch (Exception e) {
-            return ASSETS.toString();
-        }
+        try { return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(ASSETS);
+        } catch (Exception e) { return ASSETS.toString(); }
     }
 }

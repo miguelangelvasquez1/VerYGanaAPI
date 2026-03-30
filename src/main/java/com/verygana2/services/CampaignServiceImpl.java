@@ -3,7 +3,8 @@ package com.verygana2.services;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -16,13 +17,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
+import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateAssetRequestDTO;
@@ -37,14 +37,14 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.CampaignStatus;
+import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameAssetDefinition;
 import com.verygana2.models.games.GameConfigDefinition;
-import com.verygana2.models.userDetails.AdvertiserDetails;
-import com.verygana2.repositories.details.AdvertiserDetailsRepository;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameAssetDefinitionRepository;
@@ -55,6 +55,7 @@ import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
+import com.verygana2.utils.validators.games.ValidationPipeline;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -67,13 +68,12 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@SuppressWarnings("unused")
 public class CampaignServiceImpl implements CampaignService {
     
     @PersistenceContext
     private EntityManager entityManager;
 
-    private final ObjectMapper objectMapper;
-    private final AdvertiserDetailsRepository advertiserRepository;
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
     private final CampaignMapper campaignMapper;
@@ -82,14 +82,186 @@ public class CampaignServiceImpl implements CampaignService {
     private final GameRepository gameRepository;
     private final GameAssetDefinitionRepository assetDefinitionRepository;
     private final GameConfigDefinitionRepository gameConfigDefinitionRepository;
+    private final ValidationPipeline validationPipeline;
     private final AssetRepository assetRepository;
     private final GameMapper gameMapper;
     private final R2Service r2Service;
     private final Clock clock;
 
+    /**
+     * 1. Generate presigned upload URL for direct upload to R2
+     * Creates temporary asset record
+     */
+    @Transactional
     @Override
-    public List<CampaignDTO> getAdvertiserCampaigns(Long advertiserId) {
-        List<Campaign> campaigns = campaignRepository.findByAdvertiserId(advertiserId);
+    public AssetUploadPermissionDTO generateUploadUrl(FileUploadRequestDTO request, Long userId) {
+        log.info("Generating upload URL for file: {}", request.getOriginalFileName());
+        
+        // Validate file type
+        MediaType assetType = MediaType.fromMimeType(request.getContentType());
+        
+        // Generate unique asset key
+        String assetKey = UUID.randomUUID().toString();
+        String objectKey = String.format("campaigns/commercial-%s/%s/%s", userId, assetType.getValue(), assetKey);
+        
+        // Generate presigned upload URL from R2
+        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+            true,
+            objectKey,
+            request.getContentType()
+        );
+        
+        // Generate final public URL
+        String temporalUrl = r2Service.getPrivateObject(objectKey, 2000);
+        
+        // Create temporary asset record
+        Asset asset = Asset.builder()
+            .objectKey(objectKey)
+            .mediaType(assetType)
+            .mimeType(SupportedMimeType.fromValue(request.getContentType()))
+            .sizeBytes(request.getSizeBytes())
+            .status(AssetStatus.PENDING)
+            .uploadedBy(userId)
+            .build();
+        
+        asset = assetRepository.save(asset);
+        
+        log.info("Created temporary asset record with ID: {}", asset.getId());
+        
+        return AssetUploadPermissionDTO.builder()
+            .assetId(asset.getId())
+            .temporalUrl(temporalUrl)
+            .publicUrl("https://cdn.verygana.com/public/" + objectKey)
+            .permission(permission)
+            .build();
+    }
+    
+    /**
+     * 2. Confirm asset upload after client successfully     uploads to R2
+     */
+    @Transactional
+    @Override
+    public void confirmUpload(AssetConfirmRequest request) {
+        log.info("Confirming upload for asset ID: {}", request.getAssetId());
+        Asset asset = null;
+
+        try {
+
+            asset = assetRepository.findById(request.getAssetId())
+                .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + request.getAssetId()));
+            
+            if (asset.getStatus() != AssetStatus.PENDING) {
+                log.warn("Asset {} is not in PENDING status: {}", request.getAssetId(), asset.getStatus());
+                throw new IllegalStateException("Asset is not in pending status");
+            }
+            
+            // Verify upload actually succeeded (optional: call R2 HEAD request)
+            long maxSizeBytes = 1024*1024*10; // 10MB
+            Set<SupportedMimeType> allowedMimeType = SupportedMimeType.getSupportedMimeTypesForMediaType(asset.getMediaType());
+
+            SupportedMimeType realMime = r2Service.validateUploadedObject(true, asset.getObjectKey(), asset.getSizeBytes(), maxSizeBytes, allowedMimeType);
+            
+            if (realMime == null) {
+                log.error("Asset {} was not found in R2 storage", request.getAssetId());
+                throw new IllegalStateException("Asset upload verification failed");
+            }
+            
+            log.info("Asset upload confirmed: {}", request.getAssetId());
+            asset.setStatus(AssetStatus.VALIDATED);
+            asset.setMimeType(realMime);
+            assetRepository.save(asset);
+
+        } catch (Exception e) {
+            log.error("Error confirming asset upload: {}, marking asset as ORPHANED", e.getMessage());
+            assetOrphanedService.markAsOrphaned(request.getAssetId());
+            throw e;
+        }
+    }
+
+    /**
+     * Create new campaign with full validation
+     */
+    @Transactional
+    @Override
+    public void createCampaign(CreateCampaignRequestDTO request, Long userId) {
+        log.info("Creating campaign for game: {}", request.getGameId());
+        
+        // Load game
+        Game game = gameRepository.findById(request.getGameId())
+            .orElseThrow(() -> new IllegalArgumentException("Game not found: " + request.getGameId()));
+        
+        // Load latest config definition
+        GameConfigDefinition configDefinition = gameConfigDefinitionRepository
+            .findFirstByGameIdOrderByVersionDesc(request.getGameId())
+            .orElseThrow(() -> new IllegalArgumentException("No config definition found for game: " + game.getTitle()));
+        
+        // Validate config data
+        ValidationPipeline.ValidationResult validationResult = validationPipeline.validate(
+            request.getConfigData(),
+            configDefinition,
+            game,
+            null // new campaign
+        );
+        
+        // if (!validationResult.isValid()) {
+        //     log.warn("Campaign validation failed with {} errors for game {}", validationResult.getErrors().size(), game.getTitle());
+        //     throw new ValidationException("Campaign validation failed");
+        // }
+
+        List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
+
+        List<Municipality> municipalities = Collections.emptyList();
+        List<String> municipalityCodes = request.getTargetAudience().getMunicipalityCodes();
+        if (municipalityCodes != null && !municipalityCodes.isEmpty()) {
+            municipalities = targetingValidator.getValidatedMunicipalities(municipalityCodes);
+        }
+        
+        // Create campaign
+        Campaign campaign = Campaign.builder()
+            .game(game)
+            .configDefinition(configDefinition)
+            .configData(request.getConfigData())
+
+            // Estado inicial
+            .status(CampaignStatus.DRAFT)
+
+            // Presupuesto y economía
+            .budget(request.getBudget())
+            .coinValue(request.getCoinValue())
+            .completionCoins(request.getCompletionCoins())
+            .budgetCoins(request.getBudgetCoins())
+            .maxCoinsPerSession(request.getMaxCoinsPerSession())
+            .maxSessionsPerUserPerDay(request.getMaxSessionsPerUserPerDay())
+
+            // Configuración de campaña
+            .targetUrl(request.getTargetUrl())
+            .startDate(request.getStartDate())
+            .endDate(request.getEndDate())
+
+            // Audiencia
+            .categories(categories)
+            .targetMunicipalities(municipalities)
+            .targetGender(request.getTargetAudience().getGender())
+            .minAge(request.getTargetAudience().getMinAge())
+            .maxAge(request.getTargetAudience().getMaxAge())
+
+            // Relación con commercial
+            .commercial(entityManager.getReference(CommercialDetails.class, userId))
+            .build();
+        
+        campaign = campaignRepository.save(campaign);
+        
+        // Attach assets to campaign
+        attachAssetsToCampaign(request.getConfigData(), campaign);
+        
+        log.info("Campaign created successfully with ID: {}", campaign.getId());
+        
+        // return mapToCampaignResponse(campaign);
+    }
+
+    @Override
+    public List<CampaignDTO> getCommercialCampaigns(Long commercialId) {
+        List<Campaign> campaigns = campaignRepository.findByCommercialId(commercialId);
         return campaigns.stream().map(campaignMapper::toDto).toList();
     }
 
@@ -100,7 +272,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
 
         // 1. Autorización
-        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+        if (!campaign.getCommercial().getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
         }
 
@@ -125,7 +297,7 @@ public class CampaignServiceImpl implements CampaignService {
                 .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
 
         // 1. Autorización
-        if (!campaign.getAdvertiser().getUser().getId().equals(userId)) {
+        if (!campaign.getCommercial().getUser().getId().equals(userId)) {
             throw new UnauthorizedActionException("No autorizado para modificar esta campaña");
         }
 
@@ -156,194 +328,10 @@ public class CampaignServiceImpl implements CampaignService {
         campaignRepository.save(campaign);
     }
 
-    /**
-     * PASO 1: Validar estructura y generar pre-signed URLs 
-     */
-    @Override
-    public List<AssetUploadPermissionDTO> prepareAssetUploads(
-            Long gameId,
-            Long advertiserId,
-            List<CreateAssetRequestDTO> assetRequests) {
-
-        log.info("Preparando URLs de subida para {} assets del juego {}", assetRequests.size(), gameId);
-
-        // 1. Validar que el juego existe
-        Game game = gameRepository.findById(Objects.requireNonNull(gameId, "gameId must not be null"))
-            .orElseThrow(() -> new EntityNotFoundException("Juego no encontrado: " + gameId));
-
-        // 2. Validar que el advertiser no tenga una campaña con ese juego
-        boolean campaignAlreadyExists = campaignRepository.existsByAdvertiserIdAndGameId(advertiserId, gameId);
-        if (campaignAlreadyExists) {
-            throw new ValidationException("El usuario ya tiene una campaña con ese juego");
-        }
-
-        // 3. Validar estructura de assets según reglas del juego
-        validateAssetStructure(game, assetRequests);
-
-        // 4. Generar pre-signed URLs para cada asset
-        List<AssetUploadPermissionDTO> uploadPermissions = new ArrayList<>();
-
-        for (CreateAssetRequestDTO assetReq : assetRequests) {
-            GameAssetDefinition definition = assetDefinitionRepository
-                .findById(Objects.requireNonNull(assetReq.getAssetDefinitionId()))
-                .orElseThrow(() -> new ValidationException("Asset definition no válida: " + assetReq.getAssetDefinitionId()));
-
-            // Validar tipo de archivo vs tipo permitido
-            validateFileMetadata(definition, assetReq.getFileMetadata());
-
-            // Generar key única en R2
-            String objectKey = generateObjectKey(gameId, definition, assetReq);
-
-            // Crear asset
-            Asset asset = Asset.builder()
-                .objectKey(objectKey)
-                .sizeBytes(assetReq.getFileMetadata().getSizeBytes())
-                .mediaType(definition.getMediaType())
-                .assetDefinition(definition)
-                .build();
-            
-            Asset createdAsset = assetRepository.save(Objects.requireNonNull(asset));
-
-            // Obtener pre-signed URL de R2
-            FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
-                objectKey,
-                assetReq.getFileMetadata().getContentType());
-
-            uploadPermissions.add(new AssetUploadPermissionDTO(createdAsset.getId(), permission));
-        }
-
-        log.info("URLs de subida generadas exitosamente para {} assets", uploadPermissions.size());
-        return uploadPermissions;
-    }
-
-    /**
-     * PASO 2: Crear campaña con assets ya subidos
-     * 
-     * Este método SOLO se llama después de que el frontend confirme
-     * que todos los uploads a R2 fueron exitosos
-     * 
-     * @param uploadedAssets Map de assetDefinitionId -> objectKey en R2
-     */
-    @Override
-    public Campaign createCampaignWithAssets(
-            Long gameId,
-            Long advertiserId,
-            CreateCampaignRequestDTO request) {
-
-        List<Long> assetIds = request.getAssetIds();
-        log.info("Creando campaña para juego {} con {} assets", gameId, assetIds.size());
-
-        List<Asset> assets = List.of();
-        try {
-            // 1. Validar entidades
-            Game game = gameRepository.findById(Objects.requireNonNull(gameId))
-                .orElseThrow(() -> new EntityNotFoundException("Juego no encontrado: " + gameId));
-
-            AdvertiserDetails advertiser = advertiserRepository.findById(Objects.requireNonNull(advertiserId))
-                .orElseThrow(() -> new ValidationException("Anunciante no existe"));
-
-            BigDecimal currentBudget = BigDecimal.valueOf(request.getBudgetCoins()).multiply(request.getCoinValue());
-            if (advertiser.getUser().getWallet().getBalance().compareTo(currentBudget) < 0) {
-                throw new ValidationException("Saldo insuficiente");
-            }
-
-            // 2. Validar assetsIds
-            assets = assetRepository.findAllByIdInAndStatus(assetIds, AssetStatus.PENDING);
-
-            if (assets.size() != assetIds.size()) {                
-                throw new ValidationException("Uno o más assets no existen");
-            }
-
-            // 3. Validaciones de dominio + R2
-            for (Asset asset: assets) {
-
-                if (asset.getCampaign() != null) {
-                    throw new ValidationException("Asset ya está asociado a una campaña: " + asset.getId());
-                }
-
-                GameAssetDefinition definition = asset.getAssetDefinition();
-
-                if (!definition.getGame().getId().equals(gameId)) {
-                    throw new ValidationException("Asset no pertenece a este juego");
-                }
-
-                long maxSizeBytes = definition.getMaxSizeBytes();
-                Set<SupportedMimeType> allowedMimeType = definition.getAllowedMimeTypes();
-
-                SupportedMimeType realMime = r2Service.validateUploadedObject(asset.getObjectKey(), asset.getSizeBytes(), maxSizeBytes, allowedMimeType);
-            
-                asset.setMimeType(realMime);
-                asset.setStatus(AssetStatus.VALIDATED);
-            }
-
-            // 4. Validar que se cumplan los requerimientos del juego
-            validateCampaignAssets(game, assets);
-
-            // 5. Crear campaña (aún no persistida)
-            Campaign campaign = campaignMapper.toEntity(request, game, advertiser);
-
-            // 6. Validar categorias y municipios
-            List<Category> validatedCategories = categoryService.getValidatedCategories(request.getCategoryIds());
-            List<Municipality> validatedMunicipalities = targetingValidator.getValidatedMunicipalities(request.getTargetMunicipalityCodes());
-                        
-            campaign.setCategories(validatedCategories);
-            campaign.setTargetMunicipalities(validatedMunicipalities);
-
-            campaign = campaignRepository.save(Objects.requireNonNull(campaign));
-
-            // 7. Asociar assets a la campaña
-            for (Asset asset : assets) {
-                asset.setCampaign(campaign);
-                campaign.getAssets().add(asset);
-            }
-
-            // 8. Persistir
-            Campaign savedCampaign = campaignRepository.save(Objects.requireNonNull(campaign));
-
-            // mover los assets a public
-
-            log.info("Campaña creada exitosamente: ID {}, {} assets", 
-                savedCampaign.getId(), savedCampaign.getAssets().size());
-            // if (true) throw new ValidationException("Excepción de prueba");
-
-            return savedCampaign;
-
-        } catch (Exception e) {
-            // Si algo falla, marcar assets como huérfanos para limpieza posterior
-            log.error("Error creando campaña, marcando assets como huérfanos");
-            if (!assets.isEmpty()) assetOrphanedService.markAssetsAsOrphanedByIds(assets.stream().map(Asset::getId).toList());
-            throw e;
-        }
-    }
-
     @Transactional(readOnly = true)
     @Override
-    public PagedResponse<GameDTO> getAvailableGames(Long advertiserId, Pageable pageable) {
-        return PagedResponse.from(gameRepository.findGamesWithoutCampaign(advertiserId, pageable));
-    }
-
-    @Transactional(readOnly = true)
-    @Override
-    public List<GameConfigDefinitionDTO> getConfigDefinitionByGame(Long gameId) {
-
-        List<GameConfigDefinition> defs = gameConfigDefinitionRepository.findByGameId(gameId);
-
-        return defs.stream().map(def -> {
-
-            Map<String, Object> schema;
-            try {
-                schema = objectMapper.readValue(def.getSchema(), new TypeReference<Map<String, Object>>() {});
-            } catch (JsonProcessingException e) {
-                throw new ValidationException("Error processing schema for config definition: " + def.getJsonKey(), e);
-            }
-
-            return new GameConfigDefinitionDTO(
-                def.getJsonKey(),
-                def.isRequired(),
-                def.getDescription(),
-                schema
-            );
-        }).toList();
+    public PagedResponse<GameDTO> getAvailableGames(Long commercialId, Pageable pageable) {
+        return PagedResponse.from(gameRepository.findGamesWithoutCampaign(commercialId, pageable));
     }
 
     @Transactional(readOnly = true)
@@ -351,6 +339,83 @@ public class CampaignServiceImpl implements CampaignService {
     public List<GameAssetDefinitionDTO> getAssetsByGame(Long gameId) {
         List<GameAssetDefinition> defs = assetDefinitionRepository.findByGameIdWithMimeTypes(gameId);
         return gameMapper.toDtoList(defs);
+    }
+
+    /**
+     * Attach all assets found in config to campaign
+     */
+    private void attachAssetsToCampaign(Map<String, Object> configData, Campaign campaign) {
+        // Extract all asset URLs from config
+        Set<String> assetUrls = extractAssetUrls(configData);
+        
+        if (assetUrls.isEmpty()) {
+            return;
+        }
+        
+        log.debug("Attaching {} assets to campaign: {}", assetUrls.size(), campaign.getId());
+        
+        List<Asset> assets = assetRepository.findByObjectKeyIn(assetUrls);
+        
+        for (Asset asset : assets) {
+            if (asset.getStatus() == AssetStatus.VALIDATED) {
+                asset.markAsAttached(campaign);
+                assetRepository.save(asset);
+                log.debug("Attached asset: {} to campaign: {}", asset.getObjectKey(), campaign.getId());
+            }
+        }
+    }
+
+    /**
+     * Extract all asset URLs recursively from config
+     */
+    private Set<String> extractAssetUrls(Object obj) {
+        Set<String> urls = new HashSet<>();
+        
+        if (obj instanceof Map) {
+            Map<?, ?> map = (Map<?, ?>) obj;
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = entry.getKey().toString();
+                Object value = entry.getValue();
+                
+                // Check if this is likely an asset URL field
+                if (isAssetField(key) && value instanceof String) {
+                    String url = (String) value;
+                    if (isValidAssetUrl(url)) {
+                        urls.add(url);
+                    }
+                } else {
+                    urls.addAll(extractAssetUrls(value));
+                }
+            }
+        } else if (obj instanceof List) {
+            List<?> list = (List<?>) obj;
+            for (Object item : list) {
+                urls.addAll(extractAssetUrls(item));
+            }
+        }
+        
+        return urls;
+    }
+
+    private boolean isAssetField(String fieldName) {
+        String lower = fieldName.toLowerCase();
+        return lower.contains("url") || 
+               lower.contains("image") || 
+               lower.contains("icon") || 
+               lower.contains("sprite") || 
+               lower.contains("texture") || 
+               lower.contains("audio") || 
+               lower.contains("sound") || 
+               lower.contains("music") ||
+               lower.contains("model") ||
+               lower.contains("background");
+    }
+    
+    private boolean isValidAssetUrl(String url) {
+        // Basic validation - should point to R2 storage
+        return url != null && 
+               !url.isBlank() && 
+               (url.startsWith("https://") || url.startsWith("http://"));
     }
 
     /**
@@ -420,9 +485,7 @@ public class CampaignServiceImpl implements CampaignService {
     /**
      * Validar metadata del archivo
      */
-    private void validateFileMetadata(
-            GameAssetDefinition definition, 
-            FileUploadRequestDTO metadata) {
+    private void validateFileMetadata(GameAssetDefinition definition, FileUploadRequestDTO metadata) {
         
         if (metadata == null) {
             throw new ValidationException("Metadata de archivo requerida");
@@ -446,32 +509,6 @@ public class CampaignServiceImpl implements CampaignService {
             metadata.getOriginalFileName().trim().isEmpty()) {
             throw new ValidationException("Nombre de archivo requerido");
         }
-    }
-
-    private String generateObjectKey(
-            Long gameId, 
-            GameAssetDefinition definition,
-            CreateAssetRequestDTO request) {
-        
-        String uuid = UUID.randomUUID().toString();
-        String extension = getFileExtension(request.getFileMetadata().getOriginalFileName());
-        
-        return String.format("campaigns/game_%d/%s/%s.%s",
-            gameId,
-            definition.getAssetType().name().toLowerCase(),
-            uuid,
-            extension
-        );
-    }
-
-    /**
-     * Extrae extensión del nombre de archivo
-     */
-    private String getFileExtension(String fileName) {
-        if (fileName == null || !fileName.contains(".")) {
-            return "bin";
-        }
-        return fileName.substring(fileName.lastIndexOf(".") + 1).toLowerCase();
     }
 
     private void validateStatusTransition(Campaign campaign, CampaignStatus from, CampaignStatus to) {
@@ -539,7 +576,7 @@ public class CampaignServiceImpl implements CampaignService {
             throw new ValidationException("El presupuesto no puede ser menor al monto ya gastado");
         }
 
-        BigDecimal availableBalance = campaign.getAdvertiser().getUser().getWallet().getBalance();
+        BigDecimal availableBalance = campaign.getCommercial().getUser().getWallet().getBalance();
 
         if (newBudget.compareTo(availableBalance.add(campaign.getSpent())) > 0) { // Mirar lógica de los saldos
             throw new ValidationException("Saldo insuficiente");

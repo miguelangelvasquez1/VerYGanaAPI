@@ -3,6 +3,8 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
+
+import com.verygana2.models.Municipality;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Category;
 import com.verygana2.models.enums.Gender;
@@ -58,8 +60,11 @@ public class ConsumerDetails extends UserDetails {
 
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
-    private String municipality;
+    private String municipalityName;
 
+    @ManyToOne(optional = false)
+    @JoinColumn(name = "municipality_code", nullable = false)
+    private Municipality municipality;
     private Integer age;
 
     @Enumerated(EnumType.STRING)

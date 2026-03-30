@@ -11,7 +11,7 @@ import com.verygana2.models.games.Campaign;
 @Repository
 public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     
-    List<Campaign> findByAdvertiserId(Long advertiserId);
+    List<Campaign> findByCommercialId(Long commercialId);
 
     // @Query("""
     //     select new com.verygana2.dtos.game.campaign.CampaignDTO(
@@ -20,13 +20,13 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     //     )
     //     from Campaign c
     //     join c.game g
-    //     where c.advertiser.id = :advertiserId
+    //     where c.commercial.id = :commercialId
     //     order by c.createdAt desc
     // """)
-    // List<CampaignDTO> findCampaignsForAdvertiser(@Param("advertiserId") Long advertiserId);
+    // List<CampaignDTO> findCampaignsForCommercial(@Param("commercialId") Long commercialId);
 
 
     Optional<Campaign> findRandomActiveCampaignByGameId(Long gameId);
 
-    boolean existsByAdvertiserIdAndGameId(Long advertiserId, Long gameId);
+    boolean existsByCommercialIdAndGameId(Long commercialId, Long gameId);
 }

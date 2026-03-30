@@ -85,4 +85,9 @@ public class TicketEarningRuleController {
         ticketEarningRuleService.deactivateTicketEarningRule(ruleId);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/count/active")
+    public ResponseEntity<Long> countActiveTicketEarningRules(){
+        return ResponseEntity.ok(ticketEarningRuleService.countActiveTicketEarningRules());
+    }
 }

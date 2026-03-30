@@ -46,7 +46,7 @@ import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
@@ -102,17 +102,17 @@ public class AdServiceImpl implements AdService {
      * - Genera una URL pre-firmada de R2
      * - Retorna el assetId y la URL para subir
      * 
-     * @param advertiserId ID del anunciante
+     * @param commercialId ID del anunciante
      * @param request Metadata del archivo
      * @return AssetId y URL pre-firmada
      */
     @Transactional
-    public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long advertiserId, FileUploadRequestDTO request) {
+    public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
 
-        // 1. Validar que el advertiser existe
+        // 1. Validar que el commercial existe
         userRepository
-            .findById(Objects.requireNonNull(advertiserId, "advertiserId must not be null"))
-            .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + advertiserId));
+            .findById(Objects.requireNonNull(commercialId, "commercialId must not be null"))
+            .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + commercialId));
 
         // 2. Determinar tipo de media según content-type
         MediaType mediaType = determineMediaType(request.getContentType());
@@ -121,7 +121,7 @@ public class AdServiceImpl implements AdService {
         validateFileMetadata(request, mediaType);
 
         // 4. Generar key única en R2
-        String objectKey = generateAdAssetObjectKey(advertiserId, request);
+        String objectKey = generateAdAssetObjectKey(commercialId, request);
 
         // 5. Crear asset en estado PENDING
         AdAsset asset = AdAsset.builder()
@@ -137,6 +137,7 @@ public class AdServiceImpl implements AdService {
 
         // 6. Generar pre-signed URL de R2
         FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
+            true,
             objectKey,
             request.getContentType()
         );
@@ -160,19 +161,19 @@ public class AdServiceImpl implements AdService {
      * - Calcula y valida presupuesto
      * - Crea el anuncio en estado PENDING_APPROVAL
      * 
-     * @param advertiserId ID del anunciante
+     * @param commercialId ID del anunciante
      * @param request Datos del anuncio
      * @return ID del anuncio creado
      */
     @Transactional
-    public void createAdWithAsset(Long advertiserId, CreateAdRequestDTO request) {
+    public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
 
         AdAsset asset = null;
 
         try {
-            User advertiser = userRepository
-                .findById(Objects.requireNonNull(advertiserId))
-                .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + advertiserId));
+            User commercial = userRepository
+                .findById(Objects.requireNonNull(commercialId))
+                .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + commercialId));
 
             asset = adAssetRepository
                 .findById(Objects.requireNonNull(request.getAssetId()))
@@ -193,6 +194,7 @@ public class AdServiceImpl implements AdService {
             long maxSizeBytes = getMaxSizeBytesForMedia(mediaType);
 
             SupportedMimeType realMimeType = r2Service.validateUploadedObject(
+                true,
                 asset.getObjectKey(),
                 asset.getSizeBytes(),
                 maxSizeBytes,
@@ -216,8 +218,8 @@ public class AdServiceImpl implements AdService {
             BigDecimal totalBudget = request.getRewardPerLike()
                 .multiply(BigDecimal.valueOf(request.getMaxLikes()));
 
-            // 10. Validar saldo del advertiser
-            BigDecimal currentBalance = advertiser.getWallet().getBalance();
+            // 10. Validar saldo del anunciante
+            BigDecimal currentBalance = commercial.getWallet().getBalance();
             if (currentBalance.compareTo(totalBudget) < 0) {
                 throw new ValidationException(
                     String.format("Saldo insuficiente. Requerido: $%s, Disponible: $%s", 
@@ -226,10 +228,10 @@ public class AdServiceImpl implements AdService {
             }
 
             // 11. Crear anuncio, usar mapper
-            AdvertiserDetails advertiserDetails =
-                entityManager.getReference(AdvertiserDetails.class, advertiserId);
+            CommercialDetails commercialDetails =
+                entityManager.getReference(CommercialDetails.class, commercialId);
 
-            Ad ad = adMapper.toEntity(request, advertiserDetails);
+            Ad ad = adMapper.toEntity(request, commercialDetails);
 
             ad.setCategories(categories);
             ad.setTargetMunicipalities(municipalities);
@@ -250,13 +252,13 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long advertiserId) {
-        log.info("Updating ad {} for advertiser {}", adId, advertiserId);
+    public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
+        log.info("Updating ad {} for commercial {}", adId, commercialId);
 
         DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
     "La fecha de fin debe ser posterior a la de inicio");
         
-        Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
         // Only edit when status is PENDING
@@ -285,17 +287,17 @@ public class AdServiceImpl implements AdService {
         Ad updatedAd = adRepository.save(ad);
     
         AdResponseDTO responseDto = adMapper.toDto(updatedAd);
-        responseDto.setContentUrl(r2Service.generatePresignedUrl("private/" + updatedAd.getAsset().getObjectKey(), 200));
+        responseDto.setContentUrl(r2Service.getPrivateObject("private/" + updatedAd.getAsset().getObjectKey(), 200));
 
-        log.info("Ad {} updated successfully by advertiser {}", adId, advertiserId);
+        log.info("Ad {} updated successfully by commercial {}", adId, commercialId);
         return responseDto;
     }
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<AdResponseDTO> getFilteredAds(Long advertiserId, AdFilterDTO filters, Pageable pageable) {
+    public PagedResponse<AdResponseDTO> getFilteredAds(Long commercialId, AdFilterDTO filters, Pageable pageable) {
 
-        Specification<Ad> spec = AdSpecifications.hasAdvertiser(advertiserId)
+        Specification<Ad> spec = AdSpecifications.hasCommercial(commercialId)
             .and(AdSpecifications.hasStatus(filters.getStatus()))
             .and(AdSpecifications.hasSearchTerm(filters.getSearchTerm()))
             .and(AdSpecifications.inDateRange(filters.getStartDate(), filters.getEndDate()))
@@ -323,7 +325,7 @@ public class AdServiceImpl implements AdService {
                 case REJECTED:
                     // Asset privado → presigned URL
                     dto.setContentUrl(
-                        r2Service.generatePresignedUrl("private/" + asset.getObjectKey(), 200));
+                        r2Service.getPrivateObject("private/" + asset.getObjectKey(), 200));
                     break;
 
                 case APPROVED:
@@ -364,8 +366,8 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO activateAdAsAdvertiser(Long adId, Long advertiserId) {
-        Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
+    public AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
         if (ad.getStatus() != AdStatus.APPROVED && ad.getStatus() != AdStatus.PAUSED) {
@@ -388,8 +390,8 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    public AdResponseDTO pauseAdAsAdvertiser(Long adId, Long advertiserId) {
-        Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
+    public AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
         if (ad.getStatus() != AdStatus.ACTIVE) {
@@ -436,6 +438,7 @@ public class AdServiceImpl implements AdService {
             log.info("Reanudando sesión activa {}", activeSession.get().getId());
             AdWatchSession session = activeSession.get();
             AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
+            dto.setContentUrl(session.getAd().getAsset().getObjectKey());
             dto.setSessionUUID(session.getId());
             return Optional.of(dto);
         }
@@ -454,6 +457,7 @@ public class AdServiceImpl implements AdService {
         // Posibilidad de fallback de nivel 2 con los anuncios vistos
 
         AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
+        dto.setContentUrl(ad.getAsset().getObjectKey());
         dto.setSessionUUID(session.getId());
 
         return Optional.of(dto);
@@ -628,8 +632,8 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdStatsDTO getAdStats(Long adId, Long advertiserId) {
-        Ad ad = adRepository.findByIdAndAdvertiserId(adId, advertiserId)
+    public AdStatsDTO getAdStats(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
         
         return AdStatsDTO.builder()
@@ -651,11 +655,11 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdStatsDTO getAdvertiserStats(Long advertiserId) {
-        Long totalAds = countAdsByAdvertiser(advertiserId);
-        Long activeAds = countAdsByAdvertiserAndStatus(advertiserId, AdStatus.ACTIVE);
-        // BigDecimal totalSpent = getTotalSpentByAdvertiser(advertiserId);
-        Long totalLikes = getTotalLikesByAdvertiser(advertiserId);
+    public AdStatsDTO getCommercialStats(Long commercialId) {
+        Long totalAds = countAdsByCommercial(commercialId);
+        Long activeAds = countAdsByCommercialAndStatus(commercialId, AdStatus.ACTIVE);
+        // BigDecimal totalSpent = getTotalSpentByCommercial(commercialId);
+        Long totalLikes = getTotalLikesByCommercial(commercialId);
         
         return AdStatsDTO.builder()
             .totalAds(totalAds.intValue())
@@ -743,27 +747,27 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
-    public Long countAdsByAdvertiser(Long advertiserId) {
-        return adRepository.countByAdvertiserId(advertiserId);
+    public Long countAdsByCommercial(Long commercialId) {
+        return adRepository.countByCommercialId(commercialId);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Long countAdsByAdvertiserAndStatus(Long advertiserId, AdStatus status) {
-        return adRepository.countByAdvertiserIdAndStatus(advertiserId, status);
+    public Long countAdsByCommercialAndStatus(Long commercialId, AdStatus status) {
+        return adRepository.countByCommercialIdAndStatus(commercialId, status);
     }
 
     // @Override
     // @Transactional(readOnly = true)
-    // public BigDecimal getTotalSpentByAdvertiser(Long advertiserId) {
-    //     BigDecimal total = adRepository.sumSpentBudgetByAdvertiserId(advertiserId);
+    // public BigDecimal getTotalSpentByCommercial(Long commercialId) {
+    //     BigDecimal total = adRepository.sumSpentBudgetByCommercialId(commercialId);
     //     return total != null ? total : BigDecimal.ZERO;
     // }
 
     @Override
     @Transactional(readOnly = true)
-    public Long getTotalLikesByAdvertiser(Long advertiserId) {
-        Long total = adRepository.sumLikesByAdvertiserId(advertiserId);
+    public Long getTotalLikesByCommercial(Long commercialId) {
+        Long total = adRepository.sumLikesByCommercialId(commercialId);
         return total != null ? total : 0L;
     }
 
@@ -809,13 +813,13 @@ public class AdServiceImpl implements AdService {
     /**
      * Generar object key único para R2
      */
-    private String generateAdAssetObjectKey(Long advertiserId, FileUploadRequestDTO metadata) {
+    private String generateAdAssetObjectKey(Long commercialId, FileUploadRequestDTO metadata) {
         String timestamp = String.valueOf(System.currentTimeMillis());
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         String extension = getFileExtension(metadata.getOriginalFileName());
         
-        return String.format("ads/advertiser-%d/%s-%s%s", 
-            advertiserId, timestamp, uuid, extension);
+        return String.format("ads/commercial-%d/%s-%s%s", 
+            commercialId, timestamp, uuid, extension);
     }
 
     /**
@@ -865,8 +869,9 @@ public class AdServiceImpl implements AdService {
             case IMAGE -> 6.0; // regla de negocio fija
 
             case VIDEO -> {
-                Double duration = mediaMetadataService
-                    .getVideoDurationSeconds(asset.getObjectKey());
+                    Double duration = mediaMetadataService
+                        .getVideoDurationSeconds(asset.getObjectKey());
+                    // Double duration = 30.0;
 
                 if (duration < 5 || duration > 30) {
                     throw new ValidationException(

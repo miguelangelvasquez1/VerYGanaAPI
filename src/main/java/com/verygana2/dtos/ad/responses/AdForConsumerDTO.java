@@ -25,6 +25,6 @@ public class AdForConsumerDTO {
 
     private UUID sessionUUID;
 
-    private Long advertiserId;
-    private String advertiserName; 
+    private Long commercialId;
+    private String commercialName; 
 }

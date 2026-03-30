@@ -9,12 +9,10 @@ import com.verygana2.models.raffles.RaffleWinner;
 @Mapper(componentModel = "spring")
 public interface RaffleWinnerMapper {
  
-    @Mapping(target = "winnerId", source = "id")
-    @Mapping(target = "consumerId", source = "winner.id")
-    @Mapping(target = "consumerName", source = "winner.userName")
-    @Mapping(target = "ticketNumber", source = "winningTicket.ticketNumber")
+    @Mapping(target = "userName", source = "winner.userName")
+    @Mapping(target = "raffleTitle", source = "raffleResult.raffle.title")
     @Mapping(target = "prizeTitle", source = "prize.title")
+    @Mapping(target = "prizeValue", source = "prize.value")
     @Mapping(target = "position", source = "prize.position")
     WinnerSummaryResponseDTO toWinnerSummaryResponseDTO (RaffleWinner winner);
-
 }

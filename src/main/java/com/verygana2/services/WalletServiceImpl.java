@@ -238,31 +238,31 @@ public class WalletServiceImpl implements WalletService {
 
     // method used by user, this method is gonna be called by Adservice
     @Override
-    public void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long advertiserId) {
+    public void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long commercialId) {
 
         Wallet userWallet = walletRepository.findByUserId(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("Wallet not found for userId: " + userId, Wallet.class));
 
-        Wallet advertiserWallet = walletRepository.findByUserId(advertiserId).orElseThrow(
-                () -> new ObjectNotFoundException("Wallet not found for advertiserId: " + advertiserId, Wallet.class));
+        Wallet commercialWallet = walletRepository.findByUserId(commercialId).orElseThrow(
+                () -> new ObjectNotFoundException("Wallet not found for commercialId: " + commercialId, Wallet.class));
 
-        advertiserWallet.subtractBalance(reward);
+        commercialWallet.subtractBalance(reward);
         BigDecimal platformCommission = reward.multiply(adCommission);
         userWallet.addBalance(reward.subtract(platformCommission));
 
         String mutualReferenceId = "MutualReferenceId-" + UUID.randomUUID().toString();
-        Transaction advertiserTransaction = Transaction.createAdLikeRewardSentTransaction(advertiserWallet, reward,
+        Transaction commercialTransaction = Transaction.createAdLikeRewardSentTransaction(commercialWallet, reward,
                 mutualReferenceId);
         Transaction userTransaction = Transaction.createAdLikeRewardReceivedTransaction(userWallet, reward,
                 mutualReferenceId);
 
-        transactionRepository.save(Objects.requireNonNull(advertiserTransaction));
+        transactionRepository.save(Objects.requireNonNull(commercialTransaction));
         transactionRepository.save(Objects.requireNonNull(userTransaction));
 
-        walletRepository.save(advertiserWallet);
+        walletRepository.save(commercialWallet);
         walletRepository.save(userWallet);
 
-        platformTreasuryService.addAdCommission(platformCommission, mutualReferenceId, String.format("Ad commission from advertiser id: %d ", advertiserId));
+        platformTreasuryService.addAdCommission(platformCommission, mutualReferenceId, String.format("Ad commission from commercial id: %d ", commercialId));
 
     }
 

@@ -77,6 +77,7 @@ public interface ProductMapper {
     ProductReviewResponseDTO toProductReviewResponseDTO(ProductReview review);
 
     @Mapping(target = "categoryName", source = "productCategory.name")
+    @Mapping(target = "stock", expression = "java(product.getAvailableStock())")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     @Mapping(target = "id", source = "product.id")
@@ -93,22 +94,13 @@ public interface ProductMapper {
     CreateProductRequestDTO toCreateOrEditProductRequestDTO(Product product);
 
     @AfterMapping
-    default void calculateStock(@MappingTarget ProductSummaryResponseDTO dto, Product product) {
-        dto.setStock(product.getAvailableStock());
-    }
-
-    @AfterMapping
     default void calculateStock(@MappingTarget ProductResponseDTO dto, Product product) {
         dto.setStock(product.getAvailableStock());
     }
 
     @Mapping(target = "productCategoryId", source = "productCategory.id")
     @Mapping(target = "totalStockItems", source = "stock")
-    @Mapping(target = "availableStockItems", expression = "java(getAvailableStock(product))")
+    @Mapping(target = "availableStockItems", expression = "java(product.getAvailableStock())")
     ProductEditInfoResponseDTO toProductEditInfoDTO (Product product);
-
-    default Integer getAvailableStock (Product product) {
-        return product.getAvailableStock();
-    }
 
 }

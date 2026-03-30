@@ -21,6 +21,7 @@ import com.verygana2.models.Category;
 import com.verygana2.repositories.CategoryRepository;
 import com.verygana2.services.interfaces.CategoryService;
 
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,7 +38,7 @@ public class CategoryServiceImpl implements CategoryService {
     @CacheEvict(value = "categories", allEntries = true)
     public EntityCreatedResponseDTO create(CategoryRequestDTO dto) {
         if (repository.existsByName(dto.getName())) {
-            throw new IllegalArgumentException("Already exists a category with that name");
+            throw new ValidationException("Already exists a category with that name");
         }
         Category category = mapper.toEntity(dto);
         Category savedCategory = repository.save(Objects.requireNonNull(category));

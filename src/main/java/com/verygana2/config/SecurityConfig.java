@@ -84,7 +84,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(List.of("*"));
         // configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8081", "https://games.verygana.com"));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type", "Upgrade", "Connection"));
         configuration.setAllowCredentials(true); // Necesario para cookies
         configuration.setExposedHeaders(List.of("Set-Cookie"));
         configuration.setMaxAge(3600L);
@@ -142,6 +142,24 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
+    @Bean
+    public AuthenticationEntryPoint authenticationEntryPoint() {
+        return (request, response, authException) ->
+            writeErrorResponse(request, response,
+                HttpServletResponse.SC_UNAUTHORIZED,
+                "Unauthorized",
+                "Invalid or expired JWT");
+    }
+
+    @Bean
+    public AccessDeniedHandler accessDeniedHandler() {
+        return (request, response, accessDeniedException) ->
+            writeErrorResponse(request, response,
+                HttpServletResponse.SC_FORBIDDEN,
+                "Forbidden",
+                "Insufficient permissions");
+    }
+
     private void writeErrorResponse(HttpServletRequest request,
                                     HttpServletResponse response,
                                     int status,
@@ -159,23 +177,5 @@ public class SecurityConfig {
 
         String json = new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(body);
         response.getWriter().write(json);
-    }
-
-    @Bean
-    public AuthenticationEntryPoint authenticationEntryPoint() {
-        return (request, response, authException) ->
-            writeErrorResponse(request, response,
-                HttpServletResponse.SC_UNAUTHORIZED,
-                "Unauthorized",
-                "Invalid or expired JWT");
-    }
-
-    @Bean
-    public AccessDeniedHandler accessDeniedHandler() {
-        return (request, response, accessDeniedException) ->
-            writeErrorResponse(request, response,
-                HttpServletResponse.SC_FORBIDDEN,
-                "Forbidden",
-                "Insufficient permissions");
     }
 }

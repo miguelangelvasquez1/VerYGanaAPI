@@ -31,5 +31,5 @@ public interface WalletService {
     BigDecimal getBlockedBalance(Long ownerId);
 
     // auxiliar wallet methods for others app sections
-    void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long advertiserId);
+    void addPointsForWatchingAdAndLike(Long userId, BigDecimal reward, Long commercialId);
 }

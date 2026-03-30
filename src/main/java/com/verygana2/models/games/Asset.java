@@ -42,11 +42,11 @@ public class Asset {
         
     @Enumerated(EnumType.STRING)
     @Column(name = "media_type", nullable = false)
-    private MediaType mediaType;
+    private MediaType mediaType; //define que mimes puede tener
 
     @Enumerated(EnumType.STRING)
     @Column(name = "mime_type", nullable = true)
-    private SupportedMimeType mimeType;
+    private SupportedMimeType mimeType; //mime actual real
 
     // @Column(name = "resolution", nullable = false) Desde 640 x 360 px hasta Full HD (1920 x 1080)
     // private long resolution;
@@ -59,7 +59,10 @@ public class Asset {
     @JoinColumn(name = "campaign_id", nullable = true)
     private Campaign campaign;
 
-    @ManyToOne(optional = false) //One to one? por multilple no?
+    @Column(name = "uploaded_by", length = 100)
+    private Long uploadedBy;
+
+    @ManyToOne(optional = true)
     @JoinColumn(name = "asset_definition_id")
     private GameAssetDefinition assetDefinition;
 
@@ -74,5 +77,15 @@ public class Asset {
         if (this.status == null) {
             this.status = AssetStatus.PENDING;
         }           
+    }
+
+    public void markAsAttached(Campaign campaign) {
+        this.status = AssetStatus.ATTACHED;
+        this.campaign = campaign;
+    }
+
+    public void markAsOrphan() {
+        this.status = AssetStatus.ORPHANED;
+        this.campaign = null;
     }
 }

@@ -15,5 +15,5 @@ public class ConsumerProfileResponseDTO {
     private Role role;
     private UserState userState;
     private String department;
-    private String municipality;
+    private String municipalityName;
 }

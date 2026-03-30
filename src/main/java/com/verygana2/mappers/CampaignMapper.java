@@ -3,10 +3,14 @@ package com.verygana2.mappers;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
@@ -14,7 +18,7 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
-import com.verygana2.models.userDetails.AdvertiserDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(
     componentModel = "spring",
@@ -43,7 +47,7 @@ public interface CampaignMapper {
     @Mapping(target = "id", ignore = true)
     // Relaciones principales
     @Mapping(target = "game", source = "game")
-    @Mapping(target = "advertiser", source = "advertiser")
+    @Mapping(target = "commercial", source = "commercial")
     // Assets y sesiones (se asocian después)
     @Mapping(target = "assets", expression = "java(new ArrayList<>())")
     @Mapping(target = "gameSessions", ignore = true)
@@ -59,14 +63,12 @@ public interface CampaignMapper {
     @Mapping(target = "status", expression = "java(CampaignStatus.DRAFT)")
     // Datos editables del request
     @Mapping(target = "targetUrl", source = "request.targetUrl")
-    @Mapping(target = "minAge", source = "request.minAge")
-    @Mapping(target = "maxAge", source = "request.maxAge")
-    @Mapping(target = "targetGender", source = "request.targetGender")
-    @Mapping(target = "coinValue", source = "request.coinValue")
     @Mapping(target = "completionCoins", source = "request.completionCoins")
     @Mapping(target = "budgetCoins", source = "request.budgetCoins")
     @Mapping(target = "maxCoinsPerSession", source = "request.maxCoinsPerSession")
     @Mapping(target = "maxSessionsPerUserPerDay", source = "request.maxSessionsPerUserPerDay")
+    // Map config fields from request
+    @Mapping(target = "configData", source = "request.configData")
     // Targeting relacional (se setea luego en el service)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true)
@@ -77,5 +79,18 @@ public interface CampaignMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "spentCoins", ignore = true)
     @Mapping(target = "budget", ignore = true)
-    Campaign toEntity(CreateCampaignRequestDTO request, Game game, AdvertiserDetails advertiser);
+    @Mapping(target = "configDefinition", ignore = true)
+    @Mapping(target = "minAge", ignore = true)
+    @Mapping(target = "maxAge", ignore = true)
+    @Mapping(target = "targetGender", ignore = true)
+    Campaign toEntity(CreateCampaignRequestDTO request, Game game, CommercialDetails commercial);
+
+    // Helper to convert JsonNode to Map<String,Object> for MapStruct
+    default Map<String, Object> map(JsonNode value) {
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        return mapper.convertValue(value, new TypeReference<Map<String, Object>>() {});
+    }
 }
