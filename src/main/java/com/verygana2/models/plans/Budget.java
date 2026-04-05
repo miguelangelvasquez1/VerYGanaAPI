@@ -1,12 +1,15 @@
 package com.verygana2.models.plans;
 
 import java.math.BigDecimal;
+import java.time.ZonedDateTime;
+
+import com.verygana2.models.userDetails.CommercialDetails;
+
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,35 +17,27 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "plans")
+@Table(name = "budgets")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Plan {
-    
+public class Budget {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Enumerated(EnumType.STRING)
-    private PlanCode code;
-    private String name;
+    @ManyToOne
+    private CommercialDetails commercial;
 
-    private String description;
+    private BigDecimal totalAmount;
+    private BigDecimal remainingAmount;
 
-    private boolean isCurrent;
+    private BigDecimal allocatedToAds;
+    private BigDecimal allocatedToGames;
 
-    private boolean monthly;
+    private boolean active;
 
-    private BigDecimal price; //monhly price
-
-    private BigDecimal minInvestement;
-    private BigDecimal maxInvestement;
-
-    public enum PlanCode {
-        BASIC,
-        STANDARD,
-        PREMIUM
-    }
+    private ZonedDateTime createdAt;
 }

@@ -1,6 +1,5 @@
 package com.verygana2.models.plans;
 
-import java.math.BigDecimal;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -14,35 +13,26 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "plans")
+@Table(name = "features")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Plan {
+public class Feature {
     
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    String code; // MAX_PRODUCTS, CAN_ADVERTISE, MAX_ADS
+    String name;
+
     @Enumerated(EnumType.STRING)
-    private PlanCode code;
-    private String name;
+    FeatureType type; // BOOLEAN, LIMIT, PERCENTAGE
 
-    private String description;
-
-    private boolean isCurrent;
-
-    private boolean monthly;
-
-    private BigDecimal price; //monhly price
-
-    private BigDecimal minInvestement;
-    private BigDecimal maxInvestement;
-
-    public enum PlanCode {
-        BASIC,
-        STANDARD,
-        PREMIUM
+    public enum FeatureType {
+        BOOLEAN,
+        LIMIT,
+        PERCENTAGE
     }
 }

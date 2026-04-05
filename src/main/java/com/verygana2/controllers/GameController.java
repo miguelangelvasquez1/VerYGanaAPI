@@ -17,6 +17,27 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.verygana2.controllers.gameAssetsBorrar.DashRunnerAssets;
+import com.verygana2.controllers.gameAssetsBorrar.EndlessRunnerAssets;
+import com.verygana2.controllers.gameAssetsBorrar.MemoryMatchAssets;
+import com.verygana2.controllers.gameAssetsBorrar.MiniFlappyAssets;
+import com.verygana2.controllers.gameAssetsBorrar.SimpleCrosswordAssets;
+import com.verygana2.controllers.gameAssetsBorrar.StackTowerAssets;
+import com.verygana2.controllers.gameAssetsBorrar.TicTacToeAssets;
+import com.verygana2.controllers.gameAssetsBorrar.TilePuzzleAssets;
+import com.verygana2.controllers.gameAssetsBorrar.TriviaQuizAssets;
+import com.verygana2.controllers.gameAssetsBorrar.WordSearchAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.AvoidTheBombAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.BallBounceAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.BalloonLiftAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.CatchItAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.HangmanAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.Match3Assets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.MemoryAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.SudokuAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.TapToRotateAssets;
+// import com.verygana2.controllers.gameAssetsBorrar.cali.WhackAMoleAssets;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
@@ -58,8 +79,8 @@ public class GameController {
 
     // Método para que el juego obtenga los assets
     @PostMapping("/assets")
-    public ResponseEntity<Map<String, Object>> getGameAssets(@RequestBody GameEventDTO<Void> req) {
-        // Json
+    public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
+        
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
         //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
         // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
@@ -80,10 +101,33 @@ public class GameController {
         //     return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
         // } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
         //     return ResponseEntity.ok(CatchItAssets.ASSETS);
-        // }
-        // return ResponseEntity.badRequest().body(null);
-        Map<String, Object> assets = gameService.getGameAssets(req);
-        return ResponseEntity.ok(assets);
+            
+        // ==================== NUEVOS JUEGOS (11 al 20) ====================
+        
+         if (req.getCampaignId() != null && req.getCampaignId() == 11L) {
+            return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 12L) {
+            return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 13L) {
+            return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 14L) {
+            return ResponseEntity.ok(StackTowerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 15L) {
+            return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 16L) {
+            return ResponseEntity.ok(WordSearchAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 17L) {
+            return ResponseEntity.ok(DashRunnerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) {
+            return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) {
+            return ResponseEntity.ok(TicTacToeAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 20L) {
+            return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
+        }
+
+        // Si no coincide ningún campaign_id
+        return ResponseEntity.badRequest().body(null);
     }
 
     @PostMapping("/metrics")

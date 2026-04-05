@@ -1,4 +1,4 @@
-package com.verygana2.controllers.gameAssetsBorrar;
+package com.verygana2.controllers.gameAssetsBorrar.cali;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
