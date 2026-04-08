@@ -8,6 +8,7 @@ import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
@@ -59,6 +60,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     // Emitir tiquetes de una rifa a un usuario
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<RaffleTicketResponseDTO> issueTickets(Long consumerId, Long raffleId, Integer quantity,
             RaffleTicketSource source, Long sourceId) {
 
@@ -212,8 +214,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         log.debug("Source: {}/{}", rule.getCurrentTicketsBySource(), rule.getMaxTicketsBySource());
 
         if (!rule.canIssueTickets(quantity)) {
-            log.error("Maximum tickets from source {} reached. Remaining: {}", 
-                source, rule.getRemainingTickets());
+            log.error("Maximum tickets from source {} reached. Remaining: {}",
+                    source, rule.getRemainingTickets());
             throw new LimitReachedException(
                     String.format("Maximum tickets from source %s reached for this raffle. Remaining: %d",
                             source, rule.getRemainingTickets()));
@@ -229,8 +231,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             log.debug("User: {}/{}", currentUserTickets, raffle.getMaxTicketsPerUser());
 
             if ((currentUserTickets + quantity) > raffle.getMaxTicketsPerUser()) {
-                log.error("User has reached maximum tickets. Current: {}, Max: {}", 
-                    currentUserTickets, raffle.getMaxTicketsPerUser());
+                log.error("User has reached maximum tickets. Current: {}, Max: {}",
+                        currentUserTickets, raffle.getMaxTicketsPerUser());
                 throw new LimitReachedException(
                         String.format("User has reached maximum tickets per user. Current: %d, Max: %d",
                                 currentUserTickets,
@@ -274,11 +276,11 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     /**
      * Genera un número de ticket único y secuencial
-     * Formato: RAFFLE-{raffleId}-{sequentialNumber}
-     * Ejemplo: RAFFLE-123-000001
+     * Formato: R{raffleId}-{sequentialNumber}
+     * Ejemplo: R123-000001
      */
     private String generateUniqueTicketNumber(Long raffleId, long sequentialNumber) {
-        return String.format("RAFFLE-%d-%06d", raffleId, sequentialNumber);
+        return String.format("R%d-%06d", raffleId, sequentialNumber);
     }
 
     private void updateAllCounters(Raffle raffle, ConsumerDetails consumer, int quantity, RaffleTicketSource source) {
@@ -381,6 +383,16 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     }
 
     @Override
+    public Long getUserWinnerTotalTickets(Long consumerId) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        return raffleTicketRepository.countWinnerTicketsByUserId(consumerId);
+    }
+
+    @Override
     public List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId) {
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Consumer id must be positive");
@@ -403,16 +415,30 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     }
 
     @Override
-    public PagedResponse<RaffleTicketResponseDTO> getUserTickets(Long consumerId, RaffleTicketStatus status,
-            RaffleTicketSource source, ZonedDateTime issuedAt, Pageable pageable) {
+    public PagedResponse<RaffleTicketResponseDTO> getUserTicketsByRaffle(Long consumerId, Long raffleId, Pageable pageable) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        if (raffleId == null || raffleId <= 0) {
+            throw new IllegalArgumentException("Raffle id must be positive");
+        }
+
+        return PagedResponse.from(raffleTicketRepository
+                .findUserTicketsByRaffle(consumerId, raffleId, pageable)
+                .map(raffleTicketMapper::toRaffleTicketResponseDTO));
+    }
+
+    @Override
+    public PagedResponse<RaffleTicketResponseDTO> getUserWinnerTickets(Long consumerId, Pageable pageable) {
 
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Raffle id must be positive");
         }
-        Page<RaffleTicketResponseDTO> page = raffleTicketRepository
-                .findUserTicketsWithFilters(consumerId, status, source, issuedAt, pageable)
-                .map(raffleTicketMapper::toRaffleTicketResponseDTO);
-        return PagedResponse.from(page);
+
+        return PagedResponse.from(raffleTicketRepository.findUserWinnerTickets(consumerId, pageable)
+                .map(raffleTicketMapper::toRaffleTicketResponseDTO));
     }
 
     @Override
@@ -456,9 +482,10 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     private TicketEarningRuleType convertSourceToRuleType(RaffleTicketSource source) {
         return switch (source) {
             case PURCHASE -> TicketEarningRuleType.PURCHASE;
-            case GAME_ACHIEVEMENT -> TicketEarningRuleType.GAME_ACHIEVEMENT;
+            case DAILY_LOGIN -> TicketEarningRuleType.DAILY_LOGIN;
+            case ADS_LIKED -> TicketEarningRuleType.ADS_LIKED;
+            case SURVEYS_DONE -> TicketEarningRuleType.SURVEYS_DONE;
             case REFERRAL -> TicketEarningRuleType.REFERRAL;
-            case ADS_WATCHED -> TicketEarningRuleType.ADS_WATCHED;
             default -> throw new InvalidRequestException("Unknown source type: " + source);
         };
     }

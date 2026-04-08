@@ -40,16 +40,6 @@ public class AdminTicketController {
                 .ok(raffleTicketService.getTicketsByRaffle(raffleId, status, source, issuedAt, pageable));
     }
 
-    @GetMapping("/consumer/{consumerId}")
-    public ResponseEntity<PagedResponse<RaffleTicketResponseDTO>> getUserTickets(@PathVariable Long consumerId,
-            @RequestParam(value = "status", required = false) RaffleTicketStatus status,
-            @RequestParam(value = "source", required = false) RaffleTicketSource source,
-            @RequestParam(value = "issuedAt", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime issuedAt,
-            @PageableDefault(size = 20, page = 0) Pageable pageable) {
-        return ResponseEntity
-                .ok(raffleTicketService.getUserTickets(consumerId, status, source, issuedAt, pageable));
-    }
-
     @GetMapping("/{ticketNumber}/validate")
     public ResponseEntity<Boolean> validateTicket(@PathVariable String ticketNumber) {
         return ResponseEntity.ok(raffleTicketService.validateTicket(ticketNumber));

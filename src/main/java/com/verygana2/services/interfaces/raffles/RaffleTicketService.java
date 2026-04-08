@@ -22,10 +22,13 @@ public interface RaffleTicketService {
 
     Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status);
 
+    Long getUserWinnerTotalTickets (Long consumerId);
+
     List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId);
 
-    PagedResponse<RaffleTicketResponseDTO> getUserTickets(Long consumerId, RaffleTicketStatus status,
-            RaffleTicketSource source, ZonedDateTime issuedAt, Pageable pageable);
+    PagedResponse<RaffleTicketResponseDTO> getUserTicketsByRaffle(Long consumerId, Long raffleId, Pageable pageable);
+
+    PagedResponse<RaffleTicketResponseDTO> getUserWinnerTickets(Long consumerId, Pageable pageable);
 
     PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
             RaffleTicketSource source,ZonedDateTime issuedAt, Pageable pageable);

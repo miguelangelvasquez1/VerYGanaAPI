@@ -18,6 +18,7 @@ public class RaffleResultResponseDTO {
 
     private Long raffleId;
     private String raffleTitle;
+    private String raffleImageUrl;
     private RaffleType raffleType;
     private ZonedDateTime drawnAt;
     private String drawProof;

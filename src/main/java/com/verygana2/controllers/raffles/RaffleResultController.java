@@ -24,7 +24,7 @@ public class RaffleResultController {
 
     @GetMapping("/raffle/{raffleId}")
     public ResponseEntity<RaffleResultResponseDTO> getRaffleResultByRaffleId(@PathVariable("raffleId") Long raffleId) {
-        return ResponseEntity.ok(raffleResultService.getResponseByRaffleId(raffleId));
+        return ResponseEntity.ok(raffleResultService.getResultByRaffleId(raffleId));
     }
 
     @GetMapping("/last")

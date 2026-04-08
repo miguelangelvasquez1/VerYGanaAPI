@@ -8,12 +8,14 @@ import lombok.Data;
 @Data
 @Builder
 public class WinnerRevealPayloadDTO {
-    private int position;           // 1er, 2do, 3er lugar
-    private String ticketNumber;    // Número de boleta ganadora
-    private String userName;        // Nombre del ganador
-    private String prizeTitle;      // "MacBook Pro 2025"
-    private BigDecimal prizeValue;  // Valor del premio
-    private PrizeType prizeType;    // PHYSICAL, DIGITAL, etc.
+    private int position;           
+    private String ticketNumber;    
+    private String userName; 
+    private String userAvatarUrl;       
+    private String prizeTitle;      
+    private String prizeImageUrl;
+    private BigDecimal prizeValue;  
+    private PrizeType prizeType;    
     private int revealOrder;        // En qué número de revelación estamos (1 de 3, 2 de 3...)
-    private int totalWinners;       // Total de ganadores a revelar
+    private int totalWinners;       
 }

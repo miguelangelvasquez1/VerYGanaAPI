@@ -30,8 +30,13 @@ import lombok.NoArgsConstructor;
 @Table(name = "raffle_tickets", indexes = {
         @Index(name = "idx_raffle_consumer", columnList = "raffle_id, ticket_owner_id"),
         @Index(name = "idx_ticket_number", columnList = "ticket_number"),
-        @Index(name = "idx_consumer_tickets", columnList = "ticket_owner_id, status")
-}, uniqueConstraints = @UniqueConstraint(name = "unique_ticket", columnNames = "raffle_id, ticket_number"))
+        @Index(name = "idx_consumer_tickets", columnList = "ticket_owner_id, status"),
+        @Index(name = "idx_ticket_source_lookup", columnList = "ticket_owner_id, source, source_id")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "unique_ticket_number_per_raffle", columnNames = { "raffle_id", "ticket_number" }),
+        @UniqueConstraint(name = "unique_ticket_source_per_user", columnNames = { "ticket_owner_id", "source",
+                "source_id" })
+})
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
@@ -49,8 +54,10 @@ public class RaffleTicket {
     private String ticketNumber;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private RaffleTicketSource source;
 
+    @Column(name = "source_id", nullable = false)
     private Long sourceId;
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -58,7 +65,7 @@ public class RaffleTicket {
     private Raffle raffle;
 
     @ManyToOne
-    @JoinColumn(name = "ticketOwnerId")
+    @JoinColumn(name = "ticket_owner_Id", nullable = false)
     private ConsumerDetails ticketOwner;
 
     private Boolean isWinner;
@@ -68,7 +75,7 @@ public class RaffleTicket {
     private ZonedDateTime issuedAt;
 
     @PrePersist
-    public void onCreate (){
+    public void onCreate() {
         this.status = RaffleTicketStatus.ACTIVE;
         this.issuedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
         this.isWinner = false;

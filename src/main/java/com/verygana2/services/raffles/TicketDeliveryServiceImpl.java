@@ -6,6 +6,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
@@ -17,6 +18,7 @@ import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
+import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
@@ -32,10 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
     private final RaffleTicketService raffleTicketService;
+    private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleService raffleService;
     private final NotificationService notificationService;
 
     @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public TicketEarningResult processTicketEarningForPurchase(Long consumerId, Long purchaseId,
             BigDecimal purchaseAmount) {
 
@@ -77,16 +81,25 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
         TicketEarningResult result = new TicketEarningResult();
 
+        if (raffleTicketRepository.existsByTicketOwnerIdAndSourceAndSourceId(
+                consumerId,
+                RaffleTicketSource.PURCHASE,
+                purchaseId)) {
+
+            log.info("Tickets already issued for this purchase. Skipping...");
+            return TicketEarningResult.empty();
+        }
+
         for (Raffle raffle : raffles) {
             log.info("Processing raffle: {} (ID: {}, Type: {})",
                     raffle.getTitle(), raffle.getId(), raffle.getRaffleType());
             try {
-                processRaffle(
-                        raffle,
-                        consumerId,
-                        purchaseId,
-                        purchaseAmount,
-                        result);
+
+                // Solo permite emitir tickets de una rifa activa encontrada
+                if (processRaffle(raffle, consumerId, purchaseId, purchaseAmount, result)) {
+                    log.info("Tickets awarded. Stopping further processing.");
+                    break;
+                }
 
             } catch (LimitReachedException e) {
                 // Límite alcanzado - no es error grave, continuar con siguiente rifa
@@ -103,7 +116,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         return result;
     }
 
-    private void processRaffle(
+    private boolean processRaffle(
             Raffle raffle,
             Long consumerId,
             Long purchaseId,
@@ -128,7 +141,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
         if (purchaseRule == null) {
             log.debug("Raffle {} has no active PURCHASE rule. Skipping.", raffle.getId());
-            return;
+            return false;
         }
 
         log.info("Found PURCHASE rule: ID={}, MinAmount={}, TicketsToAward={}",
@@ -149,7 +162,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         // 3. Validar condiciones de la regla
         if (!meetsConditions) {
             log.debug("Purchase doesn't meet rule conditions for raffle {}. Skipping.", raffle.getId());
-            return;
+            return false;
         }
 
         // 4. Calcular tickets a otorgar
@@ -159,7 +172,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
         if (ticketsToAward <= 0) {
             log.debug("No tickets to award for raffle {}. Skipping.", raffle.getId());
-            return;
+            return false;
         }
 
         // 5. Intentar emitir tickets
@@ -181,13 +194,17 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                     issuedTickets.size(), consumerId, raffle.getId(), raffle.getTitle());
 
             // 7. Enviar notificación (asíncrona)
-            sendNotification(consumerId, raffle, issuedTickets.size());
+            if (result.getTotalTicketsIssued() > 0) {
+                sendNotification(consumerId, raffle, issuedTickets.size());
+            }
 
         } catch (Exception e) {
             log.error("Failed to issue tickets for raffle {}: {}", raffle.getId(), e.getMessage(), e); // ✅ LOG
-                                                                                                         // AGREGADO
+                                                                                                       // AGREGADO
             throw e; // Re-lanzar para que sea capturado por processRaffles
         }
+
+        return true;
 
     }
 
