@@ -511,6 +511,7 @@ public class DrawingServiceImpl implements DrawingService {
         winners.forEach(w -> {
             // Forzar carga de cada relación lazy accediendo a un campo
             w.getWinner().getUserName();
+            w.getWinner().getAvatar().getImageUrl();
             w.getWinningTicket().getTicketNumber();
             w.getPrize().getTitle();
             w.getPrize().getValue();

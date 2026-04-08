@@ -11,7 +11,7 @@ import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 public interface RaffleWinnerService {
 
     List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId (Long raffleId);
-    PagedResponse<PrizeWonResponseDTO> getWonPrizesList (Long consumerId, Pageable pageable);
+    PagedResponse<PrizeWonResponseDTO> getWonPrizesList (Long consumerId, Boolean isClaimed, Pageable pageable);
     List<WinnerSummaryResponseDTO> getLastRaffleWinners();
     void claimPrize ();
 }

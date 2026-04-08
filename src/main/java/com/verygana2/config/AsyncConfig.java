@@ -1,6 +1,8 @@
 package com.verygana2.config;
 
 import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -34,8 +36,17 @@ public class AsyncConfig {
         executor.setQueueCapacity(10);
         executor.setThreadNamePrefix("draw-reveal-");
         executor.setWaitForTasksToCompleteOnShutdown(true); // No cortar revelaciones en medio
-        executor.setAwaitTerminationSeconds(60);            // Esperar hasta 60s al apagar
+        executor.setAwaitTerminationSeconds(60); // Esperar hasta 60s al apagar
         executor.initialize();
         return executor;
+    }
+
+    @Bean(name = "precisionDrawExecutor")
+    public ScheduledExecutorService precisionDrawExecutor() {
+        return Executors.newScheduledThreadPool(3, r -> {
+            Thread t = new Thread(r, "precision-draw-");
+            t.setDaemon(true);
+            return t;
+        });
     }
 }

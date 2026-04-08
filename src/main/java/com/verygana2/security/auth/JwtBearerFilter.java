@@ -27,6 +27,7 @@ public class JwtBearerFilter extends OncePerRequestFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(JwtBearerFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String SSE_ENDPOINT = "/notifications/stream";
 
     private final JwtDecoder jwtDecoder;
 
@@ -34,17 +35,18 @@ public class JwtBearerFilter extends OncePerRequestFilter {
         this.jwtDecoder = jwtDecoder;
     }
 
-    //shouldFilterInternal?
+    // shouldFilterInternal?
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain filterChain) throws ServletException, IOException {
-        String token = extractTokenFromHeader(request);
+            @NonNull HttpServletResponse response,
+            @NonNull FilterChain filterChain) throws ServletException, IOException {
+        String token = extractToken(request);
 
         if (token != null) {
             try {
-                // Decode and validate JWT (signature, expiration, issuer, audience) <-- IMPORTANTE
+                // Decode and validate JWT (signature, expiration, issuer, audience) <--
+                // IMPORTANTE
                 Jwt jwt = jwtDecoder.decode(token);
 
                 if (!isAccessToken(jwt)) {
@@ -72,11 +74,19 @@ public class JwtBearerFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-    private String extractTokenFromHeader(HttpServletRequest request) {
+    private String extractToken(HttpServletRequest request) {
         String authorizationHeader = request.getHeader("Authorization");
         if (StringUtils.hasText(authorizationHeader) && authorizationHeader.startsWith(BEARER_PREFIX)) {
             String token = authorizationHeader.substring(BEARER_PREFIX.length()).trim();
-            return StringUtils.hasText(token) ? token : null;
+            if (StringUtils.hasText(token))
+                return token;
+        }
+        if (request.getRequestURI().endsWith(SSE_ENDPOINT)) {
+            String queryToken = request.getParameter("token");
+            if (StringUtils.hasText(queryToken)) {
+                logger.debug("JWT extracted from query param for SSE connection");
+                return queryToken;
+            }
         }
         return null;
     }

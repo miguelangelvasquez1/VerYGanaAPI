@@ -31,6 +31,7 @@ import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
+import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.mappers.raffles.PrizeMapper;
@@ -77,7 +78,7 @@ public class RaffleServiceImpl implements RaffleService {
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
 
-    private static final String domain = "https://cdn.verygana.com/";
+    private static final String domain = "https://cdn.verygana.com/public/";
 
     @Override
     public PrepareRaffleCreationResponseDTO prepareRaffleCreation(Long adminId, CreateRaffleRequestDTO raffleData,
@@ -339,7 +340,7 @@ public class RaffleServiceImpl implements RaffleService {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         String extension = getFileExtension(metadata.getOriginalFileName());
 
-        return String.format("public/raffles/%s-%s%s",
+        return String.format("raffles/%s-%s%s",
                 timestamp, uuid, extension);
     }
 
@@ -348,7 +349,7 @@ public class RaffleServiceImpl implements RaffleService {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         String extension = getFileExtension(metadata.getOriginalFileName());
 
-        return String.format("public/prizes/raffle-%d/%s-%s%s",
+        return String.format("prizes/raffle-%d/%s-%s%s",
                 raffleId, timestamp, uuid, extension);
     }
 
@@ -619,12 +620,11 @@ public class RaffleServiceImpl implements RaffleService {
                 .findLeaderboard(raffleId, PageRequest.of(0, 10))
                 .stream()
                 .map(row -> new ParticipantLeaderboardDTO(
-                        (Long)   row[0],
+                        (Long) row[0],
                         (String) row[1],
                         (String) row[2],
-                        (Long)   row[3],
-                        (Double) row[4]
-                ))
+                        (Long) row[3],
+                        (Double) row[4]))
                 .toList();
     }
 
@@ -651,6 +651,37 @@ public class RaffleServiceImpl implements RaffleService {
         Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, pageable);
         actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(actives);
+    }
+
+    @Override
+    public PagedResponse<UserRaffleSummaryResponseDTO> getMyRafflesByStatus(Long consumerId, RaffleStatus status,
+            Pageable pageable) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        if (!(status == RaffleStatus.ACTIVE || status == RaffleStatus.COMPLETED)) {
+            throw new IllegalArgumentException("Raffle status must be 'ACTIVE' OR 'COMPLETED'");
+        }
+
+        Page<UserRaffleSummaryResponseDTO> raffles = raffleRepository.findMyRafflesByStatus(consumerId, status, pageable);
+        raffles.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        return PagedResponse.from(raffles);
+    }
+
+    @Override
+    public Long countMyRafflesByStatus(Long consumerId, RaffleStatus status) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        if (!(status == RaffleStatus.ACTIVE || status == RaffleStatus.COMPLETED)) {
+            throw new IllegalArgumentException("Raffle status must be 'ACTIVE' OR 'COMPLETED'");
+        }
+
+        return raffleRepository.countMyRafflesByStatus(consumerId, status);
     }
 
 }

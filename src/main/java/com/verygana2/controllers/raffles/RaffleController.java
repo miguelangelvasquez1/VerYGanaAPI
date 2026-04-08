@@ -10,6 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,6 +24,7 @@ import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
+import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.raffles.Raffle;
@@ -95,6 +98,18 @@ public class RaffleController {
                 raffle);
 
         return ResponseEntity.ok(status);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<PagedResponse<UserRaffleSummaryResponseDTO>> getMyRafflesByStatus (@AuthenticationPrincipal Jwt jwt, @RequestParam RaffleStatus status, @PageableDefault(size = 10, page = 0) Pageable pageable){
+        Long consumerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(raffleService.getMyRafflesByStatus(consumerId, status, pageable));
+    }
+
+    @GetMapping("/me/count")
+    public ResponseEntity<Long> countMyRafflesByStatus (@AuthenticationPrincipal Jwt jwt, @RequestParam RaffleStatus status) {
+        Long consumerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(raffleService.countMyRafflesByStatus(consumerId, status));
     }
 
 }
