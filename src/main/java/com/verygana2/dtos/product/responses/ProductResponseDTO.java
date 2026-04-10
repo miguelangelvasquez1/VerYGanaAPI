@@ -14,7 +14,7 @@ public class ProductResponseDTO {
     private BigDecimal price;
     private Double averageRate;
     private String categoryName;
-    private String shopName;
+    private String companyName;
     private Integer stock;
     private Integer reviewCount; // Cantidad de reseñas del producto
     private List<ProductReviewResponseDTO> reviews; // Lista de reseñas del producto

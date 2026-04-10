@@ -11,5 +11,4 @@ import com.verygana2.models.userDetails.CommercialDetails;
 public interface CommercialDetailsRepository extends JpaRepository<CommercialDetails, Long>{
     Optional<CommercialDetails> findByCompanyName(String companyName);
     Optional<CommercialDetails> findByUser_Id(Long userId);
-    
 }

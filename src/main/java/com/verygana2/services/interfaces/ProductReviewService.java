@@ -14,7 +14,7 @@ import com.verygana2.dtos.productReviews.ReviewableProductResponseDTO;
 public interface ProductReviewService {
     EntityCreatedResponseDTO createProductReview (Long consumerId, CreateProductReviewRequestDTO request);
     Double getProductAvgRating (Long productId);
-    Double getSellerAvgRating (Long sellerId);
+    Double getCommercialAvgRating (Long commercialId);
     PagedResponse<ProductReviewResponseDTO> getProductReviewList (Long productId, Pageable pageable);
     List<ReviewableProductResponseDTO> getPurchaseItemsToReview(Long purchaseId, Long consumerId);
 }

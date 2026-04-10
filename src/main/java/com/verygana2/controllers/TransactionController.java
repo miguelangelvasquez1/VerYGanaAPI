@@ -17,9 +17,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.seller.responses.EarningsByMonthResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionPayoutResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.EarningsByMonthResponseDTO;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
 import com.verygana2.services.interfaces.TransactionService;
@@ -76,24 +76,24 @@ public class TransactionController {
     }
 
     @GetMapping("/earnings/anually")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<List<EarningsByMonthResponseDTO>> getEarningsByYearList (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(transactionService.getSellerEarningsByYearList(sellerId, year));
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(transactionService.getCommercialEarningsByYearList(commercialId, year));
     }
 
     @GetMapping("/earnings/monthly")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<BigDecimal> getEarningsByMonth (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(transactionService.getSellerEarningsByMonth(sellerId, year, month));
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(transactionService.getCommercialEarningsByMonth(commercialId, year, month));
     }
 
     @GetMapping("/payouts")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<PagedResponse<TransactionPayoutResponseDTO>> getSellerPayoutsPage (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month, @PageableDefault(size = 5, page = 0) Pageable pageable){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(transactionService.getSellerPayoutsPage(sellerId, year, month, pageable));
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<PagedResponse<TransactionPayoutResponseDTO>> getCommercialPayoutsPage (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month, @PageableDefault(size = 5, page = 0) Pageable pageable){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(transactionService.getCommercialPayoutsPage(commercialId, year, month, pageable));
     }
 
 }

@@ -34,12 +34,12 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductStockMapper productStockMapper;
 
     @Override
-    public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long sellerId, String search,
+    public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long commercialId, String search,
             StockStatus status, Pageable pageable) {
 
-        productRepository.findByIdAndSellerId(productId, sellerId)
+        productRepository.findByIdAndCommercialId(productId, commercialId)
                 .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and sellerId: " + sellerId + " not found",
+                        "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
         PagedResponse<ProductStock> stockPage;
@@ -61,10 +61,10 @@ public class ProductStockServiceImpl implements ProductStockService {
     }
 
     @Override
-    public ProductStockResponseDTO addStockItem(Long productId, Long sellerId, ProductStockRequestDTO request) {
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
+    public ProductStockResponseDTO addStockItem(Long productId, Long commercialId, ProductStockRequestDTO request) {
+        Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
                 .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and sellerId: " + sellerId + " not found",
+                        "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
         // Verificar que el código no exista ya
@@ -82,14 +82,14 @@ public class ProductStockServiceImpl implements ProductStockService {
     }
 
     @Override
-    public ProductStockResponseDTO updateStockItem(Long productId, Long stockId, Long sellerId,
+    public ProductStockResponseDTO updateStockItem(Long productId, Long stockId, Long commercialId,
             ProductStockRequestDTO request) {
 
         ProductStock stock = productStockRepository
-                .findByIdAndProductIdAndProductSellerId(stockId, productId, sellerId)
+                .findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Stock item with id: " + stockId + " for product: " + productId +
-                                " and seller: " + sellerId + " not found",
+                                " and commercial: " + commercialId + " not found",
                         ProductStock.class));
 
         // No permitir editar si ya está vendido
@@ -109,13 +109,13 @@ public class ProductStockServiceImpl implements ProductStockService {
     }
 
     @Override
-    public void deleteStockItem(Long productId, Long stockId, Long sellerId) {
+    public void deleteStockItem(Long productId, Long stockId, Long commercialId) {
 
         ProductStock stock = productStockRepository
-            .findByIdAndProductIdAndProductSellerId(stockId, productId, sellerId)
+            .findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId)
             .orElseThrow(() -> new ObjectNotFoundException(
                 "Stock item with id: " + stockId + " for product: " + productId + 
-                " and seller: " + sellerId + " not found", 
+                " and commercial: " + commercialId + " not found", 
                 ProductStock.class
             ));
 
@@ -128,12 +128,12 @@ public class ProductStockServiceImpl implements ProductStockService {
     }
 
     @Override
-    public BulkStockResponseDTO addBulkStockItems(Long productId, Long sellerId,
+    public BulkStockResponseDTO addBulkStockItems(Long productId, Long commercialId,
             List<ProductStockRequestDTO> requests) {
         
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
+        Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
             .orElseThrow(() -> new ObjectNotFoundException(
-                "Product with id: " + productId + " and sellerId: " + sellerId + " not found", 
+                "Product with id: " + productId + " and commercialId: " + commercialId + " not found", 
                 Product.class
             ));
 

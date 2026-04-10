@@ -1,4 +1,4 @@
-package com.verygana2.models.treasury;
+package com.verygana2.models.finance;
 
 import java.math.BigDecimal;
 import java.time.ZoneId;

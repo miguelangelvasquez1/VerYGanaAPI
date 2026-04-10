@@ -16,22 +16,22 @@ import com.verygana2.models.products.Product;
 
 public interface ProductService {
 
-    EntityCreatedResponseDTO create(CreateProductRequestDTO request, Long sellerId, MultipartFile productImage);
+    EntityCreatedResponseDTO create(CreateProductRequestDTO request, Long commercialId, MultipartFile productImage);
 
     Product getById(Long productId);
 
-    void delete (Long productId, Long sellerId);
+    void delete (Long productId, Long commercialId);
 
     // send a notification to product's owner with the reason of product elimination 
     void deleteForAdmin(Long productId);
 
-    EntityUpdatedResponseDTO edit (Long productId, Long sellerId, UpdateProductRequestDTO createOrEditProductRequest, MultipartFile productImage);
+    EntityUpdatedResponseDTO edit (Long productId, Long commercialId, UpdateProductRequestDTO createOrEditProductRequest, MultipartFile productImage);
 
     PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page);
 
-    PagedResponse<ProductSummaryResponseDTO> getSellerProducts(Long sellerId, Integer page);
+    PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page);
     
-    Long getTotalSellerProducts (Long sellerId);
+    Long getTotalCommercialProducts (Long commercialId);
 
     PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery,
             Long categoryId,
@@ -47,7 +47,7 @@ public interface ProductService {
     void addFavorite (Long consumerId, Long productId); // pending
     void removeFavorite(Long consumerId, Long productId); // pending
 
-    ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long sellerId);
+    ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long commercialId);
 
     Long countFavoriteProductsByConsumerId(Long consumerId);
 }

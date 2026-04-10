@@ -10,6 +10,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.models.enums.PaymentMethod;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
+import com.verygana2.models.finance.Wallet;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

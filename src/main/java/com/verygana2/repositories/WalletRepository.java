@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.Wallet;
+import com.verygana2.models.finance.Wallet;
 
 import jakarta.persistence.LockModeType;
 

@@ -27,7 +27,7 @@ public class EmailController {
         Purchase purchase = purchaseService.getPurchaseById(10L);
         String contactEmail = "juanparodriguezg@gmail.com";
         emailService.sendPurchaseConfirmation(purchase, contactEmail);
-        emailService.sendSellerSaleNotification(purchase);
+        emailService.sendCommercialSaleNotification(purchase);
         return ResponseEntity.ok(new EntityCreatedResponseDTO(purchase.getId(), "email sent succesfully", Instant.now()));
     }
 }

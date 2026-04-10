@@ -79,27 +79,27 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     //@Async
-    public void sendSellerSaleNotification(Purchase purchase) {
-        log.info("Sending seller sale notification for purchase ID: {}", purchase.getId());
+    public void sendCommercialSaleNotification(Purchase purchase) {
+        log.info("Sending commercial sale notification for purchase ID: {}", purchase.getId());
 
         // Agrupar por vendedor y enviar una notificación a cada uno
         purchase.getItems().stream()
-                .map(item -> item.getProduct().getSeller())
+                .map(item -> item.getProduct().getCommercial())
                 .distinct()
-                .forEach(seller -> {
+                .forEach(commercial -> {
                     try {
-                        String sellerEmail = seller.getUser().getEmail();
+                        String commercialEmail = commercial.getUser().getEmail();
                         String subject = String.format("🎉 Nueva Venta - Orden #%d", purchase.getId());
-                        String htmlContent = buildSellerNotificationHtml(purchase, seller.getId());
+                        String htmlContent = buildCommercialNotificationHtml(purchase, commercial.getId());
 
-                        boolean sent = sendEmail(sellerEmail, subject, htmlContent);
+                        boolean sent = sendEmail(commercialEmail, subject, htmlContent);
 
                         if (sent) {
-                            log.info("Seller notification sent to: {}", sellerEmail);
+                            log.info("Commercial notification sent to: {}", commercialEmail);
                         }
                     } catch (Exception e) {
-                        log.error("Error sending seller notification to seller ID: {}",
-                                seller.getId(), e);
+                        log.error("Error sending commercial notification to commercial ID: {}",
+                                commercial.getId(), e);
                     }
                 });
     }
@@ -284,7 +284,7 @@ public class SendGridEmailService implements EmailService {
     /**
      * Construye el HTML del email de notificación para el vendedor
      */
-    private String buildSellerNotificationHtml(Purchase purchase, Long sellerId) {
+    private String buildCommercialNotificationHtml(Purchase purchase, Long commercialId) {
         // Similar structure pero enfocado en el vendedor
         // Por ahora retornaremos algo simple
         return String.format(

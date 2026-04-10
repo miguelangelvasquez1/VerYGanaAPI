@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.models.enums.PlatformTransactionType;
-import com.verygana2.models.treasury.PlatformTransaction;
+import com.verygana2.models.finance.PlatformTransaction;
 import com.verygana2.repositories.PlatformTransactionRepository;
 import com.verygana2.services.interfaces.PlatformTransactionService;
 

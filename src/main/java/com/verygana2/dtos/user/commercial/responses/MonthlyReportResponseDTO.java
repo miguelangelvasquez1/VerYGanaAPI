@@ -1,4 +1,4 @@
-package com.verygana2.dtos.seller.responses;
+package com.verygana2.dtos.user.commercial.responses;
 
 import java.math.BigDecimal;
 
@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class MonthlyReportResponseDTO {
-    private Long sellerId;
+    private Long commercialId;
     private Integer month;
     private BigDecimal totalSalesAmount;
     private BigDecimal earnings;

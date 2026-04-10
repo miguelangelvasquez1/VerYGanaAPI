@@ -1,4 +1,4 @@
-package com.verygana2.models;
+package com.verygana2.models.finance;
 
 import java.math.BigDecimal;
 import java.time.ZoneId;
@@ -8,6 +8,7 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.springframework.data.annotation.Version;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.models.User;
 import com.verygana2.models.enums.WalletStatus;
 
 import jakarta.persistence.Column;

@@ -65,7 +65,7 @@ public class ProductController {
      * Crear un producto
      */
     @PostMapping("/create")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<EntityCreatedResponseDTO> createProduct(@Valid @RequestPart("product") String productJson,
             @RequestPart("productImage") MultipartFile productImage, @AuthenticationPrincipal Jwt jwt) {
         try {
@@ -102,7 +102,7 @@ public class ProductController {
      * Eliminar un producto
      */
     @DeleteMapping("/{productId}")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<Void> deleteProduct(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long userId = jwt.getClaim("userId");
         productService.delete(productId, userId);
@@ -125,18 +125,18 @@ public class ProductController {
      * obtener la informacion guardada de un producto para editarlo
      */
     @GetMapping("/edit/{productId}")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<ProductEditInfoResponseDTO> getProductEditInfo(@PathVariable Long productId,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(productService.getProductEditInfo(productId, sellerId));
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.getProductEditInfo(productId, commercialId));
     }
 
     /**
      * Editar un producto
      */
     @PutMapping("/edit/{productId}")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<EntityUpdatedResponseDTO> editProduct(
             @Valid @RequestPart("product") String productJson,
             @RequestPart(value = "productImage", required = false) MultipartFile productImage,
@@ -162,8 +162,8 @@ public class ProductController {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, sb.toString());
             }
 
-            Long sellerId = jwt.getClaim("userId");
-            EntityUpdatedResponseDTO response = productService.edit(productId, sellerId, request, productImage);
+            Long commercialId = jwt.getClaim("userId");
+            EntityUpdatedResponseDTO response = productService.edit(productId, commercialId, request, productImage);
             return ResponseEntity.ok(response);
 
         } catch (JsonProcessingException e) {
@@ -175,7 +175,7 @@ public class ProductController {
      * Obtener el listado de codigos registrados de un producto
      */
     @GetMapping("/{productId}/stock")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<PagedResponse<ProductStockResponseDTO>> getProductStock(
             @PathVariable Long productId,
             @RequestParam(defaultValue = "0") int page,
@@ -183,24 +183,24 @@ public class ProductController {
             @RequestParam(required = false) String search,
             @RequestParam(required = false) StockStatus status,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
+        Long commercialId = jwt.getClaim("userId");
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
 
-        return ResponseEntity.ok(productStockService.getProductStock(productId, sellerId, search, status, pageable));
+        return ResponseEntity.ok(productStockService.getProductStock(productId, commercialId, search, status, pageable));
     }
 
     /**
      * Agregar un nuevo código de stock
      */
     @PostMapping("/{productId}/stock")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<ProductStockResponseDTO> addStockItem(
             @PathVariable Long productId,
             @RequestBody @Valid ProductStockRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        ProductStockResponseDTO created = productStockService.addStockItem(productId, sellerId, request);
+        Long commercialId = jwt.getClaim("userId");
+        ProductStockResponseDTO created = productStockService.addStockItem(productId, commercialId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
@@ -208,14 +208,14 @@ public class ProductController {
      * Editar un código de stock específico
      */
     @PutMapping("/{productId}/stock/{stockId}")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<ProductStockResponseDTO> updateStockItem(
             @PathVariable Long productId,
             @PathVariable Long stockId,
             @RequestBody @Valid ProductStockRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        ProductStockResponseDTO updated = productStockService.updateStockItem(productId, stockId, sellerId, request);
+        Long commercialId = jwt.getClaim("userId");
+        ProductStockResponseDTO updated = productStockService.updateStockItem(productId, stockId, commercialId, request);
         return ResponseEntity.ok(updated);
     }
 
@@ -223,13 +223,13 @@ public class ProductController {
      * Eliminar un código de stock específico
      */
     @DeleteMapping("/{productId}/stock/{stockId}")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<Void> deleteStockItem(
             @PathVariable Long productId,
             @PathVariable Long stockId,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        productStockService.deleteStockItem(productId, stockId, sellerId);
+        Long commercialId = jwt.getClaim("userId");
+        productStockService.deleteStockItem(productId, stockId, commercialId);
         return ResponseEntity.noContent().build();
     }
 
@@ -237,13 +237,13 @@ public class ProductController {
      * Agregar múltiples códigos de stock de una vez
      */
     @PostMapping("/{productId}/stock/bulk")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<BulkStockResponseDTO> addBulkStockItems(
             @PathVariable Long productId,
             @RequestBody @Valid List<ProductStockRequestDTO> requests,
             @AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        BulkStockResponseDTO response = productStockService.addBulkStockItems(productId, sellerId, requests);
+        Long commercialId = jwt.getClaim("userId");
+        BulkStockResponseDTO response = productStockService.addBulkStockItems(productId, commercialId, requests);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -285,31 +285,31 @@ public class ProductController {
     /**
      * Obtener los productos de un vendedor
      */
-    @GetMapping("/seller/{sellerId}")
-    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getSellerProducts(@PathVariable Long sellerId,
+    @GetMapping("/commercial/{commercialId}")
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getCommercialProducts(@PathVariable Long commercialId,
             @RequestParam(defaultValue = "0") Integer page) {
-        return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));
+        return ResponseEntity.ok(productService.getCommercialProducts(commercialId, page));
     }
 
     /**
      * Obtener los productos de un vendedor siendo el vendedor
      */
     @GetMapping("/myProducts")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getMyProducts(@AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") Integer page) {
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(productService.getSellerProducts(sellerId, page));
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.getCommercialProducts(commercialId, page));
     }
 
     /**
      * Obtener el numero de productos activos que tiene un vendedor
      */
     @GetMapping("/totalProducts")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Long> getTotalSellerProducts(@AuthenticationPrincipal Jwt jwt) {
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(productService.getTotalSellerProducts(sellerId));
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Long> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productService.getTotalCommercialProducts(commercialId));
     }
 
     /**
