@@ -26,23 +26,23 @@ public class PurchaseItemController {
     private final PurchaseItemService purchaseItemService;
 
     @GetMapping("/totalSales")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Long> getTotalSellerSales(@AuthenticationPrincipal Jwt jwt){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(purchaseItemService.getTotalSalesbySeller(sellerId));
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Long> getTotalCommercialSales(@AuthenticationPrincipal Jwt jwt){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseItemService.getTotalSalesbyCommercial(commercialId));
     }
 
     @GetMapping("/totalSales/monthly")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Integer> getTotalSellerSalesByMonth(@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(purchaseItemService.getTotalSellerSalesByMonth(sellerId, year, month));
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Integer> getTotalCommercialSalesByMonth(@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseItemService.getTotalCommercialSalesByMonth(commercialId, year, month));
     }
 
     @GetMapping("/topSelling")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<PagedResponse<FeaturedProductResponseDTO>> getTopSellingProductsPage (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 5, page = 0) Pageable pageable){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(purchaseItemService.getTopSellingProductsPage(sellerId, pageable));
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseItemService.getTopSellingProductsPage(commercialId, pageable));
     }
 }

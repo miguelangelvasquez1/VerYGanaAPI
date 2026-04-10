@@ -18,7 +18,7 @@ import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.User;
-import com.verygana2.models.Wallet;
+import com.verygana2.models.finance.Wallet;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.services.interfaces.PlatformTreasuryService;

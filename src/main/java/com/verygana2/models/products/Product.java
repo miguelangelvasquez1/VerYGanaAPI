@@ -9,7 +9,7 @@ import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.models.enums.DeliveryType;
 import com.verygana2.models.enums.DigitalFormat;
 import com.verygana2.models.enums.StockStatus;
-import com.verygana2.models.userDetails.SellerDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.*;
 import lombok.EqualsAndHashCode;
@@ -19,7 +19,7 @@ import lombok.ToString;
 
 @Entity
 @Table(name = "products", indexes = {
-        @Index(name = "idx_seller_id", columnList = "seller_id"),
+        @Index(name = "idx_commercial_id", columnList = "commercial_id"),
         @Index(name = "idx_product_category_id", columnList = "product_category_id"),
         @Index(name = "idx_price", columnList = "price"),
         @Index(name = "idx_average_rate", columnList = "average_rate"),
@@ -27,8 +27,8 @@ import lombok.ToString;
 })
 @Getter
 @Setter
-@ToString(exclude = { "seller", "reviews", "stockItems", "productCategory" })
-@EqualsAndHashCode(exclude = { "seller", "reviews", "stockItems", "productCategory" })
+@ToString(exclude = { "commercial", "reviews", "stockItems", "productCategory" })
+@EqualsAndHashCode(exclude = { "commercial", "reviews", "stockItems", "productCategory" })
 public class Product {
 
     @Id
@@ -36,8 +36,8 @@ public class Product {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "seller_id", nullable = false)
-    private SellerDetails seller;
+    @JoinColumn(name = "commercial_id", nullable = false)
+    private CommercialDetails commercial;
 
     @OneToMany(mappedBy = "product", cascade = CascadeType.ALL)
     private List<ProductReview> reviews = new ArrayList<>();

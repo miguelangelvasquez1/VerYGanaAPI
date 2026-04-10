@@ -12,9 +12,9 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.dtos.seller.responses.EarningsByMonthResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionPayoutResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.EarningsByMonthResponseDTO;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
@@ -95,49 +95,49 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
    @Query("""
          SELECT SUM(t.amount)
          FROM Transaction t
-         WHERE t.wallet.user.id = :sellerId
+         WHERE t.wallet.user.id = :commercialId
          AND t.transactionType = com.verygana2.models.enums.TransactionType.PRODUCT_SALE
          """)
-   BigDecimal sumTotalSellerEarningsAmount(@Param("sellerId") Long sellerId);
+   BigDecimal sumTotalCommercialEarningsAmount(@Param("commercialId") Long commercialId);
 
    @Query("""
-         SELECT new com.verygana2.dtos.seller.responses.EarningsByMonthResponseDTO(
+         SELECT new com.verygana2.dtos.user.commercial.responses.EarningsByMonthResponseDTO(
          t.wallet.user.id,
          :year,
          MONTH(t.createdAt),
          SUM(t.amount)
          )
          FROM Transaction t
-         WHERE t.wallet.user.id = :sellerId
+         WHERE t.wallet.user.id = :commercialId
          AND t.transactionType = com.verygana2.models.enums.TransactionType.PRODUCT_SALE
          AND YEAR(t.createdAt) = :year
          GROUP BY MONTH(t.createdAt)
          ORDER BY MONTH(t.createdAt)
          """)
-   List<EarningsByMonthResponseDTO> findSellerEarningsByYear(@Param("sellerId") Long sellerId,
+   List<EarningsByMonthResponseDTO> findCommercialEarningsByYear(@Param("commercialId") Long commercialId,
          @Param("year") Integer year);
 
    @Query("""
          SELECT SUM(t.amount)
          FROM Transaction t
-         WHERE t.wallet.user.id = :sellerId
+         WHERE t.wallet.user.id = :commercialId
          AND t.transactionType = com.verygana2.models.enums.TransactionType.PRODUCT_SALE
          AND t.createdAt >= :startDate
          AND t.createdAt < :endDate
            """)
-   BigDecimal findSellerEarningsByMonth(@Param("sellerId") Long sellerId, @Param("startDate") ZonedDateTime startDate,
+   BigDecimal findCommercialEarningsByMonth(@Param("commercialId") Long commercialId, @Param("startDate") ZonedDateTime startDate,
          @Param("endDate") ZonedDateTime endDate);
 
    @Query("SELECT new com.verygana2.dtos.transaction.responses.TransactionPayoutResponseDTO(" +
          "t.id, t.referenceId, t.createdAt, t.amount, t.transactionState) " +
          "FROM Transaction t " +
-         "WHERE t.wallet.user.id = :sellerId " +
+         "WHERE t.wallet.user.id = :commercialId " +
          "AND t.transactionType = com.verygana2.models.enums.TransactionType.PRODUCT_SALE " +
          "AND t.createdAt >= :startDate " +
          "AND t.createdAt < :endDate " +
          "ORDER BY t.createdAt DESC")
-   Page<TransactionPayoutResponseDTO> findSellerPayouts(
-         @Param("sellerId") Long sellerId,
+   Page<TransactionPayoutResponseDTO> findCommercialPayouts(
+         @Param("commercialId") Long commercialId,
          @Param("startDate") ZonedDateTime startDate,
          @Param("endDate") ZonedDateTime endDate,
          Pageable pageable);

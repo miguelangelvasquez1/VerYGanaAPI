@@ -28,15 +28,15 @@ import com.verygana2.models.enums.StockStatus;
 import com.verygana2.models.products.FavoriteProduct;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.products.ProductCategory;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.models.userDetails.SellerDetails;
 import com.verygana2.repositories.FavoriteProductRepository;
 import com.verygana2.repositories.ProductRepository;
 import com.verygana2.repositories.ProductStockRepository;
 import com.verygana2.services.interfaces.ProductCategoryService;
 import com.verygana2.services.interfaces.ProductService;
+import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
-import com.verygana2.services.interfaces.details.SellerDetailsService;
 import com.verygana2.storage.dto.UploadResult;
 import com.verygana2.storage.service.CloudStorageService;
 
@@ -57,7 +57,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductMapper productMapper;
 
-    private final SellerDetailsService sellerDetailsService;
+    private final CommercialDetailsService commercialDetailsService;
 
     private final ConsumerDetailsService consumerDetailsService;
 
@@ -66,13 +66,13 @@ public class ProductServiceImpl implements ProductService {
     private final ProductStockRepository productStockRepository;
 
     @Override
-    public EntityCreatedResponseDTO create(CreateProductRequestDTO request, Long sellerId,
+    public EntityCreatedResponseDTO create(CreateProductRequestDTO request, Long commercialId,
             MultipartFile productImage) {
-        SellerDetails seller = sellerDetailsService.getSellerById(sellerId);
+        CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
         ProductCategory category = productCategoryService.getById(request.getProductCategoryId());
 
         Product product = productMapper.toProduct(request);
-        product.setSeller(seller);
+        product.setCommercial(commercial);
         product.setProductCategory(category);
 
         UploadResult uploadResult = cloudStorageService.uploadFile(productImage, "products", null);
@@ -96,10 +96,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void delete(Long productId, Long sellerId) {
-        if (!productRepository.existsByIdAndSellerId(productId, sellerId)) {
+    public void delete(Long productId, Long commercialId) {
+        if (!productRepository.existsByIdAndCommercialId(productId, commercialId)) {
             throw new ObjectNotFoundException(
-                    "Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
+                    "Product with id: " + productId + " and commercialId: " + commercialId + " not found", Product.class);
         }
         Product product = getById(productId);
         product.setActive(false);
@@ -115,11 +115,11 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public EntityUpdatedResponseDTO edit(Long productId, Long sellerId,
+    public EntityUpdatedResponseDTO edit(Long productId, Long commercialId,
             UpdateProductRequestDTO updateProductRequestDTO, MultipartFile productImage) {
-        if (!productRepository.existsByIdAndSellerId(productId, sellerId)) {
+        if (!productRepository.existsByIdAndCommercialId(productId, commercialId)) {
             throw new ObjectNotFoundException(
-                    "Product with id: " + productId + " and sellerId: " + sellerId + " not found", Product.class);
+                    "Product with id: " + productId + " and commercialId: " + commercialId + " not found", Product.class);
         }
         Product product = getById(productId);
         String oldImageUrl = product.getImageUrl();
@@ -242,23 +242,23 @@ public class ProductServiceImpl implements ProductService {
         return response;
     }
 
-    // Métodos para Seller
+    // Métodos para Commercial
     @Override
-    public PagedResponse<ProductSummaryResponseDTO> getSellerProducts(Long sellerId, Integer page) {
+    public PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page) {
 
-        if (!sellerDetailsService.existsSellerById(sellerId)) {
-            throw new ObjectNotFoundException("Seller with id:" + sellerId + " not found", SellerDetails.class);
+        if (!commercialDetailsService.existsCommercialById(commercialId)) {
+            throw new ObjectNotFoundException("Commercial with id:" + commercialId + " not found ", CommercialDetails.class);
         }
 
         Integer pageIndex = (page != null && page >= 0) ? page : 0;
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
-        PagedResponse<Product> products = PagedResponse.from(productRepository.findBySellerId(sellerId, pageable));
+        PagedResponse<Product> products = PagedResponse.from(productRepository.findByCommercialId(commercialId, pageable));
         return products.map(productMapper::toProductSummaryResponseDTO);
     }
 
     @Override
-    public Long getTotalSellerProducts(Long sellerId) {
-        return productRepository.countSellerProducts(sellerId);
+    public Long getTotalCommercialProducts(Long commercialId) {
+        return productRepository.countCommercialProducts(commercialId);
     }
 
     @Override
@@ -314,18 +314,18 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long sellerId) {
+    public ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long commercialId) {
         if (productId == null || productId <= 0) {
             throw new IllegalArgumentException("Product id must be positive");
         }
 
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
-        Product product = productRepository.findByIdAndSellerId(productId, sellerId)
+        Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
                 .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and seller id: " + sellerId + " not found ", Product.class));
+                        "Product with id: " + productId + " and commercial id: " + commercialId + " not found ", Product.class));
 
         ProductEditInfoResponseDTO dto = productMapper.toProductEditInfoDTO(product);
 

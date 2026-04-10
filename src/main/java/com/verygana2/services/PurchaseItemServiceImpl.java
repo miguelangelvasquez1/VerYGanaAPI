@@ -25,15 +25,15 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final PurchaseItemRepository purchaseItemRepository;
 
     @Override
-    public Long getTotalSalesbySeller(Long sellerId) {
-        if (sellerId == null) {
-            throw new IllegalArgumentException("Seller id cannot be null");
+    public Long getTotalSalesbyCommercial(Long commercialId) {
+        if (commercialId == null) {
+            throw new IllegalArgumentException("Commercial id cannot be null");
         }
 
-        if (sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+        if (commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
-        return purchaseItemRepository.countTotalSalesBySellerId(sellerId);
+        return purchaseItemRepository.countTotalSalesByCommercialId(commercialId);
     }
 
     @Override
@@ -75,9 +75,9 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     }
 
     @Override
-    public BigDecimal getTotalSellerSalesAmountByMonth(Long sellerId, Integer year, Integer month) {
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+    public BigDecimal getTotalCommercialSalesAmountByMonth(Long commercialId, Integer year, Integer month) {
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
         if (year == null || year <= 0) {
@@ -90,14 +90,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
 
         ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
         ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.sumTotalSellerSalesAmountByMonth(sellerId, startDate, endDate);
+        return purchaseItemRepository.sumTotalCommercialSalesAmountByMonth(commercialId, startDate, endDate);
     }
 
     @Override
-    public Integer getTotalSellerSalesByMonth(Long sellerId, Integer year, Integer month) {
+    public Integer getTotalCommercialSalesByMonth(Long commercialId, Integer year, Integer month) {
 
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
         if (year == null || year <= 0) {
@@ -110,14 +110,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
 
         ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
         ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.findTotalSellerSalesByMonth(sellerId, startDate, endDate);
+        return purchaseItemRepository.findTotalCommercialSalesByMonth(commercialId, startDate, endDate);
     }
 
     @Override
-    public BigDecimal getTotalPlatformComissionsByMonth(Long sellerId, Integer year, Integer month) {
+    public BigDecimal getTotalPlatformComissionsByMonth(Long commercialId, Integer year, Integer month) {
 
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
         if (year == null || year <= 0) {
@@ -130,18 +130,18 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
 
         ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
         ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.sumTotalPlatformCommissionsByMonth(sellerId, startDate, endDate);
+        return purchaseItemRepository.sumTotalPlatformCommissionsByMonth(commercialId, startDate, endDate);
 
     }
 
     @Override
-    public PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsPage(Long sellerId, Pageable pageable) {
+    public PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsPage(Long commercialId, Pageable pageable) {
         
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
-        Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(sellerId, pageable);
+        Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(commercialId, pageable);
         
         return PagedResponse.from(topSellingProducts);
     }

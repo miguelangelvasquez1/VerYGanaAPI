@@ -41,8 +41,8 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
     @Query("SELECT ps FROM ProductStock ps " +
            "WHERE ps.id = :stockId " +
            "AND ps.product.id = :productId " +
-           "AND ps.product.seller.id = :sellerId")
-    Optional<ProductStock> findByIdAndProductIdAndProductSellerId(@Param("stockId") Long stockId, @Param("productId") Long productId, @Param("sellerId") Long sellerId);
+           "AND ps.product.commercial.id = :commercialId")
+    Optional<ProductStock> findByIdAndProductIdAndProductCommercialId(@Param("stockId") Long stockId, @Param("productId") Long productId, @Param("commercialId") Long commercialId);
     
     boolean existsByProductIdAndCode(Long productId, String code);
     

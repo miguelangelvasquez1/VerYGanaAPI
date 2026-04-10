@@ -39,7 +39,7 @@ class ConsumerDetails {
   municipality
 }
 
-class SellerDetails {
+class CommercialDetails {
   shopName
   nit
 }
@@ -96,6 +96,6 @@ PaymentInfo --> "1" User : user >
 AdminDetails -|> UserDetails
 AdvertiserDetails -|> UserDetails
 ConsumerDetails -|> UserDetails
-SellerDetails -|> UserDetails
+CommercialDetails -|> UserDetails
 
 @enduml

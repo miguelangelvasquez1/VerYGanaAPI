@@ -2,7 +2,7 @@ package com.verygana2.services.interfaces;
 
 import java.math.BigDecimal;
 
-import com.verygana2.models.treasury.PlatformTreasury;
+import com.verygana2.models.finance.PlatformTreasury;
 
 public interface PlatformTreasuryService {
     PlatformTreasury getTreasury();

@@ -34,17 +34,17 @@ public class ProductReviewController {
     private final ProductReviewService productReviewService;
 
     @GetMapping("/{productId}/avg")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<Double> getProductAvgRating (@PathVariable Long productId){
         return ResponseEntity.ok(productReviewService.getProductAvgRating(productId));
     }
 
     // Posible cambio de ubicacion de este metodo
-    @GetMapping("/seller/avg")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
-    public ResponseEntity<Double> getSellerAvgRating (@AuthenticationPrincipal Jwt jwt){
-        Long sellerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(productReviewService.getSellerAvgRating(sellerId));
+    @GetMapping("/commercial/avg")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Double> getCommercialAvgRating (@AuthenticationPrincipal Jwt jwt){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productReviewService.getCommercialAvgRating(commercialId));
     }
 
     @PostMapping("/create")

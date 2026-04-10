@@ -7,7 +7,6 @@ hide stereotypes
 enum Role {
   CONSUMER
   ADVERTISER
-  SELLER
   ADMIN
 }
 

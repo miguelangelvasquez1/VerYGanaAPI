@@ -58,12 +58,12 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
     @Transactional(readOnly = true)
     @Override
-    public Double getSellerAvgRating(Long sellerId) {
-        if (sellerId == null || sellerId <= 0) {
-            throw new IllegalArgumentException("Seller id must be positive");
+    public Double getCommercialAvgRating(Long commercialId) {
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
         }
 
-        Double avg = productReviewRepository.sellerAvgRating(sellerId);
+        Double avg = productReviewRepository.commercialAvgRating(commercialId);
 
         return (avg != null) ? avg : 0.0;
     }

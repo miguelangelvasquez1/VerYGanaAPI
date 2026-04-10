@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.models.Transaction;
-import com.verygana2.models.Wallet;
+import com.verygana2.models.finance.Wallet;
 import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.services.interfaces.ReferralPromotionService;

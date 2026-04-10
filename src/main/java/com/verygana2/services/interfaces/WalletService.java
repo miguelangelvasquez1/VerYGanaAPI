@@ -8,7 +8,7 @@ import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
 import com.verygana2.dtos.wallet.responses.WalletResponse;
 import com.verygana2.models.User;
-import com.verygana2.models.Wallet;
+import com.verygana2.models.finance.Wallet;
 
 public interface WalletService {
 

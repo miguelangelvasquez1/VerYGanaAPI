@@ -1,4 +1,4 @@
-package com.verygana2.dtos.seller.responses;
+package com.verygana2.dtos.user.commercial.responses;
 
 import java.math.BigDecimal;
 
