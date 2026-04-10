@@ -21,7 +21,6 @@ import com.verygana2.models.raffles.Raffle;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.services.interfaces.raffles.DrawingService;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service

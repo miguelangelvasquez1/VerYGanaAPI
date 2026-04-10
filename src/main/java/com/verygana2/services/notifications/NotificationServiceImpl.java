@@ -2,7 +2,6 @@ package com.verygana2.services.notifications;
 
 import java.time.Instant;
 
-import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;

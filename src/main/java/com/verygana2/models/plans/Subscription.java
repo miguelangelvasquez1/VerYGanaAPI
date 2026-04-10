@@ -5,7 +5,10 @@ import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.CommercialDetails;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -16,6 +19,19 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Suscripción mensual al plan BASIC.
+ *
+ * IMPORTANTE: Este modelo SOLO aplica para el plan BASIC (suscripción recurrente).
+ * Los planes STANDARD y PREMIUM NO son suscripciones; se activan mediante
+ * AdvertiserInvestment + Budget. Ver EffectivePlanResolver para la lógica
+ * de qué plan está activo en cada momento.
+ *
+ * Cuando un anunciante tiene un Budget activo (STANDARD/PREMIUM), su Subscription
+ * BASIC permanece registrada pero el sistema prioriza el plan por presupuesto.
+ * Al agotarse el presupuesto, el comportamiento de BASIC se reactiva
+ * automáticamente (incluida la comisión por ventas).
+ */
 @Entity
 @Table(name = "subscriptions")
 @Data
@@ -23,31 +39,42 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class Subscription {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
+    @ManyToOne(optional = false)
     private CommercialDetails commercialDetails;
 
-    @ManyToOne
+    /** Siempre debe apuntar al plan BASIC. */
+    @ManyToOne(optional = false)
     private Plan plan;
 
-    private SubscriptionStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    @Builder.Default
+    private SubscriptionStatus status = SubscriptionStatus.ACTIVE;
 
-    private BigDecimal amount;
+    /** Monto mensual cobrado. */
+    @Column(precision = 20, scale = 2)
+    private BigDecimal monthlyAmount;
 
-    private BigDecimal recoveredAmount; // suma de ventas
-    private boolean amountRecovered; // true si recoveredAmount >= amount * 6
-    private ZonedDateTime recoveryDate; // fecha de la última venta recuperada
-
+    @Column(nullable = false)
     private ZonedDateTime startDate;
-    private ZonedDateTime endDate;
+
+    /** Fecha de renovación o vencimiento del ciclo mensual actual. */
+    private ZonedDateTime nextBillingDate;
+
+    private ZonedDateTime cancelledAt;
 
     public enum SubscriptionStatus {
         ACTIVE,
-        INACTIVE,
-        CANCELLED
+        CANCELLED,
+        PAST_DUE
+    }
+
+    public boolean isActive() {
+        return SubscriptionStatus.ACTIVE.equals(status);
     }
 }

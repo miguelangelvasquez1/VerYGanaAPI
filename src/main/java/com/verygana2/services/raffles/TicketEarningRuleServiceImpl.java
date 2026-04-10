@@ -174,6 +174,7 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
                     }
                 }
             }
+            default -> throw new IllegalArgumentException("Unexpected value: " + ruleType);
 
             // case DAILY_LOGIN -> {
             //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
