@@ -56,7 +56,7 @@ class Purchase {
   subtotal
   total
   platformEarnings
-  paidToSellers
+  paidToCommercials
   status
   contactEmail
   credentialsSentAt
@@ -76,7 +76,7 @@ class PurchaseItem {
   deliveredAt
 }
 
-class SellerDetails {
+class CommercialDetails {
   shopName
   nit
 }
@@ -87,7 +87,7 @@ class ConsumerDetails {
 }
 
 ' Relations
-Product --> "1" SellerDetails : seller >
+Product --> "1" CommercialDetails : commercial >
 Product --> "0..*" ProductReview : reviews >
 Product --> "0..*" ProductStock : stockItems >
 Product --> "1" ProductCategory : productCategory >

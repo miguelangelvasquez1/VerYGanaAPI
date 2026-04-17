@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserState;
+import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.userDetails.UserDetails;
 
 import jakarta.persistence.CascadeType;

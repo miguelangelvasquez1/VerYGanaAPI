@@ -63,7 +63,7 @@ public class WalletController {
     }
 
     @PostMapping("/withdraw")
-    @PreAuthorize("hasRole('ROLE_SELLER')")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<TransactionResponse> doWithdrawal (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid WithdrawalRequest request){
         Long userId = jwt.getClaim("userId");
         TransactionResponse response = walletService.doWithdrawal(userId, request);

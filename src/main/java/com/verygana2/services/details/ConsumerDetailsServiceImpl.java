@@ -90,6 +90,5 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
 
         return consumerDetailsRepository.existsById(consumerId);
     }
-
     
 }

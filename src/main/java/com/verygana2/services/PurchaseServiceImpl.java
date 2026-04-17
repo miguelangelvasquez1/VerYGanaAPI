@@ -26,14 +26,14 @@ import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.ProductNotAvailableException;
 import com.verygana2.mappers.PurchaseMapper;
 import com.verygana2.models.Transaction;
-import com.verygana2.models.Wallet;
 import com.verygana2.models.enums.PurchaseItemStatus;
 import com.verygana2.models.enums.PurchaseStatus;
+import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.products.Product;
 import com.verygana2.models.products.ProductStock;
 import com.verygana2.models.products.Purchase;
 import com.verygana2.models.products.PurchaseItem;
-import com.verygana2.models.userDetails.SellerDetails;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.ProductRepository;
 import com.verygana2.repositories.ProductStockRepository;
 import com.verygana2.repositories.PurchaseRepository;
@@ -149,7 +149,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 finalPurchase.getTotal());
 
         // envio de correos para notificar venta a cada vendedor (emailService)
-        emailService.sendSellerSaleNotification(finalPurchase);
+        emailService.sendCommercialSaleNotification(finalPurchase);
 
         // Regalar boletos de rifas si cumple con las condiciones
         TicketEarningResult ticketResult = ticketDeliveryService.processTicketEarningForPurchase(consumerId,
@@ -265,39 +265,39 @@ public class PurchaseServiceImpl implements PurchaseService {
         log.debug("Buyer transaction saved: {}", buyerTx.getId());
 
         // 3. Agrupar items por vendedor
-        Map<SellerDetails, BigDecimal> sellerAmounts = groupItemsBySeller(purchaseWithItems);
+        Map<CommercialDetails, BigDecimal> commercialAmounts = groupItemsByCommercial(purchaseWithItems);
 
         // 4. Distribuir a cada vendedor
-        log.info("Distributing payments to {} seller(s)", sellerAmounts.size());
-        distributeSellersEarningsAndTransactions(purchaseWithItems, referenceId, sellerAmounts);
+        log.info("Distributing payments to {} commercial(s)", commercialAmounts.size());
+        distributeCommercialsEarningsAndTransactions(purchaseWithItems, referenceId, commercialAmounts);
 
         BigDecimal totalplatformEarnings = purchaseWithItems.getPlatformEarnings();
-        BigDecimal totalPaidToSellers = purchaseWithItems.getPaidToSellers();
+        BigDecimal totalPaidToCommercials = purchaseWithItems.getPaidToCommercials();
 
         // 5. ✅ Registrar UNA SOLA PlatformTransaction con el total de comisiones
-        savePurchaseDataInPlatform(purchaseWithItems, referenceId, totalplatformEarnings, totalPaidToSellers,
-                sellerAmounts.size());
+        savePurchaseDataInPlatform(purchaseWithItems, referenceId, totalplatformEarnings, totalPaidToCommercials,
+                commercialAmounts.size());
         log.info("Payment processed successfully for purchase: {}", purchaseWithItems.getId());
     }
 
     // Metodos para procesar una compra
-    private Map<SellerDetails, BigDecimal> groupItemsBySeller(Purchase purchase) {
-        Map<SellerDetails, BigDecimal> sellerAmounts = new HashMap<>();
+    private Map<CommercialDetails, BigDecimal> groupItemsByCommercial(Purchase purchase) {
+        Map<CommercialDetails, BigDecimal> commercialAmounts = new HashMap<>();
 
         for (PurchaseItem item : purchase.getItems()) {
-            SellerDetails seller = item.getProduct().getSeller();
-            BigDecimal currentAmount = sellerAmounts.getOrDefault(seller, BigDecimal.ZERO);
-            sellerAmounts.put(seller, currentAmount.add(item.getSubtotal()));
+            CommercialDetails commercial = item.getProduct().getCommercial();
+            BigDecimal currentAmount = commercialAmounts.getOrDefault(commercial, BigDecimal.ZERO);
+            commercialAmounts.put(commercial, currentAmount.add(item.getSubtotal()));
         }
 
-        return sellerAmounts;
+        return commercialAmounts;
     }
 
-    private void distributeSellersEarningsAndTransactions(Purchase purchaseWithItems, String referenceId,
-            Map<SellerDetails, BigDecimal> sellerAmounts) {
+    private void distributeCommercialsEarningsAndTransactions(Purchase purchaseWithItems, String referenceId,
+            Map<CommercialDetails, BigDecimal> commercialAmounts) {
 
-        for (Map.Entry<SellerDetails, BigDecimal> entry : sellerAmounts.entrySet()) {
-            SellerDetails seller = entry.getKey();
+        for (Map.Entry<CommercialDetails, BigDecimal> entry : commercialAmounts.entrySet()) {
+            CommercialDetails commercial = entry.getKey();
             BigDecimal grossAmount = entry.getValue();
 
             // Calcular comisión que debe pagar cada vendedor y monto neto que recibe
@@ -305,39 +305,39 @@ public class PurchaseServiceImpl implements PurchaseService {
             BigDecimal netAmount = grossAmount.subtract(commission);
 
             purchaseWithItems.updatePlatformEarnings(commission);
-            purchaseWithItems.updatePaidToSellers(netAmount);
+            purchaseWithItems.updatePaidToCommercials(netAmount);
 
             // Agregar saldo al vendedor
-            Wallet sellerWallet = walletService.getByOwnerId(seller.getUser().getId());
-            sellerWallet.addBalance(netAmount);
+            Wallet commercialWallet = walletService.getByOwnerId(commercial.getUser().getId());
+            commercialWallet.addBalance(netAmount);
 
             // Crear transacción del vendedor
-            Transaction sellerTx = Transaction.createProductSaleTransaction(
-                    sellerWallet,
+            Transaction commercialTx = Transaction.createProductSaleTransaction(
+                    commercialWallet,
                     netAmount,
                     referenceId);
-            transactionRepository.save(Objects.requireNonNull(sellerTx));
+            transactionRepository.save(Objects.requireNonNull(commercialTx));
         }
     }
 
     private void savePurchaseDataInPlatform(Purchase purchaseWithItems, String referenceId, BigDecimal platformEarnings,
-            BigDecimal totalPaidToSellers, int sellerAmountsSize) {
+            BigDecimal totalPaidToCommercials, int commercialAmountsSize) {
 
         String description = String.format(
-                "Commission from purchase #%d - Totals earnings: %s from %d seller(s)",
+                "Commission from purchase #%d - Totals earnings: %s from %d commercial(s)",
                 purchaseWithItems.getId(),
                 platformEarnings,
-                sellerAmountsSize);
+                commercialAmountsSize);
 
         platformTreasuryService.addProductsSaleCommission(
                 platformEarnings,
                 referenceId,
                 description);
 
-        String description2 = String.format("Amount reserved from purchase #%d - Total reserved: %s from %d seller(s)",
-                purchaseWithItems.getId(), totalPaidToSellers, sellerAmountsSize);
+        String description2 = String.format("Amount reserved from purchase #%d - Total reserved: %s from %d commercial(s)",
+                purchaseWithItems.getId(), totalPaidToCommercials, commercialAmountsSize);
 
-        platformTreasuryService.addForWithdrawals(totalPaidToSellers, description2);
+        platformTreasuryService.addForWithdrawals(totalPaidToCommercials, description2);
     }
 
     // Fin de metodos para procesar una compra

@@ -55,37 +55,37 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             @Param("purchaseItemId") Long purchaseItemId,
             @Param("consumerId") Long consumerId);
 
-    @Query("SELECT SUM(p.quantity) FROM PurchaseItem p WHERE p.product.seller.id = :sellerId")
-    Long countTotalSalesBySellerId(@Param("sellerId") Long sellerId);
+    @Query("SELECT SUM(p.quantity) FROM PurchaseItem p WHERE p.product.commercial.id = :commercialId")
+    Long countTotalSalesByCommercialId(@Param("commercialId") Long commercialId);
 
     @Query("""
             SELECT SUM(p.subtotal)
             FROM PurchaseItem p
-            WHERE p.product.seller.id = :sellerId
+            WHERE p.product.commercial.id = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
-    BigDecimal sumTotalSellerSalesAmountByMonth(@Param("sellerId") Long sellerId,
+    BigDecimal sumTotalCommercialSalesAmountByMonth(@Param("commercialId") Long commercialId,
             @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate);
 
     @Query("""
             SELECT COUNT(p)
             FROM PurchaseItem p
-            WHERE p.product.seller.id = :sellerId
+            WHERE p.product.commercial.id = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
-    Integer findTotalSellerSalesByMonth(@Param("sellerId") Long sellerId, @Param("startDate") ZonedDateTime startDate,
+    Integer findTotalCommercialSalesByMonth(@Param("commercialId") Long commercialId, @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate);
 
     @Query("""
             SELECT SUM(p.subtotal * p.platformCommissionRate)
             FROM PurchaseItem p
-            WHERE p.product.seller.id = :sellerId
+            WHERE p.product.commercial.id = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
-    BigDecimal sumTotalPlatformCommissionsByMonth(@Param("sellerId") Long sellerId,
+    BigDecimal sumTotalPlatformCommissionsByMonth(@Param("commercialId") Long commercialId,
             @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate);
 
     @Query("SELECT new com.verygana2.dtos.product.responses.FeaturedProductResponseDTO(" +
@@ -94,11 +94,11 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             "COUNT(pi.id)) " +
             "FROM PurchaseItem pi " +
             "JOIN pi.product p " +
-            "WHERE p.seller.id = :sellerId " +
+            "WHERE p.commercial.id = :commercialId " +
             "GROUP BY p.id, p.name, p.imageUrl, p.price, p.averageRate " +
             "ORDER BY COUNT(pi.id) DESC")
     Page<FeaturedProductResponseDTO> findTopSellingProducts(
-            @Param("sellerId") Long sellerId,
+            @Param("commercialId") Long commercialId,
             Pageable pageable);
 
 }

@@ -29,6 +29,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     private final RaffleWinnerRepository raffleWinnerRepository;
     private final RaffleResultService raffleResultService;
     private final RaffleWinnerMapper raffleWinnerMapper;
+    private static final String domain = "https://cdn.verygana.com/public/";
 
     @Transactional(readOnly = true)
     @Override
@@ -43,9 +44,9 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
     @Transactional(readOnly = true)
     @Override
-    public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Pageable pageable) {
+    public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Boolean isClaimed, Pageable pageable) {
 
-        Page<RaffleWinner> wins = raffleWinnerRepository.findByWinnerId(consumerId, pageable);
+        Page<RaffleWinner> wins = raffleWinnerRepository.findWonPrizesByConsumer(consumerId, isClaimed, pageable);
         return PagedResponse.from(wins.map(w -> {
             Prize prize = w.getPrize();
             return PrizeWonResponseDTO.builder()
@@ -55,6 +56,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
                     .description(prize.getDescription())
                     .brand(prize.getBrand())
                     .value(prize.getValue())
+                    .imageUrl(domain + prize.getImageAsset().getObjectKey())
                     .prizeType(prize.getPrizeType())
                     .position(prize.getPosition())
                     .quantity(prize.getQuantity())

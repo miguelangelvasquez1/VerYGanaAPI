@@ -16,51 +16,61 @@ import com.verygana2.models.raffles.RaffleWinner;
 @Repository
 public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long> {
 
-    /**
-     * Encuentra todos los ganadores de un resultado de una rifa
-     */
-    List<RaffleWinner> findByRaffleResultId(Long raffleResultId);
+        /**
+         * Encuentra todos los ganadores de un resultado de una rifa
+         */
+        List<RaffleWinner> findByRaffleResultId(Long raffleResultId);
 
-    /**
-     * Encuentra ganadores por estado de premio
-     */
-    List<RaffleWinner> findByRaffleResultIdAndPrizePrizeStatus(
-            Long raffleResultId,
-            PrizeStatus status);
+        /**
+         * Encuentra ganadores por estado de premio
+         */
+        List<RaffleWinner> findByRaffleResultIdAndPrizePrizeStatus(
+                        Long raffleResultId,
+                        PrizeStatus status);
 
-    /**
-     * Encuentra todos los premios ganados por un usuario
-     */
-    Page<RaffleWinner> findByWinnerId(Long consumerId, Pageable pageable);
+        /**
+         * Encuentra todos los premios ganados por un usuario
+         */
+        @Query("""
+                        SELECT w FROM RaffleWinner w
+                        JOIN FETCH w.prize p
+                        JOIN FETCH w.winningTicket t
+                        JOIN FETCH w.raffleResult r
+                        WHERE w.winner.id = :consumerId
+                        AND (:isClaimed IS NULL OR w.prizeClaimed = :isClaimed)
+                        ORDER BY r.drawnAt DESC
+                                                             """)
+        Page<RaffleWinner> findWonPrizesByConsumer(@Param("consumerId") Long consumerId,
+                        @Param("isClaimed") Boolean isClaimed, Pageable pageable);
 
-    /**
-     * Encuentra ganador por ticket
-     */
-    Optional<RaffleWinner> findByWinningTicketId(Long ticketId);
+        /**
+         * Encuentra ganador por ticket
+         */
+        Optional<RaffleWinner> findByWinningTicketId(Long ticketId);
 
-    /**
-     * Cuenta ganadores de una rifa
-     */
-    long countByRaffleResultId(Long raffleResultId);
+        /**
+         * Cuenta ganadores de una rifa
+         */
+        long countByRaffleResultId(Long raffleResultId);
 
-    /**
-     * Ganadores que no han reclamado su premio
-     */
-    @Query("SELECT w FROM RaffleWinner w WHERE w.raffleResult.id = :raffleResultId " +
-            "AND w.prizeClaimed = false")
-    List<RaffleWinner> findUnclaimedWinners(@Param("raffleResultId") Long raffleResultId);
+        /**
+         * Ganadores que no han reclamado su premio
+         */
+        @Query("SELECT w FROM RaffleWinner w WHERE w.raffleResult.id = :raffleResultId " +
+                        "AND w.prizeClaimed = false")
+        List<RaffleWinner> findUnclaimedWinners(@Param("raffleResultId") Long raffleResultId);
 
-    /**
-     * Cuenta premios reclamados de una rifa
-     */
-    long countByRaffleResultIdAndPrizeClaimedTrue(Long raffleResultId);
+        /**
+         * Cuenta premios reclamados de una rifa
+         */
+        long countByRaffleResultIdAndPrizeClaimedTrue(Long raffleResultId);
 
-    @Query("""
-            SELECT w FROM RaffleWinner w
-            JOIN FETCH w.prize p
-            JOIN FETCH w.winner c
-            ORDER BY w.createdAt DESC
-            LIMIT 20
-                    """)
-    List<RaffleWinner> findLastWinners();
+        @Query("""
+                        SELECT w FROM RaffleWinner w
+                        JOIN FETCH w.prize p
+                        JOIN FETCH w.winner c
+                        ORDER BY w.createdAt DESC
+                        LIMIT 20
+                                """)
+        List<RaffleWinner> findLastWinners();
 }

@@ -13,9 +13,9 @@ import com.verygana2.models.products.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-        boolean existsByIdAndSellerId(Long id, Long sellerId);
+        boolean existsByIdAndCommercialId(Long id, Long commercialId);
 
-        Optional<Product> findByIdAndSellerId(Long productId, Long sellerId);
+        Optional<Product> findByIdAndCommercialId(Long productId, Long commercialId);
 
         @Query("SELECT p FROM Product p " +
                         "JOIN FETCH p.productCategory c " +
@@ -40,11 +40,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("""
                 SELECT p FROM Product p
                 JOIN FETCH p.productCategory c
-                WHERE p.seller.id = :sellerId AND p.isActive = true
+                WHERE p.commercial.id = :commercialId AND p.isActive = true
                 """)
-        Page<Product> findBySellerId(@Param("sellerId") Long sellerId, Pageable pageable);
+        Page<Product> findByCommercialId(@Param("commercialId") Long commercialId, Pageable pageable);
 
-        @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.seller.id = :sellerId")
-        Long countSellerProducts(@Param("sellerId") Long sellerId);
+        @Query("SELECT COUNT(p) FROM Product p WHERE p.isActive = true AND p.commercial.id = :commercialId")
+        Long countCommercialProducts(@Param("commercialId") Long commercialId);
 
 }

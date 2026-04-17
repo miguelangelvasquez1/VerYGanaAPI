@@ -18,6 +18,7 @@ import com.verygana2.dtos.raffle.responses.PrepareRaffleCreationResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
+import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.raffles.Raffle;
@@ -41,4 +42,6 @@ public interface RaffleService {
     Long countRafflesByStatus(RaffleStatus status);
     List<RaffleSummaryResponseDTO> getLiveRaffles();
     PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, int pageNumber);
+    PagedResponse<UserRaffleSummaryResponseDTO> getMyRafflesByStatus (Long consumerId, RaffleStatus status, Pageable pageable);
+    Long countMyRafflesByStatus (Long consumerId, RaffleStatus status);
 }

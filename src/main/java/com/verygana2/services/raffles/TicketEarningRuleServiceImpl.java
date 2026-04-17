@@ -174,48 +174,49 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
                     }
                 }
             }
+            default -> throw new IllegalArgumentException("Unexpected value: " + ruleType);
 
-            case ADS_WATCHED -> {
-                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-                    if (create.getMinAdsWatched() == null) {
-                        throw new InvalidRequestException(
-                                "Min ads watched is required for ADS_WATCHED rules");
-                    }
-                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-                    if (update.getMinAdsWatched() == null) {
-                        throw new InvalidRequestException(
-                                "Min ads watched is required for ADS_WATCHED rules");
-                    }
-                }
-            }
+            // case DAILY_LOGIN -> {
+            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
+            //         if (create.getMinAdsWatched() == null) {
+            //             throw new InvalidRequestException(
+            //                     "Min ads watched is required for ADS_WATCHED rules");
+            //         }
+            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
+            //         if (update.getMinAdsWatched() == null) {
+            //             throw new InvalidRequestException(
+            //                     "Min ads watched is required for ADS_WATCHED rules");
+            //         }
+            //     }
+            // }
 
-            case GAME_ACHIEVEMENT -> {
-                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-                    if (create.getAchievementType() == null || create.getAchievementType().isBlank()) {
-                        throw new InvalidRequestException(
-                                "Achievement type is required for GAME_ACHIEVEMENT rules");
-                    }
-                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-                    if (update.getAchievementType() == null || update.getAchievementType().isBlank()) {
-                        throw new InvalidRequestException(
-                                "Achievement type is required for GAME_ACHIEVEMENT rules");
-                    }
-                }
-            }
+            // case GAME_ACHIEVEMENT -> {
+            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
+            //         if (create.getAchievementType() == null || create.getAchievementType().isBlank()) {
+            //             throw new InvalidRequestException(
+            //                     "Achievement type is required for GAME_ACHIEVEMENT rules");
+            //         }
+            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
+            //         if (update.getAchievementType() == null || update.getAchievementType().isBlank()) {
+            //             throw new InvalidRequestException(
+            //                     "Achievement type is required for GAME_ACHIEVEMENT rules");
+            //         }
+            //     }
+            // }
 
-            case REFERRAL -> {
-                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-                    if (create.getReferralAddedQuantity() == null) {
-                        throw new InvalidRequestException(
-                                "Referral added quantity is required for REFERRAL rules");
-                    }
-                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-                    if (update.getReferralAddedQuantity() == null) {
-                        throw new InvalidRequestException(
-                                "Referral added quantity is required for REFERRAL rules");
-                    }
-                }
-            }
+            // case REFERRAL -> {
+            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
+            //         if (create.getReferralAddedQuantity() == null) {
+            //             throw new InvalidRequestException(
+            //                     "Referral added quantity is required for REFERRAL rules");
+            //         }
+            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
+            //         if (update.getReferralAddedQuantity() == null) {
+            //             throw new InvalidRequestException(
+            //                     "Referral added quantity is required for REFERRAL rules");
+            //         }
+            //     }
+            // }
 
         }
     }

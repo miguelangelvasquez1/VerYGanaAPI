@@ -16,6 +16,5 @@ public interface ConsumerDetailsService {
     EntityUpdatedResponseDTO updateConsumerProfile(Long consumerId, ConsumerUpdateProfileRequestDTO request);
     ConsumerDetails getConsumerById (Long consumerId);
     boolean existsConsumerById(Long consumerId);
-
 }
 

@@ -10,7 +10,7 @@ import com.verygana2.models.raffles.RaffleResult;
 public interface RaffleResultService {
     
     RaffleResult getByRaffleId(Long raffleId);
-    RaffleResultResponseDTO getResponseByRaffleId(Long raffleId);
+    RaffleResultResponseDTO getResultByRaffleId(Long raffleId);
     List<RaffleSummaryResultResponseDTO> getLastRaffleResults();
     DrawProofResponseDTO getDrawProof (Long raffleId);
 }

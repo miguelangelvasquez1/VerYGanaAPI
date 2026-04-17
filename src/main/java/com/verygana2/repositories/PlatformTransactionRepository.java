@@ -6,7 +6,7 @@ import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.verygana2.models.enums.PlatformTransactionType;
-import com.verygana2.models.treasury.PlatformTransaction;
+import com.verygana2.models.finance.PlatformTransaction;
 
 public interface PlatformTransactionRepository extends JpaRepository<PlatformTransaction, Long>{
     

@@ -193,7 +193,7 @@ public class Raffle {
 
     public boolean canBeDrawn() {
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-        return raffleStatus == RaffleStatus.CLOSED &&
+        return raffleStatus == RaffleStatus.LIVE &&
                 now.isAfter(drawDate) &&
                 !prizes.isEmpty() &&
                 totalTicketsIssued > 0;

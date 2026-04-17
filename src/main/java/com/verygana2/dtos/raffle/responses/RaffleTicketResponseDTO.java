@@ -21,4 +21,5 @@ public class RaffleTicketResponseDTO {
     private Long raffleId;
     private ZonedDateTime issuedAt;
     private ZonedDateTime usedAt;
+    private Boolean isWinner;
 }

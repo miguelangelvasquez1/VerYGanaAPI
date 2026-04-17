@@ -29,8 +29,8 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"consumer", "items"})  // ⭐ Excluir relaciones
-@EqualsAndHashCode(exclude = {"consumer", "items"})  // ⭐ Excluir relaciones
+@ToString(exclude = {"consumer", "items"}) 
+@EqualsAndHashCode(exclude = {"consumer", "items"})  
 public class Purchase {
     
     @Id
@@ -68,9 +68,9 @@ public class Purchase {
     @Builder.Default
     private BigDecimal platformEarnings = BigDecimal.ZERO;
 
-    @Column(name = "paid_to_sellers", nullable = false)
+    @Column(name = "paid_to_commercials", nullable = false)
     @Builder.Default
-    private BigDecimal paidToSellers = BigDecimal.ZERO;
+    private BigDecimal paidToCommercials = BigDecimal.ZERO;
     
     // ===== ESTADO DE LA COMPRA =====
     
@@ -98,7 +98,7 @@ public class Purchase {
     private String notes; // Notas del comprador
     
     @Column(name = "admin_notes", columnDefinition = "TEXT")
-    private String adminNotes; // Notas internas del admin/seller
+    private String adminNotes; // Notas internas del admin/commercial
     
     // ===== AUDITORÍA =====
     
@@ -153,7 +153,7 @@ public class Purchase {
         this.platformEarnings = platformEarnings.add(newEarning);
     }
 
-    public void updatePaidToSellers(BigDecimal newPaidToSellers){
-        this.paidToSellers = paidToSellers.add(newPaidToSellers);
+    public void updatePaidToCommercials(BigDecimal newPaidToCommercials){
+        this.paidToCommercials = paidToCommercials.add(newPaidToCommercials);
     }
 }

@@ -11,9 +11,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.seller.responses.EarningsByMonthResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionPayoutResponseDTO;
 import com.verygana2.dtos.transaction.responses.TransactionResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.EarningsByMonthResponseDTO;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
 import com.verygana2.repositories.TransactionRepository;
@@ -99,28 +99,28 @@ public class TransactionServiceImpl implements TransactionService {
    }
 
    @Override
-   public BigDecimal getTotalSellerEarningsAmount(Long sellerId) {
-      if (sellerId == null || sellerId <= 0) {
-         throw new IllegalArgumentException("Seller id must be positive");
+   public BigDecimal getTotalCommercialEarningsAmount(Long commercialId) {
+      if (commercialId == null || commercialId <= 0) {
+         throw new IllegalArgumentException("Commercial id must be positive");
       }
-      return transactionRepository.sumTotalSellerEarningsAmount(sellerId);
+      return transactionRepository.sumTotalCommercialEarningsAmount(commercialId);
    }
 
    @Override
-   public List<EarningsByMonthResponseDTO> getSellerEarningsByYearList(Long sellerId, Integer year) {
-      if (sellerId == null || sellerId <= 0) {
-         throw new IllegalArgumentException("Seller id must be positive");
+   public List<EarningsByMonthResponseDTO> getCommercialEarningsByYearList(Long commercialId, Integer year) {
+      if (commercialId == null || commercialId <= 0) {
+         throw new IllegalArgumentException("Commercial id must be positive");
       }
       if (year == null || year <= 0) {
          throw new IllegalArgumentException("Year must be positive");
       }
-      return transactionRepository.findSellerEarningsByYear(sellerId, year);
+      return transactionRepository.findCommercialEarningsByYear(commercialId, year);
    }
 
    @Override
-   public BigDecimal getSellerEarningsByMonth(Long sellerId, Integer year, Integer month) {
-      if (sellerId == null || sellerId <= 0) {
-         throw new IllegalArgumentException("Seller id must be positive");
+   public BigDecimal getCommercialEarningsByMonth(Long commercialId, Integer year, Integer month) {
+      if (commercialId == null || commercialId <= 0) {
+         throw new IllegalArgumentException("Commercial id must be positive");
       }
       if (year == null || year <= 0) {
          throw new IllegalArgumentException("Year must be positive");
@@ -132,14 +132,14 @@ public class TransactionServiceImpl implements TransactionService {
 
       ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
       ZonedDateTime endDate = startDate.plusMonths(1);
-      return transactionRepository.findSellerEarningsByMonth(sellerId, startDate, endDate);
+      return transactionRepository.findCommercialEarningsByMonth(commercialId, startDate, endDate);
    }
 
    @Override
-   public PagedResponse<TransactionPayoutResponseDTO> getSellerPayoutsPage(Long sellerId, Integer year, Integer month, Pageable pageable) {
+   public PagedResponse<TransactionPayoutResponseDTO> getCommercialPayoutsPage(Long commercialId, Integer year, Integer month, Pageable pageable) {
       
-      if (sellerId == null || sellerId <= 0) {
-         throw new IllegalArgumentException("Seller id must be positive");
+      if (commercialId == null || commercialId <= 0) {
+         throw new IllegalArgumentException("Commercial id must be positive");
       }
       if (year == null || year <= 0) {
          throw new IllegalArgumentException("Year must be positive");
@@ -151,7 +151,7 @@ public class TransactionServiceImpl implements TransactionService {
 
       ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
       ZonedDateTime endDate = startDate.plusMonths(1);
-      Page<TransactionPayoutResponseDTO> payoutsPage = transactionRepository.findSellerPayouts(sellerId, startDate, endDate, pageable);
+      Page<TransactionPayoutResponseDTO> payoutsPage = transactionRepository.findCommercialPayouts(commercialId, startDate, endDate, pageable);
       
       return PagedResponse.from(payoutsPage);
 

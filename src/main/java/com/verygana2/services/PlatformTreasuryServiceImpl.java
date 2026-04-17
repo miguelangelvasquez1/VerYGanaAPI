@@ -7,8 +7,8 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.treasury.PlatformTransaction;
-import com.verygana2.models.treasury.PlatformTreasury;
+import com.verygana2.models.finance.PlatformTransaction;
+import com.verygana2.models.finance.PlatformTreasury;
 import com.verygana2.repositories.PlatformTransactionRepository;
 import com.verygana2.repositories.PlatformTreasuryRepository;
 import com.verygana2.services.interfaces.PlatformTreasuryService;

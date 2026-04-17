@@ -24,7 +24,7 @@ public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "productCategory", ignore = true)
-    @Mapping(target = "seller", ignore = true)
+    @Mapping(target = "commercial", ignore = true)
     @Mapping(target = "reviews", ignore = true)
     @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "averageRate", ignore = true)
@@ -55,7 +55,7 @@ public interface ProductMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "averageRate", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "seller", ignore = true)
+    @Mapping(target = "commercial", ignore = true)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "reviews", ignore = true)
@@ -69,7 +69,7 @@ public interface ProductMapper {
 
     // ===== MAPPING to ProductResponseDTO (completed) =====
     @Mapping(target = "categoryName", source = "productCategory.name")
-    @Mapping(target = "shopName", source = "seller.shopName")
+    @Mapping(target = "companyName", source = "commercial.companyName")
     @Mapping(target = "reviews", source = "reviews")
     ProductResponseDTO toProductResponseDTO(Product product);
 

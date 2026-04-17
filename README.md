@@ -65,3 +65,6 @@ docker push miguelvasquez777/verygana-api:latest
     1. El juego se inicia con los parámetros de la url (session, userhash, branded flag, campaign_id)
     2. El juego lee los parámetros y llama al backend para pedir los assets y configuración
     3. El juego recibe los assets y configuración y empieza su ejecución
+
+
+- cuando un usuario se inactiva se cierra la sesion

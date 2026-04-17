@@ -108,7 +108,7 @@ public class PurchaseItem {
     }
 
     @Transient
-    public BigDecimal getSellerEarnings() {
+    public BigDecimal getCommercialEarnings() {
         BigDecimal commission = subtotal.multiply(platformCommissionRate);
         return subtotal.subtract(commission);
     }

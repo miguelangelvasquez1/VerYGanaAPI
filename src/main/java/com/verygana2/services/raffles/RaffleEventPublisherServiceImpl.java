@@ -28,8 +28,10 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     private final SimpMessagingTemplate messagingTemplate;
     private final RaffleDrawStateCache drawStateCache;
 
+    private static final String domain = "https://cdn.verygana.com/";
+
     private static final String RAFFLE_TOPIC = "/topic/raffle/";
-    private static final int REVEAL_DELAY_MS = 4000; // 4 segundos entre ganadores
+    private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
 
     @Override
     public void publishDrawingStarted(Long raffleId, long totalTickets, int totalWinners) {
@@ -56,11 +58,15 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
         for (int i = 0; i < total; i++) {
             RaffleWinner w = winners.get(i);
 
+            sleep(REVEAL_DELAY_MS);
+
             WinnerRevealPayloadDTO payload = WinnerRevealPayloadDTO.builder()
                     .position(w.getPrize().getPosition())
                     .ticketNumber(w.getWinningTicket().getTicketNumber())
                     .userName(w.getWinner().getUserName())
+                    .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                     .prizeTitle(w.getPrize().getTitle())
+                    .prizeImageUrl(domain + w.getPrize().getImageAsset().getObjectKey())
                     .prizeValue(w.getPrize().getValue())
                     .prizeType(w.getPrize().getPrizeType())
                     .revealOrder(i + 1)
@@ -80,10 +86,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
             log.info("[WS] WINNER_REVEALED {}/{} para rifa {}: {}",
                     i + 1, total, raffleId, w.getWinner().getUserName());
 
-            // Delay entre revelaciones para crear suspenso, excepto en el último
-            if (i < total - 1) {
-                sleep(REVEAL_DELAY_MS);
-            }
         }
 
         publishDrawCompleted(raffleId, winners, raffleTitle, total);

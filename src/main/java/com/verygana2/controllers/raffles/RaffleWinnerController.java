@@ -12,6 +12,7 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
@@ -35,9 +36,9 @@ public class RaffleWinnerController {
 
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
     @GetMapping("/my-prizes")
-    public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 10, page = 0, sort = "drawnAt", direction = Sort.Direction.DESC) Pageable pageable){
+    public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes (@AuthenticationPrincipal Jwt jwt, @RequestParam(required = false) Boolean isClaimed,@PageableDefault(size = 10, page = 0, direction = Sort.Direction.DESC) Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, pageable));
+        return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, isClaimed, pageable));
     }
 
     @GetMapping("/last")

@@ -17,9 +17,11 @@ import com.verygana2.repositories.raffles.RaffleResultRepository;
 import com.verygana2.services.interfaces.raffles.RaffleResultService;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RaffleResultServiceImpl implements RaffleResultService {
 
     private final RaffleResultRepository raffleResultRepository;
@@ -37,7 +39,7 @@ public class RaffleResultServiceImpl implements RaffleResultService {
     }
 
     @Override
-    public RaffleResultResponseDTO getResponseByRaffleId(Long raffleId) {
+    public RaffleResultResponseDTO getResultByRaffleId(Long raffleId) {
         return raffleResultMapper.toRaffleResultDTO(getByRaffleId(raffleId));
     }
 
