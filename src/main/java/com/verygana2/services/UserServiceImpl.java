@@ -1,10 +1,14 @@
 package com.verygana2.services;
 
+import com.verygana2.models.Avatar;
+import com.verygana2.services.interfaces.AvatarService;
+import com.verygana2.services.interfaces.ReferralService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
@@ -35,29 +39,13 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
 
-    public User registerSeller(SellerRegisterDTO dto) {
+    public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        SellerDetails details = userMapper.toSellerDetails(dto);
-        details.setUser(user);
-        user.setUserDetails(details);
-
-        User savedUser = userRepository.save(user);
-        walletService.createWallet(savedUser);
-
-        return savedUser;
-    }
-
-    public User registerAdvertiser(AdvertiserRegisterDTO dto) {
-        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
-
-        User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
-
-        AdvertiserDetails details = userMapper.toAdvertiserDetails(dto);
+        CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
 
@@ -92,7 +80,7 @@ public class UserServiceImpl implements UserService {
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
         userRepository.saveAndFlush(user);
-        
+
         // Asignar hash
         String userHash = userHashGenerator.generate(user.getId());
         details.setUserHash(userHash);
