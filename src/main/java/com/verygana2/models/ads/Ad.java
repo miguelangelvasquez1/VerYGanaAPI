@@ -75,7 +75,6 @@ public class Ad {
 
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1, message = "Debe permitir al menos 1 like")
-    @Max(value = 10000, message = "No puede exceder 10,000 likes")
     @Column(name = "max_likes", nullable = false)
     private Integer maxLikes;
 

@@ -30,6 +30,7 @@ import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
+import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -148,6 +149,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleFavoriteProductException(
             FavoriteProductException ex, WebRequest request) {
         log.warn("Favorite product error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PlanCapabilityException.class)
+    public ResponseEntity<ErrorResponse> handlePlanCapabilityException(
+            PlanCapabilityException ex, WebRequest request) {
+        log.warn("Plan capability error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 

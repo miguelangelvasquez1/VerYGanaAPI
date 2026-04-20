@@ -102,7 +102,7 @@ public class WompiTransaction {
      * truncar: guardar todo tal como llega de Wompi.
      */
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(columnDefinition = "jsonb")
+    @Column
     private Map<String, Object> metadata;
 
     /**

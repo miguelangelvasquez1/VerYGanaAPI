@@ -1,14 +1,10 @@
 package com.verygana2.dtos.ad.requests;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import com.verygana2.models.enums.TargetGender;
 
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -29,29 +25,22 @@ public class AdUpdateDTO {
     @Size(min = 10, max = 1000, message = "La descripción debe tener entre 10 y 1000 caracteres")
     private String description;
     
-    @DecimalMin(value = "0.01", message = "La recompensa debe ser mayor a 0")
-    @DecimalMax(value = "100.00", message = "La recompensa no puede exceder 100")
-    private BigDecimal rewardPerLike;
+    // rewardPerLike ELIMINADO — no se permite editar
     
     @Min(value = 1, message = "Debe permitir al menos 1 like")
-    @Max(value = 10000, message = "No puede exceder 10,000 likes")
     private Integer maxLikes;
     
     private ZonedDateTime startDate;
-    
     private ZonedDateTime endDate;
     
-    @Size(max = 500, message = "La URL de destino no puede exceder 500 caracteres")
+    @Size(max = 500)
     private String targetUrl;
     
     private List<Long> categoryIds;
-
     private List<String> targetMunicipalitiesCodes;
-
     private Integer minAge;
-
     private Integer maxAge;
-
-    @NotNull(message = "This espec is required")
+    
+    @NotNull(message = "This spec is required")
     private TargetGender targetGender;
 }

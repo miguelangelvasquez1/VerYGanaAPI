@@ -26,7 +26,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Investment {
-    
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -47,7 +47,7 @@ public class Investment {
 
     @Column(nullable = false, precision = 20, scale = 2)
     @Builder.Default
-    private BigDecimal recoveredAmount = BigDecimal.ZERO;
+    private BigDecimal recoveredAmount = BigDecimal.ZERO; // Total recuperado (ventas hechas)
 
     // ───── ROI ─────
 
@@ -118,5 +118,16 @@ public class Investment {
         return recoveredAmount.compareTo(
             investmentAmount.multiply(BigDecimal.valueOf(6))
         ) >= 0;
+    }
+
+    /**
+     * Devuelve fondos al saldo disponible de la inversión.
+     * Inverso de consume().
+     */
+    public void refund(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("El monto a devolver debe ser positivo");
+        }
+        this.remainingAmount = this.remainingAmount.add(amount);
     }
 }

@@ -41,6 +41,17 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
     
     Page<AdLike> findByAdId(Long adId, Pageable pageable);
     
+    @Query("""
+        SELECT al FROM AdLike al
+        JOIN FETCH al.user u
+        WHERE al.ad.id = :adId
+        ORDER BY al.createdAt DESC
+    """)
+    Page<AdLike> findByAdIdOrderByCreatedAtDesc(
+        @Param("adId") Long adId,
+        Pageable pageable
+    );
+
     // Verificar si existe un like
     boolean existsByUserIdAndAdId(Long userId, Long adId);
     

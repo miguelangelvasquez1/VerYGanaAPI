@@ -7,14 +7,20 @@ import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
+import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
+import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Transaction;
 import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
@@ -25,6 +31,7 @@ import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.TransactionState;
 import com.verygana2.models.enums.TransactionType;
+import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
@@ -32,6 +39,7 @@ import com.verygana2.repositories.TransactionRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
+import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +58,8 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdService adService;
     private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
+    private final R2Service r2Service;
+    private final AdMapper adMapper;
     
     @Override
     @Transactional
@@ -83,7 +93,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         // 4. Crear el like
         AdLike adLike = AdLike.builder()
             .id(new AdLikeId(userId, adId))
-            .user(user)
+            .user((ConsumerDetails)user.getUserDetails())
             .ad(ad)
             .rewardAmount(ad.getRewardPerLike())
             .createdAt(ZonedDateTime.now())
@@ -170,5 +180,34 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         return session;
+    }
+
+    @Override
+    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        AdResponseDTO dto = adMapper.toDto(ad);
+        dto.setContentUrl(
+            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+        );
+        return dto;
+    }
+
+    @Override
+    public PagedResponse<AdLikeResponseDTO> getAdLikes(Long adId, Long commercialId, Pageable pageable) {
+        // Verificar que el anuncio pertenece al comercial
+        adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        Page<AdLikeResponseDTO> adLikes = adLikeRepository
+            .findByAdIdOrderByCreatedAtDesc(adId, pageable)
+            .map(like -> AdLikeResponseDTO.builder()
+                .userId(like.getUser().getId())
+                .userName(like.getUser().getName() + " " + like.getUser().getLastName())
+                .likedAt(like.getCreatedAt())
+                .build()
+            );
+        return PagedResponse.from(adLikes); 
     }
 }

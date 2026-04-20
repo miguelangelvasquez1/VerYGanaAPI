@@ -46,12 +46,15 @@ import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.plans.Investment;
+import com.verygana2.models.plans.RequirePlanCapability;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
@@ -79,6 +82,7 @@ public class AdServiceImpl implements AdService {
     
     private final AdRepository adRepository;
     private final UserRepository userRepository;
+    private final CommercialDetailsRepository commercialDetailsRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
     private final MunicipalityRepository municipalityRepository;
@@ -107,6 +111,7 @@ public class AdServiceImpl implements AdService {
      * @return AssetId y URL pre-firmada
      */
     @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
 
         // 1. Validar que el commercial existe
@@ -166,6 +171,7 @@ public class AdServiceImpl implements AdService {
      * @return ID del anuncio creado
      */
     @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
 
         AdAsset asset = null;
@@ -219,7 +225,10 @@ public class AdServiceImpl implements AdService {
                 .multiply(BigDecimal.valueOf(request.getMaxLikes()));
 
             // 10. Validar saldo del anunciante
-            BigDecimal currentBalance = commercial.getWallet().getBalance();
+            CommercialDetails commercialDetails = (CommercialDetails)commercial.getUserDetails();
+            BigDecimal currentBalance = commercialDetails.getActiveInvestment() != null ? 
+                commercialDetails.getActiveInvestment().getRemainingAmount() : BigDecimal.ZERO;
+
             if (currentBalance.compareTo(totalBudget) < 0) {
                 throw new ValidationException(
                     String.format("Saldo insuficiente. Requerido: $%s, Disponible: $%s", 
@@ -227,10 +236,10 @@ public class AdServiceImpl implements AdService {
                 );
             }
 
-            // 11. Crear anuncio, usar mapper
-            CommercialDetails commercialDetails =
-                entityManager.getReference(CommercialDetails.class, commercialId);
+            // Restar presupuesto del saldo del anunciante (se reserva para este anuncio)
+            commercialDetails.getActiveInvestment().consume(totalBudget);
 
+            // 11. Crear anuncio, usar mapper
             Ad ad = adMapper.toEntity(request, commercialDetails);
 
             ad.setCategories(categories);
@@ -252,40 +261,47 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
+    @Transactional
     public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
         log.info("Updating ad {} for commercial {}", adId, commercialId);
 
         DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
-    "La fecha de fin debe ser posterior a la de inicio");
-        
+            "La fecha de fin debe ser posterior a la de inicio");
+
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
-        
-        // Only edit when status is PENDING
-        if (ad.getStatus() != AdStatus.PENDING) {
-            throw new InvalidAdStateException("Solo se pueden editar anuncios pendientes de aprobación");
+
+        // Solo PENDING o PAUSED pueden editarse
+        if (ad.getStatus() != AdStatus.PENDING && ad.getStatus() != AdStatus.PAUSED) {
+            throw new InvalidAdStateException(
+                "Solo se pueden editar anuncios en estado PENDING o PAUSED"
+            );
         }
-        
+
+        // Redistribución de presupuesto (solo si se envía un nuevo maxLikes)
+        if (updateDto.getMaxLikes() != null && !updateDto.getMaxLikes().equals(ad.getMaxLikes())) {
+            CommercialDetails commercialDetails = (CommercialDetails) ad.getCommercial();
+            redistributeBudget(ad, updateDto.getMaxLikes(), commercialDetails);
+            // Guardar cambios en el saldo del anunciante
+            commercialDetailsRepository.save(commercialDetails);
+        }
+
         List<Category> selectedCategories = categoryService.getValidatedCategories(updateDto.getCategoryIds());
         ad.setCategories(selectedCategories);
 
-        // Validar y actualizar municipios si se proporcionan
-        if (updateDto.getTargetMunicipalitiesCodes() != null) {
-            List<String> codes = updateDto.getTargetMunicipalitiesCodes();
-            List<Municipality> targetMunicipalities = new ArrayList<>();
-            
-            if (!codes.isEmpty()) {
-                targetMunicipalities = municipalityRepository.findAllById(codes);
 
+        if (updateDto.getTargetMunicipalitiesCodes() != null) {
+            List<Municipality> targetMunicipalities = new ArrayList<>();
+            if (!updateDto.getTargetMunicipalitiesCodes().isEmpty()) {
+                targetMunicipalities = municipalityRepository.findAllById(updateDto.getTargetMunicipalitiesCodes());
             }
-            
             ad.setTargetMunicipalities(targetMunicipalities);
         }
 
         adMapper.updateEntityFromDto(updateDto, ad);
-        
+
         Ad updatedAd = adRepository.save(ad);
-    
+
         AdResponseDTO responseDto = adMapper.toDto(updatedAd);
         responseDto.setContentUrl(r2Service.getPrivateObject("private/" + updatedAd.getAsset().getObjectKey(), 200));
 
@@ -325,7 +341,7 @@ public class AdServiceImpl implements AdService {
                 case REJECTED:
                     // Asset privado → presigned URL
                     dto.setContentUrl(
-                        r2Service.getPrivateObject("private/" + asset.getObjectKey(), 200));
+                        r2Service.getPrivateObject(asset.getObjectKey(), 200));
                     break;
 
                 case APPROVED:
@@ -366,6 +382,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId) {
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
@@ -772,6 +789,83 @@ public class AdServiceImpl implements AdService {
     }
 
     // Métodos privados auxiliares -----------------------------
+
+    /**
+     * Redistribuye el presupuesto del anuncio cuando se modifica maxLikes.
+     *
+     * Reglas:
+     * - Solo aplica si el nuevo maxLikes difiere del actual.
+     * - No se puede bajar por debajo de currentLikes + 1.
+     * - Si se baja: se devuelve al anunciante solo el presupuesto no consumido liberado.
+     * - Si se sube: se deduce el presupuesto adicional del saldo del anunciante.
+     *
+     * @param ad                el anuncio a modificar
+     * @param newMaxLikes       el nuevo valor de maxLikes solicitado
+     * @param commercialDetails los detalles del anunciante (con activeInvestment)
+     */
+    private void redistributeBudget(Ad ad, Integer newMaxLikes, CommercialDetails commercialDetails) {
+        Integer currentMaxLikes = ad.getMaxLikes();
+
+        // Sin cambio, nada que hacer
+        if (newMaxLikes.equals(currentMaxLikes)) {
+            return;
+        }
+
+        int currentLikes = ad.getCurrentLikes() != null ? ad.getCurrentLikes() : 0;
+
+        // Límite mínimo: currentLikes + 1
+        if (newMaxLikes <= currentLikes) {
+            throw new ValidationException(
+                String.format(
+                    "El máximo de likes no puede ser menor o igual a los likes ya consumidos (%d). Mínimo permitido: %d",
+                    currentLikes, currentLikes + 1
+                )
+            );
+        }
+
+        BigDecimal rewardPerLike = ad.getRewardPerLike();
+
+        // Presupuesto ya consumido (inamovible)
+        BigDecimal consumedBudget = rewardPerLike.multiply(BigDecimal.valueOf(currentLikes));
+
+        // Presupuesto reservado actualmente para likes pendientes
+        BigDecimal currentReservedBudget = rewardPerLike.multiply(BigDecimal.valueOf(currentMaxLikes))
+            .subtract(consumedBudget);
+
+        // Presupuesto que se reservaría con el nuevo maxLikes
+        BigDecimal newReservedBudget = rewardPerLike.multiply(BigDecimal.valueOf(newMaxLikes))
+            .subtract(consumedBudget);
+
+        BigDecimal delta = newReservedBudget.subtract(currentReservedBudget);
+        // delta > 0 → se necesita más presupuesto (subida)
+        // delta < 0 → se libera presupuesto (bajada)
+
+        Investment activeInvestment = commercialDetails.getActiveInvestment();
+        if (activeInvestment == null) {
+            throw new ValidationException("El anunciante no tiene una inversión activa");
+        }
+
+        if (delta.compareTo(BigDecimal.ZERO) > 0) {
+            // Subida: validar saldo suficiente y consumir
+            BigDecimal available = activeInvestment.getRemainingAmount();
+            if (available.compareTo(delta) < 0) {
+                throw new ValidationException(
+                    String.format(
+                        "Saldo insuficiente para aumentar el presupuesto. Requerido adicional: $%s, Disponible: $%s",
+                        delta, available
+                    )
+                );
+            }
+            activeInvestment.consume(delta);
+            log.info("Budget increased for ad {}: consumed additional ${} from commercial investment", ad.getId(), delta);
+
+        } else {
+            // Bajada: devolver el monto liberado al anunciante
+            BigDecimal refund = delta.abs();
+            activeInvestment.refund(refund);
+            log.info("Budget decreased for ad {}: refunded ${} to commercial investment", ad.getId(), refund);
+        }
+    }
 
     /**
      * Determinar tipo de media según content-type
