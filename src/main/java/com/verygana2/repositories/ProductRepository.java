@@ -13,6 +13,8 @@ import com.verygana2.models.products.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+        long countByCommercialIdAndIsActiveTrue(Long commercialId);
+
         boolean existsByIdAndCommercialId(Long id, Long commercialId);
 
         Optional<Product> findByIdAndCommercialId(Long productId, Long commercialId);

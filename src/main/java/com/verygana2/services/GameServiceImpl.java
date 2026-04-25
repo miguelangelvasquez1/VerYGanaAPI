@@ -43,6 +43,7 @@ import com.verygana2.utils.validators.MetricValidator;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -97,11 +98,11 @@ public class GameServiceImpl implements GameService {
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
-            .orElseThrow(() -> new IllegalArgumentException("Game not available"));
+            .orElseThrow(() -> new ValidationException("Game not available"));
 
             // 3. Seleccionar campaña válida para el juego
         Campaign campaign = campaignRepository.findRandomActiveCampaignByGameId(gameId)
-            .orElseThrow(() -> new IllegalStateException("No active campaigns for this game"));
+            .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
 
         // 4. Crear sesión
         GameSession session = GameSession.start(consumer, game, resolvePlatform(), campaign);
@@ -116,16 +117,16 @@ public class GameServiceImpl implements GameService {
         Long campaignId = campaign.getId();
         String baseUrl;
         
-        if (game.getDeliveryType().equals("PATH")) {
+        if (game.getDeliveryType() == Game.DeliveryType.PATH) {
 
             // /games/{objectKey}/
             baseUrl = String.format(
                 "%s/%s/",
-                cdnUrl,
+                cdnUrl, 
                 game.getUrl() //cambair attribute name
             );
 
-        } else if (game.getDeliveryType().equals("QUERY")) {
+        } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
             // /games/main/?game=snake
             // baseUrl = String.format(
@@ -134,7 +135,7 @@ public class GameServiceImpl implements GameService {
             //     game.getUrl()
             // );
             baseUrl = String.format(
-                "http://localhost:56591/?game_title=%s",
+                // "http://localhost:56591/?game_title=%s",
                 game.getUrl()
             );
             

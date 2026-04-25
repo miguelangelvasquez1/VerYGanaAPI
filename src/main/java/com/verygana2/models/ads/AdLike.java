@@ -3,7 +3,7 @@ package com.verygana2.models.ads;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
-import com.verygana2.models.User;
+import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.EmbeddedId;
@@ -41,7 +41,7 @@ public class AdLike {
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("userId")
     @JoinColumn(nullable = false)
-    private User user;
+    private ConsumerDetails user;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("adId")
@@ -70,7 +70,7 @@ public class AdLike {
     }
 
     // Constructor de conveniencia
-    public AdLike(User user, Ad ad, BigDecimal rewardAmount) {
+    public AdLike(ConsumerDetails user, Ad ad, BigDecimal rewardAmount) {
         this.user = user;
         this.ad = ad;
         this.rewardAmount = rewardAmount;

@@ -33,7 +33,6 @@ public class User{
     @JsonManagedReference // o @JsonIgnoreProperties("user")
     private UserDetails userDetails;
 
-
     @Enumerated(EnumType.STRING)
     private Role role;
 

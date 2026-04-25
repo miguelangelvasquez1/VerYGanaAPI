@@ -50,7 +50,7 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        Long countByCommercialId(@Param("commercialId") Long commercialId);
 
        @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status = :status")
-       Long countByCommercialIdAndStatus(
+       long countByCommercialIdAndStatus(
                      @Param("commercialId") Long commercialId,
                      @Param("status") AdStatus status);
 

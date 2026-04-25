@@ -1,5 +1,6 @@
 package com.verygana2.controllers;
 
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -10,10 +11,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdLikeRequest;
+import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
+import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.services.interfaces.AdLikeService;
 
@@ -29,6 +34,25 @@ import lombok.extern.slf4j.Slf4j;
 public class AdLikeController {
     
     private final AdLikeService adLikeService;
+
+    @GetMapping("/{adId}/details")
+    public ResponseEntity<AdResponseDTO> getAdDetails(
+        @PathVariable Long adId,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return ResponseEntity.ok(adLikeService.getAdDetails(adId, jwt.getClaim("userId")));
+    }
+
+    @GetMapping("/{adId}/likes")
+    public ResponseEntity<PagedResponse<AdLikeResponseDTO>> getAdLikes(
+        @PathVariable Long adId,
+        @AuthenticationPrincipal Jwt jwt,
+        @RequestParam(defaultValue = "0")  int page,
+        @RequestParam(defaultValue = "10") int size
+    ) {
+        PageRequest pageable = PageRequest.of(page, size);
+        return ResponseEntity.ok(adLikeService.getAdLikes(adId, jwt.getClaim("userId"), pageable));
+    }
 
     @PostMapping("/like")
     @PreAuthorize("hasRole('CONSUMER')")

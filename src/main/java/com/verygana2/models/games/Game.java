@@ -7,6 +7,8 @@ import java.util.List;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -41,7 +43,8 @@ public class Game {
     private String description;
 
     // segun el equipo de desarrollo
-    private String deliveryType; // PATH, QUERY
+    @Enumerated(EnumType.STRING)
+    private DeliveryType deliveryType; // PATH, QUERY
 
     @Column(name = "url", nullable = false)
     private String url; //objectKey
@@ -70,7 +73,7 @@ public class Game {
     
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<GameAssetDefinition> assetDefinitions = new ArrayList<>(); //Tiene que ser una relación muchos a muchos?
+    private List<GameAssetDefinition> assetDefinitions = new ArrayList<>(); //Tiene que ser una relación muchos a muchos? SE BORRA?
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL)
     @Builder.Default
@@ -91,5 +94,9 @@ public class Game {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = ZonedDateTime.now();
+    }
+
+    public enum DeliveryType {
+        PATH, QUERY
     }
 }
