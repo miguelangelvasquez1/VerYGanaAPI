@@ -4,6 +4,8 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import com.verygana2.models.enums.finance.KeyTransactionType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -12,6 +14,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
@@ -23,10 +26,23 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import com.verygana2.models.enums.finance.KeyTransactionType;
-
+/**
+ * Registro inmutable de cada movimiento de llaves en el wallet de un usuario.
+ * Reemplaza completamente la entidad Transaction para operaciones con llaves.
+ *
+ * PRINCIPIO: una vez creado, ningún campo cambia. Si hay que corregir un error,
+ * se crea una nueva KeyTransaction que compensa, nunca se edita la existente.
+ * Esto garantiza un libro de llaves auditado e inalterable.
+ */
 @Entity
-@Table(name = "key_transactions")
+@Table(name = "key_transactions", indexes = {
+        @Index(name = "idx_kt_wallet_id",       columnList = "key_wallet_id"),
+        @Index(name = "idx_kt_type",            columnList = "type"),
+        @Index(name = "idx_kt_reference_id",    columnList = "reference_id"),
+        @Index(name = "idx_kt_expires_at",      columnList = "expires_at"),
+        @Index(name = "idx_kt_expiry_processed",columnList = "expiry_processed"),
+        @Index(name = "idx_kt_created_at",      columnList = "created_at")
+})
 @Data
 @Builder
 @NoArgsConstructor
@@ -44,77 +60,93 @@ public class KeyTransaction {
     private KeyWallet keyWallet;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 30)
+    @Column(nullable = false, length = 40, updatable = false)
     @NotNull
     private KeyTransactionType type;
 
     /**
-     * Delta de llaves de compra. Positivo = crédito, negativo = débito.
-     * Nullable porque una transacción puede no afectar este tipo.
+     * Delta de llaves de compra afectadas en este movimiento.
+     * Positivo = crédito, negativo = débito.
+     * Null si este movimiento no afecta las llaves de compra.
      */
-    @Column(name = "purchase_keys_delta")
+    @Column(name = "purchase_keys_delta", updatable = false)
     private Long purchaseKeysDelta;
 
     /**
-     * Delta de llaves de conectividad. Positivo = crédito, negativo = débito.
+     * Delta de llaves de conectividad afectadas en este movimiento.
+     * Positivo = crédito, negativo = débito.
+     * Null si este movimiento no afecta las llaves de conectividad.
      */
-    @Column(name = "connectivity_keys_delta")
+    @Column(name = "connectivity_keys_delta", updatable = false)
     private Long connectivityKeysDelta;
 
-    @Column(nullable = false, length = 255)
+    /**
+     * Descripción legible del motivo para mostrar en el historial del usuario.
+     * Ejemplos:
+     *   "Interacción con anuncio de Empresa X"
+     *   "Copago orden #3fa85f64"
+     *   "Recarga 1GB Claro"
+     *   "Vencimiento mensual abril 2025"
+     *   "Premio rifa #42 - Producto Netflix 1 mes"
+     */
+    @Column(nullable = false, length = 255, updatable = false)
     @NotBlank
     private String reason;
 
+    /**
+     * ID de la entidad que originó este movimiento.
+     * Permite trazabilidad completa: dado un KeyTransaction siempre puedes
+     * encontrar el origen exacto del movimiento.
+     *
+     * Ejemplos por tipo:
+     *   CREDIT_INTERACTION          → ID del anuncio o juego interactuado
+     *   CREDIT_REFERRAL_BONUS       → ID del usuario referido
+     *   CREDIT_RAFFLE_PRIZE         → ID del sorteo
+     *   DEBIT_COPAYMENT             → ID del Copayment
+     *   DEBIT_CONNECTIVITY_RECHARGE → ID de la orden de recarga en Puntored
+     *   DEBIT_RAFFLE_PARTICIPATION  → ID del sorteo
+     *   DEBIT_EXPIRY                → ID del batch de vencimiento (KeyExpiryBatch)
+     *   RESERVE_COPAYMENT_PENDING   → ID del Copayment
+     *   RELEASE_COPAYMENT_CANCELLED → ID del Copayment cancelado
+     */
     @Column(name = "reference_id", nullable = false, updatable = false)
     @NotNull
     private UUID referenceId;
 
     /**
-     * Fecha y hora exacta de vencimiento de este lote de llaves.
-     *
-     * REGLA DE VENCIMIENTO (por cambio de día, no por 24h rodantes):
-     *
-     * Para connectivity_keys:
-     *   expires_at = inicio del día siguiente en zona Colombia (America/Bogota, UTC-5)
-     *   convertido a UTC para almacenamiento.
-     *   Ejemplo: llaves ganadas el 8 de abril a las 9 AM → expires_at = 9 abril 05:00 UTC
-     *   Ejemplo: llaves ganadas el 8 de abril a las 11 PM → expires_at = 9 abril 05:00 UTC
-     *   AMBOS lotes vencen exactamente al mismo tiempo. El usuario siempre ve
-     *   "vencen hoy a medianoche" sin importar la hora en que las ganó.
+     * Fecha exacta de vencimiento de este lote de llaves en UTC.
      *
      * Para purchase_keys:
-     *   expires_at = inicio del primer día del mes siguiente en zona Colombia.
-     *   Ejemplo: llaves ganadas cualquier día de abril → expires_at = 1 mayo 05:00 UTC.
-     *   Así todos los lotes del mes vencen juntos y el usuario ve un solo contador.
+     *   Primer día del mes siguiente a las 00:00 hora Colombia (05:00 UTC).
+     *   Todas las llaves ganadas en abril vencen el 1 de mayo a las 05:00 UTC.
      *
-     * NULLABLE: null significa que este lote nunca vence.
-     * Hoy solo aplica a llaves del fondo de fortalecimiento (que ya no están en
-     * este wallet, pero se deja nullable por extensibilidad futura).
+     * Para connectivity_keys:
+     *   Inicio del día siguiente a las 00:00 hora Colombia (05:00 UTC).
+     *   Llaves ganadas el 8 de abril a cualquier hora vencen el 9 de abril 05:00 UTC.
      *
-     * CÁLCULO EN EL SERVICIO (KeyTransactionService):
+     * Null para movimientos que no tienen vencimiento:
+     *   RESERVE_, RELEASE_, DEBIT_, CREDIT_ADMIN_ADJUSTMENT.
+     *
+     * CÁLCULO en KeyTransactionService:
      *   ZoneId colombia = ZoneId.of("America/Bogota");
-     *   // Para connectivity:
-     *   ZonedDateTime expiresAt = ZonedDateTime.now(colombia)
-     *       .toLocalDate()
-     *       .plusDays(1)
-     *       .atStartOfDay(colombia)
-     *       .withZoneSameInstant(ZoneOffset.UTC);
      *   // Para purchase:
-     *   ZonedDateTime expiresAt = ZonedDateTime.now(colombia)
-     *       .toLocalDate()
-     *       .withDayOfMonth(1)
-     *       .plusMonths(1)
-     *       .atStartOfDay(colombia)
-     *       .withZoneSameInstant(ZoneOffset.UTC);
+     *   ZonedDateTime.now(colombia).toLocalDate()
+     *       .withDayOfMonth(1).plusMonths(1)
+     *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
+     *   // Para connectivity:
+     *   ZonedDateTime.now(colombia).toLocalDate()
+     *       .plusDays(1)
+     *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
      */
-    @Column(name = "expires_at")
+    @Column(name = "expires_at", updatable = false)
     private ZonedDateTime expiresAt;
 
     /**
-     * Marca si el job de vencimientos ya procesó este lote.
+     * Flag que el job de vencimientos marca como true cuando procesa este lote.
      * Previene doble procesamiento si el job se reinicia a mitad de ejecución.
-     * El job filtra: WHERE expires_at < NOW() AND expiry_processed = false.
-     * Solo aplica a registros con expiresAt no nulo.
+     * Query del job: WHERE expires_at < NOW() AND expiry_processed = false.
+     *
+     * Es el único campo mutable de esta entidad: pasa de false a true una sola vez.
      */
     @Column(name = "expiry_processed", nullable = false)
     @Builder.Default
@@ -127,5 +159,108 @@ public class KeyTransaction {
     public void onCreate() {
         this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
         if (this.expiryProcessed == null) this.expiryProcessed = false;
+    }
+
+    // ─── FACTORIES ────────────────────────────────────────────────────────────
+    // Reemplazan los métodos estáticos de la Transaction eliminada.
+    // Cada factory corresponde a un caso de uso específico del sistema.
+
+    public static KeyTransaction forInteractionPurchaseKeys(
+            KeyWallet wallet, long purchaseDelta,
+            String reason, UUID referenceId,
+            ZonedDateTime expiresAt) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.CREDIT_INTERACTION)
+                .purchaseKeysDelta(purchaseDelta)
+                .reason(reason)
+                .referenceId(referenceId)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    public static KeyTransaction forInteractionConnectivityKeys(
+            KeyWallet wallet, long connectivityDelta,
+            String reason, UUID referenceId,
+            ZonedDateTime expiresAt) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.CREDIT_INTERACTION)
+                .connectivityKeysDelta(connectivityDelta)
+                .reason(reason)
+                .referenceId(referenceId)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    public static KeyTransaction forReferralBonus(
+            KeyWallet wallet, long purchaseDelta, String reason,
+            UUID referenceId, ZonedDateTime expiresAt) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.CREDIT_REFERRAL_BONUS)
+                .purchaseKeysDelta(purchaseDelta)
+                .reason(reason)
+                .referenceId(referenceId)
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    public static KeyTransaction forCopaymentReserve(
+            KeyWallet wallet, long keysToReserve, UUID copaymentId) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.RESERVE_COPAYMENT_PENDING)
+                .purchaseKeysDelta(-keysToReserve)
+                .reason("Reserva de llaves para copago en proceso")
+                .referenceId(copaymentId)
+                .build();
+    }
+
+    public static KeyTransaction forCopaymentConfirm(
+            KeyWallet wallet, long keysDebited, UUID copaymentId, String productName) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.DEBIT_COPAYMENT)
+                .purchaseKeysDelta(-keysDebited)
+                .reason("Pago con llaves: " + productName)
+                .referenceId(copaymentId)
+                .build();
+    }
+
+    public static KeyTransaction forCopaymentRelease(
+            KeyWallet wallet, long keysReleased, UUID copaymentId) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.RELEASE_COPAYMENT_CANCELLED)
+                .purchaseKeysDelta(keysReleased)
+                .reason("Devolución de llaves: copago cancelado o rechazado")
+                .referenceId(copaymentId)
+                .build();
+    }
+
+    public static KeyTransaction forConnectivityRecharge(
+            KeyWallet wallet, long keysDebited, String rechargeDescription, UUID rechargeOrderId) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE)
+                .connectivityKeysDelta(-keysDebited)
+                .reason("Recarga: " + rechargeDescription)
+                .referenceId(rechargeOrderId)
+                .build();
+    }
+
+    public static KeyTransaction forExpiry(
+            KeyWallet wallet, long purchaseExpired, long connectivityExpired,
+            UUID expiryBatchId, String period) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.DEBIT_EXPIRY)
+                .purchaseKeysDelta(purchaseExpired > 0 ? -purchaseExpired : null)
+                .connectivityKeysDelta(connectivityExpired > 0 ? -connectivityExpired : null)
+                .reason("Vencimiento de llaves - período " + period)
+                .referenceId(expiryBatchId)
+                .expiryProcessed(true)
+                .build();
     }
 }

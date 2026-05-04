@@ -24,17 +24,17 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
          SELECT CASE WHEN COUNT(al) > 0 THEN true ELSE false END
            FROM AdLike al
            WHERE al.ad.id = :adId
-           AND al.user.id = :userId
+           AND al.consumer.id = :consumerId
     """)
     boolean hasUserSeenAd(
-           @Param("userId") Long userId,
+           @Param("consumerId") Long consumerId,
            @Param("adId") Long adId
     );
 
     // Buscar likes por usuario
-    List<AdLike> findByUserId(Long userId);
+    List<AdLike> findByConsumerId(Long consumerId);
     
-    Page<AdLike> findByUserId(Long userId, Pageable pageable);
+    Page<AdLike> findByConsumerId(Long consumerId, Pageable pageable);
     
     // Buscar likes por anuncio
     List<AdLike> findByAdId(Long adId);
@@ -42,31 +42,31 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
     Page<AdLike> findByAdId(Long adId, Pageable pageable);
     
     // Verificar si existe un like
-    boolean existsByUserIdAndAdId(Long userId, Long adId);
+    boolean existsByConsumerIdAndAdId(Long consumerId, Long adId);
     
-    Optional<AdLike> findByUserIdAndAdId(Long userId, Long adId);
+    Optional<AdLike> findByConsumerIdAndAdId(Long consumerId, Long adId);
     
     // Contar likes por anuncio
     @Query("SELECT COUNT(al) FROM AdLike al WHERE al.ad.id = :adId")
     Long countByAdId(@Param("adId") Long adId);
     
     // Contar likes por usuario
-    @Query("SELECT COUNT(al) FROM AdLike al WHERE al.user.id = :userId")
-    Long countByUserId(@Param("userId") Long userId);
+    @Query("SELECT COUNT(al) FROM AdLike al WHERE al.consumer.id = :consumerId")
+    Long countByConsumerId(@Param("consumerId") Long consumerId);
     
     // Obtener likes por rango de fechas
-    @Query("SELECT al FROM AdLike al WHERE al.user.id = :userId " +
+    @Query("SELECT al FROM AdLike al WHERE al.consumer.id = :consumerId " +
            "AND al.createdAt BETWEEN :startDate AND :endDate")
-    List<AdLike> findByUserIdAndDateRange(
-        @Param("userId") Long userId,
+    List<AdLike> findByConsumerIdAndDateRange(
+        @Param("consumerId") Long consumerId,
         @Param("startDate") LocalDateTime startDate,
         @Param("endDate") LocalDateTime endDate
     );
     
     // Obtener los últimos likes de un usuario
-    @Query("SELECT al FROM AdLike al WHERE al.user.id = :userId " +
+    @Query("SELECT al FROM AdLike al WHERE al.consumer.id = :consumerId " +
            "ORDER BY al.createdAt DESC")
-    Page<AdLike> findRecentLikesByUser(@Param("userId") Long userId, Pageable pageable);
+    Page<AdLike> findRecentLikesByUser(@Param("consumerId") Long consumerId, Pageable pageable);
     
     // Estadísticas de likes por día
     @Query("SELECT DATE(al.createdAt), COUNT(al) FROM AdLike al " +
@@ -76,6 +76,6 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
     List<Object[]> getLikesByDay(@Param("adId") Long adId);
     
     // Total ganado por usuario
-    @Query("SELECT SUM(al.rewardAmount) FROM AdLike al WHERE al.user.id = :userId")
-    java.math.BigDecimal sumRewardsByUserId(@Param("userId") Long userId);
+    @Query("SELECT SUM(al.rewardAmount) FROM AdLike al WHERE al.consumer.id = :consumerId")
+    java.math.BigDecimal sumRewardsByConsumerId(@Param("consumerId") Long consumerId);
 }

@@ -16,8 +16,8 @@ import com.sendgrid.SendGrid;
 import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
-import com.verygana2.models.products.Purchase;
-import com.verygana2.models.products.PurchaseItem;
+import com.verygana2.models.marketplace.Purchase;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.services.interfaces.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -211,7 +211,7 @@ public class SendGridEmailService implements EmailService {
         html.append(String.format("<p><strong>📅 Fecha:</strong> %s</p>",
                 purchase.getCreatedAt().format(DATE_FORMATTER)));
         html.append(String.format("<p><strong>💰 Total Pagado:</strong> $%,.0f COP</p>",
-                purchase.getTotal()));
+                purchase.getTotalCents()));
         html.append("</div>");
 
         // Products
@@ -222,7 +222,7 @@ public class SendGridEmailService implements EmailService {
             html.append(String.format("<div class='product-name'>%s</div>",
                     escapeHtml(item.getProduct().getName())));
             html.append(String.format("<div class='product-price'>Precio: $%,.0f COP</div>",
-                    item.getPriceAtPurchase()));
+                    item.getProduct().getPriceCents()));
 
             // Código
             if (item.getDeliveredCode() != null) {
@@ -230,24 +230,6 @@ public class SendGridEmailService implements EmailService {
                 html.append("<div class='code-label'>🔑 Tu Código</div>");
                 html.append(String.format("<div class='code-value'>%s</div>",
                         escapeHtml(item.getDeliveredCode())));
-                html.append("</div>");
-            }
-
-            // Credenciales
-            if (item.getDeliveredCredentials() != null) {
-                html.append("<div class='credentials'>");
-                html.append("<div class='code-label'>🔐 Credenciales de Acceso</div>");
-                html.append(String.format("<pre style='margin:0;font-family:monospace;'>%s</pre>",
-                        escapeHtml(item.getDeliveredCredentials())));
-                html.append("</div>");
-            }
-
-            // Instrucciones
-            if (item.getDeliveryInstructions() != null) {
-                html.append("<div class='instructions'>");
-                html.append("<div class='code-label'>📋 Instrucciones de Uso</div>");
-                html.append(String.format("<p>%s</p>",
-                        escapeHtml(item.getDeliveryInstructions()).replace("\n", "<br>")));
                 html.append("</div>");
             }
 

@@ -16,9 +16,10 @@ import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.userDetails.CommercialDetails;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = { MoneyMapper.class })
 public interface AdMapper {
 
     // 🔹 Crear entidad a partir de DTO
@@ -30,8 +31,6 @@ public interface AdMapper {
     @Mapping(target = "targetGender", expression = "java(com.verygana2.models.enums.TargetGender.valueOf(request.getTargetGender()))")
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
-    @Mapping(target = "totalBudget", ignore = true)
-    @Mapping(target = "spentBudget", ignore = true)
     @Mapping(target = "likes", ignore = true)
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true)
@@ -40,9 +39,9 @@ public interface AdMapper {
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta
-    @Mapping(target = "remainingBudget", expression = "java(entity.getRemainingBudget())")
-    @Mapping(target = "remainingLikes", expression = "java(entity.getRemainingLikes())")
-    @Mapping(target = "completionPercentage", expression = "java(entity.getCompletionPercentage())")
+    @Mapping(target = "remainingBudget", source = "remainingBudget")
+    @Mapping(target = "remainingLikes", source = "remainingLikes")
+    @Mapping(target = "completionPercentage", source = "completionPercentage")
     @Mapping(target = "mediaType", expression = "java(entity.getAsset() != null ? entity.getAsset().getMediaType() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     AdResponseDTO toDto(Ad entity);

@@ -15,8 +15,5 @@ public class ProductStockRequestDTO {
     @Size(max = 50)
     private String code;
 
-    @Size(max = 250)
-    private String additionalInfo;
-
     private ZonedDateTime expirationDate;
 }

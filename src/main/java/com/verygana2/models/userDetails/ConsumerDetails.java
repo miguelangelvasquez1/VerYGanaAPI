@@ -3,12 +3,12 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
-
 import com.verygana2.models.Municipality;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Category;
 import com.verygana2.models.enums.Gender;
-import com.verygana2.models.products.FavoriteProduct;
+import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Max;
@@ -32,10 +32,13 @@ public class ConsumerDetails extends UserDetails {
     private String userName;
 
     // ConsumerDetails — DESPUÉS (correcto)
-    @NotNull(message = "Avatar is required")  // ← NotNull para objetos/entidades
+    @NotNull(message = "Avatar is required") // ← NotNull para objetos/entidades
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "avatar_id")
     private Avatar avatar;
+
+    @OneToOne(mappedBy = "consumer", fetch = FetchType.LAZY)
+    private KeyWallet keyWallet;
 
     @NotBlank(message = "the name cannot be empty")
     @Size(max = 50)
@@ -52,7 +55,6 @@ public class ConsumerDetails extends UserDetails {
     @Min(value = 0, message = "dailyAdCount must be zero or positive")
     @Max(value = 100, message = "dailyAdCount cannot exceed 100")
     private Integer dailyAdCount;
-
 
     @NotBlank(message = "Department is required")
     @Size(max = 50)
@@ -71,7 +73,7 @@ public class ConsumerDetails extends UserDetails {
     private Gender gender;
 
     private boolean hasPet;
-    
+
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
     @NotNull(message = "Preferences are required")
@@ -85,7 +87,7 @@ public class ConsumerDetails extends UserDetails {
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
 
     @PrePersist
-    public void onCreate (){
+    public void onCreate() {
         this.hasPet = false;
     }
 

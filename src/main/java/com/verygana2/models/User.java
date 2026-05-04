@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserState;
-import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.userDetails.UserDetails;
 
 import jakarta.persistence.CascadeType;
@@ -49,9 +48,6 @@ public class User{
     @Column(nullable = false)
     private UserState userState;
     private ZonedDateTime registeredDate;
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
-    private Wallet wallet;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;

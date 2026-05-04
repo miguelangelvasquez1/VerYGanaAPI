@@ -1,7 +1,8 @@
 package com.verygana2.controllers;
 
-import java.math.BigDecimal;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,69 +14,60 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.wallet.requests.DepositRequest;
-import com.verygana2.dtos.wallet.requests.TransferRequest;
 import com.verygana2.dtos.wallet.requests.WithdrawalRequest;
+import com.verygana2.dtos.wallet.responses.DepositInitiatedResponse;
+import com.verygana2.dtos.wallet.responses.PayoutSummaryResponse;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
 import com.verygana2.dtos.wallet.responses.WalletResponse;
-import com.verygana2.services.interfaces.WalletService;
+import com.verygana2.services.interfaces.finance.WalletService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/wallets")
+@RequestMapping("/commercial/wallet")
+@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
 public class WalletController {
 
     private final WalletService walletService;
 
-    // These methods uses GlobalExceptionHandler
-
-    @GetMapping("/myWallet")
-    public ResponseEntity<WalletResponse> getWalletByOwnerId (@AuthenticationPrincipal Jwt jwt){
-        Long userId = jwt.getClaim("userId");
-        WalletResponse response = walletService.getWalletByOwnerId(userId);
-        return ResponseEntity.ok(response);
-    }
-
-    // Balance Queries
-
-    @GetMapping("/balance")
-    public ResponseEntity<BigDecimal> getAvailableBalance (@AuthenticationPrincipal Jwt jwt){
-        Long userId = jwt.getClaim("userId");
-        BigDecimal availableBalance = walletService.getAvailableBalance(userId); 
-        return ResponseEntity.ok(availableBalance);
-    }
-
-    @GetMapping("/balance/blocked")
-    public ResponseEntity<BigDecimal> getBlockedBalance (@AuthenticationPrincipal Jwt jwt){
-        Long userId = jwt.getClaim("userId");
-        BigDecimal blockedBalance = walletService.getBlockedBalance(userId); 
-        return ResponseEntity.ok(blockedBalance);
+    @GetMapping("/me")
+    public ResponseEntity<WalletResponse> getMyWallet(@AuthenticationPrincipal Jwt jwt) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(walletService.getMyWallet(commercialId));
     }
 
     @PostMapping("/deposit")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<TransactionResponse> doDeposit (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid DepositRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.doDeposit(userId, request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<DepositInitiatedResponse> initiateDeposit(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid DepositRequest request) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.status(HttpStatus.ACCEPTED)
+                .body(walletService.initiateDeposit(commercialId, request));
     }
 
     @PostMapping("/withdraw")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<TransactionResponse> doWithdrawal (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid WithdrawalRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.doWithdrawal(userId, request);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<TransactionResponse> requestWithdrawal(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody @Valid WithdrawalRequest request) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(walletService.requestWithdrawal(commercialId, request));
     }
 
-    @PostMapping("/transfer")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<TransactionResponse> transferToUser (@AuthenticationPrincipal Jwt jwt, @RequestBody @Valid TransferRequest request){
-        Long userId = jwt.getClaim("userId");
-        TransactionResponse response = walletService.transferToUser(userId, request);
-        return ResponseEntity.ok(response);
+    @GetMapping("/me/transactions")
+    public ResponseEntity<Page<TransactionResponse>> getTransactions(
+            @AuthenticationPrincipal Jwt jwt,
+            Pageable pageable) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(walletService.getTransactions(commercialId, pageable));
     }
-    
+
+    @GetMapping("/me/payouts")
+    public ResponseEntity<Page<PayoutSummaryResponse>> getPayouts(
+            @AuthenticationPrincipal Jwt jwt,
+            Pageable pageable) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(walletService.getPayouts(commercialId, pageable));
+    }
 }

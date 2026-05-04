@@ -2,7 +2,7 @@ package com.verygana2.services.plans;
 
 import org.springframework.stereotype.Service;
 
-import com.verygana2.models.plans.EffectivePlanState;
+import com.verygana2.models.finance.plans.EffectivePlanState;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

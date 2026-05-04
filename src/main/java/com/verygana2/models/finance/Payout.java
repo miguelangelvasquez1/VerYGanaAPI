@@ -33,37 +33,48 @@ import com.verygana2.models.userDetails.CommercialDetails;
  *
  * DISEÑO DEL JOB DE PAYOUT (implementar en PayoutScheduler con @Scheduled):
  *
- * Hora de ejecución recomendada: 11:00 PM hora Colombia (04:00 UTC del día siguiente).
- * Razón: las 11 PM da tiempo a que todas las ventas del día estén confirmadas por Wompi
- * y los movimientos de tesorería estén COMPLETED. No usar medianoche porque los webhooks
+ * Hora de ejecución recomendada: 11:00 PM hora Colombia (04:00 UTC del día
+ * siguiente).
+ * Razón: las 11 PM da tiempo a que todas las ventas del día estén confirmadas
+ * por Wompi
+ * y los movimientos de tesorería estén COMPLETED. No usar medianoche porque los
+ * webhooks
  * de Wompi pueden tardar minutos en llegar.
  *
  * Algoritmo del job:
- *   1. Buscar todos los Copayment(status=COMPLETED) del día que no tengan Payout asociado.
- *   2. Agrupar por commercial_id (empresario dueño del producto vendido).
- *   3. Para cada grupo:
- *      a. Sumar todos los total_amount_cents → grossAmountCents
- *      b. Verificar si commercial.commissionActive = true
- *      c. Si true: commissionCents = grossAmountCents × commissionPct / 100
- *      d. Si false: commissionCents = 0 (aún no ha recuperado 6× su inversión)
- *      e. netAmountCents = grossAmountCents - commissionCents
- *      f. Crear Payout(status=SCHEDULED, scheduledAt=NOW())
- *      g. Mover commissionCents de PAYOUTS_PENDING → OPERATIONS (TreasuryMovement)
- *   4. Para cada Payout(status=SCHEDULED):
- *      a. Llamar a Wompi Transfer API con netAmountCents y datos bancarios del empresario
- *      b. Crear WompiTransaction(type=TRANSFER_PAYOUT, status=PENDING)
- *      c. Actualizar Payout(status=PROCESSING, wompiTransaction=wompiTx)
- *      d. Mover netAmountCents de PAYOUTS_PENDING → [cuenta externa] (TreasuryMovement)
- *   5. El webhook de Wompi confirma cada transferencia:
- *      a. Si APPROVED: Payout(status=PAID, paidAt=NOW())
- *      b. Si DECLINED: Payout(status=FAILED) → reencolar para reintento al día siguiente
+ * 1. Buscar todos los Copayment(status=COMPLETED) del día que no tengan Payout
+ * asociado.
+ * 2. Agrupar por commercial_id (empresario dueño del producto vendido).
+ * 3. Para cada grupo:
+ * a. Sumar todos los total_amount_cents → grossAmountCents
+ * b. Verificar si commercial.commissionActive = true
+ * c. Si true: commissionCents = grossAmountCents × commissionPct / 100
+ * d. Si false: commissionCents = 0 (aún no ha recuperado 6× su inversión)
+ * e. netAmountCents = grossAmountCents - commissionCents
+ * f. Crear Payout(status=SCHEDULED, scheduledAt=NOW())
+ * g. Mover commissionCents de PAYOUTS_PENDING → OPERATIONS (TreasuryMovement)
+ * 4. Para cada Payout(status=SCHEDULED):
+ * a. Llamar a Wompi Transfer API con netAmountCents y datos bancarios del
+ * empresario
+ * b. Crear WompiTransaction(type=TRANSFER_PAYOUT, status=PENDING)
+ * c. Actualizar Payout(status=PROCESSING, wompiTransaction=wompiTx)
+ * d. Mover netAmountCents de PAYOUTS_PENDING → [cuenta externa]
+ * (TreasuryMovement)
+ * 5. El webhook de Wompi confirma cada transferencia:
+ * a. Si APPROVED: Payout(status=PAID, paidAt=NOW())
+ * b. Si DECLINED: Payout(status=FAILED) → reencolar para reintento al día
+ * siguiente
  *
  * Por qué batch y no en tiempo real:
- *   - Una venta individual puede requerir 2-3 llamadas a Wompi (cobro + transfer).
- *   - Con alto tráfico (100 ventas/hora), eso son 200-300 llamadas/hora a Wompi.
- *   - El batch agrupa todas las ventas del día en 1 sola transferencia por empresario.
- *   - Wompi cobra por transacción: el batch reduce costos operativos significativamente.
- *   - El empresario espera máximo 24h, lo cual es estándar en plataformas colombianas.
+ * - Una venta individual puede requerir 2-3 llamadas a Wompi (cobro +
+ * transfer).
+ * - Con alto tráfico (100 ventas/hora), eso son 200-300 llamadas/hora a Wompi.
+ * - El batch agrupa todas las ventas del día en 1 sola transferencia por
+ * empresario.
+ * - Wompi cobra por transacción: el batch reduce costos operativos
+ * significativamente.
+ * - El empresario espera máximo 24h, lo cual es estándar en plataformas
+ * colombianas.
  */
 @Entity
 @Table(name = "payouts")
@@ -129,6 +140,19 @@ public class Payout {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
+
+    @Column(name = "period_start", nullable = false)
+    private ZonedDateTime periodStart; // inicio del período que cubre este payout
+
+    @Column(name = "period_end", nullable = false)
+    private ZonedDateTime periodEnd; // fin del período
+
+    @Column(name = "failure_reason", length = 255)
+    private String failureReason; // razón si Wompi rechaza la transferencia
+
+    @Column(name = "retry_count", nullable = false)
+    @Builder.Default
+    private Integer retryCount = 0; // cuántas veces se ha reintentado
 
     @PrePersist
     public void onCreate() {

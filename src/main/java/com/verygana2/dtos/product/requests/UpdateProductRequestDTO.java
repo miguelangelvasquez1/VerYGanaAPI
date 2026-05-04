@@ -2,8 +2,6 @@ package com.verygana2.dtos.product.requests;
 
 import java.math.BigDecimal;
 
-import com.verygana2.models.enums.DeliveryType;
-import com.verygana2.models.enums.DigitalFormat;
 
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
@@ -30,11 +28,5 @@ public class UpdateProductRequestDTO {
     @NotNull(message = "The product price cannot be null")
     @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than zero")
     private BigDecimal price;
-
-    @NotNull(message = "The delivery type cannot be null")
-    private DeliveryType deliveryType;
-
-    @NotNull(message = "The digital format cannot be null")
-    private DigitalFormat digitalFormat;
 }
 
