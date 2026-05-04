@@ -33,30 +33,10 @@ public class CommercialDetails extends UserDetails {
 
     // ===== MÉTODOS DE PAGO =====
 
-    /**
-     * Todos los métodos de pago registrados por este empresario.
-     * Puede tener varios (cuenta Bancolombia, Nequi, etc.) igual que Airbnb
-     * permite múltiples métodos de cobro.
-     */
     @OneToMany(mappedBy = "commercial", cascade = CascadeType.ALL,
                fetch = FetchType.LAZY, orphanRemoval = true)
     private List<PayoutMethod> payoutMethods = new ArrayList<>();
 
-    /**
-     * Método de pago seleccionado como predeterminado.
-     * El PayoutScheduler usa este método para ejecutar la transferencia diaria.
-     *
-     * POR QUÉ @OneToOne hacia PayoutMethod en lugar de un flag isDefault en PayoutMethod:
-     * El enfoque de flag (isDefault = true) requiere que cada vez que se cambie el
-     * default, se actualicen dos filas: la anterior (isDefault = false) y la nueva
-     * (isDefault = true). Esto requiere una transacción extra y puede generar
-     * inconsistencias si hay un fallo entre las dos escrituras.
-     * Con un puntero directo aquí, cambiar el método por defecto es actualizar
-     * UNA sola columna en commercial_details. Atómico y simple.
-     *
-     * NULLABLE: un comercial recién registrado aún no tiene método configurado.
-     * El sistema debe verificar canReceivePayouts() antes de intentar un payout.
-     */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_payout_method_id")
     private PayoutMethod defaultPayoutMethod;
@@ -68,26 +48,14 @@ public class CommercialDetails extends UserDetails {
 
     // ===== PLAN =====
 
-    /**
-     * Plan activo del empresario. Se actualiza en cada depósito según el saldo
-     * total resultante. No se degrada automáticamente durante el consumo de presupuesto;
-     * solo se recalcula cuando llega un nuevo depósito.
-     * Nullable: un comercial BASIC sin inversión puede tener plan asignado directamente.
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "current_plan_id")
     private Plan currentPlan;
 
     // ===== MÉTODOS DE NEGOCIO =====
 
-    /**
-     * El empresario puede recibir payouts solo si tiene un método por defecto
-     * configurado, verificado y activo.
-     * El PayoutScheduler llama esto antes de crear cada Payout.
-     */
     public boolean canReceivePayouts() {
         return defaultPayoutMethod != null
                 && defaultPayoutMethod.canBeUsedForPayout();
     }
-
 }

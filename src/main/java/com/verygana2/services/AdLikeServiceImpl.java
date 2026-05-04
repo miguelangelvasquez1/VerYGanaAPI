@@ -9,13 +9,20 @@ import java.util.Objects;
 import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
+import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
+import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdLikeId;
@@ -33,6 +40,7 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
@@ -55,12 +63,13 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdService adService;
     private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
+    private final R2Service r2Service;
+    private final AdMapper adMapper;
     
     @Override
-    @Transactional
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
-        
-        log.info("Processing like for ad {} from consumer {}", adId, consumerId);
+
+        log.info("Processing like for ad {} from consumer {} at IP {}", adId, consumerId, ipAddress);
         
         // Verificar que el consumidor existe
         ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
@@ -121,7 +130,7 @@ public class AdLikeServiceImpl implements AdLikeService {
             .atStartOfDay(colombia)
             .withZoneSameInstant(ZoneOffset.UTC);
 
-        String reason = "Interaction with ad: #" + adId;
+        String reason = "Interacción con anuncio #" + adId;
         keyTransactionRepository.save(Objects.requireNonNull(
             KeyTransaction.forInteractionPurchaseKeys(keyWallet, purchaseKeysReward, reason, sessionId, purchaseExpiry)));
         keyTransactionRepository.save(Objects.requireNonNull(
@@ -181,5 +190,34 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         return session;
+    }
+
+    @Override
+    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        AdResponseDTO dto = adMapper.toDto(ad);
+        dto.setContentUrl(
+            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+        );
+        return dto;
+    }
+
+    @Override
+    public PagedResponse<AdLikeResponseDTO> getAdLikes(Long adId, Long commercialId, Pageable pageable) {
+        // Verificar que el anuncio pertenece al comercial
+        adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        Page<AdLikeResponseDTO> adLikes = adLikeRepository
+            .findByAdIdOrderByCreatedAtDesc(adId, pageable)
+            .map(like -> AdLikeResponseDTO.builder()
+                .userId(like.getConsumer().getId())
+                .userName(like.getConsumer().getName() + " " + like.getConsumer().getLastName())
+                .likedAt(like.getCreatedAt())
+                .build()
+            );
+        return PagedResponse.from(adLikes); 
     }
 }

@@ -56,6 +56,10 @@ docker compose up --build
 docker compose restart (solo cambio de .env)
 mvn spring-boot:run
 
+1.
+mvn clean package
+
+2.
 docker build -t miguelvasquez777/verygana-api:latest .
 docker push miguelvasquez777/verygana-api:latest
 
@@ -68,3 +72,9 @@ docker push miguelvasquez777/verygana-api:latest
 
 
 - cuando un usuario se inactiva se cierra la sesion
+- validar que cuando un commercial activa un anuncio ya haya sido activado por el admin
+- manejar errores de back a front
+- si state devulve que ya tiene max ads bloquear el creacion de ads
+
+
+  mirar que va en detalles de la campana y ajustar con planes

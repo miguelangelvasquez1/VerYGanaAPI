@@ -48,6 +48,7 @@ import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.finance.Wallet;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdAssetRepository;
@@ -114,6 +115,7 @@ public class AdServiceImpl implements AdService {
      * @return AssetId y URL pre-firmada
      */
     @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
 
         // 1. Validar que el commercial existe
@@ -136,7 +138,7 @@ public class AdServiceImpl implements AdService {
                 .sizeBytes(request.getSizeBytes())
                 .mediaType(mediaType)
                 .status(AssetStatus.PENDING)
-                .uploadedAt(ZonedDateTime.now())
+                .uploadedAt(ZonedDateTime.now(clock))
                 .ad(null)
                 .build();
 
@@ -172,15 +174,12 @@ public class AdServiceImpl implements AdService {
      * @return ID del anuncio creado
      */
     @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
 
         AdAsset asset = null;
 
         try {
-            CommercialDetails commercial = commercialDetailsRepository
-                    .findById(Objects.requireNonNull(commercialId))
-                    .orElseThrow(() -> new EntityNotFoundException("Commercial not found: " + commercialId));
-
             asset = adAssetRepository
                     .findById(Objects.requireNonNull(request.getAssetId()))
                     .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
@@ -233,9 +232,12 @@ public class AdServiceImpl implements AdService {
                                 totalBudgetCents, wallet.getBalanceCents()));
             }
 
-            // 11. Crear anuncio, usar mapper
+            wallet.consume(totalBudgetCents);
+            walletRepository.save(wallet);
+
             CommercialDetails commercialDetails = entityManager.getReference(CommercialDetails.class, commercialId);
 
+            // 11. Crear anuncio, usar mapper
             Ad ad = adMapper.toEntity(request, commercialDetails);
 
             ad.setCategories(categories);
@@ -257,33 +259,39 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
+    @Transactional
     public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
         log.info("Updating ad {} for commercial {}", adId, commercialId);
 
         DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
-                "La fecha de fin debe ser posterior a la de inicio");
+            "La fecha de fin debe ser posterior a la de inicio");
 
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
-                .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
-        // Only edit when status is PENDING
-        if (ad.getStatus() != AdStatus.PENDING) {
-            throw new InvalidAdStateException("Solo se pueden editar anuncios pendientes de aprobación");
+        // Solo PENDING o PAUSED pueden editarse
+        if (ad.getStatus() != AdStatus.PENDING && ad.getStatus() != AdStatus.PAUSED) {
+            throw new InvalidAdStateException(
+                "Solo se pueden editar anuncios en estado PENDING o PAUSED"
+            );
+        }
+
+        // Redistribución de presupuesto (solo si se envía un nuevo maxLikes)
+        if (updateDto.getMaxLikes() != null && !updateDto.getMaxLikes().equals(ad.getMaxLikes())) {
+            CommercialDetails commercialDetails = ad.getCommercial();
+            redistributeBudget(ad, updateDto.getMaxLikes(), commercialDetails);
+            walletRepository.save(commercialDetails.getWallet());
         }
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(updateDto.getCategoryIds());
         ad.setCategories(selectedCategories);
 
-        // Validar y actualizar municipios si se proporcionan
+
         if (updateDto.getTargetMunicipalitiesCodes() != null) {
-            List<String> codes = updateDto.getTargetMunicipalitiesCodes();
             List<Municipality> targetMunicipalities = new ArrayList<>();
-
-            if (!codes.isEmpty()) {
-                targetMunicipalities = municipalityRepository.findAllById(codes);
-
+            if (!updateDto.getTargetMunicipalitiesCodes().isEmpty()) {
+                targetMunicipalities = municipalityRepository.findAllById(Objects.requireNonNull(updateDto.getTargetMunicipalitiesCodes()));
             }
-
             ad.setTargetMunicipalities(targetMunicipalities);
         }
 
@@ -330,7 +338,7 @@ public class AdServiceImpl implements AdService {
                 case REJECTED:
                     // Asset privado → presigned URL
                     dto.setContentUrl(
-                            r2Service.getPrivateObject("private/" + asset.getObjectKey(), 200));
+                        r2Service.getPrivateObject(asset.getObjectKey(), 200));
                     break;
 
                 case APPROVED:
@@ -370,6 +378,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId) {
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
                 .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
@@ -380,10 +389,10 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.ACTIVE);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         if (ad.getStartDate() == null) {
-            ad.setStartDate(ZonedDateTime.now());
+            ad.setStartDate(ZonedDateTime.now(clock));
         }
 
         Ad savedAd = adRepository.save(ad);
@@ -403,7 +412,7 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.PAUSED);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} paused", adId);
@@ -515,10 +524,10 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.ACTIVE);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         if (ad.getStartDate() == null) {
-            ad.setStartDate(ZonedDateTime.now());
+            ad.setStartDate(ZonedDateTime.now(clock));
         }
 
         Ad savedAd = adRepository.save(ad);
@@ -539,7 +548,7 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.PAUSED);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} paused", adId);
@@ -560,7 +569,7 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.BLOCKED);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} blocked", adId);
@@ -580,7 +589,7 @@ public class AdServiceImpl implements AdService {
         }
 
         ad.setStatus(AdStatus.APPROVED);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} approved successfully", adId);
@@ -601,7 +610,7 @@ public class AdServiceImpl implements AdService {
 
         ad.setStatus(AdStatus.REJECTED);
         ad.setRejectionReason(reason);
-        ad.setUpdatedAt(ZonedDateTime.now());
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} rejected", adId);
@@ -677,7 +686,8 @@ public class AdServiceImpl implements AdService {
     public void autoDeactivateCompletedAds() {
         log.info("Running auto-deactivation task for completed ads");
 
-        List<Ad> adsToDeactivate = adRepository.findAdsToAutoDeactivate(ZonedDateTime.now());
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        List<Ad> adsToDeactivate = adRepository.findAdsToAutoDeactivate(now);
 
         if (adsToDeactivate.isEmpty()) {
             log.info("No ads to deactivate");
@@ -686,7 +696,7 @@ public class AdServiceImpl implements AdService {
 
         for (Ad ad : adsToDeactivate) {
             ad.setStatus(AdStatus.COMPLETED);
-            ad.setUpdatedAt(ZonedDateTime.now());
+            ad.setUpdatedAt(now);
             adRepository.save(ad);
 
             log.info("Ad {} auto-deactivated. Reason: {} likes of {}, Budget: {} of {}",
@@ -702,12 +712,13 @@ public class AdServiceImpl implements AdService {
     public void checkExpiredAds() {
         log.info("Checking for expired ads");
 
-        List<Ad> expiredAds = adRepository.findAdsToAutoDeactivate(ZonedDateTime.now());
+        ZonedDateTime now = ZonedDateTime.now(clock);
+        List<Ad> expiredAds = adRepository.findAdsToAutoDeactivate(now);
 
         for (Ad ad : expiredAds) {
-            if (ad.getEndDate() != null && ad.getEndDate().isBefore(ZonedDateTime.now())) {
+            if (ad.getEndDate() != null && ad.getEndDate().isBefore(now)) {
                 ad.setStatus(AdStatus.EXPIRED);
-                ad.setUpdatedAt(ZonedDateTime.now());
+                ad.setUpdatedAt(now);
                 adRepository.save(ad);
 
                 log.info("Ad {} marked as expired", ad.getId());
@@ -775,6 +786,58 @@ public class AdServiceImpl implements AdService {
     }
 
     // Métodos privados auxiliares -----------------------------
+
+    /**
+     * Redistribuye el presupuesto del anuncio cuando se modifica maxLikes.
+     *
+     * Reglas:
+     * - Solo aplica si el nuevo maxLikes difiere del actual.
+     * - No se puede bajar por debajo de currentLikes + 1.
+     * - Si se baja: se devuelve al anunciante solo el presupuesto no consumido liberado.
+     * - Si se sube: se deduce el presupuesto adicional del saldo del anunciante.
+     *
+     * @param ad                el anuncio a modificar
+     * @param newMaxLikes       el nuevo valor de maxLikes solicitado
+     * @param commercialDetails los detalles del anunciante (con activeInvestment)
+     */
+    private void redistributeBudget(Ad ad, Integer newMaxLikes, CommercialDetails commercialDetails) {
+        Integer currentMaxLikes = ad.getMaxLikes();
+
+        if (newMaxLikes.equals(currentMaxLikes)) return;
+
+        int currentLikes = ad.getCurrentLikes() != null ? ad.getCurrentLikes() : 0;
+
+        if (newMaxLikes <= currentLikes) {
+            throw new ValidationException(
+                String.format(
+                    "El máximo de likes no puede ser menor o igual a los likes ya consumidos (%d). Mínimo permitido: %d",
+                    currentLikes, currentLikes + 1
+                )
+            );
+        }
+
+        // delta = rewardPerLike × (newMaxLikes - currentMaxLikes)
+        // > 0 → subida (se necesita más presupuesto)
+        // < 0 → bajada (se libera presupuesto)
+        long delta = ad.getRewardPerLike() * (newMaxLikes - currentMaxLikes);
+        Wallet wallet = commercialDetails.getWallet();
+
+        if (delta > 0) {
+            if (!wallet.hasFundsFor(delta)) {
+                throw new ValidationException(
+                    String.format(
+                        "Saldo insuficiente para aumentar el presupuesto. Requerido adicional: %d centavos, Disponible: %d centavos",
+                        delta, wallet.getBalanceCents()
+                    )
+                );
+            }
+            wallet.consume(delta);
+            log.info("Budget increased for ad {}: consumed {} centavos from wallet", ad.getId(), delta);
+        } else {
+            wallet.deposit(-delta);
+            log.info("Budget decreased for ad {}: refunded {} centavos to wallet", ad.getId(), -delta);
+        }
+    }
 
     /**
      * Determinar tipo de media según content-type

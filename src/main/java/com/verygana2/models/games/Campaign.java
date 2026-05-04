@@ -74,7 +74,7 @@ public class Campaign {
     @JoinColumn(name = "config_definition_id", nullable = false)
     private GameConfigDefinition configDefinition;
 
-    // Full JSON config stored as JSONB
+    // Full JSON config stored as JSONB, resultado de configDefinition
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config_data", columnDefinition = "json", nullable = false)
     private Map<String, Object> configData;
