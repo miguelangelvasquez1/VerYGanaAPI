@@ -2,6 +2,7 @@ package com.verygana2.services.details;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.stereotype.Service;
@@ -15,9 +16,7 @@ import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.mappers.ConsumerDetailsMapper;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
-import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
-
 
 import lombok.RequiredArgsConstructor;
 
@@ -27,7 +26,6 @@ import lombok.RequiredArgsConstructor;
 public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
 
     private final ConsumerDetailsRepository consumerDetailsRepository;
-    private final WalletService walletService;
     private final ConsumerDetailsMapper consumerDetailsMapper;
 
     @Override
@@ -36,15 +34,14 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Consumer id exists");
         }
-        BigDecimal availableBalance = walletService.getAvailableBalance(consumerId);
-        return new BalanceResponseDTO(availableBalance);
+        return new BalanceResponseDTO(BigDecimal.valueOf(getConsumerById(consumerId).getKeyWallet().getAvailableKeys()));
     }
 
     @Override
     @Transactional(readOnly = true)
     public ConsumerDetails getConsumerById(Long consumerId) {
         if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("user id must be positive");
+            throw new IllegalArgumentException("Consumer id must be positive");
         }
         return consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found ", ConsumerDetails.class));
     }
@@ -55,9 +52,9 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
-        ConsumerDetails consumerDetails = consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found", ConsumerDetails.class));
-        ConsumerInitialDataResponseDTO initialData = consumerDetailsMapper.toConsumerInitialDataResponseDTO(consumerDetails);
-        initialData.setWalletAvailableBalance(walletService.getAvailableBalance(consumerId));
+        ConsumerDetails consumer = consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found", ConsumerDetails.class));
+        ConsumerInitialDataResponseDTO initialData = consumerDetailsMapper.toConsumerInitialDataResponseDTO(consumer);
+        initialData.setAvailableKeys(BigDecimal.valueOf(getConsumerById(consumerId).getKeyWallet().getAvailableKeys()));
         return initialData;
     }
 
@@ -84,11 +81,7 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     @Override
     @Transactional(readOnly = true)
     public boolean existsConsumerById(Long consumerId) {
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        return consumerDetailsRepository.existsById(consumerId);
+        return consumerDetailsRepository.existsById(Objects.requireNonNull(consumerId));
     }
     
 }

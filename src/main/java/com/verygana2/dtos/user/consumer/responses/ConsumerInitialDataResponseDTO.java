@@ -8,7 +8,5 @@ import lombok.Data;
 public class ConsumerInitialDataResponseDTO {
     private Long id;
     private String name;
-    // private String petName;
-    private BigDecimal walletAvailableBalance;
-    // private List<Notification> notificationNotRead;
+    private BigDecimal availableKeys;
 }

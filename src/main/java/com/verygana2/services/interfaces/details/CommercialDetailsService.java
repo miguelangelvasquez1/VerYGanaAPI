@@ -6,7 +6,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 
 public interface CommercialDetailsService {
     
-    CommercialInitialDataResponseDTO getCommercialInitialData(Long consumerId);
+    CommercialInitialDataResponseDTO getCommercialInitialData(Long commercialId);
     CommercialDetails getCommercialById (Long commercialId);
     boolean existsCommercialById(Long commercialId);
     CommercialDetails getCommercialByCompanyName(String companyName);

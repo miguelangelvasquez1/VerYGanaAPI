@@ -4,11 +4,11 @@ import org.springframework.stereotype.Service;
 
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.CampaignStatus;
-import com.verygana2.models.plans.EffectivePlanState;
-import com.verygana2.models.plans.RequirePlanCapability;
+import com.verygana2.models.finance.plans.EffectivePlanState;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.repositories.AdRepository;
-import com.verygana2.repositories.ProductRepository;
 import com.verygana2.repositories.games.CampaignRepository;
+import com.verygana2.repositories.marketplace.ProductRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

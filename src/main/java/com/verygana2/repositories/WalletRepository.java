@@ -12,14 +12,15 @@ import com.verygana2.models.finance.Wallet;
 
 import jakarta.persistence.LockModeType;
 
-
 @Repository
 public interface WalletRepository extends JpaRepository<Wallet, Long> {
-    Optional<Wallet> findByUserId(Long ownerId);
-    boolean existsByUserId(Long ownerId);
 
-    // MUY IMPORTANTE PARA QUE NO SE CREEN DOS COSAS A LA VEZ CUANDO SE VALIDA EL SALDO
+    Optional<Wallet> findByCommercialId(Long commercialId);
+
+    // Lock pesimista para operaciones de consumo concurrente (BudgetService)
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select w from Wallet w where w.user.id = :userId")
-    Wallet findWalletForUpdate(@Param("userId") Long userId);
+    @Query("SELECT w FROM Wallet w WHERE w.commercial.id = :commercialId")
+    Optional<Wallet> findByCommercialIdForUpdate(@Param("commercialId") Long commercialId);
+
+    boolean existsByCommercialId (Long commercialId);
 }

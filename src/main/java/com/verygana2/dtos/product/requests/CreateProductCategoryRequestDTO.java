@@ -6,11 +6,9 @@ import lombok.Data;
 
 @Data
 public class CreateProductCategoryRequestDTO {
+
     @NotBlank(message = "Product category name cannot be empty")
     @Size(max = 100, message = "The product category name cannot exceed 100 characters")
     private String name;
-
-    @NotBlank(message = "Image url cannot be empty")
-    private String imageUrl;
    
 }

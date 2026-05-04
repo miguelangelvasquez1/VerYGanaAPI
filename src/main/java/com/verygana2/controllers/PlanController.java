@@ -13,9 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.verygana2.models.plans.EffectivePlanState;
-import com.verygana2.services.plans.CommissionService;
-import com.verygana2.services.plans.CommissionService.SaleCommissionResult;
+import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.services.plans.EffectivePlanResolver;
 import com.verygana2.services.plans.InvestmentService;
 
@@ -52,7 +50,6 @@ public class PlanController {
 
     private final EffectivePlanResolver planResolver;
     private final InvestmentService investmentService;
-    private final CommissionService commissionService;
 
     // ── Estado efectivo ───────────────────────────────────────────────────────
 
@@ -88,26 +85,6 @@ public class PlanController {
         );
 
         return ResponseEntity.ok(investment);
-    }
-
-    // ── Ventas ────────────────────────────────────────────────────────────────
-
-    /**
-     * Procesa una venta completada para el anunciante.
-     * Actualiza el recoveredAmount, verifica ROI x6 y calcula comisión.
-     *
-     * Debe llamarse en el flujo de confirmación de ventas, DESPUÉS de que
-     * la transacción comercial sea exitosa.
-     */
-    @PostMapping("/commercial/sale")
-    public ResponseEntity<SaleCommissionResult> processSale(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody SaleRequest request) {
-
-        SaleCommissionResult result = commissionService.processSale(
-                jwt.getClaim("userId"), request.saleAmount());
-
-        return ResponseEntity.ok(result);
     }
 
     // ── Consumo de presupuesto ────────────────────────────────────────────────

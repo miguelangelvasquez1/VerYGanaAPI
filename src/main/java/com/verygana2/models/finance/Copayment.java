@@ -19,13 +19,14 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import com.verygana2.models.enums.finance.CopaymentStatus;
-import com.verygana2.models.products.Purchase;
+import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 @Entity
@@ -52,21 +53,18 @@ public class Copayment {
     private ConsumerDetails consumer;
 
     /**
-     * Cantidad de llaves usadas. Siempre > 0 porque la regla de negocio
-     * exige que todo copago tenga una parte en llaves.
-     * IMPORTANTE: esta restricción se valida en CopaymentService antes de
-     * persistir. @Positive aquí actúa como segunda línea de defensa.
+     * Cantidad de llaves usadas.
      */
-    @Column(name = "keys_used", nullable = false)
-    @Positive
+    @Column(name = "keys_used")
+    @PositiveOrZero
     @NotNull
     private Long keysUsed;
 
     /**
      * Valor en centavos de las llaves usadas. keysUsed × 10 (1 llave = $10 COP).
      */
-    @Column(name = "keys_value_cents", nullable = false)
-    @Positive
+    @Column(name = "keys_value_cents")
+    @PositiveOrZero
     @NotNull
     private Long keysValueCents;
 
@@ -93,22 +91,27 @@ public class Copayment {
     /**
      * Transacción de Wompi que corresponde a cashAmountCents.
      *
-     * POR QUÉ ES NULLABLE en la BD aunque la regla de negocio diga que siempre debe existir:
+     * POR QUÉ ES NULLABLE en la BD aunque la regla de negocio diga que siempre debe
+     * existir:
      *
-     * El copago se persiste en status=PENDING *antes* de crear la transacción en Wompi.
-     * Esto es intencional: si el servidor cae después de que Wompi cobra pero antes de que
-     * guardemos la referencia, necesitamos el registro del copago para poder hacer la
+     * El copago se persiste en status=PENDING *antes* de crear la transacción en
+     * Wompi.
+     * Esto es intencional: si el servidor cae después de que Wompi cobra pero antes
+     * de que
+     * guardemos la referencia, necesitamos el registro del copago para poder hacer
+     * la
      * reconciliación y evitar cobrar dos veces al usuario.
      *
      * El flujo correcto en CopaymentService es:
-     *   1. Validar que keysUsed > 0 y cashAmountCents > 0 (regla de negocio)
-     *   2. Persistir Copayment(status=PENDING, wompiTransaction=null)
-     *   3. Llamar a Wompi y obtener wompiId
-     *   4. Actualizar Copayment con wompiTransaction
-     *   5. Cuando Wompi confirma vía webhook → pasar a PROCESSING → COMPLETED
+     * 1. Validar cashAmountCents > 0 (regla de negocio)
+     * 2. Persistir Copayment(status=PENDING, wompiTransaction=null)
+     * 3. Llamar a Wompi y obtener wompiId
+     * 4. Actualizar Copayment con wompiTransaction
+     * 5. Cuando Wompi confirma vía webhook → pasar a PROCESSING → COMPLETED
      *
      * La constraint de negocio "siempre debe haber wompiTransaction" se garantiza
-     * en el servicio, no en la columna de BD. Nunca debe llegarse a COMPLETED sin ella.
+     * en el servicio, no en la columna de BD. Nunca debe llegarse a COMPLETED sin
+     * ella.
      */
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "wompi_transaction_id")
@@ -121,6 +124,12 @@ public class Copayment {
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
+
+    @Column(name = "keys_refunded_at")
+    private ZonedDateTime keysRefundedAt; // cuándo se devolvieron las llaves si Wompi falló
+
+    @Column(name = "failure_reason", length = 255)
+    private String failureReason; // razón del rechazo de Wompi, útil para soporte
 
     @PrePersist
     public void onCreate() {

@@ -164,9 +164,9 @@ public class AdController {
     public ResponseEntity<AdForConsumerDTO> getNextAd(
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long userId = jwt.getClaim("userId");
+        Long consumerId = jwt.getClaim("userId");
 
-        return adService.getNextAdForUser(userId)
+        return adService.getNextAdForConsumer(consumerId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.noContent().build());
     }

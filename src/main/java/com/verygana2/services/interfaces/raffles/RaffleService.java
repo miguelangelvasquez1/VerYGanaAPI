@@ -14,7 +14,7 @@ import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
-import com.verygana2.dtos.raffle.responses.PrepareRaffleCreationResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
@@ -25,7 +25,7 @@ import com.verygana2.models.raffles.Raffle;
 
 public interface RaffleService {
     
-    PrepareRaffleCreationResponseDTO prepareRaffleCreation (Long adminId, CreateRaffleRequestDTO raffleData, FileUploadRequestDTO raffleImageMetadata, List<FileUploadRequestDTO> prizeImageMetadataList);
+    RaffleAssetsUploadPermissionDTO prepareRaffleCreation (Long adminId, CreateRaffleRequestDTO raffleData, FileUploadRequestDTO raffleImageMetadata, List<FileUploadRequestDTO> prizeImageMetadataList);
     EntityCreatedResponseDTO confirmRaffleCreation(Long adminId, ConfirmRaffleCreationRequestDTO request);
     EntityUpdatedResponseDTO updateRaffle(Long adminId, Long raffleId, UpdateRaffleRequestDTO request);
     void activateRaffle(Long raffleId);

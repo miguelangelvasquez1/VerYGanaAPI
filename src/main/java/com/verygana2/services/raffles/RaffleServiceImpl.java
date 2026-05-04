@@ -26,8 +26,8 @@ import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRuleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
-import com.verygana2.dtos.raffle.responses.PrepareRaffleCreationResponseDTO;
 import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
@@ -81,7 +81,7 @@ public class RaffleServiceImpl implements RaffleService {
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Override
-    public PrepareRaffleCreationResponseDTO prepareRaffleCreation(Long adminId, CreateRaffleRequestDTO raffleData,
+    public RaffleAssetsUploadPermissionDTO prepareRaffleCreation(Long adminId, CreateRaffleRequestDTO raffleData,
             FileUploadRequestDTO raffleImageMetadata, List<FileUploadRequestDTO> prizeImageMetadataList) {
 
         log.info("📋 Preparing raffle creation for admin: {}", adminId);
@@ -120,7 +120,7 @@ public class RaffleServiceImpl implements RaffleService {
                     raffleImageMetadata.getContentType());
 
             // --- Prize image assets ---
-            List<PrepareRaffleCreationResponseDTO.PrizeUploadSlotDTO> prizeSlots = new ArrayList<>();
+            List<RaffleAssetsUploadPermissionDTO.PrizeUploadSlotDTO> prizeSlots = new ArrayList<>();
 
             for (int i = 0; i < prizeImageMetadataList.size(); i++) {
                 FileUploadRequestDTO prizeMeta = prizeImageMetadataList.get(i);
@@ -143,7 +143,7 @@ public class RaffleServiceImpl implements RaffleService {
                         prizeObjectKey,
                         prizeMeta.getContentType());
 
-                prizeSlots.add(PrepareRaffleCreationResponseDTO.PrizeUploadSlotDTO.builder()
+                prizeSlots.add(RaffleAssetsUploadPermissionDTO.PrizeUploadSlotDTO.builder()
                         .prizeIndex(i)
                         .prizeAssetId(savedPrizeAsset.getId())
                         .permission(prizePermission)
@@ -154,7 +154,7 @@ public class RaffleServiceImpl implements RaffleService {
                     savedRaffleAsset.getId(),
                     prizeSlots.stream().map(s -> s.getPrizeAssetId()).toList());
 
-            return PrepareRaffleCreationResponseDTO.builder()
+            return RaffleAssetsUploadPermissionDTO.builder()
                     .raffleAssetId(savedRaffleAsset.getId())
                     .raffleImagePermission(raffleImagePermission)
                     .prizeUploadSlots(prizeSlots)

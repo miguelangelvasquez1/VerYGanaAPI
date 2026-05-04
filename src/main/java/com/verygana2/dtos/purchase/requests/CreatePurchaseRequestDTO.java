@@ -4,6 +4,7 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,20 +15,19 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class CreatePurchaseRequestDTO {
-    
-    // ===== ITEMS DE LA COMPRA =====
+
     @Valid
     @NotEmpty(message = "Purchase must have at least one item")
     private List<CreatePurchaseItemRequestDTO> items;
-    
-    // ===== INFORMACIÓN DE CONTACTO (OPCIONAL) =====
-    // Solo para enviar las credenciales o códigos de activación
-    @Valid
-    private String contactEmail; // Email donde se enviarán las credenciales
-    
-    // ===== NOTAS ADICIONALES (OPCIONAL) =====
-    private String notes; // Ej: "Enviar credenciales de Netflix al correo alternativo"
 
-    // ===== DESCUENTOS (OPCIONAL) =====
-    private String couponCode;  // Código de cupón si aplica
+    /**
+     * Llaves de compra que el usuario quiere aplicar al total.
+     * 0 = pago 100% con dinero real vía Wompi.
+     * No puede superar el máximo permitido por el plan del empresario por producto.
+     */
+    @PositiveOrZero(message = "keysToUse cannot be negative")
+    @Builder.Default
+    private Long keysToUse = 0L;
+
+    private String contactEmail;
 }

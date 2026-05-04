@@ -38,7 +38,7 @@ public interface AdService {
     AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId);
     
     // Consultas para consumers
-    Optional<AdForConsumerDTO> getNextAdForUser(Long userId);
+    Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId);
 
     long countAvailableAdsForUser(Long userId);
     

@@ -14,7 +14,7 @@ import lombok.NoArgsConstructor;
 @Embeddable
 public class AdLikeId implements Serializable { //Porque el usuario solo puede dar like una vez por anuncio
 
-    private Long userId;
+    private Long consumerId;
     private Long adId;
 
     // equals() y hashCode() obligatorios para JPA
@@ -23,12 +23,12 @@ public class AdLikeId implements Serializable { //Porque el usuario solo puede d
         if (this == o) return true;
         if (!(o instanceof AdLikeId)) return false;
         AdLikeId that = (AdLikeId) o;
-        return Objects.equals(userId, that.userId) &&
+        return Objects.equals(consumerId, that.consumerId) &&
                Objects.equals(adId, that.adId);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(userId, adId);
+        return Objects.hash(consumerId, adId);
     }
 }
