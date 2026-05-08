@@ -18,6 +18,7 @@ public class PublicPaths {
         "/api/payments/webhook",
         "/api/raffles/**",
         "/ws/**",
-        "/ws/info/**"
-        }; 
+        "/ws/info/**",
+            "/api/dev/**"
+        };
 }

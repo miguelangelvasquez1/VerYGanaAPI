@@ -1,8 +1,10 @@
 package com.verygana2.services;
 
+import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.models.Avatar;
-import com.verygana2.services.interfaces.AvatarService;
-import com.verygana2.services.interfaces.ReferralService;
+import com.verygana2.models.Municipality;
+import com.verygana2.repositories.MunicipalityRepository;
+import com.verygana2.services.interfaces.*;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -15,8 +17,6 @@ import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.UserRepository;
-import com.verygana2.services.interfaces.UserService;
-import com.verygana2.services.interfaces.WalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +38,8 @@ public class UserServiceImpl implements UserService {
     private final WalletService walletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final OutboxService outboxService;
+    private final MunicipalityRepository municipalityRepository;
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -77,6 +79,13 @@ public class UserServiceImpl implements UserService {
         details.setGender(dto.getGender());
         details.setAge(calculateAge(dto.getBirthDate()));
 
+        Municipality municipality = municipalityRepository
+                .findByNameIgnoreCase(dto.getMunicipalityName())
+                .orElseThrow(() -> new InvalidRequestException(
+                        "Municipality not found: " + dto.getMunicipalityName()));
+        details.setMunicipality(municipality);
+        details.setMunicipalityName(municipality.getName());
+
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
         userRepository.saveAndFlush(user);
@@ -87,6 +96,12 @@ public class UserServiceImpl implements UserService {
 
         walletService.createWallet(user);
 
+        if (details.getReferredBy() != null) {
+            outboxService.saveReferralEvent(
+                    details.getReferredBy().getId(), // referrerId → quien refirió, recibe el ticket
+                    details.getId()                  // referralId → el nuevo usuario, sourceId del ticket
+            );
+        }
         return user;
     }
 

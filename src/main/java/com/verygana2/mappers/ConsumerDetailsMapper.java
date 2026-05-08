@@ -37,7 +37,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "gender", ignore = true)
     @Mapping(target = "userHash", ignore = true)
     @Mapping(target = "hasPet", ignore = true)
-    @Mapping(target = "avatarUrl", ignore = true)
+    @Mapping(target = "avatar", ignore = true)
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "user.email", source = "email")

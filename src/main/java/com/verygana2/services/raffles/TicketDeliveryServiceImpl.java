@@ -346,9 +346,84 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     }
 
     @Override
-    public void processTicketEarningForReferral(Long consumerId, Long referralId) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'processTicketEarningForReferral'");
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processTicketEarningForReferral(Long referrerId, Long referralId) {
+
+        log.info("Processing referral ticket: referrerId={}, referralId={}",
+                referrerId, referralId);
+
+        if (referrerId == null || referrerId <= 0)
+            throw new InvalidRequestException("Referrer ID must be positive");
+        if (referralId == null || referralId <= 0)
+            throw new InvalidRequestException("Referral ID must be positive");
+
+        // Idempotencia: si ya se emitió ticket por este referido no repetir
+        if (raffleTicketRepository.existsByTicketOwnerIdAndSourceAndSourceId(
+                referrerId, RaffleTicketSource.REFERRAL, referralId)) {
+            log.info("✅ Referral ticket already exists for referrerId={}, referralId={}. Skipping.",
+                    referrerId, referralId);
+            return;
+        }
+
+        List<Raffle> activeRaffles = getActiveRafflesOrderedByDrawDate();
+
+        if (activeRaffles.isEmpty()) {
+            log.info("No active raffles. No referral tickets issued.");
+            return;
+        }
+
+        for (Raffle raffle : activeRaffles) {
+            try {
+                if (processReferralRaffle(raffle, referrerId, referralId)) {
+                    log.info("Referral ticket awarded in raffle {}. Stopping.", raffle.getId());
+                    break;
+                }
+            } catch (LimitReachedException e) {
+                log.warn("Limit reached in raffle {} for referral: {}",
+                        raffle.getId(), e.getMessage());
+            } catch (Exception e) {
+                log.error("Error processing referral in raffle {}: {}",
+                        raffle.getId(), e.getMessage(), e);
+                throw e; // relanzar para que el outbox reintente
+            }
+        }
+    }
+
+    private boolean processReferralRaffle(Raffle raffle, Long referrerId, Long referralId) {
+
+        RaffleRule referralRule = raffle.getRaffleRules() == null ? null :
+                raffle.getRaffleRules().stream()
+                        .filter(r -> r.getTicketEarningRule() != null
+                                && r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.REFERRAL
+                                && r.isActive())
+                        .findFirst()
+                        .orElse(null);
+
+        if (referralRule == null) {
+            log.debug("Raffle {} has no active REFERRAL rule. Skipping.", raffle.getId());
+            return false;
+        }
+
+        int ticketsToAward = referralRule.getTicketEarningRule().getTicketsToAward();
+
+        if (ticketsToAward <= 0) return false;
+
+        List<RaffleTicketResponseDTO> issued = raffleTicketService.issueTickets(
+                referrerId,
+                raffle.getId(),
+                ticketsToAward,
+                RaffleTicketSource.REFERRAL,
+                referralId
+        );
+
+        log.info("Issued {} referral ticket(s) to referrer {} in raffle {}",
+                issued.size(), referrerId, raffle.getId());
+
+        if (!issued.isEmpty()) {
+            sendNotification(referrerId, raffle, issued.size());
+        }
+
+        return true;
     }
 
 }
