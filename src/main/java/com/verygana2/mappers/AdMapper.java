@@ -80,6 +80,7 @@ public interface AdMapper {
     @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "asset", ignore = true)
+    @Mapping(target = "rewardPerLike", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

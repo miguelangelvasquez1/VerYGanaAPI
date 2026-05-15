@@ -78,3 +78,53 @@ docker push miguelvasquez777/verygana-api:latest
 
 
   mirar que va en detalles de la campana y ajustar con planes
+
+
+
+
+  const MIME_TYPES = {
+  html: 'text/html',
+  js: 'application/javascript',
+  wasm: 'application/wasm',
+  data: 'application/octet-stream',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  css: 'text/css'
+};
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    let path = url.pathname;
+
+    if (path.startsWith('/')) {
+      path = path.slice(1);
+    }
+
+    if (path.endsWith('/')) {
+      path += 'index.html';
+    }
+
+    const key = path;
+    console.log('R2 key:', key);
+
+    const object = await env.VERYGANA_GAMES_BUCKET.get(key);
+
+    if (!object) {
+      return new Response('Game not found', { status: 404 });
+    }
+
+    const ext = key.split('.').pop();
+
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*"
+      }
+    });
+  }
+};
