@@ -16,4 +16,14 @@ public class FeaturedProductResponseDTO {
     private BigDecimal price;
     private Double averageRate;
     private Long totalSales;
+
+    public FeaturedProductResponseDTO(Long id, String name, String imageUrl,
+            Long priceCents, Double averageRate, Long totalSales) {
+        this.id = id;
+        this.name = name;
+        this.imageUrl = imageUrl;
+        this.price = BigDecimal.valueOf(priceCents).divide(BigDecimal.valueOf(100));
+        this.averageRate = averageRate;
+        this.totalSales = totalSales;
+    }
 }

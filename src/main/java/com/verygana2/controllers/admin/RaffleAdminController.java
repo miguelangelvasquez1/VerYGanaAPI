@@ -23,7 +23,7 @@ import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
 import com.verygana2.dtos.raffle.requests.PrepareRaffleCreationRequestBodyDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
-import com.verygana2.dtos.raffle.responses.PrepareRaffleCreationResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 
@@ -43,12 +43,12 @@ public class RaffleAdminController {
     private final RaffleService raffleService;
 
     @PostMapping("/prepare")
-    public ResponseEntity<PrepareRaffleCreationResponseDTO> prepareRaffleCreation(
+    public ResponseEntity<RaffleAssetsUploadPermissionDTO> prepareRaffleCreation(
             @AuthenticationPrincipal Jwt jwt,
             @RequestBody @Valid PrepareRaffleCreationRequestBodyDTO request) {
         
         Long adminId = jwt.getClaim("userId");
-        PrepareRaffleCreationResponseDTO response = raffleService.prepareRaffleCreation(
+        RaffleAssetsUploadPermissionDTO response = raffleService.prepareRaffleCreation(
                 adminId,
                 request.getRaffleData(),
                 request.getRaffleImageMetadata(),

@@ -1,6 +1,5 @@
 package com.verygana2.dtos.ad.requests;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -39,7 +38,7 @@ public class CreateAdRequestDTO {
     @NotNull(message = "Reward per like is required")
     @DecimalMin(value = "0.01", message = "Reward per like must be at least 0.01")
     @DecimalMax(value = "100.00", message = "Reward per like must not exceed 100.00")
-    private BigDecimal rewardPerLike;
+    private Long rewardPerLike;
     
     @NotNull(message = "Max likes is required")
     @Min(value = 1, message = "Max likes must be at least 1")

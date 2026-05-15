@@ -113,28 +113,28 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               AND NOT EXISTS (
                      SELECT 1 FROM AdLike al
                      WHERE al.ad.id = a.id
-                     AND al.user.id = :userId
+                     AND al.consumer.id = :consumerId
               )
 
               AND EXISTS (
                      SELECT 1
                      FROM ConsumerDetails cd
                      JOIN cd.categories c
-                     WHERE cd.user.id = :userId
+                     WHERE cd.id = :consumerId
                      AND c MEMBER OF a.categories
               )
 
               AND NOT EXISTS (
                      SELECT 1 FROM AdWatchSession s
                      WHERE s.ad.id = a.id
-                     AND s.user.id = :userId
+                     AND s.consumer.id = :consumerId
                      AND s.status IN :blockedStatuses
               )
 
               ORDER BY a.createdAt DESC
        """)
        List<Ad> findFirstAvailableAdForUser(
-              @Param("userId") Long userId,
+              @Param("consumerId") Long consumerId,
               @Param("status") AdStatus status,
               @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
               @Param("now") ZonedDateTime now,
@@ -151,20 +151,20 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               AND NOT EXISTS (
                      SELECT 1 FROM AdLike al
                      WHERE al.ad.id = a.id
-                     AND al.user.id = :userId
+                     AND al.consumer.id = :consumerId
               )
 
               AND NOT EXISTS (
                      SELECT 1 FROM AdWatchSession s
                      WHERE s.ad.id = a.id
-                     AND s.user.id = :userId
+                     AND s.consumer.id = :consumerId
                      AND s.status IN :blockedStatuses
               )
 
               ORDER BY a.createdAt DESC
        """)
        List<Ad> findNextAdWithoutCategoryMatch(
-              @Param("userId") Long userId,
+              @Param("consumerId") Long consumerId,
               @Param("status") AdStatus status,
               @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
               @Param("now") ZonedDateTime now,
@@ -183,11 +183,11 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               AND NOT EXISTS (
               SELECT 1 FROM AdLike al 
               WHERE al.ad.id = a.id 
-              AND al.user.id = :userId
+              AND al.consumer.id = :consumerId
               )
        """)
        long countAvailableAdsForUser(
-              @Param("userId") Long userId,
+              @Param("consumerId") Long consumerId,
               @Param("status") AdStatus status,
               @Param("now") ZonedDateTime now
        );

@@ -8,8 +8,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.plans.Plan;
-import com.verygana2.models.plans.Plan.PlanCode;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 
 @Repository
 public interface PlanRepository extends JpaRepository<Plan, Long> {

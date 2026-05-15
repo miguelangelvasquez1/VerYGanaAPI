@@ -13,10 +13,10 @@ import com.verygana2.exceptions.notificationExceptions.NotificationException;
 import com.verygana2.mappers.NotificationMapper;
 import com.verygana2.models.Notification;
 import com.verygana2.models.enums.NotificationType;
-import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.userDetails.UserDetails;
 import com.verygana2.repositories.NotificationRepository;
 import com.verygana2.services.interfaces.NotificationService;
-import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.services.interfaces.details.UserDetailsService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
-    private final ConsumerDetailsService consumerDetailsService;
+    private final UserDetailsService userDetailsService;
     private final NotificationEmitterRegistry emitterRegistry;
 
     @Override
@@ -55,17 +55,17 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Async("notificationExecutor")
-    public void createInternalNotification(Long consumerId, String title, String message,
+    public void createInternalNotification(Long userId, String title, String message,
             Instant dateSent) {
 
-        validateNotificationInput(consumerId, title, message, dateSent);
+        validateNotificationInput(userId, title, message, dateSent);
 
         try {
-            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            UserDetails user = userDetailsService.getUserById(userId);
 
             Notification notification = Notification.builder()
                     .type(NotificationType.IN_APP_NOTIFICATION)
-                    .user(consumer)
+                    .user(user)
                     .title(title)
                     .message(message)
                     .dateSent(dateSent)
@@ -73,16 +73,16 @@ public class NotificationServiceImpl implements NotificationService {
 
             Notification savedNotification = notificationRepository.save(notification);
 
-            log.info("✅ Notification created: ID={}, ConsumerId={}",
-                    savedNotification.getId(), consumerId);
+            log.info("✅ Notification created: ID={}, UserId={}",
+                    savedNotification.getId(), userId);
 
             NotificationResponseDTO dto = notificationMapper.toNotificationResponseDTO(savedNotification);
-            emitterRegistry.send(consumerId, dto);
+            emitterRegistry.send(userId, dto);
 
         } catch (NotificationException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to create notification for consumer {}: {}", consumerId, e.getMessage());
+            log.error("Failed to create notification for user {}: {}", userId, e.getMessage());
             throw new NotificationException("Failed to create notification: " + e.getMessage());
         }
     }

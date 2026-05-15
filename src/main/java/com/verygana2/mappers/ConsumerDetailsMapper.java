@@ -12,7 +12,7 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 @Mapper(componentModel = "spring")
 public interface ConsumerDetailsMapper {
     
-    @Mapping(target = "walletAvailableBalance", ignore = true)
+    @Mapping(target = "availableKeys", ignore = true)
     ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO (ConsumerDetails consumer);
     
     @Mapping(target = "id", source = "user.id")
@@ -45,6 +45,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "referredBy", ignore = true)
     @Mapping(target = "referrals", ignore = true)
+    @Mapping(target = "keyWallet", ignore = true)
 
     void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 

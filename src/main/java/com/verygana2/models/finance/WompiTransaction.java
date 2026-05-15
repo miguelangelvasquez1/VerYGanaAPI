@@ -63,10 +63,10 @@ public class WompiTransaction {
      * Monto en centavos de COP, tal como lo reporta Wompi.
      * Wompi trabaja siempre en centavos para evitar errores de punto flotante.
      */
-    @Column(name = "amount_cents", nullable = false, updatable = false)
+    @Column(name = "amount_in_cents", nullable = false, updatable = false)
     @Positive
     @NotNull
-    private Long amountCents;
+    private Long amountInCents;
 
     /**
      * Moneda ISO 4217. En Colombia siempre "COP" pero se persiste

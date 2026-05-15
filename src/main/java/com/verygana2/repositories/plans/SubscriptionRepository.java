@@ -6,8 +6,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.plans.Subscription;
-import com.verygana2.models.plans.Subscription.SubscriptionStatus;
+import com.verygana2.models.finance.plans.Subscription;
+import com.verygana2.models.finance.plans.Subscription.SubscriptionStatus;
 
 @Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, Long> {

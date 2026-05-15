@@ -2,7 +2,7 @@ package com.verygana2.dtos.product.responses;
 
 import java.time.ZonedDateTime;
 
-import com.verygana2.models.enums.StockStatus;
+import com.verygana2.models.enums.marketplace.StockStatus;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

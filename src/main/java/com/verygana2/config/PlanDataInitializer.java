@@ -8,11 +8,11 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.plans.Feature;
-import com.verygana2.models.plans.Feature.FeatureType;
-import com.verygana2.models.plans.Plan;
-import com.verygana2.models.plans.Plan.PlanCode;
-import com.verygana2.models.plans.PlanFeature;
+import com.verygana2.models.finance.plans.Feature;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.PlanFeature;
+import com.verygana2.models.finance.plans.Feature.FeatureType;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.repositories.plans.FeatureRepository;
 import com.verygana2.repositories.plans.PlanFeatureRepository;
 import com.verygana2.repositories.plans.PlanRepository;
@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
  * MAX_PRODUCTS        10        100         ilimitado (-1)
  * MAX_ADS             0         20          100
  * MAX_BRANDED_GAMES   0         5           20
- * SALES_COMMISSION    10%       5%          3%
+ * SALES_COMMISSION    15%       10%          5%
  * VISIBILITY_BOOST    0%        20%         50%
  * ─────────────────────────────────────────────────────────────────
  *
@@ -67,6 +67,7 @@ public class PlanDataInitializer implements ApplicationRunner {
                              "Sin anuncios ni juegos branded.")
                 .monthlySubscription(true)
                 .monthlyPrice(new BigDecimal("99000"))
+                .commissionPerSale(15)
                 .minInvestment(null)
                 .maxInvestment(null)
                 .build());
@@ -80,6 +81,7 @@ public class PlanDataInitializer implements ApplicationRunner {
                              "Incluye anuncios y juegos branded. No es suscripción recurrente.")
                 .monthlySubscription(false)
                 .monthlyPrice(null)
+                .commissionPerSale(10)
                 .minInvestment(new BigDecimal("1000000"))
                 .maxInvestment(new BigDecimal("9999999.99"))
                 .build());
@@ -93,6 +95,7 @@ public class PlanDataInitializer implements ApplicationRunner {
                              "Máxima visibilidad, comisión reducida. No es suscripción recurrente.")
                 .monthlySubscription(false)
                 .monthlyPrice(null)
+                .commissionPerSale(5)
                 .minInvestment(new BigDecimal("10000000"))
                 .maxInvestment(null)
                 .build());
