@@ -32,6 +32,6 @@ public abstract class UserDetails {
 
     @OneToOne
     @MapsId
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", unique = true)
     private User user;
-}
+} 

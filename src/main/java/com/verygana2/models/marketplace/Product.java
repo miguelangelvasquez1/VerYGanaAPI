@@ -21,7 +21,7 @@ import lombok.ToString;
 @Table(name = "products", indexes = {
         @Index(name = "idx_commercial_id", columnList = "commercial_id"),
         @Index(name = "idx_product_category_id", columnList = "product_category_id"),
-        @Index(name = "idx_price", columnList = "price"),
+        @Index(name = "idx_price", columnList = "price_cents"),
         @Index(name = "idx_average_rate", columnList = "average_rate"),
         @Index(name = "idx_status", columnList = "status")
 })

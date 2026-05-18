@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.DepartmentResponseDTO;
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.services.LocationService;
+import com.verygana2.utils.Locations.LocationImportService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +24,13 @@ import lombok.RequiredArgsConstructor;
 public class LocationController {
 
     private final LocationService locationService;
+    private final LocationImportService locationImportService;
+
+    @GetMapping("/import")
+    public ResponseEntity<String> importLocationData() {
+        locationImportService.importFromDane();
+        return ResponseEntity.ok("Location data imported successfully");
+    }
 
     @Operation(summary = "Obtener todos los departamentos")
     @GetMapping("/departments")

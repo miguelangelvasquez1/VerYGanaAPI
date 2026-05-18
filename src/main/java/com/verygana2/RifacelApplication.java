@@ -17,7 +17,7 @@ import com.verygana2.config.RsaKeyProperties;
 public class RifacelApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(RifacelApplication.class, args); probar que las metricas se envien bien, 
+		SpringApplication.run(RifacelApplication.class, args);
 	}
 
 }

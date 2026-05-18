@@ -12,7 +12,7 @@ public class Avatar {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 60)
+    @Column(nullable = false, unique = true, length = 60)
     private String name;
 
     @Column(name = "image_url", nullable = false, length = 255)

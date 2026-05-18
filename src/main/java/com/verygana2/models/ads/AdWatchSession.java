@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
     indexes = {
         @Index(
             name = "idx_watch_session_user_ad_expires",
-            columnList = "user_id, ad_id, expires_at"
+            columnList = "consumer_user_id, ad_id, expires_at"
         ),
         @Index(
             name = "idx_watch_session_ad",
