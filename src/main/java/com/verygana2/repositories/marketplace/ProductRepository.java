@@ -14,6 +14,10 @@ import com.verygana2.models.marketplace.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+        default long countByCommercialIdAndIsActiveTrue(Long commercialId) {
+                return countCommercialProducts(commercialId, ProductStatus.ACTIVE);
+        }
+
         @Query("""
                         SELECT COUNT (p) FROM Product p
                         WHERE p.commercial.id = :commercialId

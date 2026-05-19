@@ -29,11 +29,7 @@ public class ConsumerRegisterDTO {
     @Size(min = 6, message = "Password must have at least 6 characters")
     private String password;
 
-    @NotBlank(message = "Department is required")
-    private String department;
-
-    @NotBlank(message = "Municipality is required")
-    private String municipalityName;
+    private String municipalityCode;
 
     @Size(min = 1, message = "At least one preference must be selected")
     @NotNull(message = "Preferences are required")

@@ -24,7 +24,7 @@ import lombok.NoArgsConstructor;
     name = "ad_likes",
     indexes = {
         @Index(name = "idx_ad_likes_created_at", columnList = "created_at"),
-        @Index(name = "idx_ad_likes_consumer_id", columnList = "consumer_id"),
+        @Index(name = "idx_ad_likes_consumer_id", columnList = "consumer_user_id"),
         @Index(name = "idx_ad_likes_ad_id", columnList = "ad_id")
     }
 )

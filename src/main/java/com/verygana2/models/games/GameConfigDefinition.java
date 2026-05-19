@@ -37,7 +37,7 @@ public class GameConfigDefinition {
     @JoinColumn(name = "game_id", nullable = false)
     private Game game;
 
-    @Column(nullable = false, length = 50)
+    @Column(nullable = false, length = 50, unique = true)
     private Long version; // "1.0.0", "1.1.0"
 
     @JdbcTypeCode(SqlTypes.JSON)

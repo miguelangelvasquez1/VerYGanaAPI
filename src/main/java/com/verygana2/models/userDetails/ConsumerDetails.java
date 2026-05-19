@@ -59,11 +59,12 @@ public class ConsumerDetails extends UserDetails {
 
     @NotBlank(message = "Department is required")
     @Size(max = 50)
-    private String department;
+    private String departmentName;
 
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
     private String municipalityName;
+    
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)

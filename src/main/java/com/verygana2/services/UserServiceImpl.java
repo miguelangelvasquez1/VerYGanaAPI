@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import com.verygana2.models.Avatar;
+import com.verygana2.models.Municipality;
 import com.verygana2.services.interfaces.AvatarService;
 import com.verygana2.services.interfaces.ReferralService;
 import org.hibernate.ObjectNotFoundException;
@@ -40,6 +41,7 @@ public class UserServiceImpl implements UserService {
     private final WalletService walletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final LocationService locationService;
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -63,6 +65,7 @@ public class UserServiceImpl implements UserService {
     private int calculateAge(LocalDate birthDate) {
         return Period.between(birthDate, LocalDate.now()).getYears();
     }
+    
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -73,6 +76,16 @@ public class UserServiceImpl implements UserService {
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
+
+        // === ASIGNACIÓN DEL MUNICIPIO ===
+        if (dto.getMunicipalityCode() != null) {
+            Municipality municipality = locationService.getMunicipalityEntityByCode(dto.getMunicipalityCode());
+
+            details.setMunicipality(municipality);
+            details.setMunicipalityName(municipality.getName());   // por redundancia y consultas rápidas
+            details.setDepartmentName(municipality.getDepartment().getName()); // por redundancia y consultas rápidas
+        }
+
         Avatar avatar = avatarService.getActiveAvatarOrThrow(dto.getAvatarId());
         details.setAvatar(avatar);
         details.setUserName(normalizeUsername(dto.getUserName()));

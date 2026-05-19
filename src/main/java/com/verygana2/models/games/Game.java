@@ -44,19 +44,13 @@ public class Game {
 
     // segun el equipo de desarrollo
     @Enumerated(EnumType.STRING)
-    private DeliveryType deliveryType; // PATH, QUERY
+    private DeliveryType deliveryType; // PATH; bogota, QUERY; cali
 
     @Column(name = "url", nullable = false)
     private String url; //objectKey
 
     @Column(name = "front_page_url", nullable = false)
     private String frontPageUrl;
-
-    @Column(name = "min_duration_seconds", nullable = false)
-    private Integer minDurationSeconds; // Optional
-
-    @Column(name = "max_duration_seconds", nullable = false)
-    private Integer maxDurationSeconds; // Optional
 
     @Column(name = "active", nullable = false)
     private boolean active;

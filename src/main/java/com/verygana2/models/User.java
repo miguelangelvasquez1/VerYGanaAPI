@@ -51,7 +51,10 @@ public class User{
     @JsonIgnore
     private String password;
     @Column(nullable = false)
+
+    @Enumerated(EnumType.STRING)
     private UserState userState;
+
     private ZonedDateTime registeredDate;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
