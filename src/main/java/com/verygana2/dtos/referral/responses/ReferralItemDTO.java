@@ -1,8 +1,8 @@
 package com.verygana2.dtos.referral.responses;
 
-import com.verygana2.models.enums.UserState;
-
 import java.time.ZonedDateTime;
+
+import com.verygana2.models.enums.UserState;
 
 /**
  * Información de cada consumer referido por el usuario autenticado.

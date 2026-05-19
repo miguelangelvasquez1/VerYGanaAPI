@@ -26,7 +26,6 @@ import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
-
 import com.verygana2.services.interfaces.raffles.DrawingService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 

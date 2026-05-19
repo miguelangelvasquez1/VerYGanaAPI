@@ -6,6 +6,7 @@ import java.util.List;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.Subscription;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
@@ -37,6 +38,10 @@ public class CommercialDetails extends UserDetails {
                fetch = FetchType.LAZY, orphanRemoval = true)
     private List<PayoutMethod> payoutMethods = new ArrayList<>();
 
+    @OneToMany(mappedBy = "commercial", cascade = CascadeType.ALL,
+               fetch = FetchType.LAZY, orphanRemoval = true)
+    private List<Subscription> subscriptions = new ArrayList<>();
+
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "default_payout_method_id")
     private PayoutMethod defaultPayoutMethod;
@@ -58,4 +63,45 @@ public class CommercialDetails extends UserDetails {
         return defaultPayoutMethod != null
                 && defaultPayoutMethod.canBeUsedForPayout();
     }
+
+    /**
+ * Verifica si el empresario tiene acceso activo a la plataforma.
+ *
+ * BASIC    → necesita Subscription vigente
+ * STANDARD/PREMIUM → necesita Wallet operacional (ACTIVE o LOW_BALANCE)
+ */
+public boolean hasActiveAccess() {
+    if (currentPlan == null) return false;
+ 
+    if (currentPlan.isMonthlySubscription()) {
+        // Plan básico: acceso por suscripción mensual
+        return subscriptions.stream()
+                .anyMatch(Subscription::isCurrentlyActive);
+    }
+ 
+    // Planes estándar/premium: acceso por saldo disponible
+    return wallet != null && wallet.isOperational();
+}
+ 
+/**
+ * Verifica si puede activar nuevas interacciones (anuncios, juegos, etc.).
+ * Distinto de hasActiveAccess() — aquí también se verifica que tenga
+ * saldo suficiente para el costo mínimo de activación.
+ *
+ * @param minActivationCents costo mínimo de la interacción a activar
+ */
+public boolean canActivateInteraction(long minActivationCents) {
+    if (!hasActiveAccess()) return false;
+    if (currentPlan.isMonthlySubscription()) return true; // básico no tiene wallet
+    return wallet != null && wallet.hasFundsFor(minActivationCents);
+}
+ 
+/**
+ * Retorna el plan actual como texto legible.
+ * Útil para logs y notificaciones.
+ */
+public String getCurrentPlanName() {
+    return currentPlan != null ? currentPlan.getName() : "Sin plan";
+}
+ 
 }

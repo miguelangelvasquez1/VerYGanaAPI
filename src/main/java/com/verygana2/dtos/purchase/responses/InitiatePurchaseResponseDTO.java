@@ -19,5 +19,7 @@ public class InitiatePurchaseResponseDTO {
     /** Parte cubierta con llaves en centavos (keysUsed × 1.000). */
     private Long keysValueCents;
     private PurchaseStatus status;
+    /** URL del checkout de Wompi a la que el frontend debe redirigir al usuario. */
+    private String checkoutUrl;
     private Instant timestamp;
 }

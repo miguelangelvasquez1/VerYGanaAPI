@@ -88,7 +88,7 @@ public class Product {
      *
      * Valores según plan:
      *   BASIC    → 20
-     *   STANDARD → 40
+     *   STANDARD → 35
      *   PREMIUM  → 50
      *
      * Ejemplo con priceCents = 1_500_000 y maxKeysPct = 40:

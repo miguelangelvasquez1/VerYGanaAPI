@@ -13,7 +13,7 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.repositories.plans.PlanFeatureRepository;
+import com.verygana2.repositories.finance.plans.PlanFeatureRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -84,8 +84,8 @@ public class EffectivePlanResolver {
         return EffectivePlanState.builder()
                 .hasActivePlan(true)
                 .effectivePlan(code)
-                .commissionActive(plan.getCommissionPerSale() > 0)
-                .commissionRate(BigDecimal.valueOf(plan.getCommissionPerSale()))
+                .commissionActive(plan.getSaleCommissionPct() > 0)
+                .commissionRate(BigDecimal.valueOf(plan.getSaleCommissionPct()))
                 .remainingBudget(remainingCOP)
                 .canAdvertise(getFeatureBool(code, FEAT_CAN_ADVERTISE, false))
                 .canUseGames(getFeatureBool(code, FEAT_CAN_USE_GAMES, false))

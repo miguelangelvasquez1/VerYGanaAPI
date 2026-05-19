@@ -98,6 +98,8 @@ public interface ProductMapper {
     @Mapping(target = "reviews", source = "reviews")
     @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
     @Mapping(target = "price", source = "priceCents")
+    @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
+    @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
     ProductResponseDTO toProductResponseDTO(Product product);
 
     @Mapping(target = "consumerName", source = "consumer.name")
@@ -108,6 +110,8 @@ public interface ProductMapper {
     @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
     @Mapping(target = "companyName", source = "commercial.companyName")
     @Mapping(target = "price", source = "priceCents")
+    @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
+    @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     @Mapping(target = "id", source = "product.id")
@@ -119,6 +123,8 @@ public interface ProductMapper {
     @Mapping(target = "stock", expression = "java(favoriteProduct.getProduct().getAvailableStock())")
     @Mapping(target = "status", source = "product.status")
     @Mapping(target = "companyName", source = "product.commercial.companyName")
+    @Mapping(target = "maxKeysAllowed", expression = "java(favoriteProduct.getProduct().getMaxKeysAllowed())")
+    @Mapping(target = "minCashCents", expression = "java(favoriteProduct.getProduct().getMinCashCents())")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping

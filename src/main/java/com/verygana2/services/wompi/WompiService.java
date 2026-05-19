@@ -14,9 +14,9 @@ import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO.WompiTransactionData;
 import com.verygana2.exceptions.wompi.WompiApiException;
+import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 
 import lombok.RequiredArgsConstructor;

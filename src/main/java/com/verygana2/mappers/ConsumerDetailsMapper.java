@@ -12,7 +12,11 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 @Mapper(componentModel = "spring")
 public interface ConsumerDetailsMapper {
     
-    @Mapping(target = "availableKeys", ignore = true)
+    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys")
+    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeys")
+    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys")
+    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys")
+    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys")
     ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO (ConsumerDetails consumer);
     
     @Mapping(target = "id", source = "user.id")

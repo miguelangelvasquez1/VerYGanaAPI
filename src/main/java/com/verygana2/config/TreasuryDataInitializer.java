@@ -9,8 +9,8 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
+import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.repositories.finance.TreasuryAccountRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -65,7 +65,14 @@ public class TreasuryDataInitializer implements ApplicationRunner {
             "Sala de espera del dinero que le corresponde a los empresarios por sus ventas. " +
             "El dinero entra aquí después de cada copago completado y sale " +
             "vía Wompi en el job de payout diario a las 11 PM."
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.EXTERNAL_INCOME,
+            "Ingresos externos",
+            "Origen virtual para dinero que entra desde Wompi. " +
+            "El dinero entra aquí después de cada pago completado y se distribuye hacia los otros bolsillos correspondientes"
         )
+
     );
 
     @Override

@@ -5,15 +5,15 @@ import java.math.BigDecimal;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.controllers.PlanController.InvestmentResponse;
+import com.verygana2.dtos.finance.responses.InvestmentResponseDTO;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.Investment;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.repositories.plans.InvestmentRepository;
-import com.verygana2.repositories.plans.PlanRepository;
+import com.verygana2.repositories.finance.plans.InvestmentRepository;
+import com.verygana2.repositories.finance.plans.PlanRepository;
 
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +40,7 @@ public class InvestmentService {
      * El plan se recalcula sobre el balance total resultante.
      */
     @Transactional
-    public InvestmentResponse createInvestment(Long commercialId, BigDecimal depositAmountCOP) {
+    public InvestmentResponseDTO createInvestment(Long commercialId, BigDecimal depositAmountCOP) {
 
         CommercialDetails commercial = commercialDetailsRepository.findById(commercialId)
                 .orElseThrow(() -> new ValidationException(
@@ -80,7 +80,7 @@ public class InvestmentService {
         log.info("Depósito #{} registrado. Comercial {}. Plan: {}. Saldo wallet: {} centavos",
                 deposit.getId(), commercialId, plan.getCode(), wallet.getBalanceCents());
 
-        return new InvestmentResponse(depositAmountCOP);
+        return new InvestmentResponseDTO(depositAmountCOP);
     }
 
     /**

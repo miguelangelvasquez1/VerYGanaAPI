@@ -6,8 +6,8 @@ import java.util.List;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Category;
-import com.verygana2.models.enums.Gender;
 import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
 import jakarta.persistence.*;
@@ -24,6 +24,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class ConsumerDetails extends UserDetails {
 
+    @Column(nullable = false, unique = true, length = 64, updatable = false)
     private String userHash;
 
     @NotBlank(message = "Username is required")
@@ -67,12 +68,13 @@ public class ConsumerDetails extends UserDetails {
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)
     private Municipality municipality;
+
     private Integer age;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
 
-    private boolean hasPet;
+    private boolean hasPet = false;
 
     @ManyToMany
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
@@ -85,11 +87,6 @@ public class ConsumerDetails extends UserDetails {
 
     @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
-
-    @PrePersist
-    public void onCreate() {
-        this.hasPet = false;
-    }
 
     @Column(name = "referral_code", nullable = false, length = 16, updatable = false)
     private String referralCode;

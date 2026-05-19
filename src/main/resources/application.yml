@@ -61,19 +61,6 @@ jwt:
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
-# ============================================
-# STORAGE CONFIGURATION
-# ============================================
-storage:
-  provider: cloudinary  # Options: cloudinary, r2
-
-# =====================
-# CLOUDINARY (Development)
-# =====================
-cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_API_SECRET}
 
 # =====================
 # CLOUDFLARE R2 (Production - Future)
@@ -148,6 +135,17 @@ usersEarnings:
   ad-view: ${AD_VIEW}
 
 # ============================================
+# TREASURY DISTRIBUTION
+# ============================================
+treasury:
+  distribution:
+    keys-reserve-pct: 60
+    fortification-pct: 10
+    operations-pct: 30
+  values:
+    key-value: 1000 # $1.000 centavos de COP por cada key
+
+# ============================================
 # GAMES CONFIG
 # ============================================ 
 games:
@@ -155,30 +153,17 @@ games:
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
 
-# ============================================
-# WOMPI CONFIG
-# ============================================ 
-# Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
-# wompi:
-#   public-key: ${WOMPI_PUBLIC_KEY}
-#   private-key: ${WOMPI_PRIVATE_KEY}
-#   integrity-key: ${WOMPI_INTEGRITY_KEY}
-#   events-key: ${WOMPI_EVENTS_KEY}
-#   checkout-base-url: https://checkout.wompi.co/p/
-#   api-base-url: https://production.wompi.co/v1
-
-# # application-sandbox.yml  (activa con: spring.profiles.active=sandbox)
-# wompi:
-#   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
-#   private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
-#   integrity-key: ${WOMPI_SANDBOX_INTEGRITY_KEY}
-#   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
-#   checkout-base-url: https://checkout.wompi.co/p/
-#   api-base-url: https://sandbox.wompi.co/v1
-  
 payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP
+
+# ============================================
+# PURCHASE EXPIRY
+# ============================================
+purchase:
+  expiry:
+    max-age-minutes: 120  # 2 horas (sesión Wompi expira antes de esto)
+    cron: "0 0/30 * * * *"  # cada 30 minutos
 
 
 # ============================================

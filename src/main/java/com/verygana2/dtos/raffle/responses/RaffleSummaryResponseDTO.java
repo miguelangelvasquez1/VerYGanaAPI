@@ -2,7 +2,6 @@ package com.verygana2.dtos.raffle.responses;
 
 import java.time.ZonedDateTime;
 
-
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 

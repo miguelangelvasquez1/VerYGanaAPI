@@ -9,8 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.finance.KeyTransactionType;
 import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.models.enums.finance.KeyTransactionType;
 
 @Repository
 public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, UUID> {

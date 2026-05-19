@@ -12,6 +12,7 @@ import com.verygana2.dtos.wallet.responses.DepositInitiatedResponse;
 import com.verygana2.dtos.wallet.responses.PayoutSummaryResponse;
 import com.verygana2.dtos.wallet.responses.TransactionResponse;
 import com.verygana2.dtos.wallet.responses.WalletResponse;
+import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
@@ -28,12 +29,13 @@ public class WalletServiceImpl implements WalletService {
     private final CommercialDetailsService commercialDetailsService;
 
     @Override
-    public void createFor(Long commercialId) {
+    public Wallet createFor(Long commercialId) {
 
-        if (!walletRepository.existsByCommercialId(commercialId)) {
-            walletRepository.save(
-                    Objects.requireNonNull(Wallet.createFor(commercialDetailsService.getCommercialById(commercialId))));
+        if (walletRepository.existsByCommercialId(commercialId)) {
+            throw new WalletAlreadyExistsException("Commercial with id: " + commercialId + " already has a wallet");
         }
+        return walletRepository.save(
+                Objects.requireNonNull(Wallet.createFor(commercialDetailsService.getCommercialById(commercialId))));
     }
 
     @Override
@@ -43,8 +45,9 @@ public class WalletServiceImpl implements WalletService {
             throw new IllegalArgumentException("Commercial id must be positive");
         }
 
-        return walletRepository.findByCommercialId(commercialId).orElseThrow(() -> new EntityNotFoundException("Commercial with id: " + commercialId + " not found "));
-                
+        return walletRepository.findByCommercialId(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Commercial with id: " + commercialId + " not found "));
+
     }
 
     @Override
