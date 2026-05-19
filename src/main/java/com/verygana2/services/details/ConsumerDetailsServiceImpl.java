@@ -54,7 +54,6 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
         }
         ConsumerDetails consumer = consumerDetailsRepository.findById(consumerId).orElseThrow(() -> new ObjectNotFoundException("Consumer with id:" + consumerId + " not found", ConsumerDetails.class));
         ConsumerInitialDataResponseDTO initialData = consumerDetailsMapper.toConsumerInitialDataResponseDTO(consumer);
-        initialData.setAvailableKeys(BigDecimal.valueOf(getConsumerById(consumerId).getKeyWallet().getAvailableKeys()));
         return initialData;
     }
 

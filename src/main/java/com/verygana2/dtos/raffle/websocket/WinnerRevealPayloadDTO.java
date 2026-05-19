@@ -1,7 +1,9 @@
 package com.verygana2.dtos.raffle.websocket;
 
 import java.math.BigDecimal;
+
 import com.verygana2.models.enums.raffles.PrizeType;
+
 import lombok.Builder;
 import lombok.Data;
 

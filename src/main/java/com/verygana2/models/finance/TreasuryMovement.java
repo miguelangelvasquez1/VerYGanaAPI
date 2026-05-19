@@ -4,6 +4,8 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import com.verygana2.models.enums.finance.MovementConcept;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -22,8 +24,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import com.verygana2.models.enums.finance.MovementConcept;
 
 @Entity
 @Table(name = "treasury_movements")

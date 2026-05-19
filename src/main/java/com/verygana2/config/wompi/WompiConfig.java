@@ -22,7 +22,7 @@ public class WompiConfig {
     private String privateKey;
 
     @NotBlank
-    private String integrityKey;
+    private String integritySecret;
 
     @NotBlank
     private String eventsKey;     

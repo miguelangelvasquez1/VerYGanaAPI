@@ -36,5 +36,10 @@ public enum TreasuryAccountCode {
      * y descontando comisiones, espera hasta el job de las 24h para salir
      * vía Wompi hacia la cuenta del empresario.
      */
-    PAYOUTS_PENDING
+    PAYOUTS_PENDING,
+
+    /**
+     * Dinero que ingresan los empresarios al contratar planes (fuente externa a verygana)
+     */
+    EXTERNAL_INCOME
 }

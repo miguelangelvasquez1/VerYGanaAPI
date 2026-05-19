@@ -4,6 +4,8 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import com.verygana2.models.enums.finance.TreasuryAccountCode;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -21,8 +23,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import com.verygana2.models.enums.finance.TreasuryAccountCode;
 
 @Entity
 @Table(

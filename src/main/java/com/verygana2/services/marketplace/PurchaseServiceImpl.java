@@ -8,6 +8,7 @@ import java.util.UUID;
 import org.hibernate.ObjectNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,17 +19,21 @@ import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.purchase.responses.InitiatePurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
+import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
+import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.ProductNotAvailableException;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
+import com.verygana2.models.finance.Copayment;
+import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.enums.finance.CopaymentStatus;
+import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
-import com.verygana2.models.finance.Copayment;
-import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.models.marketplace.Purchase;
@@ -37,12 +42,14 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
+import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseService;
+import com.verygana2.services.wompi.WompiService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -53,7 +60,8 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
     
-    private static final Long KEY_VALUE = 1_000L; // 1 llave = 10 COP = 1000 CENTAVOS DE COP
+    @Value("${treasury.values.key-value}")
+    private Long KEY_VALUE; // 1 llave = 10 COP = 1000 CENTAVOS DE COP
 
     private final PurchaseRepository purchaseRepository;
     private final ProductService productService;
@@ -62,6 +70,8 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final ConsumerDetailsService consumerDetailsService;
     private final KeyWalletRepository keyWalletRepository;
     private final CopaymentRepository copaymentRepository;
+    private final WompiService wompiService;
+    private final WompiTransactionRepository wompiTransactionRepository;
     private final PurchaseMapper purchaseMapper;
 
     // ─── Queries ──────────────────────────────────────────────────────────────
@@ -115,7 +125,7 @@ public class PurchaseServiceImpl implements PurchaseService {
      *
      * Flujo:
      * 1. Validar ítems y reservar stock (no marcar como vendido todavía).
-     * 2. Calcular comisiones por ítem según plan del empresario y estado de ROI.
+     * 2. Calcular comisiones por ítem según plan del empresario
      * 3. Validar que keysToUse no supera el máximo permitido por los productos.
      * 4. Reservar las llaves en el KeyWallet del consumidor.
      * 5. Crear Copayment (PENDING) con la parte en efectivo para Wompi.
@@ -165,9 +175,13 @@ public class PurchaseServiceImpl implements PurchaseService {
         long keysValueCents = keysToUse * KEY_VALUE;
         long cashAmountCents = purchase.getTotalCents() - keysValueCents;
 
-        if (cashAmountCents <= 0) {
-            throw new BusinessException(
-                    "Amount in cash must be higher than zero");
+        // minCashRequired is the cash floor: total minus the maximum keys value usable.
+        // Mathematically this is always >= sum(product.minCashCents) across items.
+        long minCashRequired = purchase.getTotalCents() - (totalMaxKeysAllowed * KEY_VALUE);
+        if (cashAmountCents < minCashRequired) {
+            throw new BusinessException(String.format(
+                    "Cash payment (%d cents) is below the minimum required (%d cents) for this purchase",
+                    cashAmountCents, minCashRequired));
         }
 
         // 5. Reservar llaves en KeyWallet (solo si el usuario va a usar alguna)
@@ -190,7 +204,7 @@ public class PurchaseServiceImpl implements PurchaseService {
         purchase.setCashCents(cashAmountCents);
         purchase = purchaseRepository.save(purchase);
 
-        // 7. Crear Copayment PENDING (wompiTransaction se asigna después del checkout)
+        // 7. Crear Copayment PENDING
         Copayment copayment = Copayment.builder()
                 .purchase(purchase)
                 .consumer(consumer)
@@ -200,6 +214,27 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .totalAmountCents(purchase.getTotalCents())
                 .status(CopaymentStatus.PENDING)
                 .build();
+        copayment = copaymentRepository.save(copayment);
+
+        // 8. Generar URL de checkout de Wompi y vincular el WompiTransaction al Copayment
+        String redirectUrl = request.getRedirectUrl() != null && !request.getRedirectUrl().isBlank()
+                ? request.getRedirectUrl()
+                : "https://verygana.com/purchases/" + purchase.getId();
+
+        WompiCheckoutResponseDTO checkoutResponse = wompiService.createCheckoutUrl(
+                WompiCheckoutRequestDTO.builder()
+                        .reference(referenceId)
+                        .amountInCents(cashAmountCents)
+                        .customerEmail(purchase.getDeliveryEmail())
+                        .redirectUrl(redirectUrl)
+                        .build(),
+                WompiTransactionType.CHARGE_COPAYMENT);
+
+        // Vincular el WompiTransaction pre-registrado al Copayment
+        WompiTransaction wompiTx = wompiTransactionRepository.findByReference(referenceId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "WompiTransaction pre-registrada no encontrada para reference: " + referenceId));
+        copayment.setWompiTransaction(wompiTx);
         copaymentRepository.save(copayment);
 
         log.info("Purchase initiated (PENDING). id={}, referenceId={}, totalCents={}, cashAmountCents={}",
@@ -212,6 +247,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 purchase.getTotalCents(),
                 keysValueCents,
                 PurchaseStatus.PENDING,
+                checkoutResponse.getCheckoutUrl(),
                 Instant.now());
     }
 
@@ -248,7 +284,7 @@ public class PurchaseServiceImpl implements PurchaseService {
                 productStockRepository.save(stock);
 
                 long unitPriceCents = product.getPriceCents();
-                long commissionCents = unitPriceCents * (commissionPct / 100);
+                long commissionCents = unitPriceCents * commissionPct / 100;
                 long netToCommercial = unitPriceCents - commissionCents;
 
                 PurchaseItem item = PurchaseItem.builder()
@@ -292,7 +328,7 @@ public class PurchaseServiceImpl implements PurchaseService {
      * - PREMIUM → 5 %
      */
     private int calculateCommissionPct(CommercialDetails commercial) {
-        return commercial.getCurrentPlan().getCommissionPerSale();
+        return commercial.getCurrentPlan().getSaleCommissionPct();
     }
 
     private String resolveDeliveryEmail(CreatePurchaseRequestDTO request, ConsumerDetails consumer) {

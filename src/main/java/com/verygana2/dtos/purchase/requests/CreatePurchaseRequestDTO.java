@@ -30,4 +30,10 @@ public class CreatePurchaseRequestDTO {
     private Long keysToUse = 0L;
 
     private String contactEmail;
+
+    /**
+     * URL de retorno del checkout de Wompi tras completar el pago.
+     * Si no se provee, se usará una URL por defecto de la plataforma.
+     */
+    private String redirectUrl;
 }

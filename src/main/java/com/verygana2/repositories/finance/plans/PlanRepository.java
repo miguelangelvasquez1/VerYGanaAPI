@@ -1,4 +1,4 @@
-package com.verygana2.repositories.plans;
+package com.verygana2.repositories.finance.plans;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -14,15 +14,15 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 @Repository
 public interface PlanRepository extends JpaRepository<Plan, Long> {
     
-    Optional<Plan> findByCode(PlanCode code);
+    Optional<Plan> findByCodeAndActiveTrue(PlanCode code);
 
     @Query("""
         SELECT p FROM Plan p
         WHERE p.active = true
         AND p.code <> 'BASIC'
-        AND (p.minInvestment IS NULL OR p.minInvestment <= :amount)
-        AND (p.maxInvestment IS NULL OR p.maxInvestment >= :amount)
-        ORDER BY p.minInvestment DESC
+        AND (p.minInvestmentCents IS NULL OR p.minInvestmentCents <= :amount)
+        AND (p.maxInvestmentCents IS NULL OR p.maxInvestmentCents >= :amount)
+        ORDER BY p.minInvestmentCents DESC
     """)
     List<Plan> findEligiblePlans(BigDecimal amount);
 }

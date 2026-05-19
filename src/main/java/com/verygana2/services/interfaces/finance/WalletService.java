@@ -13,7 +13,7 @@ import com.verygana2.models.finance.Wallet;
 
 public interface WalletService {
 
-    void createFor(Long commercialId);
+    Wallet createFor(Long commercialId);
     Wallet getByCommercialId(Long commercialId);
 
     WalletResponse getMyWallet(Long commercialId);

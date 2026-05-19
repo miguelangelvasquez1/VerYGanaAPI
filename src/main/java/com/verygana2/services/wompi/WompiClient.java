@@ -3,6 +3,8 @@ package com.verygana2.services.wompi;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -10,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.config.wompi.WompiConfig;
 import com.verygana2.dtos.wompi.WompiTransactionRequestDTO;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO;
@@ -17,38 +21,23 @@ import com.verygana2.exceptions.wompi.WompiApiException;
 
 import lombok.extern.slf4j.Slf4j;
 
-/**
- * Cliente que encapsula todas las llamadas HTTP a la API de Wompi.
- *
- * RESPONSABILIDAD: comunicación con Wompi únicamente.
- * NO contiene lógica de negocio — eso vive en CopaymentService y PayoutService.
- *
- * Todas las llamadas son síncronas (.block()) porque el resto del sistema
- * es servlet-based (no reactivo). El WebClient se usa por su flexibilidad
- * de configuración, no por reactividad.
- */
 @Slf4j
 @Service
 public class WompiClient {
 
     private final WebClient webClient;
     private final WompiConfig wompiConfig;
+    private final ObjectMapper objectMapper;
 
     public WompiClient(
             @Qualifier("wompiWebClient") WebClient webClient,
-            WompiConfig wompiConfig) {
+            WompiConfig wompiConfig,
+            ObjectMapper objectMapper) {
         this.webClient = webClient;
         this.wompiConfig = wompiConfig;
+        this.objectMapper = objectMapper;
     }
 
-    /**
-     * Crea una transacción de cobro en Wompi.
-     * Usado por CopaymentService para cobrar la parte en dinero real de un copago.
-     *
-     * @param request datos de la transacción (monto, referencia, método de pago, etc.)
-     * @return respuesta de Wompi con el ID de transacción y estado inicial
-     * @throws WompiApiException si Wompi rechaza la solicitud o hay error de red
-     */
     public WompiTransactionResponseDTO createTransaction(WompiTransactionRequestDTO request) {
         log.info("[WOMPI] Creando transacción: reference={}, amount={}",
                 request.getReference(), request.getAmountInCents());
@@ -75,13 +64,6 @@ public class WompiClient {
         }
     }
 
-    /**
-     * Consulta el estado actual de una transacción en Wompi.
-     * Usado para reconciliar cuando un webhook no llega o llega duplicado.
-     *
-     * @param wompiTransactionId ID de la transacción en Wompi
-     * @return estado actual de la transacción
-     */
     public WompiTransactionResponseDTO getTransaction(String wompiTransactionId) {
         log.debug("[WOMPI] Consultando transacción: {}", wompiTransactionId);
         try {
@@ -103,64 +85,102 @@ public class WompiClient {
     }
 
     /**
-     * Genera el hash de integridad SHA-256 requerido por Wompi para validar
-     * que los parámetros de la transacción no fueron alterados.
-     *
+     * Genera el hash de integridad SHA-256 para firmar el checkout.
      * Fórmula: SHA256(reference + amountInCents + currency + integrityKey)
-     *
-     * Wompi verifica este hash al procesar la transacción. Si no coincide,
-     * la rechaza con error de integridad.
-     *
-     * @param reference     referencia única de la transacción
-     * @param amountInCents monto en centavos de COP
-     * @param currency      siempre "COP" en Colombia
-     * @return hash SHA-256 en hexadecimal
      */
     public String generateIntegrityHash(String reference, Long amountInCents, String currency) {
-        String raw = reference + amountInCents + currency + wompiConfig.getIntegrityKey();
+        String raw = reference + amountInCents + currency + wompiConfig.getIntegritySecret();
+        log.info("[WOMPI HASH] raw string = '{}'", raw); // ← agregar temporalmente
+        log.info("[WOMPI HASH] integritySecret = '{}'", wompiConfig.getIntegritySecret()); // ← agregar
+        return sha256(raw);
+    }
+
+    /**
+     * Valida la firma del webhook entrante de Wompi.
+     *
+     * Fórmula CORRECTA según docs.wompi.co/docs/colombia/eventos:
+     * SHA256(prop1Value + prop2Value + ... + timestamp + eventsKey)
+     *
+     * Las propiedades a concatenar vienen en event.signature.properties.
+     * Los valores se extraen del objeto event.data.transaction.
+     * Al final se concatena event.timestamp y la eventsKey de tu cuenta.
+     *
+     * Ejemplo con properties =
+     * ["transaction.id","transaction.status","transaction.amount_in_cents"]:
+     * raw = "abc-123" + "APPROVED" + "300000" + "1668097749" + eventsKey
+     */
+    @SuppressWarnings("unchecked")
+    public boolean isValidWebhookSignature(String rawBody, String checksum) {
+        try {
+            Map<String, Object> event = objectMapper.readValue(
+                    rawBody, new TypeReference<Map<String, Object>>() {
+                    });
+
+            Object timestampObj = event.get("timestamp");
+            if (timestampObj == null) {
+                log.warn("[WOMPI] Webhook sin timestamp — firma no verificable");
+                return false;
+            }
+            String timestamp = timestampObj.toString();
+
+            Map<String, Object> signatureBlock = (Map<String, Object>) event.get("signature");
+            if (signatureBlock == null) {
+                log.warn("[WOMPI] Webhook sin bloque signature");
+                return false;
+            }
+            List<String> properties = (List<String>) signatureBlock.get("properties");
+            if (properties == null || properties.isEmpty()) {
+                log.warn("[WOMPI] Webhook con lista de properties vacía");
+                return false;
+            }
+
+            Map<String, Object> data = (Map<String, Object>) event.get("data");
+            Map<String, Object> transaction = (Map<String, Object>) data.get("transaction");
+
+            StringBuilder raw = new StringBuilder();
+            for (String property : properties) {
+                // property tiene formato "transaction.campo" → extraemos el campo
+                String field = property.contains(".")
+                        ? property.substring(property.lastIndexOf('.') + 1)
+                        : property;
+
+                Object value = transaction.get(field);
+                if (value == null) {
+                    log.warn("[WOMPI] Propiedad '{}' no encontrada en transaction", field);
+                    return false;
+                }
+                raw.append(value);
+            }
+
+            raw.append(timestamp);
+            raw.append(wompiConfig.getEventsKey());
+
+            String computed = sha256(raw.toString());
+            boolean valid = computed.equals(checksum);
+
+            if (!valid) {
+                log.warn("[WOMPI] Firma inválida. computed={}, received={}", computed, checksum);
+            }
+
+            return valid;
+
+        } catch (Exception e) {
+            log.error("[WOMPI] Error al validar firma del webhook: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private String sha256(String input) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
+            byte[] hashBytes = digest.digest(input.getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hashBytes) {
                 hex.append(String.format("%02x", b));
             }
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {
-            // SHA-256 siempre está disponible en la JVM estándar
-            throw new IllegalStateException("SHA-256 no disponible", e);
-        }
-    }
-
-    /**
-     * Valida la firma HMAC-SHA256 de un webhook entrante de Wompi.
-     * Debe llamarse ANTES de procesar cualquier evento de webhook.
-     *
-     * Wompi envía el header "x-event-checksum" con el hash del payload.
-     * Si la firma no coincide, el webhook debe ignorarse (puede ser fraudulento).
-     *
-     * Fórmula: SHA256(payload + eventsKey)
-     *
-     * @param payload   cuerpo del webhook tal como llegó (sin modificar)
-     * @param checksum  valor del header "x-event-checksum"
-     * @return true si la firma es válida
-     */
-    public boolean isValidWebhookSignature(String payload, String checksum) {
-        String raw = payload + wompiConfig.getEventsKey();
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashBytes = digest.digest(raw.getBytes(StandardCharsets.UTF_8));
-            StringBuilder computed = new StringBuilder();
-            for (byte b : hashBytes) {
-                computed.append(String.format("%02x", b));
-            }
-            boolean valid = computed.toString().equals(checksum);
-            if (!valid) {
-                log.warn("[WOMPI] Firma de webhook inválida. Evento ignorado.");
-            }
-            return valid;
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 no disponible", e);
+            throw new IllegalStateException("SHA-256 no disponible en la JVM", e);
         }
     }
 }

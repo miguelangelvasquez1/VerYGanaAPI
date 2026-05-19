@@ -1,6 +1,7 @@
 package com.verygana2.models;
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
@@ -18,6 +19,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -29,7 +31,7 @@ import lombok.NoArgsConstructor;
 public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true, optional = true)
-    @JsonManagedReference // o @JsonIgnoreProperties("user")
+    @JsonManagedReference
     private UserDetails userDetails;
 
     @Enumerated(EnumType.STRING)
@@ -38,12 +40,16 @@ public class User{
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(unique = true, nullable = false, updatable = false)
+    private UUID publicId;
+
     @Column(unique = true, nullable = false)
     private String email;
     @Column(unique = true, nullable = false)
     private String phoneNumber;
     @JsonIgnore
-    private String password; //JsonIgnore, encrypt
+    private String password;
     @Column(nullable = false)
 
     @Enumerated(EnumType.STRING)
@@ -53,5 +59,12 @@ public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;
+
+    @PrePersist
+    private void generatePublicId() {
+        if (this.publicId == null) {
+            this.publicId = UUID.randomUUID();
+        }
+    }
 }
 
