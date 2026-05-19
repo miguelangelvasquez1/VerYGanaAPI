@@ -36,8 +36,8 @@ public class CreateAdRequestDTO {
     private String description;
     
     @NotNull(message = "Reward per like is required")
-    @DecimalMin(value = "0.01", message = "Reward per like must be at least 0.01")
-    @DecimalMax(value = "100.00", message = "Reward per like must not exceed 100.00")
+    @DecimalMin(value = "10", message = "Reward per like must be at least 10")
+    @DecimalMax(value = "100", message = "Reward per like must not exceed 100")
     private Long rewardPerLike;
     
     @NotNull(message = "Max likes is required")
@@ -92,5 +92,10 @@ public class CreateAdRequestDTO {
             return true; // Dates are optional
         }
         return endDate.isAfter(startDate);
+    }
+
+    @AssertTrue(message = "rewardPerLike must be a multiple of 10")
+    public boolean isRewardPerLikeMultipleOf10() {
+        return rewardPerLike != null && rewardPerLike % 10 == 0;
     }
 }

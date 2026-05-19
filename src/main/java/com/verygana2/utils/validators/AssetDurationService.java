@@ -33,7 +33,7 @@ public class AssetDurationService {
                 .setShowFormat(true)
                 .setShowStreams(true)
                 .setLogLevel(LogLevel.ERROR)
-                .setInput(presignedUrl)  // ← ¡Aquí la magia!
+                .setInput(presignedUrl)
                 .execute();
 
             Float duration = Optional.ofNullable(result.getFormat())

@@ -19,7 +19,7 @@ import lombok.Value;
  */
 @Value
 @Builder
-public class EffectivePlanState {
+public class EffectivePlanState {   
 
     boolean hasActivePlan;
 

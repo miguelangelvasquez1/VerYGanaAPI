@@ -13,6 +13,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -79,6 +80,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Transactional
 public class AdServiceImpl implements AdService {
+
+    @Value("${ad.pricing.cost-per-second-cents}")
+    private long costPerSecondCents;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -932,8 +936,7 @@ public class AdServiceImpl implements AdService {
             case IMAGE -> 6.0; // regla de negocio fija
 
             case VIDEO -> {
-                Double duration = mediaMetadataService
-                        .getVideoDurationSeconds(asset.getObjectKey());
+                Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
                 // Double duration = 30.0;
 
                 if (duration < 5 || duration > 30) {

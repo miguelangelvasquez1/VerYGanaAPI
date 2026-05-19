@@ -205,7 +205,7 @@ public class KeyWallet {
             throw new IllegalStateException("No hay suficientes llaves bloqueadas para confirmar");
         this.blockedPurchaseKeys -= amount;
     }
- 
+
     /**
      * Devuelve las llaves reservadas al saldo disponible cuando el copago falla.
      * Genera KeyTransaction(RELEASE_COPAYMENT_CANCELLED).
