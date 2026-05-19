@@ -36,6 +36,20 @@ public class TreasuryConfig {
     private int operationsPct;
 
     /**
+     * Saldo mínimo en centavos para emitir un WARNING en los logs.
+     * Default: 10.000.000 centavos = $100.000 COP.
+     * No bloquea operaciones — es solo una alerta temprana.
+     */
+    private long keysReserveWarnThresholdCents = 10_000_000L;
+
+    /**
+     * Saldo mínimo en centavos por debajo del cual se bloquean los copagos con llaves.
+     * Default: 2.000.000 centavos = $20.000 COP.
+     * Previene que KEYS_RESERVE llegue a cero dejando compras en estado inválido.
+     */
+    private long keysReserveCriticalThresholdCents = 2_000_000L;
+
+    /**
      * Valida al arrancar que los porcentajes sumen exactamente 100.
      * Si no suman 100 la app falla al iniciar con un mensaje claro.
      * Esto previene bugs silenciosos donde el dinero "desaparece" o se duplica.
