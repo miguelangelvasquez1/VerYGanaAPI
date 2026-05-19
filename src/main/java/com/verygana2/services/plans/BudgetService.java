@@ -11,7 +11,7 @@ import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.BudgetTransaction;
 import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
 import com.verygana2.repositories.WalletRepository;
-import com.verygana2.repositories.plans.BudgetTransactionRepository;
+import com.verygana2.repositories.finance.plans.BudgetTransactionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

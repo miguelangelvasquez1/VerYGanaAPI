@@ -11,6 +11,8 @@ public class ProductSummaryResponseDTO {
     private String name;
     private String imageUrl;
     private BigDecimal price;
+    private Long maxKeysAllowed;
+    private Long minCashCents;
     private Double averageRate;
     private String categoryName;
     private Integer stock;

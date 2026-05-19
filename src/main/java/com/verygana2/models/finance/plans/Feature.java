@@ -22,7 +22,6 @@ import lombok.NoArgsConstructor;
  *  MAX_BRANDED_GAMES  → LIMIT   – número máximo de juegos branded
  *  CAN_ADVERTISE      → BOOLEAN – puede crear y mostrar anuncios
  *  CAN_USE_GAMES      → BOOLEAN – puede usar experiencias gamificadas
- *  SALES_COMMISSION   → PERCENTAGE – porcentaje de comisión por venta
  *  VISIBILITY_BOOST   → PERCENTAGE – boost de visibilidad en la plataforma
  */
 @Entity

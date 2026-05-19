@@ -1,0 +1,7 @@
+wompi:
+  public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
+  private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
+  integrity-secret: ${WOMPI_SANDBOX_INTEGRITY_SECRET}
+  events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
+  checkout-base-url: https://checkout.wompi.co/p/
+  api-base-url: https://sandbox.wompi.co/v1

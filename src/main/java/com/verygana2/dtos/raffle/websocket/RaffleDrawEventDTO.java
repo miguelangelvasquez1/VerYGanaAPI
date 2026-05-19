@@ -1,7 +1,9 @@
 package com.verygana2.dtos.raffle.websocket;
 
 import java.time.ZonedDateTime;
+
 import com.verygana2.models.enums.raffles.DrawEventType;
+
 import lombok.Builder;
 import lombok.Data;
 

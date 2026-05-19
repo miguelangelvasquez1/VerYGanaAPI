@@ -36,6 +36,7 @@ import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
+import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
@@ -43,6 +44,7 @@ import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
@@ -167,9 +169,11 @@ public class ProductServiceImpl implements ProductService {
             asset.setStatus(AssetStatus.VALIDATED);
 
             ProductCategory category = productCategoryService.getById(request.getProductData().getProductCategoryId());
+            Plan plan =  commercial.getCurrentPlan();
             Product product = productMapper.toProduct(request.getProductData());
             product.setCommercial(commercial);
             product.setProductCategory(category);
+            product.setMaxKeysPct(plan.getMaxKeysPct());
 
             // Asociar stockItems con el producto
             if (product.getStockItems() != null) {

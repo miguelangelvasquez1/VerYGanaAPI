@@ -152,20 +152,6 @@
             <version>2.9.1</version>
         </dependency>
 
-        <!-- Cloudinary SDK -->
-        <dependency>
-            <groupId>com.cloudinary</groupId>
-            <artifactId>cloudinary-http44</artifactId>
-            <version>1.38.0</version>
-            <exclusions>
-                <!-- Excluir commons-logging que causa el warning con spring-jcl -->
-                <exclusion>
-                    <groupId>commons-logging</groupId>
-                    <artifactId>commons-logging</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-
         <dependency>
             <groupId>commons-fileupload</groupId>
             <artifactId>commons-fileupload</artifactId>

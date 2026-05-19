@@ -54,7 +54,7 @@ public class PlanFeatureGuard {
                 }
             }
             case PRODUCT_LIMIT -> {
-                long current = productRepository.countByCommercialIdAndIsActiveTrue(commercialId);
+                long current = productRepository.countByCommercialIdAndIsActive(commercialId);
                 if (current >= state.getMaxProducts()) {
                     throw new PlanCapabilityException(
                         "Límite de productos alcanzado. Plan " + state.getEffectivePlan().name() +

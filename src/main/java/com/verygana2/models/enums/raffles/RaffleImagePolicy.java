@@ -1,8 +1,9 @@
 // RaffleImagePolicy.java
 package com.verygana2.models.enums.raffles;
 
-import com.verygana2.models.enums.SupportedMimeType;
 import java.util.Set;
+
+import com.verygana2.models.enums.SupportedMimeType;
 
 public class RaffleImagePolicy {
 

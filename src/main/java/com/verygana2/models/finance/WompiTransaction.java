@@ -8,6 +8,10 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.verygana2.models.enums.finance.WompiTransactionStatus;
+import com.verygana2.models.enums.finance.WompiTransactionType;
+import com.verygana2.models.userDetails.CommercialDetails;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,9 +28,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.enums.finance.WompiTransactionStatus;
 
 @Entity
 @Table(name = "wompi_transactions")

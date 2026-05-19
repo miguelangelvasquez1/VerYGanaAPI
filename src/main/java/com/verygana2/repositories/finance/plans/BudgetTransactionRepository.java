@@ -1,4 +1,4 @@
-package com.verygana2.repositories.plans;
+package com.verygana2.repositories.finance.plans;
 
 import java.util.List;
 

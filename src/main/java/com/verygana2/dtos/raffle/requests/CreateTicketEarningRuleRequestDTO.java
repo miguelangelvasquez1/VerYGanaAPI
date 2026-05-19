@@ -1,6 +1,7 @@
 package com.verygana2.dtos.raffle.requests;
 
 import java.math.BigDecimal;
+
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 
 import jakarta.validation.constraints.Max;
