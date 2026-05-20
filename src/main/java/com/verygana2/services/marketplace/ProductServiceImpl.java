@@ -62,6 +62,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 
 @Service
 @Transactional
@@ -92,6 +93,12 @@ public class ProductServiceImpl implements ProductService {
     private final R2Service r2Service;
 
     private final AssetOrphanedService assetOrphanedService;
+
+    @Value("${marketplace.max-product-price-cents:50000000}")
+    private long maxProductPriceCents; // default $500.000 COP
+
+    @Value("${marketplace.min-product-price-cents:100000}")
+    private long minProductPriceCents; // default $1.000 COP
 
     private static final Set<SupportedMimeType> allowedImageMimeTypes = Set.of(SupportedMimeType.IMAGE_JPEG,
             SupportedMimeType.IMAGE_PNG,
@@ -171,6 +178,7 @@ public class ProductServiceImpl implements ProductService {
             ProductCategory category = productCategoryService.getById(request.getProductData().getProductCategoryId());
             Plan plan =  commercial.getCurrentPlan();
             Product product = productMapper.toProduct(request.getProductData());
+            validateProductPrice(product.getPriceCents());
             product.setCommercial(commercial);
             product.setProductCategory(category);
             product.setMaxKeysPct(plan.getMaxKeysPct());
@@ -194,6 +202,19 @@ public class ProductServiceImpl implements ProductService {
             throw e;
         }
 
+    }
+
+    private void validateProductPrice(long priceCents) {
+        if (priceCents < minProductPriceCents) {
+            throw new ValidationException(String.format(
+                    "El precio mínimo permitido es $%,.0f COP. Recibido: $%,.0f COP",
+                    minProductPriceCents / 100.0, priceCents / 100.0));
+        }
+        if (priceCents > maxProductPriceCents) {
+            throw new ValidationException(String.format(
+                    "El precio máximo permitido es $%,.0f COP. Recibido: $%,.0f COP",
+                    maxProductPriceCents / 100.0, priceCents / 100.0));
+        }
     }
 
     private void validateFileMetadata(FileUploadRequestDTO metadata) {
@@ -259,6 +280,7 @@ public class ProductServiceImpl implements ProductService {
 
         Product product = getByIdAndCommercialId(productId, commercialId);
         productMapper.updateProductFromRequest(request, product);
+        validateProductPrice(product.getPriceCents());
         ProductCategory category = productCategoryService.getById(request.getProductCategoryId());
         product.setProductCategory(category);
         productRepository.save(product);

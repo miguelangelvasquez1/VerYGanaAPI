@@ -10,7 +10,7 @@ public interface TreasuryService {
     void distributeSubscription(Long amountCents, CommercialDetails commercial, UUID referenceId);
     void convertKeysToPayoutPending(Long amountCents, UUID referenceId);
     void moveCashToPayoutPending(Long amountCents, UUID referenceId);
-    void retainCommission(Long amountCents, UUID referenceId);
+    void retainCommission(Long amountCents, UUID referenceId, String referenceType);
     void registerPayoutSent(Long amountCents, UUID referenceId);
     TreasurySnapshot getSnapshot();
 }

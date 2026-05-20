@@ -41,4 +41,23 @@ public interface CopaymentRepository extends JpaRepository<Copayment, UUID> {
     List<Copayment> findExpiredPending(
             @Param("status") CopaymentStatus status,
             @Param("before") ZonedDateTime before);
+
+    /**
+     * Copayments COMPLETED en el período, con todos sus ítems cargados para
+     * la agrupación por empresario en el PayoutScheduler.
+     */
+    @Query("""
+            SELECT DISTINCT c FROM Copayment c
+            JOIN FETCH c.purchase p
+            JOIN FETCH p.items items
+            JOIN FETCH items.product prod
+            JOIN FETCH prod.commercial comm
+            WHERE c.status = :status
+            AND p.completedAt >= :start
+            AND p.completedAt < :end
+            """)
+    List<Copayment> findCompletedInPeriod(
+            @Param("status") CopaymentStatus status,
+            @Param("start") ZonedDateTime start,
+            @Param("end") ZonedDateTime end);
 }

@@ -54,7 +54,6 @@ public class UserServiceImpl implements UserService {
         user.setUserDetails(details);
 
         User savedUser = userRepository.save(user);
-        walletService.createFor(savedUser.getId());
 
         return savedUser;
     }
