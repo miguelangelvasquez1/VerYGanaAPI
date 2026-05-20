@@ -18,7 +18,7 @@ VALUES (
     'ADMIN',
     'ACTIVE',
     NOW(),
-    f47ac10b-58cc-4372-a567-0e02b2c3d479
+    UUID_TO_BIN('f47ac10b-58cc-4372-a567-0e02b2c3d479')
 )
 ON DUPLICATE KEY UPDATE email = email;
 
@@ -64,7 +64,7 @@ VALUES (
     'COMMERCIAL',
     'ACTIVE',
     NOW(),
-    7c9e6679-7425-40de-944b-e07fc1f90ae7
+    UUID_TO_BIN('7c9e6679-7425-40de-944b-e07fc1f90ae7')
 )
 ON DUPLICATE KEY UPDATE email = email;
 
@@ -109,7 +109,7 @@ VALUES (
     'CONSUMER',
     'ACTIVE',
     NOW(),
-    550e8400-e29b-41d4-a716-446655440000
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440000')
 )
 ON DUPLICATE KEY UPDATE email = email;
 
@@ -121,6 +121,7 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO consumer_details (
     user_id,
+    user_hash,
     user_name,
     name,
     last_name,
@@ -138,6 +139,7 @@ INSERT INTO consumer_details (
 )
 SELECT
     u.id,
+    '550e8400-e29b-41d4-a716-446655440000',
     'consumer_test',
     'Usuario',
     'Prueba',
