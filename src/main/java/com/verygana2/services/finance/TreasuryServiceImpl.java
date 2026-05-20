@@ -159,14 +159,37 @@ public class TreasuryServiceImpl implements TreasuryService {
                 TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
 
-                if (keysReserve.getBalanceCents() < amountCents) {
+                long available = keysReserve.getBalanceCents();
+
+                if (available < amountCents) {
                         throw new IllegalStateException(
                                         "[TREASURY] Saldo insuficiente en KEYS_RESERVE. " +
-                                                        "disponible=" + keysReserve.getBalanceCents() +
+                                                        "disponible=" + available +
                                                         " requerido=" + amountCents);
                 }
 
-                keysReserve.setBalanceCents(keysReserve.getBalanceCents() - amountCents);
+                long balanceAfter = available - amountCents;
+                long criticalThreshold = treasuryConfig.getKeysReserveCriticalThresholdCents();
+                long warnThreshold = treasuryConfig.getKeysReserveWarnThresholdCents();
+
+                // Bloquear si el saldo post-transacción caería por debajo del umbral crítico
+                if (balanceAfter < criticalThreshold) {
+                        log.error("[TREASURY] KEYS_RESERVE CRÍTICO: saldo tras transacción={} < umbral={}. " +
+                                        "Copago con llaves bloqueado. referenceId={}",
+                                        balanceAfter, criticalThreshold, referenceId);
+                        throw new IllegalStateException(
+                                        "[TREASURY] KEYS_RESERVE por debajo del umbral crítico. " +
+                                                        "El pago con llaves no está disponible temporalmente.");
+                }
+
+                // Alerta temprana (no bloquea)
+                if (balanceAfter < warnThreshold) {
+                        log.warn("[TREASURY] KEYS_RESERVE bajo: saldo tras transacción={} < umbral_warn={}. " +
+                                        "Reponer fondo pronto. referenceId={}",
+                                        balanceAfter, warnThreshold, referenceId);
+                }
+
+                keysReserve.setBalanceCents(balanceAfter);
                 payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + amountCents);
 
                 treasuryAccountRepository.save(keysReserve);
@@ -175,8 +198,8 @@ public class TreasuryServiceImpl implements TreasuryService {
                 recordMovement(keysReserve, payoutsPending, amountCents,
                                 MovementConcept.COPAYMENT_KEYS_CONVERSION, referenceId, "COPAYMENT");
 
-                log.info("[TREASURY] Conversión completada: KEYS_RESERVE → PAYOUTS_PENDING, reference={}",
-                                referenceId);
+                log.info("[TREASURY] Conversión completada: KEYS_RESERVE={} → PAYOUTS_PENDING, reference={}",
+                                balanceAfter, referenceId);
         }
 
         /**
@@ -218,11 +241,11 @@ public class TreasuryServiceImpl implements TreasuryService {
          */
         @Transactional
         @Override
-        public void retainCommission(Long amountCents, UUID referenceId) {
+        public void retainCommission(Long amountCents, UUID referenceId, String referenceType) {
                 log.info("[TREASURY] Reteniendo comisión: amount={}, reference={}", amountCents, referenceId);
 
                 if (amountCents <= 0)
-                        return; // sin comisión (empresario aún no alcanzó el ROI)
+                        return;
 
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
@@ -239,7 +262,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 treasuryAccountRepository.save(operations);
 
                 recordMovement(payoutsPending, operations, amountCents,
-                                MovementConcept.COMMISSION_RETENTION, referenceId, "PAYOUT");
+                                MovementConcept.COMMISSION_RETENTION, referenceId, referenceType);
 
                 log.info("[TREASURY] Comisión retenida: PAYOUTS_PENDING → OPERATIONS, reference={}", referenceId);
         }

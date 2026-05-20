@@ -125,7 +125,15 @@ public class CopaymentServiceImpl implements CopaymentService {
         // 2. Tesorería: efectivo (ya en Bancolombia vía Wompi) → PAYOUTS_PENDING
         treasuryService.moveCashToPayoutPending(cashAmountCents, copayment.getId());
 
-        // 3. Entregar códigos de producto al comprador
+        // 3. Retener comisión inmediatamente: PAYOUTS_PENDING → OPERATIONS
+        // La venta está confirmada — el ingreso está ganado en este momento.
+        // PAYOUTS_PENDING queda con el neto real del empresario (precio - comisión).
+        long commissionCents = purchase.getCommissionCents();
+        if (commissionCents > 0) {
+            treasuryService.retainCommission(commissionCents, copayment.getId(), "COPAYMENT");
+        }
+
+        // 4. Entregar códigos de producto al comprador
         deliverProducts(purchase);
 
         // 4. Completar compra y copago

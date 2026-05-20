@@ -18,7 +18,6 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
-import com.verygana2.services.interfaces.finance.WalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
 import lombok.RequiredArgsConstructor;
@@ -38,7 +37,6 @@ public class UserServiceImpl implements UserService {
     private final UserHashGenerator userHashGenerator;
     private final UserRepository userRepository;
     private final KeyWalletService keyWalletService;
-    private final WalletService walletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final LocationService locationService;
@@ -54,7 +52,6 @@ public class UserServiceImpl implements UserService {
         user.setUserDetails(details);
 
         User savedUser = userRepository.save(user);
-        walletService.createFor(savedUser.getId());
 
         return savedUser;
     }

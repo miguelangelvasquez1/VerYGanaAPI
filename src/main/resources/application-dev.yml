@@ -61,22 +61,8 @@ jwt:
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
-# ============================================
-# STORAGE CONFIGURATION
-# ============================================
-storage:
-  provider: cloudinary  # Options: cloudinary, r2
-
 # =====================
-# CLOUDINARY (Development)
-# =====================
-cloudinary:
-  cloud-name: ${CLOUDINARY_CLOUD_NAME}
-  api-key: ${CLOUDINARY_API_KEY}
-  api-secret: ${CLOUDINARY_API_SECRET}
-
-# =====================
-# CLOUDFLARE R2 (Production - Future)
+# CLOUDFLARE R2 CONFIGURATION
 # =====================
 cloudflare:
   r2:
@@ -124,28 +110,19 @@ logging:
     org.springframework.security: DEBUG
 
 # ============================================
-# Email service
+# EMAIL CONFIGURATION
 # ============================================   
 sendgrid:
   api-key: ${SENDGRID_API_KEY}
   from-email: notificaciones@verygana.com
   from-name: VerYGana
   support-email: soporte@verygana.com
+
 # ============================================
 # TAXES
 # ============================================      
 taxes:
   iva: ${IVA}
-# ============================================
-# PLATFORM EARNINGS
-# ============================================ 
-platformEarnings:
-  product-commission : ${PRODUCT_SALE_COMMISSION}
-# ============================================
-# USERS EARNINGS
-# ============================================  
-usersEarnings:
-  ad-view: ${AD_VIEW}
 
 # ============================================
 # GAMES CONFIG
@@ -156,22 +133,51 @@ games:
   session-expiration-minutes: 30
 
 # ============================================
+# TREASURY DISTRIBUTION
+# ============================================
+treasury:
+  distribution:
+    keys-reserve-pct: 60
+    fortification-pct: 10
+    operations-pct: 30
+    # Umbral WARNING: log de alerta, no bloquea (default $100.000 COP)
+    keys-reserve-warn-threshold-cents: 10000000
+    # Umbral CRÍTICO: bloquea copagos con llaves hasta que se reponga (default $20.000 COP)
+    keys-reserve-critical-threshold-cents: 2000000
+  values:
+    key-value: 1000 # $1.000 centavos de COP por cada key
+
+# ============================================
+# MARKETPLACE LIMITS
+# ============================================
+marketplace:
+  min-product-price-cents: 100000      # $1.000 COP
+  max-product-price-cents: 50000000    # $500.000 COP
+
+# ============================================
+# PURCHASE EXPIRY
+# ============================================
+purchase:
+  expiry:
+    max-age-minutes: 120  # 2 horas (sesión Wompi expira antes de esto)
+    cron: "0 0/30 * * * *"  # cada 30 minutos
+
+# ============================================
 # WOMPI CONFIG
 # ============================================ 
-# Configuración de Wompi (se cambiará cuando se tenga la cuenta real)
+# Configuración de Wompi (Produccion)
 # wompi:
 #   public-key: ${WOMPI_PUBLIC_KEY}
 #   private-key: ${WOMPI_PRIVATE_KEY}
-#   integrity-key: ${WOMPI_INTEGRITY_KEY}
+#   integrity-secret: ${WOMPI_INTEGRITY_SECRET}
 #   events-key: ${WOMPI_EVENTS_KEY}
 #   checkout-base-url: https://checkout.wompi.co/p/
 #   api-base-url: https://production.wompi.co/v1
 
-# # application-sandbox.yml  (activa con: spring.profiles.active=sandbox)
 wompi:
   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
   private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
-  integrity-key: ${WOMPI_SANDBOX_INTEGRITY_KEY}
+  integrity-secret: ${WOMPI_SANDBOX_INTEGRITY_SECRET}
   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
   checkout-base-url: https://checkout.wompi.co/p/
   api-base-url: https://sandbox.wompi.co/v1
