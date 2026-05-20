@@ -10,7 +10,6 @@ import org.hibernate.type.SqlTypes;
 
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

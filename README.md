@@ -128,3 +128,34 @@ export default {
     });
   }
 };
+
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*.gz"
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.js.gz" `
+  --content-encoding gzip `
+  --content-type application/javascript
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.data.gz" `
+  --content-encoding gzip `
+  --content-type application/octet-stream
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.wasm.gz" `
+  --content-encoding gzip `
+  --content-type application/wasm
+  

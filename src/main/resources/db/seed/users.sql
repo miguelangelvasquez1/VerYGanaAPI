@@ -8,7 +8,8 @@ INSERT INTO users (
     password,
     role,
     user_state,
-    registered_date
+    registered_date,
+    public_id
 )
 VALUES (
     'admin@verygana.com',
@@ -16,7 +17,8 @@ VALUES (
     '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
     'ADMIN',
     'ACTIVE',
-    NOW()
+    NOW(),
+    f47ac10b-58cc-4372-a567-0e02b2c3d479
 )
 ON DUPLICATE KEY UPDATE email = email;
 
@@ -52,7 +54,8 @@ INSERT INTO users (
     password,
     role,
     user_state,
-    registered_date
+    registered_date,
+    public_id
 )
 VALUES (
     'comercial@verygana.com',
@@ -60,7 +63,8 @@ VALUES (
     '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
     'COMMERCIAL',
     'ACTIVE',
-    NOW()
+    NOW(),
+    7c9e6679-7425-40de-944b-e07fc1f90ae7
 )
 ON DUPLICATE KEY UPDATE email = email;
 
@@ -95,7 +99,8 @@ INSERT INTO users (
     password,
     role,
     user_state,
-    registered_date
+    registered_date,
+    public_id
 )
 VALUES (
     'consumer@verygana.com',
@@ -103,7 +108,8 @@ VALUES (
     '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
     'CONSUMER',
     'ACTIVE',
-    NOW()
+    NOW(),
+    550e8400-e29b-41d4-a716-446655440000
 )
 ON DUPLICATE KEY UPDATE email = email;
 

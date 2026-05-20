@@ -44,7 +44,6 @@ import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;

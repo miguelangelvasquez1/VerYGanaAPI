@@ -80,11 +80,11 @@ cloudinary:
 # =====================
 cloudflare:
   r2:
-    account-id: ${R2_ACCOUNT_ID:your-account-id}
+    account-id: ${R2_ACCOUNT_ID}
     access-key-id: ${R2_ACCESS_KEY_ID}
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
-    bucket-name: ${R2_BUCKET_NAME:verygana-campaigns}
-    cdn-domain: ${R2_CDN_DOMAIN:} # Opcional: cdn.verygana.com
+    bucket-name: ${R2_BUCKET_NAME}
+    cdn-domain: ${R2_CDN_DOMAIN} # Opcional: cdn.verygana.com
     games-worker-domain: ${R2_GAMES_WORKER_DOMAIN:games.verygana.com}
     endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
 
@@ -168,13 +168,13 @@ games:
 #   api-base-url: https://production.wompi.co/v1
 
 # # application-sandbox.yml  (activa con: spring.profiles.active=sandbox)
-# wompi:
-#   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
-#   private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
-#   integrity-key: ${WOMPI_SANDBOX_INTEGRITY_KEY}
-#   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
-#   checkout-base-url: https://checkout.wompi.co/p/
-#   api-base-url: https://sandbox.wompi.co/v1
+wompi:
+  public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
+  private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
+  integrity-key: ${WOMPI_SANDBOX_INTEGRITY_KEY}
+  events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
+  checkout-base-url: https://checkout.wompi.co/p/
+  api-base-url: https://sandbox.wompi.co/v1
   
 payment:
   min-deposit: 5000      # $5.000 COP

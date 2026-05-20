@@ -24,6 +24,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "phoneNumber", source = "consumer.user.phoneNumber")
     @Mapping(target = "role", source = "consumer.user.role")
     @Mapping(target = "userState", source = "consumer.user.userState")
+    @Mapping(target = "department", ignore = true)
     ConsumerProfileResponseDTO toConsumerProfileResponseDTO (ConsumerDetails consumer);
 
     @Mapping(target = "id", ignore = true)
@@ -50,7 +51,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "referredBy", ignore = true)
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "keyWallet", ignore = true)
-
+    @Mapping(target = "departmentName", ignore = true)
     void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     
