@@ -19,6 +19,7 @@ public class PublicPaths {
         "/api/raffles/**",
         "/ws/**",
         "/ws/info/**",
-            "/api/dev/**"
+            "/api/dev/**",
+            "/pet/**"
         };
 }
