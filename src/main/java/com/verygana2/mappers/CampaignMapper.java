@@ -62,6 +62,7 @@ public interface CampaignMapper {
     // Estado inicial
     @Mapping(target = "status", expression = "java(CampaignStatus.DRAFT)")
     // Datos editables del request
+    @Mapping(target = "coinValue", source = "request.coinValue")
     @Mapping(target = "targetUrl", source = "request.targetUrl")
     @Mapping(target = "completionCoins", source = "request.completionCoins")
     @Mapping(target = "budgetCoins", source = "request.budgetCoins")

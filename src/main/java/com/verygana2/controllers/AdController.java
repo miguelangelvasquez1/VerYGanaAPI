@@ -28,6 +28,8 @@ import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
+import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
+import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.services.interfaces.AdService;
 
@@ -45,6 +47,80 @@ public class AdController {
     private final AdService adService;
 
     // ==================== ENDPOINTS PARA ANUNCIANTES ====================
+
+    /**
+     * STEP 1 — Prepare.
+     * Creates an AdAsset record (PENDING) and returns a pre-signed R2 upload URL.
+     * For images, imageDurationSeconds must be provided (5–60 s).
+     * For videos, imageDurationSeconds must be null.
+     *
+     * Frontend flow after this call:
+     *   1. Upload the file to R2 using permission.uploadUrl
+     *   2. Call POST /ads/assets/{assetId}/analyze
+     */
+    @PostMapping("/assets/prepare")
+    public ResponseEntity<AdAssetUploadPermissionDTO> prepareAssetUpload(
+            @AuthenticationPrincipal Long commercialId,
+            @Valid @RequestBody FileUploadRequestDTO request) {
+ 
+        return ResponseEntity.ok(adService.prepareAdAssetUpload(commercialId, request));
+    }
+ 
+    /**
+     * STEP 2 — Analyze.
+     * Called after the frontend confirms the file is in R2.
+     *
+     * For VIDEO: calls ffprobe to get the real duration.
+     * For IMAGE: uses the imageDurationSeconds stored in step 1.
+     *
+     * Transitions: PENDING → ANALYZING → VALIDATED (or ORPHANED on failure).
+     *
+     * Returns durationSeconds + minPricePerView so the frontend can
+     * show the pricing panel to the advertiser.
+     *
+     * Uses POST (not GET) because it has side effects (DB write + ffprobe call).
+     */
+    @PostMapping("/assets/{assetId}/analyze")
+    public ResponseEntity<AssetAnalysisResultDTO> analyzeAsset(
+            @AuthenticationPrincipal Long commercialId,
+            @PathVariable Long assetId) {
+ 
+        return ResponseEntity.ok(adService.analyzeAsset(commercialId, assetId));
+    }
+ 
+    /**
+     * STEP 2.5 — Orphan.
+     * Marks an asset as ORPHANED so the cleanup job removes it from R2.
+     *
+     * Called when:
+     *  - User changes the selected file (old asset becomes unused)
+     *  - User cancels the form
+     *  - Browser fires beforeunload (via navigator.sendBeacon)
+     *
+     * Uses POST + path variable (no body) so sendBeacon can call it.
+     * sendBeacon cannot send a body reliably across all browsers.
+     */
+    @PostMapping("/assets/{assetId}/orphan")
+    public ResponseEntity<AssetOrphanedResponseDTO> orphanAsset(
+            @AuthenticationPrincipal Long commercialId,
+            @PathVariable Long assetId) {
+ 
+        return ResponseEntity.ok(adService.markAssetAsOrphaned(commercialId, assetId));
+    }
+ 
+    /**
+     * STEP 3 — Create.
+     * Creates the Ad entity after the advertiser has confirmed pricing.
+     * Asset must be in VALIDATED state (analyze must have succeeded).
+     */
+    @PostMapping
+    public ResponseEntity<Void> createAd(
+            @AuthenticationPrincipal Long commercialId,
+            @Valid @RequestBody CreateAdRequestDTO request) {
+ 
+        adService.createAdWithAsset(commercialId, request);
+        return ResponseEntity.status(201).build();
+    }
 
     /**
      * POST /api/ads/assets/prepare-upload
@@ -164,9 +240,9 @@ public class AdController {
     public ResponseEntity<AdForConsumerDTO> getNextAd(
             @AuthenticationPrincipal Jwt jwt
     ) {
-        Long userId = jwt.getClaim("userId");
+        Long consumerId = jwt.getClaim("userId");
 
-        return adService.getNextAdForUser(userId)
+        return adService.getNextAdForConsumer(consumerId)
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
@@ -241,15 +317,6 @@ public class AdController {
         Pageable pageable) {
         
         Page<AdForAdminDTO> ads = adService.getAdsByStatus(status, pageable);
-        return ResponseEntity.ok(PagedResponse.from(ads));
-    }
-
-    @GetMapping("/admin/pending") //Quitar este endpoint
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PagedResponse<AdForAdminDTO>> getPendingAds(
-            Pageable pageable) {
-        
-        Page<AdForAdminDTO> ads = adService.getPendingApprovalAds(pageable);
         return ResponseEntity.ok(PagedResponse.from(ads));
     }
 

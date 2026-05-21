@@ -3,6 +3,7 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.verygana2.models.Notification;
 import com.verygana2.models.User;
 
@@ -33,5 +34,7 @@ public abstract class UserDetails {
     @OneToOne
     @MapsId
     @JoinColumn(name = "user_id")
+    @JsonBackReference
     private User user;
+
 }

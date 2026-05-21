@@ -2,6 +2,8 @@ package com.verygana2.services;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -21,24 +23,23 @@ import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
-import com.verygana2.models.Transaction;
-import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdLikeId;
 import com.verygana2.models.ads.AdWatchSession;
+import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
-import com.verygana2.models.enums.TransactionState;
-import com.verygana2.models.enums.TransactionType;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
-import com.verygana2.repositories.TransactionRepository;
-import com.verygana2.repositories.UserRepository;
+import com.verygana2.repositories.finance.KeyTransactionRepository;
+import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
+import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.OptimisticLockException;
@@ -51,9 +52,13 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class AdLikeServiceImpl implements AdLikeService {
 
+    private static final Long PURCHASE_KEYS_PERCENTAGE = 75L;
+    private static final Long CONNECTIVITY_KEYS_PERCENTAGE = 25L;
+
     private final AdLikeRepository adLikeRepository;
-    private final UserRepository userRepository;
-    private final TransactionRepository transactionRepository;
+    private final ConsumerDetailsService consumerDetailsService;
+    private final KeyWalletRepository keyWalletRepository;
+    private final KeyTransactionRepository keyTransactionRepository;
     private final AdRepository adRepository;
     private final AdService adService;
     private final AdWatchSessionRepository adWatchSessionRepository;
@@ -62,24 +67,21 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdMapper adMapper;
     
     @Override
-    @Transactional
-    public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long userId, String ipAddress) {
+    public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
+
+        log.info("Processing like for ad {} from consumer {} at IP {}", adId, consumerId, ipAddress);
         
-        log.info("Processing like for ad {} from user {}", adId, userId);
-        
-        // Verificar que el usuario existe
-        Objects.requireNonNull(userId, "El ID de usuario no puede ser nulo");
-        User user = userRepository.findById(userId)
-            .orElseThrow(() -> new AdNotFoundException("Usuario no encontrado"));
+        // Verificar que el consumidor existe
+        ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
         
         // Verificar que el anuncio existe
         Ad ad = adService.getAdEntityById(adId);
         
         // 1. Verificar la sesión de visualización
-        AdWatchSession session = validateSession(sessionId, userId, ad);
+        AdWatchSession session = validateSession(sessionId, consumerId, ad);
 
-        // 2. Verificar que el usuario no haya dado like antes
-        if (hasUserLikedAd(adId, userId)) {
+        // 2. Verificar que el consumidor no haya dado like antes
+        if (hasConsumerLikedAd(adId, consumerId)) {
             throw new DuplicateLikeException("Ya has dado like a este anuncio");
         }
         
@@ -89,14 +91,17 @@ public class AdLikeServiceImpl implements AdLikeService {
                 "Este anuncio no está disponible para recibir likes"
             );
         }
+
+        //  INTENTAR USAR ENV
+        Long rewardKeys = ad.getRewardPerLike() / 1000; // Convertir a keys (1 key = 1000 cents), Java redondea automaticamente hacia abajo
         
         // 4. Crear el like
         AdLike adLike = AdLike.builder()
-            .id(new AdLikeId(userId, adId))
-            .user((ConsumerDetails)user.getUserDetails())
+            .id(new AdLikeId(consumerId, adId))
+            .consumer(consumer)
             .ad(ad)
-            .rewardAmount(ad.getRewardPerLike())
-            .createdAt(ZonedDateTime.now())
+            .rewardAmount(rewardKeys)
+            .createdAt(ZonedDateTime.now(clock))
             .build();
 
         try {
@@ -113,40 +118,49 @@ public class AdLikeServiceImpl implements AdLikeService {
             throw new BusinessException("El anuncio fue actualizado, intente nuevamente");
         }
 
-        // 5. Crear la transacción
-        Transaction transaction = Transaction.builder()
-            .wallet(user.getWallet())
-            .amount(ad.getRewardPerLike())
-            .transactionType(TransactionType.POINTS_AD_LIKE_REWARD)
-            .transactionState(TransactionState.COMPLETED)
-            .createdAt(ZonedDateTime.now())
-            .completedAt(ZonedDateTime.now())
-            .build();
-        
-        transactionRepository.save(Objects.requireNonNull(transaction));
-        
-        // Actualizar el balance del usuario
-        user.getWallet().setBalance(user.getWallet().getBalance().add(ad.getRewardPerLike()));
-        userRepository.save(user);
+        KeyWallet keyWallet = consumer.getKeyWallet();
+
+        long purchaseKeysReward = (rewardKeys * PURCHASE_KEYS_PERCENTAGE) / 100; // GUAR5DAR EN CENTAVOS PARA SER PRECISOS
+        long connectivityKeysReward = (rewardKeys * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
+
+        ZoneId colombia = ZoneId.of("America/Bogota");
+        ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(colombia);
+        ZonedDateTime purchaseExpiry = nowColombia.toLocalDate()
+            .withDayOfMonth(1).plusMonths(1)
+            .atStartOfDay(colombia)
+            .withZoneSameInstant(ZoneOffset.UTC);
+        ZonedDateTime connectivityExpiry = nowColombia.toLocalDate()
+            .plusDays(1)
+            .atStartOfDay(colombia)
+            .withZoneSameInstant(ZoneOffset.UTC);
+
+        String reason = "Interacción con anuncio #" + adId;
+        keyTransactionRepository.save(Objects.requireNonNull(
+            KeyTransaction.forInteractionPurchaseKeys(keyWallet, purchaseKeysReward, reason, sessionId, purchaseExpiry)));
+        keyTransactionRepository.save(Objects.requireNonNull(
+            KeyTransaction.forInteractionConnectivityKeys(keyWallet, connectivityKeysReward, reason, sessionId, connectivityExpiry)));
+
+        keyWallet.creditKeys(purchaseKeysReward, connectivityKeysReward);
+        keyWalletRepository.save(keyWallet);
 
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
         
-        log.info("Like processed successfully. User rewarded with: {}", ad.getRewardPerLike());
+        log.info("Like processed successfully. User rewarded with: {}", rewardKeys);
         
-        return new AdLikedResponse(true, ad.getRewardPerLike());
+        return new AdLikedResponse(true, rewardKeys);
     }
 
     @Override
-    public boolean hasUserLikedAd(Long adId, Long userId) {
-        return adLikeRepository.hasUserSeenAd(userId, adId);
+    public boolean hasConsumerLikedAd(Long adId, Long consumerId) {
+        return adLikeRepository.hasUserSeenAd(consumerId, adId);
     }
 
-    private AdWatchSession validateSession(UUID sessionId, Long userId, Ad ad) {
+    private AdWatchSession validateSession(UUID sessionId, Long consumerId, Ad ad) {
 
         AdWatchSession session = adWatchSessionRepository
-            .findByIdAndUserIdAndAdId(sessionId, userId, ad.getId())
+            .findByIdAndConsumerIdAndAdId(sessionId, consumerId, ad.getId())
             .orElseThrow(() -> new BusinessException("Sesión de visualización inválida"));
 
         ZonedDateTime now = ZonedDateTime.now(clock);
@@ -203,8 +217,8 @@ public class AdLikeServiceImpl implements AdLikeService {
         Page<AdLikeResponseDTO> adLikes = adLikeRepository
             .findByAdIdOrderByCreatedAtDesc(adId, pageable)
             .map(like -> AdLikeResponseDTO.builder()
-                .userId(like.getUser().getId())
-                .userName(like.getUser().getName() + " " + like.getUser().getLastName())
+                .userId(like.getConsumer().getId())
+                .userName(like.getConsumer().getName() + " " + like.getConsumer().getLastName())
                 .likedAt(like.getCreatedAt())
                 .build()
             );

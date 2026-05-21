@@ -20,7 +20,7 @@ public interface UserMapper {
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
-    @Mapping(target = "wallet", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
     User toUser(ConsumerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -41,6 +41,9 @@ public interface UserMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "referredBy", ignore = true)
+    @Mapping(target = "keyWallet", ignore = true)
+    @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "municipalityName", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- COMMERCIAL ----
@@ -50,13 +53,17 @@ public interface UserMapper {
     @Mapping(target = "userState", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
-    @Mapping(target = "wallet", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
     User toUser(CommercialRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
-    @Mapping(target = "investments", ignore = true)
+    @Mapping(target = "payoutMethods", ignore = true)
+    @Mapping(target = "defaultPayoutMethod", ignore = true)
+    @Mapping(target = "wallet", ignore = true)
+    @Mapping(target = "currentPlan", ignore = true)
+    @Mapping(target = "subscriptions", ignore = true)
     CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")

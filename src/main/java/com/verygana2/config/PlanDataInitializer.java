@@ -3,45 +3,41 @@ package com.verygana2.config;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.plans.Feature;
-import com.verygana2.models.plans.Feature.FeatureType;
-import com.verygana2.models.plans.Plan;
-import com.verygana2.models.plans.Plan.PlanCode;
-import com.verygana2.models.plans.PlanFeature;
-import com.verygana2.repositories.plans.FeatureRepository;
-import com.verygana2.repositories.plans.PlanFeatureRepository;
-import com.verygana2.repositories.plans.PlanRepository;
+import com.verygana2.models.finance.plans.Feature;
+import com.verygana2.models.finance.plans.Feature.FeatureType;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
+import com.verygana2.models.finance.plans.PlanFeature;
+import com.verygana2.repositories.finance.plans.FeatureRepository;
+import com.verygana2.repositories.finance.plans.PlanFeatureRepository;
+import com.verygana2.repositories.finance.plans.PlanRepository;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
- * Inicializa el catálogo de planes y features al arrancar la aplicación.
- * Es idempotente: si los datos ya existen, no los duplica.
+ * Inicializa el catálogo de planes y features al arrancar la app.
+ * Es IDEMPOTENTE — si los datos ya existen no hace nada.
  *
- * Valores por defecto configurados:
- * ─────────────────────────────────────────────────────────────────
- *                     BASIC     STANDARD    PREMIUM
- * CAN_ADVERTISE       false     true        true
- * CAN_USE_GAMES       false     true        true
- * MAX_PRODUCTS        10        100         ilimitado (-1)
- * MAX_ADS             0         20          100
- * MAX_BRANDED_GAMES   0         5           20
- * SALES_COMMISSION    10%       5%          3%
- * VISIBILITY_BOOST    0%        20%         50%
- * ─────────────────────────────────────────────────────────────────
+ * @Order(2) para correr después de TreasuryDataInitializer (@Order(1)).
  *
- * Estos valores son configurables desde la BD sin necesidad de redeployar.
+ * SALES_COMMISSION no está aquí — vive como campo directo en Plan.saleCommissionPct
+ * porque se consulta en cada transacción financiera y un join sería costoso.
+ * El resto de features son dinámicos y modificables por el admin vía endpoint.
  */
 @Component
 @RequiredArgsConstructor
-@Slf4j
+@Order(2)
 public class PlanDataInitializer implements ApplicationRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(PlanDataInitializer.class);
 
     private final PlanRepository planRepository;
     private final FeatureRepository featureRepository;
@@ -51,11 +47,11 @@ public class PlanDataInitializer implements ApplicationRunner {
     @Transactional
     public void run(ApplicationArguments args) {
         if (planRepository.count() > 0) {
-            log.info("Planes ya inicializados. Omitiendo seed.");
+            log.info("=== PlanDataInitializer: planes ya inicializados — omitiendo ===");
             return;
         }
 
-        log.info("Inicializando catálogo de planes y features...");
+        log.info("=== PlanDataInitializer: inicializando catálogo de planes ===");
 
         // ── 1. Crear planes ───────────────────────────────────────────────────
         Plan basic = planRepository.save(Plan.builder()
@@ -63,12 +59,13 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .version(1)
                 .active(true)
                 .name("Básico")
-                .description("Plan de entrada con suscripción mensual y comisión por ventas. " +
-                             "Sin anuncios ni juegos branded.")
-                .monthlySubscription(true)
-                .monthlyPrice(new BigDecimal("99000"))
-                .minInvestment(null)
-                .maxInvestment(null)
+                .description("Suscripción mensual fija. Ideal para empezar a vender " +
+                             "productos digitales sin inversión publicitaria.")
+                .monthlyPriceCents(20_000_000L)  // $200.000 COP
+                .minInvestmentCents(null)
+                .maxInvestmentCents(null)
+                .saleCommissionPct(15)            // 15% por venta 
+                .maxKeysPct(20) // 20% del precio de cada producto se puede pagar con llaves 
                 .build());
 
         Plan standard = planRepository.save(Plan.builder()
@@ -76,12 +73,13 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .version(1)
                 .active(true)
                 .name("Estándar")
-                .description("Activado con inversión entre $1.000.000 y $9.999.999. " +
-                             "Incluye anuncios y juegos branded. No es suscripción recurrente.")
-                .monthlySubscription(false)
-                .monthlyPrice(null)
-                .minInvestment(new BigDecimal("1000000"))
-                .maxInvestment(new BigDecimal("9999999.99"))
+                .description("Depósito entre $1.000.000 y $9.999.999 COP. " +
+                             "Incluye anuncios y juegos brandeados.")
+                .monthlyPriceCents(null)
+                .minInvestmentCents(100_000_000L)   // $1.000.000 COP
+                .maxInvestmentCents(999_999_900L)   // $9.999.999 COP
+                .saleCommissionPct(10)              // 10% por venta 
+                .maxKeysPct(35) // 35% del precio de cada producto se puede pagar con llaves 
                 .build());
 
         Plan premium = planRepository.save(Plan.builder()
@@ -89,15 +87,17 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .version(1)
                 .active(true)
                 .name("Premium")
-                .description("Activado con inversión de $10.000.000 o más. " +
-                             "Máxima visibilidad, comisión reducida. No es suscripción recurrente.")
-                .monthlySubscription(false)
-                .monthlyPrice(null)
-                .minInvestment(new BigDecimal("10000000"))
-                .maxInvestment(null)
+                .description("Depósito desde $10.000.000 COP. " +
+                             "Acceso completo a todas las funcionalidades.")
+                .monthlyPriceCents(null)
+                .minInvestmentCents(1_000_000_000L) // $10.000.000 COP
+                .maxInvestmentCents(null)            // sin techo
+                .saleCommissionPct(5)              // 5% por venta 
+                .maxKeysPct(50) // 50% del precio de cada producto se puede pagar con llaves 
                 .build());
 
         // ── 2. Crear catálogo de features ─────────────────────────────────────
+        // SALES_COMMISSION NO está aquí — vive en Plan.saleCommissionPct
         Feature canAdvertise = featureRepository.save(Feature.builder()
                 .code("CAN_ADVERTISE")
                 .name("Puede publicar anuncios")
@@ -106,7 +106,13 @@ public class PlanDataInitializer implements ApplicationRunner {
 
         Feature canUseGames = featureRepository.save(Feature.builder()
                 .code("CAN_USE_GAMES")
-                .name("Puede usar juegos branded")
+                .name("Puede usar juegos brandeados")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
+        Feature canUseSurveys = featureRepository.save(Feature.builder()
+                .code("CAN_USE_SURVEYS")
+                .name("Puede usar encuestas")
                 .type(FeatureType.BOOLEAN)
                 .build());
 
@@ -124,26 +130,8 @@ public class PlanDataInitializer implements ApplicationRunner {
 
         Feature maxBrandedGames = featureRepository.save(Feature.builder()
                 .code("MAX_BRANDED_GAMES")
-                .name("Máximo de juegos branded activos")
+                .name("Máximo de juegos brandeados activos")
                 .type(FeatureType.LIMIT)
-                .build());
-
-        Feature salesCommission = featureRepository.save(Feature.builder()
-                .code("SALES_COMMISSION")
-                .name("Porcentaje de comisión por ventas")
-                .type(FeatureType.PERCENTAGE)
-                .build());
-
-        Feature visibilityBoost = featureRepository.save(Feature.builder()
-                .code("VISIBILITY_BOOST")
-                .name("Boost de visibilidad en plataforma")
-                .type(FeatureType.PERCENTAGE)
-                .build());
-
-        Feature canUseSurveys = featureRepository.save(Feature.builder()
-                .code("CAN_USE_SURVEYS")
-                .name("Puede usar encuestas")
-                .type(FeatureType.BOOLEAN)
                 .build());
 
         Feature maxSurveys = featureRepository.save(Feature.builder()
@@ -152,45 +140,49 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.LIMIT)
                 .build());
 
+        Feature visibilityBoost = featureRepository.save(Feature.builder()
+                .code("VISIBILITY_BOOST")
+                .name("Boost de visibilidad en plataforma")
+                .type(FeatureType.PERCENTAGE)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
-            // BASIC
-            pf(basic, canAdvertise,     null,  false,  null),
-            pf(basic, canUseGames,      null,  false,  null),
-            pf(basic, maxProducts,      10,    null,   null),
-            pf(basic, maxAds,           0,     null,   null),
-            pf(basic, maxBrandedGames,  0,     null,   null),
-            pf(basic, salesCommission,  null,  null,   new BigDecimal("10.00")),
-            pf(basic, visibilityBoost,  null,  null,   BigDecimal.ZERO),
+            // ── BASIC ─────────────────────────────────────────────────────────
+            pf(basic, canAdvertise,    null, false, null),
+            pf(basic, canUseGames,     null, false, null),
+            pf(basic, canUseSurveys,   null, false, null),
+            pf(basic, maxProducts,     10,   null,  null),
+            pf(basic, maxAds,          0,    null,  null),
+            pf(basic, maxBrandedGames, 0,    null,  null),
+            pf(basic, maxSurveys,      0,    null,  null),
+            pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
 
-            // STANDARD
-            pf(standard, canAdvertise,     null,  true,   null),
-            pf(standard, canUseGames,      null,  true,   null),
-            pf(standard, maxProducts,      100,   null,   null),
-            pf(standard, maxAds,           20,    null,   null),
-            pf(standard, maxBrandedGames,  5,     null,   null),
-            pf(standard, salesCommission,  null,  null,   new BigDecimal("5.00")),
-            pf(standard, visibilityBoost,  null,  null,   new BigDecimal("20.00")),
-            pf(standard, canUseSurveys,    null,  true,  null),
-            pf(standard, maxSurveys,        10,    null,  null),
+            // ── STANDARD ──────────────────────────────────────────────────────
+            pf(standard, canAdvertise,    null, true,  null),
+            pf(standard, canUseGames,     null, true,  null),
+            pf(standard, canUseSurveys,   null, true,  null),
+            pf(standard, maxProducts,     100,  null,  null),
+            pf(standard, maxAds,          20,   null,  null),
+            pf(standard, maxBrandedGames, 5,    null,  null),
+            pf(standard, maxSurveys,      10,   null,  null),
+            pf(standard, visibilityBoost, null, null,  new BigDecimal("20.00")),
 
-
-            // PREMIUM
-            pf(premium, canAdvertise,     null,  true,   null),
-            pf(premium, canUseGames,      null,  true,   null),
-            pf(premium, maxProducts,      -1,    null,   null),   // -1 = ilimitado
-            pf(premium, maxAds,           100,   null,   null),
-            pf(premium, maxBrandedGames,  20,    null,   null),
-            pf(premium, salesCommission,  null,  null,   new BigDecimal("3.00")),
-            pf(premium, visibilityBoost,  null,  null,   new BigDecimal("50.00")),
-            pf(premium, canUseSurveys,    null,  true,   null),
-            pf(premium, maxSurveys,        50,    null,   null)
+            // ── PREMIUM ───────────────────────────────────────────────────────
+            pf(premium, canAdvertise,    null, true,  null),
+            pf(premium, canUseGames,     null, true,  null),
+            pf(premium, canUseSurveys,   null, true,  null),
+            pf(premium, maxProducts,     -1,   null,  null),  // -1 = ilimitado
+            pf(premium, maxAds,          100,  null,  null),
+            pf(premium, maxBrandedGames, 20,   null,  null),
+            pf(premium, maxSurveys,      50,   null,  null),
+            pf(premium, visibilityBoost, null, null,  new BigDecimal("50.00"))
         );
 
         planFeatureRepository.saveAll(planFeatures);
 
-        log.info("Catálogo inicializado: 3 planes, 7 features, {} asignaciones.",
+        log.info("=== PlanDataInitializer completado: 3 planes, {} feature-asignaciones ===",
                 planFeatures.size());
     }
 

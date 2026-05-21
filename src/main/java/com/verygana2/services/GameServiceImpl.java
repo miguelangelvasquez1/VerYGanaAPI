@@ -73,12 +73,12 @@ public class GameServiceImpl implements GameService {
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
-                .orElseThrow(() -> new IllegalArgumentException("Game not available"));
+                .orElseThrow(() -> new ValidationException("Game not available"));
 
         GameConfigDefinition configDefinition = game.getConfigDefinitions()
                 .stream()
                 .max(Comparator.comparing(GameConfigDefinition::getVersion))
-                .orElseThrow(() -> new IllegalStateException("Game has no config definition"));
+                .orElseThrow(() -> new ValidationException("Game has no config definition"));
 
         return new GameSchemaResponse(
                 game.getId(),
@@ -100,7 +100,7 @@ public class GameServiceImpl implements GameService {
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
             .orElseThrow(() -> new ValidationException("Game not available"));
 
-            // 3. Seleccionar campaña válida para el juego
+        // 3. Seleccionar campaña válida para el juego
         Campaign campaign = campaignRepository.findRandomActiveCampaignByGameId(gameId)
             .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
 
@@ -122,7 +122,7 @@ public class GameServiceImpl implements GameService {
             // /games/{objectKey}/
             baseUrl = String.format(
                 "%s/%s/",
-                cdnUrl, 
+                cdnUrl,
                 game.getUrl() //cambair attribute name
             );
 
@@ -141,7 +141,7 @@ public class GameServiceImpl implements GameService {
             
 
         } else {
-            throw new IllegalStateException("Unsupported routing type");
+            throw new ValidationException("Unsupported routing type");
         }
 
         String url = String.format(
@@ -159,7 +159,7 @@ public class GameServiceImpl implements GameService {
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
-            .orElseThrow(() -> new IllegalArgumentException("Game not available"));
+            .orElseThrow(() -> new ValidationException("Game not available"));
 
         // Una jugada de un juego not sponsored no deberia crear sesión?
 
@@ -199,7 +199,7 @@ public class GameServiceImpl implements GameService {
             );
 
         } else {
-            throw new IllegalStateException("Unsupported routing type");
+            throw new ValidationException("Unsupported routing type");
         }
 
         // String url = String.format(

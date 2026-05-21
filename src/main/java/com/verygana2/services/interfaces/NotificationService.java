@@ -13,7 +13,7 @@ public interface NotificationService {
 
     long getCountByUserIdAndReadFalse(Long userId);
 
-    void createInternalNotification (Long consumerId, String title, String message, Instant dateSent);
+    void createInternalNotification (Long userId, String title, String message, Instant dateSent);
 
     int markAllAsRead(Long userId);
 }

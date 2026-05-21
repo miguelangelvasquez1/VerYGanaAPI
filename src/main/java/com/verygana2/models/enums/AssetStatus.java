@@ -7,5 +7,6 @@ public enum AssetStatus {
     ATTACHED, // Asociado a una campaign activa
     ORPHANED, // Para borrar en CDN
     DELETED, // Borrados en CDN
-    CANCELLED; // Campaign cancelada
+    CANCELLED, // Campaign cancelada
+    ANALYZING; // En análisis de duración
 }

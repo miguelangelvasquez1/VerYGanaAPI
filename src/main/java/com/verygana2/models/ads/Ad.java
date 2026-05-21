@@ -1,6 +1,5 @@
 package com.verygana2.models.ads;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -12,8 +11,6 @@ import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -30,19 +27,11 @@ import lombok.NoArgsConstructor;
 @Table(
     name = "ads",
     indexes = {
-        // Índice compuesto para búsqueda de anuncios activos disponibles
-        @Index(
-            name = "idx_ads_availability",
-            columnList = "status, current_likes, max_likes, end_date, created_at"
-        ),
-        // Índice para búsqueda por fecha de inicio
-        @Index(name = "idx_ads_start_date", columnList = "start_date"),
-        // Índice por anunciante
-        @Index(name = "idx_ads_commercial", columnList = "commercial_id"),
-        // Índice para anuncios activos ordenados por fecha de creación
-        @Index(name = "idx_ads_active_created", columnList = "status, created_at"),
-        // Índice para anuncios completados
-        @Index(name = "idx_ads_completed", columnList = "status, updated_at")
+        @Index(name = "idx_ads_availability",  columnList = "status, current_likes, max_likes, end_date, created_at"),
+        @Index(name = "idx_ads_start_date",    columnList = "start_date"),
+        @Index(name = "idx_ads_commercial",    columnList = "commercial_id"),
+        @Index(name = "idx_ads_active_created",columnList = "status, created_at"),
+        @Index(name = "idx_ads_completed",     columnList = "status, updated_at")
     }
 )
 @NoArgsConstructor
@@ -67,22 +56,25 @@ public class Ad {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
+    /**
+     * Recompensa pagada al consumer por cada like, en centavos de COP.
+     * Mín: 1 centavo. Máx: 10.000 centavos (100 COP).
+     */
     @NotNull(message = "La recompensa por like es obligatoria")
-    @DecimalMin(value = "0.01", message = "La recompensa debe ser mayor a 0")
-    @DecimalMax(value = "100.00", message = "La recompensa no puede exceder 100")
-    @Column(name = "reward_per_like", nullable = false, precision = 19, scale = 2)
-    private BigDecimal rewardPerLike;
+    @Min(value = 1,     message = "La recompensa mínima es 1 centavo")
+    @Max(value = 100000, message = "La recompensa no puede exceder 100.000 centavos (1.000 COP)")
+    @Column(name = "reward_per_like", nullable = false)
+    private Long rewardPerLike; // poner cents
 
     @NotNull(message = "El máximo de likes es obligatorio")
-    @Min(value = 1, message = "Debe permitir al menos 1 like")
+    @Min(value = 1,     message = "Debe permitir al menos 1 like")
+    @Max(value = 10000, message = "No puede exceder 10,000 likes")
     @Column(name = "max_likes", nullable = false)
     private Integer maxLikes;
 
     @Column(name = "current_likes", nullable = false)
     @Builder.Default
     private Integer currentLikes = 0;
-
-    //CTR, metricas de engagement
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -96,17 +88,10 @@ public class Ad {
     private ZonedDateTime updatedAt;
 
     @Column(name = "start_date")
-    private ZonedDateTime startDate; // Could be null, meaning it starts immediately
+    private ZonedDateTime startDate;
 
     @Column(name = "end_date")
-    private ZonedDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
-
-    @Transient
-    private BigDecimal totalBudget; // Se puede calcular como rewardPerLike * maxLikes
-
-    @Builder.Default    
-    @Transient
-    private BigDecimal spentBudget = BigDecimal.ZERO; // Se puede calcular como rewardPerLike * currentLikes
+    private ZonedDateTime endDate;
 
     @NotNull(message = "El anunciante es obligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
@@ -118,7 +103,7 @@ public class Ad {
     private List<AdLike> likes = new ArrayList<>();
 
     @Column(name = "target_url", length = 500)
-    private String targetUrl; // When the user clicks the ad, where to redirect
+    private String targetUrl;
 
     @ManyToMany
     @JoinTable(
@@ -155,25 +140,15 @@ public class Ad {
     private TargetGender targetGender;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
-    private String rejectionReason; // Si el anuncio es rechazado, se puede guardar la razón aquí
+    private String rejectionReason;
 
-
-    // HELPER METHODS ----------------------------------------------------------------------------------------------------
+    // ── Lifecycle ────────────────────────────────────────────────────────────
 
     @PrePersist
     protected void onCreate() {
-        if (createdAt == null) {
-            createdAt = ZonedDateTime.now();
-        }
-        if (currentLikes == null) {
-            currentLikes = 0;
-        }
-        if (spentBudget == null) {
-            spentBudget = BigDecimal.ZERO;
-        }
-        if (status == null) {
-            status = AdStatus.PENDING;
-        }
+        if (createdAt == null)    createdAt    = ZonedDateTime.now();
+        if (currentLikes == null) currentLikes = 0;
+        if (status == null)       status       = AdStatus.PENDING;
     }
 
     @PreUpdate
@@ -181,29 +156,42 @@ public class Ad {
         updatedAt = ZonedDateTime.now();
     }
 
-    // Métodos de utilidad
+    // ── Métodos de negocio ────────────────────────────────────────────────────
+
     public boolean canReceiveLike() {
-        return status == AdStatus.ACTIVE &&
-                currentLikes < maxLikes &&
-                (endDate == null || endDate.isAfter(ZonedDateTime.now())) &&
-                hasRemainingBudget();
+        return status == AdStatus.ACTIVE
+                && currentLikes < maxLikes
+                && (endDate == null || endDate.isAfter(ZonedDateTime.now()))
+                && hasRemainingBudget();
     }
 
+    /** Hay presupuesto para pagar al menos un like más. */
     public boolean hasRemainingBudget() {
-        return getSpentBudget().add(rewardPerLike).compareTo(getTotalBudget()) <= 0;
+        return (getSpentBudget() + rewardPerLike) <= getTotalBudget();
     }
 
     public void incrementLike() {
         this.currentLikes++;
-
-        // Auto-desactivar si se alcanza el límite
         if (this.currentLikes >= this.maxLikes || !hasRemainingBudget()) {
             this.status = AdStatus.COMPLETED;
         }
     }
 
-    public BigDecimal getRemainingBudget() {
-        return getTotalBudget().subtract(getSpentBudget());
+    /** Centavos ya pagados (rewardPerLike × likes actuales). */
+    public Long getSpentBudget() {
+        if (rewardPerLike == null || currentLikes == null) return 0L;
+        return rewardPerLike * currentLikes.longValue();
+    }
+
+    /** Presupuesto total del anuncio en centavos (rewardPerLike × maxLikes). */
+    public Long getTotalBudget() {
+        if (rewardPerLike == null || maxLikes == null) return 0L;
+        return rewardPerLike * maxLikes.longValue();
+    }
+
+    /** Centavos restantes del presupuesto. */
+    public Long getRemainingBudget() {
+        return getTotalBudget() - getSpentBudget();
     }
 
     public int getRemainingLikes() {
@@ -214,24 +202,8 @@ public class Ad {
         return (currentLikes * 100.0) / maxLikes;
     }
 
-    public BigDecimal getSpentBudget() {
-        if (rewardPerLike == null || currentLikes == null) {
-            return BigDecimal.ZERO;
-        }
-        return rewardPerLike.multiply(BigDecimal.valueOf(currentLikes));
-    }
-
-    public BigDecimal getTotalBudget() {
-        if (rewardPerLike == null || maxLikes == null) {
-            return BigDecimal.ZERO;
-        }
-        return rewardPerLike.multiply(BigDecimal.valueOf(maxLikes));
-    }
-
     public List<Municipality> getTargetMunicipalities() {
-        if (targetMunicipalities == null) {
-            targetMunicipalities = new ArrayList<>();
-        }
+        if (targetMunicipalities == null) targetMunicipalities = new ArrayList<>();
         return targetMunicipalities;
     }
 }

@@ -4,8 +4,8 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-import com.verygana2.models.User;
 import com.verygana2.models.enums.AdWatchSessionStatus;
+import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -27,7 +27,7 @@ import lombok.NoArgsConstructor;
     indexes = {
         @Index(
             name = "idx_watch_session_user_ad_expires",
-            columnList = "user_id, ad_id, expires_at"
+            columnList = "consumer_user_id, ad_id, expires_at"
         ),
         @Index(
             name = "idx_watch_session_ad",
@@ -44,7 +44,7 @@ public class AdWatchSession {
     private UUID id;
 
     @ManyToOne
-    private User user;
+    private ConsumerDetails consumer;
 
     @ManyToOne
     private Ad ad;
@@ -55,8 +55,8 @@ public class AdWatchSession {
     @Enumerated(EnumType.STRING)
     private AdWatchSessionStatus status;
 
-    public AdWatchSession(User user, Ad ad) {
-        this.user = user;
+    public AdWatchSession(ConsumerDetails consumer, Ad ad) {
+        this.consumer = consumer;
         this.ad = ad;
     }
 

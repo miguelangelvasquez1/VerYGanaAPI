@@ -9,9 +9,7 @@
 
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
-- El usuario ingresa su correo y clave, luego CustomUserDetailsService valida si coinciden con un usuario de la base de datos, si no coinciden lanza 401
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
-- API de info Colombia: https://api-colombia.com
 - Si se introducen refresh tokens, los self-signed JWTs pueden no ser lo mejor
 - Article for JWTs: https://www.danvega.dev/blog/spring-security-jwt
 
@@ -56,6 +54,7 @@ docker compose up --build
 docker compose restart (solo cambio de .env)
 mvn spring-boot:run
 
+## Para subir a docker.io:
 1.
 mvn clean package
 
@@ -63,6 +62,9 @@ mvn clean package
 docker build -t miguelvasquez777/verygana-api:latest .
 docker push miguelvasquez777/verygana-api:latest
 
+## Para correr localmente:
+docker build -t miguelvasquez777/verygana-api:latest .
+docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
 - obtener session estandarizado
 - Flujo de juegos:
@@ -78,3 +80,86 @@ docker push miguelvasquez777/verygana-api:latest
 
 
   mirar que va en detalles de la campana y ajustar con planes
+
+
+
+
+  const MIME_TYPES = {
+  html: 'text/html',
+  js: 'application/javascript',
+  wasm: 'application/wasm',
+  data: 'application/octet-stream',
+  json: 'application/json',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  css: 'text/css'
+};
+
+export default {
+  async fetch(request, env) {
+    const url = new URL(request.url);
+    let path = url.pathname;
+
+    if (path.startsWith('/')) {
+      path = path.slice(1);
+    }
+
+    if (path.endsWith('/')) {
+      path += 'index.html';
+    }
+
+    const key = path;
+    console.log('R2 key:', key);
+
+    const object = await env.VERYGANA_GAMES_BUCKET.get(key);
+
+    if (!object) {
+      return new Response('Game not found', { status: 404 });
+    }
+
+    const ext = key.split('.').pop();
+
+    return new Response(object.body, {
+      headers: {
+        'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, HEAD, OPTIONS",
+        "Access-Control-Allow-Headers": "*"
+      }
+    });
+  }
+};
+
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*.gz"
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.js.gz" `
+  --content-encoding gzip `
+  --content-type application/javascript
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.data.gz" `
+  --content-encoding gzip `
+  --content-type application/octet-stream
+
+aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
+  --recursive `
+  --endpoint-url https://e1cb6cf5ad3bfde79bd415645b6a29e0.r2.cloudflarestorage.com `
+  --exclude "*" `
+  --include "*.wasm.gz" `
+  --content-encoding gzip `
+  --content-type application/wasm
+  
+
+- hacer env de valor de llaves o cents, cambiar rewardPweLike a Cents, wallets en cents, quitar footer?, que no se pause el anuncio.

@@ -6,6 +6,7 @@ import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.PrizeStatus;
 import com.verygana2.models.enums.raffles.PrizeType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

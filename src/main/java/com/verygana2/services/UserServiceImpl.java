@@ -3,6 +3,9 @@ package com.verygana2.services;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
+import com.verygana2.services.interfaces.AvatarService;
+import com.verygana2.services.interfaces.ReferralService;
+import com.verygana2.models.Municipality;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
 import org.hibernate.ObjectNotFoundException;
@@ -17,6 +20,8 @@ import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.services.interfaces.UserService;
+import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
 import lombok.RequiredArgsConstructor;
@@ -35,11 +40,12 @@ public class UserServiceImpl implements UserService {
     private final AvatarService avatarService;
     private final UserHashGenerator userHashGenerator;
     private final UserRepository userRepository;
-    private final WalletService walletService;
+    private final KeyWalletService keyWalletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final OutboxService outboxService;
     private final MunicipalityRepository municipalityRepository;
+    private final LocationService locationService;
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -52,7 +58,6 @@ public class UserServiceImpl implements UserService {
         user.setUserDetails(details);
 
         User savedUser = userRepository.save(user);
-        walletService.createWallet(savedUser);
 
         return savedUser;
     }
@@ -63,6 +68,7 @@ public class UserServiceImpl implements UserService {
     private int calculateAge(LocalDate birthDate) {
         return Period.between(birthDate, LocalDate.now()).getYears();
     }
+
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -73,28 +79,31 @@ public class UserServiceImpl implements UserService {
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
+
+        // === ASIGNACIÓN DEL MUNICIPIO ===
+        if (dto.getMunicipalityCode() != null) {
+            Municipality municipality = locationService.getMunicipalityEntityByCode(dto.getMunicipalityCode());
+
+            details.setMunicipality(municipality);
+            details.setMunicipalityName(municipality.getName());   // por redundancia y consultas rápidas
+            details.setDepartmentName(municipality.getDepartment().getName()); // por redundancia y consultas rápidas
+        }
+
         Avatar avatar = avatarService.getActiveAvatarOrThrow(dto.getAvatarId());
         details.setAvatar(avatar);
         details.setUserName(normalizeUsername(dto.getUserName()));
         details.setGender(dto.getGender());
         details.setAge(calculateAge(dto.getBirthDate()));
 
-        Municipality municipality = municipalityRepository
-                .findByNameIgnoreCase(dto.getMunicipalityName())
-                .orElseThrow(() -> new InvalidRequestException(
-                        "Municipality not found: " + dto.getMunicipalityName()));
-        details.setMunicipality(municipality);
-        details.setMunicipalityName(municipality.getName());
-
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
         userRepository.saveAndFlush(user);
-
+        
         // Asignar hash
         String userHash = userHashGenerator.generate(user.getId());
         details.setUserHash(userHash);
 
-        walletService.createWallet(user);
+        keyWalletService.createFor(user.getId());
 
         if (details.getReferredBy() != null) {
             outboxService.saveReferralEvent(

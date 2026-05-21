@@ -16,10 +16,10 @@ import com.verygana2.models.enums.AdWatchSessionStatus;
 @Repository
 public interface AdWatchSessionRepository extends JpaRepository<AdWatchSession, UUID> {
     
-    Optional<AdWatchSession> findByIdAndUserIdAndAdId(UUID id, Long userId, Long adId);
+    Optional<AdWatchSession> findByIdAndConsumerIdAndAdId(UUID id, Long consumerId, Long adId);
 
-    Optional<AdWatchSession> findByUserIdAndStatusAndExpiresAtAfter(
-        Long userId,
+    Optional<AdWatchSession> findByConsumerIdAndStatusAndExpiresAtAfter(
+        Long consumerId,
         AdWatchSessionStatus status,
         ZonedDateTime now
     );

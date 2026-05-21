@@ -12,5 +12,6 @@ public interface ReferralMapper {
     @Mapping(source = "user.userState",      target = "userState")
     @Mapping(source = "user.registeredDate", target = "registeredDate")
     @Mapping(target = "municipality", source = "municipality.name")
+    @Mapping(target = "department", ignore = true)
     ReferralItemDTO toDTO(ConsumerDetails consumerDetails);
 }

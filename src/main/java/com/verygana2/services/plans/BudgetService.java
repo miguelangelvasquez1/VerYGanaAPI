@@ -1,114 +1,104 @@
 package com.verygana2.services.plans;
 
-import java.math.BigDecimal;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.plans.BudgetTransaction;
-import com.verygana2.models.plans.BudgetTransaction.TransactionType;
-import com.verygana2.models.plans.Investment;
-import com.verygana2.models.plans.Investment.InvestmentStatus;
-import com.verygana2.repositories.plans.BudgetTransactionRepository;
-import com.verygana2.repositories.plans.InvestmentRepository;
+import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.models.finance.Wallet;
+import com.verygana2.models.finance.plans.BudgetTransaction;
+import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
+import com.verygana2.repositories.WalletRepository;
+import com.verygana2.repositories.finance.plans.BudgetTransactionRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Gestiona el consumo del presupuesto y su trazabilidad.
+ * Gestiona el consumo del presupuesto publicitario y su trazabilidad.
  *
- * Cada interacción de usuario (ver un anuncio, completar un juego) debe
- * invocar este servicio para descontar el costo del Budget y registrar
- * la transacción correspondiente.
- *
- * Cuando el Budget se agota, notifica a InvestmentService para actualizar
- * el estado de la inversión y el anunciante pasa a modo BASIC.
+ * Usa lock pesimista sobre el Wallet para evitar race conditions cuando
+ * múltiples eventos consumen presupuesto de forma concurrente (p. ej.
+ * varias impresiones de anuncios en el mismo instante).
  */
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class BudgetService {
 
-    private final InvestmentRepository budgetRepository;
+    private final WalletRepository walletRepository;
     private final BudgetTransactionRepository transactionRepository;
     private final InvestmentService investmentService;
 
     /**
-     * Registra el consumo del presupuesto por una visualización de anuncio.
-     *
-     * @param budgetId    ID del presupuesto activo
-     * @param cost        Costo de la impresión
-     * @param referenceId ID externo de la impresión (para auditoría)
+     * @param commercialId ID del comercial anunciante
+     * @param amountCents  Costo de la impresión en centavos
+     * @param referenceId  ID externo de la impresión (para auditoría)
      */
     @Transactional
-    public void consumeForAdView(Long budgetId, BigDecimal cost, String referenceId) {
-        consume(budgetId, cost, TransactionType.AD_VIEW, referenceId,
+    public void consumeForAdView(Long commercialId, Long amountCents, String referenceId) {
+        consume(commercialId, amountCents, TransactionType.AD_VIEW, referenceId,
                 "Costo por visualización de anuncio");
     }
 
     /**
-     * Registra el consumo del presupuesto por una recompensa de juego.
-     *
-     * @param budgetId    ID del presupuesto activo
-     * @param reward      Monto de la recompensa al usuario
-     * @param referenceId ID externo de la sesión de juego (para auditoría)
+     * @param commercialId ID del comercial anunciante
+     * @param amountCents  Monto de la recompensa en centavos
+     * @param referenceId  ID externo de la sesión de juego (para auditoría)
      */
     @Transactional
-    public void consumeForGameReward(Long budgetId, BigDecimal reward, String referenceId) {
-        consume(budgetId, reward, TransactionType.GAME_REWARD, referenceId,
+    public void consumeForGameReward(Long commercialId, Long amountCents, String referenceId) {
+        consume(commercialId, amountCents, TransactionType.GAME_REWARD, referenceId,
                 "Recompensa por sesión de juego branded");
     }
 
     /**
-     * Ajuste manual del presupuesto (soporte, correcciones).
-     *
-     * @param budgetId    ID del presupuesto
-     * @param amount      Monto a descontar (positivo)
-     * @param description Descripción del ajuste
+     * @param commercialId ID del comercial
+     * @param amountCents  Monto a descontar en centavos
+     * @param description  Descripción del ajuste
      */
     @Transactional
-    public void applyManualAdjustment(Long budgetId, BigDecimal amount, String description) {
-        consume(budgetId, amount, TransactionType.MANUAL_ADJUSTMENT, null, description);
+    public void applyManualAdjustment(Long commercialId, Long amountCents, String description) {
+        consume(commercialId, amountCents, TransactionType.MANUAL_ADJUSTMENT, null, description);
     }
 
     // ── Implementación interna ────────────────────────────────────────────────
 
-    private void consume(Long budgetId, BigDecimal amount, TransactionType type,
+    private void consume(Long commercialId, Long amountCents, TransactionType type,
             String referenceId, String description) {
 
-        Investment budget = budgetRepository.findById(budgetId)
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                 .orElseThrow(() -> new IllegalArgumentException(
-                        "Presupuesto no encontrado: " + budgetId));
+                        "Wallet no encontrado para comercial: " + commercialId));
 
-        if (!budget.getStatus().equals(InvestmentStatus.ACTIVE)) {
-            throw new IllegalStateException(
-                    "No se puede consumir un presupuesto inactivo: " + budgetId);
+        try {
+            wallet.consume(amountCents);
+        } catch (InsufficientFundsException e) {
+            log.warn("Saldo insuficiente en wallet del comercial {}. Requerido: {} centavos, disponible: {}",
+                    commercialId, amountCents, wallet.getBalanceCents());
+            throw e;
         }
 
-        boolean wasActive = budget.hasFunds();
-        budget.consume(amount); // Lanza excepción si saldo insuficiente
-        budgetRepository.save(budget);
+        walletRepository.save(wallet);
 
-        // Registrar transacción para trazabilidad
         BudgetTransaction tx = BudgetTransaction.builder()
-                .budget(budget)
-                .amount(amount)
+                .wallet(wallet)
+                .amountCents(amountCents)
                 .type(type)
                 .referenceId(referenceId)
                 .description(description)
-                .createdAt(ZonedDateTime.now())
+                .createdAt(ZonedDateTime.now(ZoneOffset.UTC))
                 .build();
         transactionRepository.save(tx);
 
-        log.debug("Budget {} consumido: {} por {}. Saldo restante: {}",
-                budgetId, amount, type, budget.getRemainingAmount());
+        log.debug("Wallet comercial {} consumido: {} centavos por {}. Saldo restante: {}",
+                commercialId, amountCents, type, wallet.getBalanceCents());
 
-        // Si el budget se agotó en esta transacción, notificar a InvestmentService
-        if (wasActive && !budget.hasFunds()) {
-            log.info("Budget {} agotado. Notificando cambio a modo BASIC.", budgetId);
-            investmentService.markBudgetExhausted(budget.getId());
+        if (wallet.isExhausted()) {
+            log.info("Wallet comercial {} agotado. Removiendo plan activo.", commercialId);
+            investmentService.handleWalletExhausted(commercialId);
         }
     }
 }

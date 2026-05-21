@@ -1,6 +1,5 @@
 package com.verygana2.models.ads;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -25,7 +24,7 @@ import lombok.NoArgsConstructor;
     name = "ad_likes",
     indexes = {
         @Index(name = "idx_ad_likes_created_at", columnList = "created_at"),
-        @Index(name = "idx_ad_likes_user_id", columnList = "user_id"),
+        @Index(name = "idx_ad_likes_consumer_id", columnList = "consumer_user_id"),
         @Index(name = "idx_ad_likes_ad_id", columnList = "ad_id")
     }
 )
@@ -39,9 +38,9 @@ public class AdLike {
     private AdLikeId id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @MapsId("userId")
+    @MapsId("consumerId")
     @JoinColumn(nullable = false)
-    private ConsumerDetails user;
+    private ConsumerDetails consumer;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("adId")
@@ -49,7 +48,7 @@ public class AdLike {
     private Ad ad;
 
     @Column(nullable = false, precision = 19, scale = 2)
-    private BigDecimal rewardAmount;
+    private Long rewardAmount;
     @Column(nullable = false)
     private ZonedDateTime createdAt;
     
@@ -61,8 +60,8 @@ public class AdLike {
         if (id == null) {
             id = new AdLikeId();
         }
-        if (user != null) {
-            id.setUserId(user.getId());
+        if (consumer != null) {
+            id.setConsumerId(consumer.getId());
         }
         if (ad != null) {
             id.setAdId(ad.getId());
@@ -70,11 +69,11 @@ public class AdLike {
     }
 
     // Constructor de conveniencia
-    public AdLike(ConsumerDetails user, Ad ad, BigDecimal rewardAmount) {
-        this.user = user;
+    public AdLike(ConsumerDetails consumer, Ad ad, Long rewardAmount) {
+        this.consumer = consumer;
         this.ad = ad;
         this.rewardAmount = rewardAmount;
-        this.id = new AdLikeId(user.getId(), ad.getId());
+        this.id = new AdLikeId(consumer.getId(), ad.getId());
         this.createdAt = ZonedDateTime.now();
     }
 }

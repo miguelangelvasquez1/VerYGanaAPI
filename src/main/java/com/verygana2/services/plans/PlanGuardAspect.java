@@ -6,7 +6,7 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.stereotype.Component;
 
-import com.verygana2.models.plans.RequirePlanCapability;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
 
 import lombok.RequiredArgsConstructor;
 

@@ -1,6 +1,7 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.Collections;
@@ -309,10 +310,10 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         // 3. Presupuesto
-        BigDecimal currentBudget = BigDecimal.valueOf(request.getBudgetCoins()).multiply(request.getCoinValue());
-        if (currentBudget != null) {
-            validateBudgetChange(campaign, currentBudget);
-            campaign.setBudget(currentBudget);
+        if (request.getBudgetCoins() != null && request.getCoinValue() != null) {
+            BigDecimal newBudget = BigDecimal.valueOf(request.getBudgetCoins()).multiply(request.getCoinValue());
+            validateBudgetChange(campaign, newBudget);
+            campaign.setBudget(newBudget);
         }
 
         // 4. Target URL
@@ -576,10 +577,13 @@ public class CampaignServiceImpl implements CampaignService {
             throw new ValidationException("El presupuesto no puede ser menor al monto ya gastado");
         }
 
-        BigDecimal availableBalance = campaign.getCommercial().getUser().getWallet().getBalance();
-
-        if (newBudget.compareTo(availableBalance.add(campaign.getSpent())) > 0) { // Mirar lógica de los saldos
-            throw new ValidationException("Saldo insuficiente");
+        BigDecimal additional = newBudget.subtract(campaign.getBudget());
+        if (additional.compareTo(BigDecimal.ZERO) > 0) {
+            BigDecimal walletCOP = BigDecimal.valueOf(campaign.getCommercial().getWallet().getBalanceCents())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            if (additional.compareTo(walletCOP) > 0) {
+                throw new ValidationException("Saldo insuficiente para incrementar el presupuesto");
+            }
         }
     }
 

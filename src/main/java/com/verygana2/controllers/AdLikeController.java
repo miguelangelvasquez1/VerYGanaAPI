@@ -86,7 +86,7 @@ public class AdLikeController {
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
         
-        boolean hasLiked = adLikeService.hasUserLikedAd(id, jwt.getClaim("userId"));
+        boolean hasLiked = adLikeService.hasConsumerLikedAd(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(hasLiked);
     }
 

@@ -376,14 +376,14 @@ public class R2Service {
 
         // CDN custom (PRODUCCIÓN)
         if (r2Config.getCdnDomain() != null && !r2Config.getCdnDomain().isBlank()) {
-            return String.format("https://%s/%s",
+            return String.format("https://%s/public/%s",
                 r2Config.getCdnDomain(),
                 objectKey
             );
         }
 
         // Fallback controlado (DEV / STAGING)
-        return String.format("https://%s.r2.dev/%s",
+        return String.format("https://%s.r2.dev/public/%s",
             r2Config.getAccountId(),
             objectKey
         );
@@ -492,6 +492,51 @@ public class R2Service {
         } catch (Exception e) {
             log.error("Error detectando MIME real de {}: {}", objectKey, e.getMessage());
             throw new StorageException("Error detectando tipo real", e);
+        }
+    }
+
+    /**
+     * Copia un objeto desde la carpeta privada a la carpeta pública.
+     * Opcionalmente elimina el original privado.
+     *
+     * @param objectKey         Clave del objeto (sin prefijo). Ej: "campaigns/banner.jpg"
+     * @param deleteOriginal    Si true, elimina el archivo privado después de copiarlo.
+     * @return URL pública del nuevo objeto
+     */
+    public String makeObjectPublic(String objectKey) {
+        String privateKey = PRIVATE_PREFIX + objectKey;
+        String publicKey = PUBLIC_PREFIX + objectKey;
+
+        try {
+            // 1. Verificar que el objeto privado exista
+            if (!objectExists(privateKey)) {
+                throw new StorageException("El objeto privado no existe: " + privateKey);
+            }
+
+            // 2. Copiar el objeto a la ubicación pública
+            CopyObjectRequest copyRequest = CopyObjectRequest.builder()
+                    .sourceBucket(r2Config.getBucketName())
+                    .sourceKey(privateKey)
+                    .destinationBucket(r2Config.getBucketName())
+                    .destinationKey(publicKey)
+                    .metadataDirective(MetadataDirective.COPY)   // Copia metadata original
+                    .build();
+
+            r2Client.copyObject(copyRequest);
+
+            log.info("Objeto copiado a público: {} → {}", privateKey, publicKey);
+
+            String publicUrl = buildPublicUrl(publicKey);
+
+            // 3. Eliminar el original privado si se solicita
+            deleteObject(privateKey);
+            log.info("Original privado eliminado: {}", privateKey);
+
+            return publicUrl;
+
+        } catch (Exception e) {
+            log.error("Error al hacer público el objeto {}: {}", objectKey, e.getMessage());
+            throw new StorageException("No se pudo hacer público el objeto: " + objectKey, e);
         }
     }
 

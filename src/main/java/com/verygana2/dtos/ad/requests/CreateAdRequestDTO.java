@@ -1,12 +1,9 @@
 package com.verygana2.dtos.ad.requests;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
 import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.DecimalMax;
-import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -36,19 +33,14 @@ public class CreateAdRequestDTO {
     @Size(min = 10, max = 1000, message = "Description must be between 10 and 1000 characters")
     private String description;
     
-    @NotNull(message = "Reward per like is required")
-    @DecimalMin(value = "0.01", message = "Reward per like must be at least 0.01")
-    @DecimalMax(value = "100.00", message = "Reward per like must not exceed 100.00")
-    private BigDecimal rewardPerLike;
+    @NotNull(message = "Price per like is required")
+    @Min(value = 1, message = "Price per like must be at least 1 cent")
+    private Long pricePerLike;
     
     @NotNull(message = "Max likes is required")
     @Min(value = 1, message = "Max likes must be at least 1")
     @Max(value = 10000, message = "Max likes must not exceed 10,000")
     private Integer maxLikes;
-    
-    @NotNull(message = "Media type is required")
-    @Pattern(regexp = "^(IMAGE|VIDEO)$", message = "Media type must be IMAGE or VIDEO")
-    private String mediaType;
     
     @Size(max = 500, message = "Target URL must not exceed 500 characters")
     @Pattern(regexp = "^(https?://)?.*", message = "Target URL must be a valid URL")
@@ -93,5 +85,10 @@ public class CreateAdRequestDTO {
             return true; // Dates are optional
         }
         return endDate.isAfter(startDate);
+    }
+
+    @AssertTrue(message = "Price per like must be a multiple of 10")
+    public boolean isPricePerLikeMultipleOf10() {
+        return pricePerLike != null && pricePerLike % 10 == 0;
     }
 }

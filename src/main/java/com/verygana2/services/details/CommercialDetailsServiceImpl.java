@@ -11,9 +11,9 @@ import com.verygana2.dtos.user.commercial.responses.MonthlyReportResponseDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.services.interfaces.PurchaseItemService;
-import com.verygana2.services.interfaces.TransactionService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
+import com.verygana2.services.interfaces.finance.PayoutService;
+import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -24,8 +24,8 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
     
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final UserMapper commercialDetailsMapper;
-    private final TransactionService transactionService;
     private final PurchaseItemService purchaseItemService;
+    private final PayoutService payoutService;
 
     @Override
     @Transactional(readOnly = true)
@@ -71,7 +71,7 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
     @Override
     public MonthlyReportResponseDTO getMonthlyReport(Long commercialId, Integer year, Integer month) {
         
-        BigDecimal monthlyEarningsAmount = transactionService.getCommercialEarningsByMonth(commercialId, year, month);
+        BigDecimal monthlyEarningsAmount = payoutService.getCommercialEarningsForPeriod(commercialId, year, month);
         BigDecimal monthlySalesAmount = purchaseItemService.getTotalCommercialSalesAmountByMonth(commercialId, year, month);
         BigDecimal monthlyCommissionsAmount = purchaseItemService.getTotalPlatformComissionsByMonth(commercialId, year, month); 
 

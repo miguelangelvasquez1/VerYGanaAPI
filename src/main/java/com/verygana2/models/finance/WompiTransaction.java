@@ -8,6 +8,9 @@ import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import com.verygana2.models.enums.finance.WompiTransactionStatus;
+import com.verygana2.models.enums.finance.WompiTransactionType;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,9 +27,6 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.enums.finance.WompiTransactionStatus;
 
 @Entity
 @Table(name = "wompi_transactions")
@@ -63,10 +63,10 @@ public class WompiTransaction {
      * Monto en centavos de COP, tal como lo reporta Wompi.
      * Wompi trabaja siempre en centavos para evitar errores de punto flotante.
      */
-    @Column(name = "amount_cents", nullable = false, updatable = false)
+    @Column(name = "amount_in_cents", nullable = false, updatable = false)
     @Positive
     @NotNull
-    private Long amountCents;
+    private Long amountInCents;
 
     /**
      * Moneda ISO 4217. En Colombia siempre "COP" pero se persiste

@@ -1,8 +1,9 @@
 package com.verygana2.dtos.purchase.responses;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
+
+import com.verygana2.models.enums.marketplace.PurchaseStatus;
 
 import lombok.Data;
 
@@ -12,8 +13,11 @@ public class PurchaseResponseDTO {
     private String referenceId;
     private List<PurchaseItemResponseDTO> items;
     private Integer totalItems;
-    private BigDecimal subtotal;
-    private BigDecimal total;
-    private LocalDateTime createdAt;
-    private LocalDateTime completedAt;
+    private Long totalCents;
+    private Long keysValueCents;
+    private Long cashCents;
+    private Long commissionCents;
+    private PurchaseStatus status;
+    private ZonedDateTime createdAt;
+    private ZonedDateTime completedAt;
 }

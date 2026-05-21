@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.DepartmentResponseDTO;
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.mappers.LocationMapper;
+import com.verygana2.models.Municipality;
 import com.verygana2.repositories.DepartmentRepository;
 import com.verygana2.repositories.MunicipalityRepository;
 
@@ -58,6 +59,13 @@ public class LocationService {
         Objects.requireNonNull(code, "El código del municipio no puede ser nulo");
         return municipalityRepository.findById(code)
                 .map(locationMapper::toMunicipalityDto)
+                .orElseThrow(() -> new EntityNotFoundException("Municipio no encontrado: " + code));
+    }
+
+    @Transactional(readOnly = true)
+    public Municipality getMunicipalityEntityByCode(String code) {
+        Objects.requireNonNull(code, "El código del municipio no puede ser nulo");
+        return municipalityRepository.findById(code)
                 .orElseThrow(() -> new EntityNotFoundException("Municipio no encontrado: " + code));
     }
 }
