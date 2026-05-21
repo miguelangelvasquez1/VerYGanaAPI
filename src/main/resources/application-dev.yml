@@ -65,7 +65,7 @@ cloudflare:
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
     bucket-name: ${R2_BUCKET_NAME}
     cdn-domain: ${R2_CDN_DOMAIN} # Opcional: cdn.verygana.com
-    games-worker-domain: ${R2_GAMES_WORKER_DOMAIN:games.verygana.com}
+    games-domain: ${R2_GAMES_DOMAIN:games.verygana.com}
     endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
 
 # Configuración de limpieza de huérfanos

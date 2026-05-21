@@ -53,7 +53,7 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class GameServiceImpl implements GameService {
 
-    @Value("${cloudflare.r2.games-worker-domain}")
+    @Value("${cloudflare.r2.games-domain}")
     private String cdnUrl;
 
     @Value("${games.session-expiration-minutes}")
@@ -108,8 +108,7 @@ public class GameServiceImpl implements GameService {
         GameSession session = GameSession.start(consumer, game, resolvePlatform(), campaign);
 
         // 5. Persistir
-        GameSession savedSession = gameSessionRepository.save(
-            java.util.Objects.requireNonNull(session, "session must not be null"));
+        GameSession savedSession = gameSessionRepository.save(java.util.Objects.requireNonNull(session, "session must not be null"));
 
         String sessionToken = savedSession.getSessionToken();
         String userHash = savedSession.getUserHash();
@@ -119,26 +118,24 @@ public class GameServiceImpl implements GameService {
         
         if (game.getDeliveryType() == Game.DeliveryType.PATH) {
 
-            // /games/{objectKey}/
-            baseUrl = String.format(
-                "%s/%s/",
+            baseUrl = String.format("https://%s/%s/%s/%s/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
                 cdnUrl,
-                game.getUrl() //cambair attribute name
+                "builds/build-bogota",
+                "28-04-2026", // Cambia segun version
+                game.getUrl(),
+                sessionToken,
+                userHash,
+                isBrandedMode,
+                campaignId
             );
 
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
-            // /games/main/?game=snake
-            // baseUrl = String.format(
-            //     "https://%s/Build2/?game_title=%s",
-            //     cdnUrl,
-            //     game.getUrl()
-            // );
             baseUrl = String.format(
-                // "http://localhost:56591/?game_title=%s",
+                "https://%s/?game_title=%s",
+                cdnUrl,
                 game.getUrl()
             );
-            
 
         } else {
             throw new ValidationException("Unsupported routing type");
