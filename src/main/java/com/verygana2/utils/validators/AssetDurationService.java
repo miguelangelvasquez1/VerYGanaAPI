@@ -22,12 +22,10 @@ public class AssetDurationService {
 
     private final R2Service r2Service;
 
-    private static final String PRIVATE_PREFIX = "private/";
-
     public Double getVideoDurationSeconds(String objectKey) {
         try {
             // Genera presigned URL con expiración corta (ffprobe es rápido)
-            String presignedUrl = r2Service.getPrivateObject(PRIVATE_PREFIX + objectKey, 60);  // 60 segundos sobra
+            String presignedUrl = r2Service.getPrivateObject(objectKey, 60);  // 60 segundos sobra
 
             FFprobeResult result = FFprobe.atPath()
                 .setShowFormat(true)
@@ -53,7 +51,7 @@ public class AssetDurationService {
             return Math.ceil(duration);
 
         } catch (Exception e) {
-            log.error("Error obteniendo duración via presigned URL {}: {}", objectKey, e.getMessage(), e);
+            log.error("Error obteniendo duración via presigned URL: {}: {}", objectKey, e.getMessage(), e);
             throw new StorageException("Error obteniendo duración del video", e);
         }
     }

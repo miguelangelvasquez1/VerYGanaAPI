@@ -9,9 +9,7 @@
 
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
-- El usuario ingresa su correo y clave, luego CustomUserDetailsService valida si coinciden con un usuario de la base de datos, si no coinciden lanza 401
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
-- API de info Colombia: https://api-colombia.com
 - Si se introducen refresh tokens, los self-signed JWTs pueden no ser lo mejor
 - Article for JWTs: https://www.danvega.dev/blog/spring-security-jwt
 
@@ -56,6 +54,7 @@ docker compose up --build
 docker compose restart (solo cambio de .env)
 mvn spring-boot:run
 
+## Para subir a docker.io:
 1.
 mvn clean package
 
@@ -63,6 +62,9 @@ mvn clean package
 docker build -t miguelvasquez777/verygana-api:latest .
 docker push miguelvasquez777/verygana-api:latest
 
+## Para correr localmente:
+docker build -t miguelvasquez777/verygana-api:latest .
+docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
 - obtener session estandarizado
 - Flujo de juegos:
@@ -159,3 +161,5 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-encoding gzip `
   --content-type application/wasm
   
+
+- hacer env de valor de llaves o cents, cambiar rewardPweLike a Cents, wallets en cents, quitar footer?, que no se pause el anuncio.

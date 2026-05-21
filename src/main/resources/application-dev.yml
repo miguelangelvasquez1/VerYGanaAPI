@@ -8,14 +8,8 @@ spring:
   # DATABASE CONFIGURATION
   # =====================
   datasource:
-    # Para Docker
-    # url: jdbc:mysql://host.docker.internal:3306/verygana
-    # url: jdbc:postgresql://dpg-d66gfsmsb7us73f305j0-a.oregon-postgres.render.com:5432/verygana_eyf3
-    # username: root
-    # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
-
-    # Para Railway (PostgreSQL) - usa variables de entorno
-    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
+    # Para Docker usa host.docker.internal
+    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana2?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
     # driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
@@ -253,4 +247,4 @@ randomOrg:
 # Costo de anuncios por segundo
 ad:
   pricing:
-    cost-per-second-cents: 100
+    cost-per-second-cents: ${COST_PER_SECOND_CENTS:300}

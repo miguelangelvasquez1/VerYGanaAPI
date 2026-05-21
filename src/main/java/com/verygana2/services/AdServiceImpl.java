@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -33,6 +34,8 @@ import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
+import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
+import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
@@ -104,102 +107,101 @@ public class AdServiceImpl implements AdService {
 
     // ==================== Consultas para Anunciantes ====================
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 1 — Prepare: create asset record + return R2 upload URL
+    // ─────────────────────────────────────────────────────────────────────────
+ 
     /**
-     * PASO 1: Preparar la subida del asset del anuncio
-     * 
-     * Este método:
-     * - Valida la metadata del archivo
-     * - Determina el tipo de media (IMAGE o VIDEO) según content-type
-     * - Crea un registro de AdAsset en estado PENDING
-     * - Genera una URL pre-firmada de R2
-     * - Retorna el assetId y la URL para subir
-     * 
-     * @param commercialId ID del anunciante
-     * @param request      Metadata del archivo
-     * @return AssetId y URL pre-firmada
+     * Creates an AdAsset in PENDING state and returns a pre-signed R2 URL.
+     *
+     * For IMAGE: stores imageDurationSeconds on the asset so the analyze
+     * endpoint can use it without the frontend re-sending it.
+     * For VIDEO: imageDurationSeconds must be null (duration resolved by ffprobe).
+     *
+     * No pricing info is returned here — that comes after the file is in R2.
      */
     @Transactional
     @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
-
-        // 1. Validar que el commercial existe
+ 
         commercialDetailsRepository
-                .findById(Objects.requireNonNull(commercialId, "commercialId must not be null"))
+                .findById(Objects.requireNonNull(commercialId))
                 .orElseThrow(() -> new EntityNotFoundException("Anunciante no encontrado: " + commercialId));
-
-        // 2. Determinar tipo de media según content-type
+ 
         MediaType mediaType = determineMediaType(request.getContentType());
-
-        // 3. Validar metadata del archivo
         validateFileMetadata(request, mediaType);
 
-        // 4. Generar key única en R2
+        Boolean isImage = mediaType == MediaType.IMAGE;
+ 
+        // Validate durationSeconds for IMAGE (required) and VIDEO (must be null)
+        validateDurationSeconds(isImage, request.getImageDurationSeconds());
+ 
         String objectKey = generateAdAssetObjectKey(commercialId, request);
-
-        // 5. Crear asset en estado PENDING
+ 
         AdAsset asset = AdAsset.builder()
                 .objectKey(objectKey)
                 .sizeBytes(request.getSizeBytes())
                 .mediaType(mediaType)
                 .status(AssetStatus.PENDING)
                 .uploadedAt(ZonedDateTime.now(clock))
+                // Stored now; used in analyze step so frontend doesn't re-send it
+                .durationSeconds(isImage ? request.getImageDurationSeconds() : null) // resolved in analyze step
                 .ad(null)
                 .build();
-
-        AdAsset savedAsset = adAssetRepository.save(Objects.requireNonNull(asset));
-
-        // 6. Generar pre-signed URL de R2
+ 
+        AdAsset savedAsset = adAssetRepository.save(asset);
+ 
         FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
-                true,
-                objectKey,
-                request.getContentType());
-
+                true, objectKey, request.getContentType());
+ 
         return AdAssetUploadPermissionDTO.builder()
                 .assetId(savedAsset.getId())
                 .permission(permission)
                 .build();
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 2 — Analyze: resolve real duration + calculate pricing
+    // ─────────────────────────────────────────────────────────────────────────
+ 
     /**
-     * PASO 2: Crear anuncio con asset ya subido
-     * 
-     * Este método se llama DESPUÉS de que el frontend confirme
-     * que la subida a R2 fue exitosa.
-     * 
-     * Flujo:
-     * - Valida que el asset exista y pertenezca al usuario
-     * - Valida el archivo subido en R2 (mime type, tamaño)
-     * - Valida categorías y ubicaciones
-     * - Calcula y valida presupuesto
-     * - Crea el anuncio en estado PENDING_APPROVAL
-     * 
-     * @param commercialId ID del anunciante
-     * @param request      Datos del anuncio
-     * @return ID del anuncio creado
+     * Called AFTER the frontend confirms the file was uploaded to R2.
+     *
+     * For VIDEO: calls ffprobe via VideoAnalysisService to get the real duration.
+     * For IMAGE: uses the imageDurationSeconds stored in step 1.
+     *
+     * Persists durationSeconds and transitions the asset to VALIDATED.
+     * If anything goes wrong, marks the asset as ORPHANED so the cleanup
+     * job can remove it from R2 and the database.
+     *
+     * Returns durationSeconds + minPricePerView so the frontend can show
+     * the pricing panel to the advertiser.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
-    public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
+    public AssetAnalysisResultDTO analyzeAsset(Long commercialId, Long assetId) {
+ 
+        AdAsset asset = adAssetRepository
+                .findById(Objects.requireNonNull(assetId))
+                .orElseThrow(() -> new EntityNotFoundException("Asset no encontrado: " + assetId));
+ 
+        // Security: asset must not be linked to any ad yet
+        if (asset.getAd() != null) {
+            throw new ValidationException("Asset ya está vinculado a un anuncio");
+        }
+ 
+        // Only PENDING assets can be analyzed
+        if (asset.getStatus() != AssetStatus.PENDING) {
+            throw new ValidationException(
+                    "El asset no está en estado válido para analizar. Estado actual: " + asset.getStatus());
+        }
 
-        AdAsset asset = null;
-
+        // Mark as ANALYZING so concurrent calls or stale retries are rejected
+        asset.setStatus(AssetStatus.ANALYZING);
+        adAssetRepository.save(asset);
+ 
         try {
-            asset = adAssetRepository
-                    .findById(Objects.requireNonNull(request.getAssetId()))
-                    .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
-
-            if (asset.getAd() != null) {
-                throw new ValidationException("Asset ya está asociado a un anuncio: " + asset.getId());
-            }
-
-            if (asset.getStatus() != AssetStatus.PENDING) {
-                throw new ValidationException(
-                        "Asset no está en estado válido para crear anuncio: " + asset.getStatus());
-            }
-
-            log.info("Validando archivo en R2: {}", asset.getObjectKey());
-
-            MediaType mediaType = MediaType.valueOf(request.getMediaType());
+            // 1. Validar mime y tamaño en R2 PRIMERO — si el archivo es inválido, falla aquí
+            MediaType mediaType = asset.getMediaType();
             Set<SupportedMimeType> allowedMimeTypes = getAllowedMimeTypesForMedia(mediaType);
             long maxSizeBytes = getMaxSizeBytesForMedia(mediaType);
 
@@ -211,51 +213,168 @@ public class AdServiceImpl implements AdService {
                     allowedMimeTypes);
 
             asset.setMimeType(realMimeType);
+
+            // 2. Resolver duración real
+            double durationSeconds = resolveDuration(asset);
+
+            // 3. Calcular precio mínimo
+            long rawPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
+            long minPricePerLike = roundUpToMultipleOf10(rawPrice);
+
+            log.info("Asset {} analyzed: durationSeconds={}, minPricePerLike={}",
+                    assetId, durationSeconds, minPricePerLike);
+
+            // 4. Persistir todo junto una sola vez
+            asset.setDurationSeconds(Double.valueOf(durationSeconds).intValue());
             asset.setStatus(AssetStatus.VALIDATED);
+            adAssetRepository.save(asset);
 
-            Double durationSeconds = resolveAssetDuration(asset);
-            asset.setDurationSeconds(durationSeconds);
+            return AssetAnalysisResultDTO.builder()
+                    .durationSeconds(durationSeconds)
+                    .minPricePerLike(minPricePerLike)
+                    .build();
 
+        } catch (Exception e) {
+            log.error("Analysis failed for asset {}. Marking as orphaned. Reason: {}", assetId, e.getMessage(), e);
+            assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(assetId));
+            throw new ValidationException(
+                    "No se pudo analizar el archivo. Verifica que el formato sea compatible y vuelve a intentarlo.");
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 2.5 — Orphan: called when user cancels or changes file
+    // ─────────────────────────────────────────────────────────────────────────
+ 
+    /**
+     * Marks a PENDING or VALIDATED asset as ORPHANED.
+     *
+     * Called when:
+     *  - User changes the selected file (old asset unused)
+     *  - User cancels the form explicitly
+     *  - Browser fires beforeunload with a pending assetId (via sendBeacon)
+     */
+    @Transactional
+    @Override
+    public AssetOrphanedResponseDTO markAssetAsOrphaned(Long commercialId, Long assetId) {
+ 
+        AdAsset asset = adAssetRepository.findById(Objects.requireNonNull(assetId))
+                .orElseThrow(() -> new EntityNotFoundException("Asset no encontrado: " + assetId));
+ 
+        if (asset.getAd() != null) {
+            Long adCommercialId = asset.getAd().getCommercial().getId();
+            if (!adCommercialId.equals(commercialId)) {
+                throw new AccessDeniedException("No tienes permiso para modificar este asset");
+            }
+            throw new ValidationException("El asset ya está vinculado a un anuncio y no puede ser marcado como huérfano");
+        }
+ 
+        if (asset.getStatus() == AssetStatus.ORPHANED) {
+            return AssetOrphanedResponseDTO.builder()
+                    .assetId(assetId)
+                    .message("El asset ya estaba marcado como huérfano")
+                    .build();
+        }
+ 
+        assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(assetId));
+        log.info("Asset {} orphaned by commercial {}", assetId, commercialId);
+ 
+        return AssetOrphanedResponseDTO.builder()
+                .assetId(assetId)
+                .message("Asset marcado como huérfano correctamente")
+                .build();
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // STEP 3 — Create: attach asset to ad, deduct budget
+    // ─────────────────────────────────────────────────────────────────────────
+ 
+    /**
+     * Creates the Ad entity after the advertiser has confirmed pricing.
+     *
+     * Validates:
+     *  - Asset is VALIDATED (analyze succeeded)
+     *  - pricePerLike is a multiple of 10
+     *  - pricePerLike >= minPricePerLike (re-calculated from persisted duration)
+     *  - Advertiser has sufficient wallet balance
+     *
+     * On any failure, marks the asset as ORPHANED.
+     */
+    @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
+ 
+        AdAsset asset = null;
+ 
+        try {
+            asset = adAssetRepository
+                    .findById(Objects.requireNonNull(request.getAssetId()))
+                    .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
+ 
+            if (asset.getAd() != null) {
+                throw new ValidationException("Asset ya está asociado a un anuncio: " + asset.getId());
+            }
+ 
+            // Must be VALIDATED — analyze must have run successfully
+            if (asset.getStatus() != AssetStatus.VALIDATED) {
+                throw new ValidationException(
+                        "El archivo no ha sido analizado correctamente. Estado actual: " + asset.getStatus());
+            }
+ 
+            // Re-validate pricePerLike server-side against the persisted real duration
+            double durationSeconds = asset.getDurationSeconds();
+            long rawMinPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
+            long minPricePerLike = roundUpToMultipleOf10(rawMinPrice);
+ 
+            long pricePerLike = request.getPricePerLike();
+ 
+            if (pricePerLike % 10 != 0) {
+                throw new ValidationException("El precio por like debe ser múltiplo de 10. Recibido: " + pricePerLike);
+            }
+            if (pricePerLike < minPricePerLike) {
+                throw new ValidationException(String.format(
+                        "El precio por like (%d ¢) es menor al mínimo permitido (%d ¢)",
+                        pricePerLike, minPricePerLike));
+            }
+ 
             List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
-
+ 
             List<Municipality> municipalities = Collections.emptyList();
             if (request.getTargetMunicipalitiesCodes() != null && !request.getTargetMunicipalitiesCodes().isEmpty()) {
                 municipalities = targetingValidator.getValidatedMunicipalities(request.getTargetMunicipalitiesCodes());
             }
-
-            // 9. Calcular presupuesto total en centavos
-            Long totalBudgetCents = request.getRewardPerLike() * request.getMaxLikes().longValue();
-
-            // 10. Validar saldo del anunciante
+ 
+            long totalBudgetCents = pricePerLike * request.getMaxLikes().longValue();
+ 
             Wallet wallet = walletRepository.findByCommercialId(commercialId)
-                    .orElseThrow(() -> new EntityNotFoundException("Commercial Wallet not found"));
-
+                    .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+ 
             if (wallet.getBalanceCents() < totalBudgetCents) {
-                throw new ValidationException(
-                        String.format("Saldo insuficiente. Requerido: %d centavos, Disponible: %d centavos",
-                                totalBudgetCents, wallet.getBalanceCents()));
+                throw new ValidationException(String.format(
+                        "Saldo insuficiente. Requerido: %d ¢, Disponible: %d ¢",
+                        totalBudgetCents, wallet.getBalanceCents()));
             }
-
+ 
             wallet.consume(totalBudgetCents);
             walletRepository.save(wallet);
-
+ 
             CommercialDetails commercialDetails = entityManager.getReference(CommercialDetails.class, commercialId);
-
-            // 11. Crear anuncio, usar mapper
+ 
             Ad ad = adMapper.toEntity(request, commercialDetails);
-
+            ad.setRewardPerLike(pricePerLike);
             ad.setCategories(categories);
             ad.setTargetMunicipalities(municipalities);
-
-            Ad savedAd = adRepository.save(Objects.requireNonNull(ad));
-
-            // 15. Asociar asset al anuncio
+ 
+            Ad savedAd = adRepository.save(ad);
+ 
             asset.setAd(savedAd);
             adAssetRepository.save(asset);
-
+ 
+            log.info("Ad {} created successfully for commercial {}. Budget: {} ¢", savedAd.getId(), commercialId, totalBudgetCents);
+ 
         } catch (Exception e) {
             if (asset != null) {
-                log.error("Error creando anuncio, marcando asset como huérfano: {}", asset.getId());
+                log.error("Error creating ad, orphaning asset {}: {}", asset.getId(), e.getMessage());
                 assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
@@ -450,7 +569,7 @@ public class AdServiceImpl implements AdService {
             log.info("Reanudando sesión activa {}", activeSession.get().getId());
             AdWatchSession session = activeSession.get();
             AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
-            dto.setContentUrl(session.getAd().getAsset().getObjectKey());
+            dto.setContentUrl(r2Service.buildPublicUrl(session.getAd().getAsset().getObjectKey()));
             dto.setSessionUUID(session.getId());
             return Optional.of(dto);
         }
@@ -469,7 +588,7 @@ public class AdServiceImpl implements AdService {
         // Posibilidad de fallback de nivel 2 con los anuncios vistos
 
         AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
-        dto.setContentUrl(ad.getAsset().getObjectKey());
+        dto.setContentUrl(r2Service.buildPublicUrl(ad.getAsset().getObjectKey()));
         dto.setSessionUUID(session.getId());
 
         return Optional.of(dto);
@@ -588,9 +707,10 @@ public class AdServiceImpl implements AdService {
         Ad ad = getAdEntityById(adId);
 
         if (ad.getStatus() != AdStatus.PENDING) {
-            throw new InvalidAdStateException(
-                    "Solo se pueden aprobar anuncios pendientes");
+            throw new InvalidAdStateException("Solo se pueden aprobar anuncios pendientes");
         }
+
+        r2Service.makeObjectPublic(ad.getAsset().getObjectKey());
 
         ad.setStatus(AdStatus.APPROVED);
         ad.setUpdatedAt(ZonedDateTime.now(clock));
@@ -622,18 +742,56 @@ public class AdServiceImpl implements AdService {
         return adMapper.toDto(savedAd);
     }
 
+    // Get all ads for admin
     @Override
     @Transactional(readOnly = true)
     public Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable) {
         Page<Ad> ads = adRepository.findAllByStatus(status, pageable);
-        return ads.map(adMapper::toAdminDto);
-    }
 
-    @Override
-    @Transactional(readOnly = true)
-    public Page<AdForAdminDTO> getPendingApprovalAds(Pageable pageable) {
-        Page<Ad> ads = adRepository.findPendingApproval(pageable);
-        return ads.map(adMapper::toAdminDto);
+        return ads.map(ad -> {
+            AdForAdminDTO dto = adMapper.toAdminDto(ad);
+
+            AdAsset asset = ad.getAsset();
+            dto.setMediaType(asset != null ? asset.getMediaType() : null);
+
+            if (asset == null) {
+                dto.setContentUrl(null);
+                return dto;
+            }
+
+            switch (ad.getStatus()) {
+
+                case PENDING:
+                case REJECTED:
+                    // Asset privado → Presigned URL
+                    dto.setContentUrl(
+                        r2Service.getPrivateObject(
+                            asset.getObjectKey(),
+                            200
+                        )
+                    );
+                    break;
+
+                case APPROVED:
+                case ACTIVE:
+                case PAUSED:
+                case COMPLETED:
+                case EXPIRED:
+                    // Asset público → CDN
+                    dto.setContentUrl(
+                        r2Service.buildPublicUrl(
+                            "public/" + asset.getObjectKey()
+                        )
+                    );
+                    break;
+
+                case BLOCKED:
+                default:
+                    dto.setContentUrl(null);
+            }
+
+            return dto;
+        });
     }
 
     // ==================== Estadísticas ====================
@@ -929,24 +1087,41 @@ public class AdServiceImpl implements AdService {
         };
     }
 
-    private Double resolveAssetDuration(AdAsset asset) {
+    private double resolveDuration(AdAsset asset) {
+        if (asset.getMediaType() == MediaType.VIDEO) {
+            // Your existing service — throws StorageException / ValidationException on failure
+            Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
 
-        return switch (asset.getMediaType()) {
-
-            case IMAGE -> 6.0; // regla de negocio fija
-
-            case VIDEO -> {
-                Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
-                // Double duration = 30.0;
-
-                if (duration < 5 || duration > 30) {
-                    throw new ValidationException(
-                            "Duración de video no permitida: " + duration + "s");
-                }
-
-                yield duration;
+            if (duration < 5 || duration > 120) {
+                throw new ValidationException("Duración de video no permitida: " + duration + "s");
             }
-            default -> throw new IllegalArgumentException("Unexpected value: " + asset.getMediaType());
-        };
+            return duration;
+        }
+ 
+        // IMAGE: use the advertiser-chosen duration stored in step 1
+        if (asset.getDurationSeconds() == null) {
+            throw new ValidationException("Duración de imagen no encontrada en el asset. Esto no debería ocurrir.");
+        }
+        return asset.getDurationSeconds().doubleValue();
+    }
+
+    /**
+     * Rounds a value up to the nearest multiple of 10.
+     * Examples: 0→0, 1→10, 10→10, 11→20, 35→40
+     */
+    private long roundUpToMultipleOf10(long value) {
+        if (value <= 0) return 0;
+        return (long) (Math.ceil(value / 10.0) * 10);
+    }
+
+    private void validateDurationSeconds(Boolean isImage, Integer durationSeconds) {
+        // For IMAGE, imageDurationSeconds is required
+        if (isImage && durationSeconds == null) {
+            throw new ValidationException("La duración de visualización es requerida para anuncios de imagen");
+        }
+        // For VIDEO, imageDurationSeconds must not be set
+        if (!isImage && durationSeconds != null) {
+            throw new ValidationException("La duración manual solo aplica para imágenes");
+        }
     }
 }
