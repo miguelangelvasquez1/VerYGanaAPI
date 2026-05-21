@@ -15,12 +15,18 @@ import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
+import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
+import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 
 public interface AdService {
     
     // Para commercials
+    AssetAnalysisResultDTO analyzeAsset(Long commercialId, Long assetId);
+
+    AssetOrphanedResponseDTO markAssetAsOrphaned(Long commercialId, Long assetId);
+
     void createAdWithAsset(Long commercialId, CreateAdRequestDTO request);
 
     AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request);
@@ -54,8 +60,6 @@ public interface AdService {
     AdResponseDTO rejectAd(Long adId, String reason, Long adminId);
 
     Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable);
-    
-    Page<AdForAdminDTO> getPendingApprovalAds(Pageable pageable);
     
     // Estadísticas
     AdStatsDTO getAdStats(Long adId, Long commercialId);

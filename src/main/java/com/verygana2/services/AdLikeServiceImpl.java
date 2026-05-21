@@ -91,13 +91,16 @@ public class AdLikeServiceImpl implements AdLikeService {
                 "Este anuncio no está disponible para recibir likes"
             );
         }
+
+        //  INTENTAR USAR ENV
+        Long rewardKeys = ad.getRewardPerLike() / 1000; // Convertir a keys (1 key = 1000 cents), Java redondea automaticamente hacia abajo
         
         // 4. Crear el like
         AdLike adLike = AdLike.builder()
             .id(new AdLikeId(consumerId, adId))
             .consumer(consumer)
             .ad(ad)
-            .rewardAmount(ad.getRewardPerLike())
+            .rewardAmount(rewardKeys)
             .createdAt(ZonedDateTime.now(clock))
             .build();
 
@@ -116,8 +119,9 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         KeyWallet keyWallet = consumer.getKeyWallet();
-        long purchaseKeysReward = (ad.getRewardPerLike() * PURCHASE_KEYS_PERCENTAGE) / 100;
-        long connectivityKeysReward = (ad.getRewardPerLike() * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
+
+        long purchaseKeysReward = (rewardKeys * PURCHASE_KEYS_PERCENTAGE) / 100; // GUAR5DAR EN CENTAVOS PARA SER PRECISOS
+        long connectivityKeysReward = (rewardKeys * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
 
         ZoneId colombia = ZoneId.of("America/Bogota");
         ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(colombia);
@@ -143,9 +147,9 @@ public class AdLikeServiceImpl implements AdLikeService {
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
         
-        log.info("Like processed successfully. User rewarded with: {}", ad.getRewardPerLike());
+        log.info("Like processed successfully. User rewarded with: {}", rewardKeys);
         
-        return new AdLikedResponse(true, ad.getRewardPerLike());
+        return new AdLikedResponse(true, rewardKeys);
     }
 
     @Override

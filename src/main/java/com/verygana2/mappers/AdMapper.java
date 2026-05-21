@@ -36,6 +36,7 @@ public interface AdMapper {
     @Mapping(target = "targetMunicipalities", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
+    @Mapping(target = "rewardPerLike", ignore = true) // Se setea manualmente en el servicio para incluir validación de plan
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta

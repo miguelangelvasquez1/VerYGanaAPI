@@ -168,3 +168,59 @@ FROM users u
 JOIN categories c ON c.name = 'Tecnología'
 WHERE u.email = 'consumer@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
+
+-- ============================================================
+-- 4. KEY_WALLET para CONSUMER
+-- ============================================================
+
+INSERT INTO key_wallets (
+    id,
+    consumer_id,
+    purchase_keys,
+    blocked_purchase_keys,
+    connectivity_keys,
+    blocked_connectivity_keys,
+    created_at,
+    updated_at
+)
+SELECT 
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440000'),
+    cd.user_id,
+    0,   -- purchase_keys
+    0,   -- blocked_purchase_keys
+    0,   -- connectivity_keys
+    0,    -- blocked_connectivity_keys
+    NOW(),
+    NOW()
+
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer@verygana.com'
+ON DUPLICATE KEY UPDATE purchase_keys = VALUES(purchase_keys);
+
+
+-- ============================================================
+-- 5. WALLET para COMMERCIAL
+-- ============================================================
+
+INSERT INTO wallets (
+    commercial_id,
+    balance_cents,
+    status,
+    low_balance_threshold_pct,
+    last_deposit_amount_cents,
+    last_updated,
+    created_at
+)
+SELECT 
+    cd.user_id,
+    5000000,                    -- 50.000 COP de saldo inicial (ajusta si quieres)
+    'ACTIVE',                   -- WalletStatus.ACTIVE
+    10,                         -- low_balance_threshold_pct (10%)
+    5000000,                    -- last_deposit_amount_cents
+    NOW(),                      -- last_updated
+    NOW()                       -- created_at
+FROM commercial_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'comercial@verygana.com'
+ON DUPLICATE KEY UPDATE balance_cents = VALUES(balance_cents), status = VALUES(status);

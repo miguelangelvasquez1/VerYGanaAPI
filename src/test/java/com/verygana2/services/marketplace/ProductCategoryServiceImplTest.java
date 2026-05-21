@@ -54,7 +54,7 @@ class ProductCategoryServiceImplTest {
     private static final long MAX_BYTES = 5L * 1024 * 1024;
 
     private FileUploadRequestDTO validImageRequest() {
-        return new FileUploadRequestDTO("category.jpg", "image/jpeg", MAX_BYTES - 1);
+        return new FileUploadRequestDTO("category.jpg", "image/jpeg", MAX_BYTES - 1, 0);
     }
 
     // ─── prepareProductCategoryCreation ──────────────────────────────────────
@@ -77,7 +77,7 @@ class ProductCategoryServiceImplTest {
         @DisplayName("throws ValidationException when file exceeds max size")
         void throwsWhenFileTooLarge() {
             when(adminDetailsService.existById(1L)).thenReturn(true);
-            FileUploadRequestDTO oversized = new FileUploadRequestDTO("big.jpg", "image/jpeg", MAX_BYTES + 1);
+            FileUploadRequestDTO oversized = new FileUploadRequestDTO("big.jpg", "image/jpeg", MAX_BYTES + 1, 0);
 
             assertThatThrownBy(() -> service.prepareProductCategoryCreation(1L, oversized))
                     .isInstanceOf(ValidationException.class);
@@ -87,7 +87,7 @@ class ProductCategoryServiceImplTest {
         @DisplayName("throws ValidationException when MIME type is not allowed")
         void throwsWhenMimeTypeNotAllowed() {
             when(adminDetailsService.existById(1L)).thenReturn(true);
-            FileUploadRequestDTO unsupported = new FileUploadRequestDTO("file.pdf", "application/pdf", 1024L);
+            FileUploadRequestDTO unsupported = new FileUploadRequestDTO("file.pdf", "application/pdf", 1024L, 0);
 
             assertThatThrownBy(() -> service.prepareProductCategoryCreation(1L, unsupported))
                     .isInstanceOf(ValidationException.class)
