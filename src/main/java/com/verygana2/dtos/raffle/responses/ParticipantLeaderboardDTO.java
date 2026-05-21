@@ -1,5 +1,6 @@
 package com.verygana2.dtos.raffle.responses;
 
+import com.verygana2.models.Avatar;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;

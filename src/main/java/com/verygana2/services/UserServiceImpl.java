@@ -1,9 +1,13 @@
 package com.verygana2.services;
 
+import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.services.interfaces.AvatarService;
 import com.verygana2.services.interfaces.ReferralService;
+import com.verygana2.models.Municipality;
+import com.verygana2.repositories.MunicipalityRepository;
+import com.verygana2.services.interfaces.*;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -39,6 +43,8 @@ public class UserServiceImpl implements UserService {
     private final KeyWalletService keyWalletService;
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
+    private final OutboxService outboxService;
+    private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
 
     public User registerCommercial(CommercialRegisterDTO dto) {
@@ -62,7 +68,7 @@ public class UserServiceImpl implements UserService {
     private int calculateAge(LocalDate birthDate) {
         return Period.between(birthDate, LocalDate.now()).getYears();
     }
-    
+
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -99,6 +105,12 @@ public class UserServiceImpl implements UserService {
 
         keyWalletService.createFor(user.getId());
 
+        if (details.getReferredBy() != null) {
+            outboxService.saveReferralEvent(
+                    details.getReferredBy().getId(), // referrerId → quien refirió, recibe el ticket
+                    details.getId()                  // referralId → el nuevo usuario, sourceId del ticket
+            );
+        }
         return user;
     }
 

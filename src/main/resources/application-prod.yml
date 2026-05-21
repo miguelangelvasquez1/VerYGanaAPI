@@ -87,6 +87,8 @@ cloudflare:
     cdn-domain: ${R2_CDN_DOMAIN:} # Opcional: cdn.verygana.com
     games-worker-domain: ${R2_GAMES_WORKER_DOMAIN:games.verygana.com}
     endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
+    pets-bucket-name: ${R2_PETS_BUCKET_NAME:verygana-pets}
+    pets-cdn-domain: ${R2_PETS_CDN_DOMAIN:}
 
 # Configuración de limpieza de huérfanos
 cleanup:
