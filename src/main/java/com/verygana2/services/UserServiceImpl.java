@@ -1,12 +1,9 @@
 package com.verygana2.services;
 
-import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.services.interfaces.AvatarService;
 import com.verygana2.services.interfaces.ReferralService;
-import com.verygana2.models.Municipality;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -44,7 +41,6 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final OutboxService outboxService;
-    private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
 
     public User registerCommercial(CommercialRegisterDTO dto) {

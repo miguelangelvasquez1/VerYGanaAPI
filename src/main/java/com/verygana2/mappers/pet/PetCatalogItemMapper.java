@@ -16,8 +16,10 @@ public interface PetCatalogItemMapper {
     PetCatalogItemResponseDTO toResponseDTO(PetCatalogItem item);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "spriteObjectKey", ignore = true)
     PetCatalogItem toEntity(PetCatalogItemRequestDTO dto);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "spriteObjectKey", ignore = true)
     void updateFromDto(PetCatalogItemRequestDTO dto, @MappingTarget PetCatalogItem item);
 }

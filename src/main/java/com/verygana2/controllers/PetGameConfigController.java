@@ -3,13 +3,11 @@ package com.verygana2.controllers;
 
 
 import com.verygana2.dtos.pet.*;
-import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.pet.PetCatalogService;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
 import com.verygana2.services.interfaces.pet.PetSceneService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
