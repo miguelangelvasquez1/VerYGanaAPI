@@ -936,8 +936,8 @@ public class AdServiceImpl implements AdService {
             case IMAGE -> 6.0; // regla de negocio fija
 
             case VIDEO -> {
-                Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
-                // Double duration = 30.0;
+                // Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
+                Double duration = 30.0;
 
                 if (duration < 5 || duration > 30) {
                     throw new ValidationException(

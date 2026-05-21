@@ -14,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PayoutMethodServiceImpl implements PayoutMethodService{
 
-    private PayoutMethodRepository payoutMethodRepository;
+    private final PayoutMethodRepository payoutMethodRepository;
 
     // Deberia retornar DTO
     @Override

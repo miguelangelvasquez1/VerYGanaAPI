@@ -99,6 +99,8 @@ spring.cache:
 # LOGGING CONFIGURATION
 # ============================================
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-no-corr}] %-5level %logger{36} - %msg%n"
   level:
     root: INFO
     com.verygana2: DEBUG
