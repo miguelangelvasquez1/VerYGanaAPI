@@ -10,7 +10,6 @@ import com.verygana2.mappers.pet.PetSceneMapper;
 import com.verygana2.repositories.pet.PetSceneRepository;
 import com.verygana2.services.interfaces.pet.PetSceneService;
 
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Value;
 import java.util.List;
@@ -26,7 +25,6 @@ public class PetSceneServiceImpl implements PetSceneService {
 
     private final PetSceneRepository sceneRepository;
     private final PetSceneMapper sceneMapper;
-    private final ObjectMapper objectMapper;
 
     public PetSceneServiceImpl(
             PetSceneRepository sceneRepository,
@@ -35,7 +33,6 @@ public class PetSceneServiceImpl implements PetSceneService {
     ) {
         this.sceneRepository = sceneRepository;
         this.sceneMapper = sceneMapper;
-        this.objectMapper = objectMapper;
     }
 
     private String buildPublicUrl(String objectKey) {

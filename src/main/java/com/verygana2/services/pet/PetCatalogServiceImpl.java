@@ -1,9 +1,5 @@
 package com.verygana2.services.pet;
 
-
-
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.pet.PetCatalogItemRequestDTO;
 import com.verygana2.dtos.pet.PetCatalogItemResponseDTO;
 
@@ -34,7 +30,6 @@ public class PetCatalogServiceImpl implements PetCatalogService {
 
     private final PetCatalogItemRepository catalogRepository;
     private final PetCatalogItemMapper catalogMapper;
-    private final ObjectMapper objectMapper;
 
     private String buildPublicUrl(String objectKey) {
         if (objectKey == null || objectKey.isBlank()) return "";
