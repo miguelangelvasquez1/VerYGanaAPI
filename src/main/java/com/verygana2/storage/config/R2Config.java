@@ -27,6 +27,8 @@ public class R2Config {
     private String bucketName;
     private String cdnDomain; // Opcional: tu dominio CDN custom
     private String endpoint;
+    private String petsBucketName;
+    private String petsCdnDomain;
 
     @Bean
     public S3Client r2Client() {
