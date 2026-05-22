@@ -26,8 +26,8 @@ public class DataSeeder implements CommandLineRunner {
 
         // Orden importa: primero tablas sin dependencias externas
         loadBaseData(populator);
-        loadTestEntities(populator);
         loadGames(populator);
+        loadTestEntities(populator);
 
         // No detiene la app si un script falla (útil si algunos datos ya existen)
         // populator.setContinueOnError(true);
