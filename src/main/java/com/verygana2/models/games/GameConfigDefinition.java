@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -26,7 +27,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "game_config_definitions")
+@Table(name = "game_config_definitions",
+    uniqueConstraints = {
+        @UniqueConstraint(name = "uk_game_version", columnNames = {"game_id", "version"})
+    }
+)
 public class GameConfigDefinition {
     
     @Id
@@ -37,7 +42,7 @@ public class GameConfigDefinition {
     @JoinColumn(name = "game_id", nullable = false)
     private Game game;
 
-    @Column(nullable = false, length = 50, unique = true)
+    @Column(nullable = false, length = 50)
     private Long version; // "1.0.0", "1.1.0"
 
     @JdbcTypeCode(SqlTypes.JSON)

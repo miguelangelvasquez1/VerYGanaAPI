@@ -114,104 +114,34 @@ public class GameServiceImpl implements GameService {
         String userHash = savedSession.getUserHash();
         String isBrandedMode = "true";
         Long campaignId = campaign.getId();
-        String baseUrl;
         
-        if (game.getDeliveryType() == Game.DeliveryType.PATH) {
+        String baseUrl = generateGameUrl(game);
+        
+        //Para pruebas
+        // String testUrl = String.format(
+        //     "http://localhost:63035/?game_title=%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+        //     game.getUrl(), sessionToken, userHash, isBrandedMode, campaignId
+        // );
 
-            baseUrl = String.format("https://%s/%s/%s/%s/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                cdnUrl,
-                "builds/build-bogota",
-                "28-04-2026", // Cambia segun version
-                game.getUrl(),
-                sessionToken,
-                userHash,
-                isBrandedMode,
-                campaignId
-            );
-
-        } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
-
-            baseUrl = String.format(
-                "https://%s/?game_title=%s",
-                cdnUrl,
-                game.getUrl()
-            );
-
-        } else {
-            throw new ValidationException("Unsupported routing type");
-        }
-
-        String url = String.format(
-            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s&enable_restart=%s",
-            baseUrl, sessionToken, userHash, isBrandedMode, campaignId, "false"
+        return String.format(
+            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl, sessionToken, userHash, isBrandedMode, campaignId
         );
-
-        return url;
     }
 
     @Override
     public String initGameNotSponsored(InitGameRequestDTO request, Long userId) {
 
-        // 2. Validar juego
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
             .orElseThrow(() -> new ValidationException("Game not available"));
 
-        // Una jugada de un juego not sponsored no deberia crear sesión?
-
-        // 3. Crear sesión
-        // GameSession session = GameSession.start(consumer, game, resolvePlatform());
-
-        // // 4. Persistir
-        // GameSession savedSession = gameSessionRepository.save(
-        //     java.util.Objects.requireNonNull(session, "session must not be null"));
-
-        String sessionToken = "public"; // no sponsored
-        String userHash = userId.toString();
-        boolean brandedMode = false;
-        String campaignId = "none";
-        String baseUrl;
-
-        if (game.getDeliveryType().equals("PATH")) {
-
-            // /games/{objectKey}/
-            baseUrl = String.format(
-                "%s/%s/",
-                cdnUrl,
-                game.getUrl() //cambair attribute name
-            );
-
-        } else if (game.getDeliveryType().equals("QUERY")) {
-
-            // /games/main/?game=snake
-            // baseUrl = String.format(
-            //     "https://%s/Build2/?game_title=%s",
-            //     cdnUrl,
-            //     game.getUrl()
-            // );
-            baseUrl = String.format(
-                "http://localhost:63035/?game_title=%s",
-                game.getUrl()
-            );
-
-        } else {
-            throw new ValidationException("Unsupported routing type");
-        }
-
-        // String url = String.format(
-        //     "%s/games/%s/build/?session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-        //     cdnUrl, game.getTitle()
-        // );
+        String baseUrl = generateGameUrl(game);
 
         return String.format(
-            "%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s&enable_restart=%s",
-            baseUrl,
-            sessionToken,
-            userHash,
-            brandedMode,
-            campaignId, //no se pone si es no branded?
-            "true"
+            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl, "public", userId.toString(), "false", "none"
         );
     }
 
@@ -284,6 +214,30 @@ public class GameServiceImpl implements GameService {
     }
 
     //Métodos privados auxiliares
+
+    private String generateGameUrl(Game game) {
+        String baseUrl;
+
+        if (game.getDeliveryType() == Game.DeliveryType.PATH) {
+
+            baseUrl = String.format("https://%s/%s/%s/%s/?",
+                cdnUrl,
+                "builds/build-bogota",
+                "28-04-2026", // Cambia segun version
+                game.getUrl()
+            );
+        } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
+
+            baseUrl = String.format("https://%s/%s/?game_title=%s&",
+                cdnUrl,
+                "builds/build-cali",
+                game.getUrl()
+            );
+        } else {
+            throw new ValidationException("Unsupported routing type");
+        }
+        return baseUrl;
+    }
 
     private DevicePlatform resolvePlatform() {
         // ejemplo simple
