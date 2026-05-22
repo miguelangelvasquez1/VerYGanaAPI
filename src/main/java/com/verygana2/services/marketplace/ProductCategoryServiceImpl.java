@@ -9,6 +9,7 @@ import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
@@ -16,6 +17,7 @@ import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCategoryCreationRequestDTO;
 import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
+import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.marketplace.ProductCategoryMapper;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
@@ -25,6 +27,7 @@ import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.repositories.ProductCategoryRepository;
 import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
+import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
@@ -41,6 +44,8 @@ import lombok.extern.slf4j.Slf4j;
 public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     private final ProductCategoryRepository productCategoryRepository;
+
+    private final ProductRepository productRepository;
 
     private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
 
@@ -59,10 +64,11 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     private static final int maxSizeBytesForImages = 5 * 1024 * 1024;
 
     @Override
+    @Transactional
     public AssetUploadPermissionDTO prepareProductCategoryCreation(Long adminId,
             FileUploadRequestDTO productCategoryImageMetadata) {
 
-        log.info("📋 Preparing product category creation for admin: {}", adminId);
+        log.info("[PRODUCT CATEGORY SERVICE] Preparing product category creation for admin: {}", adminId);
 
         if (!adminDetailsService.existById(adminId)) {
             throw new EntityNotFoundException("admin with id: " + adminId + " not found ");
@@ -89,6 +95,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
+    @Transactional
     public EntityCreatedResponseDTO confirmProductCategoryCreation(Long adminId,
             ConfirmProductCategoryCreationRequestDTO request) {
 
@@ -111,7 +118,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
                         "Asset invalid status to create a product category: " + asset.getStatus());
             }
 
-            log.info("Validating file in R2: {}", asset.getObjectKey());
+            log.info("[PRODUCT CATEGORY SERVICE] Validating file in R2: {}", asset.getObjectKey());
 
             SupportedMimeType realMimeType = r2Service.validateUploadedObject(
                     false,
@@ -138,7 +145,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
         } catch (Exception e) {
             if (asset != null) {
-                log.error("product category creation error, marking asset as orphan: {}", asset.getId());
+                log.error("[PRODUCT CATEGORY SERVICE] product category creation error, marking asset as orphan: {}", asset.getId());
                 assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
@@ -181,22 +188,58 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     }
 
     @Override
-    public void delete(Long categoryId) {
-        ProductCategory category = getById(categoryId);
+    @Transactional
+    public void delete(Long productCategoryId) {
+
+        log.info("[PRODUCT CATEGORY SERVICE] Deleting product category...");
+
+        ProductCategory category = getById(productCategoryId);
+        if (!category.isActive()) {
+            throw new InvalidRequestException ("Only active product categories can be deleted");
+        }
+
+        if (productRepository.existsByProductCategoryId(productCategoryId)) {
+            throw new ValidationException("Cannot delete a product category with associated products");
+        }
         category.setActive(false);
         productCategoryRepository.save(category);
+
+        log.info("[PRODUCT CATEGORY SERVICE] Product category deleted succesfully");
+    }
+
+    @Override
+    @Transactional
+    public void recover (Long productCategoryId){
+
+        log.info("[PRODUCT CATEGORY SERVICE] Recovering product category...");
+       
+        ProductCategory category = getById(productCategoryId);
+        if (category.isActive()) {
+            throw new InvalidRequestException ("Only inactive product categories can be recovered");
+        }
+        category.setActive(true);
+        productCategoryRepository.save(category);
+
+         log.info("[PRODUCT CATEGORY SERVICE] Product category recovered succesfully");
     }
 
     @Override
     public ProductCategory getById(Long categoryId) {
         return productCategoryRepository.findById(Objects.requireNonNull(categoryId))
-                .orElseThrow(() -> new EntityNotFoundException("ProductCategory with id: " + categoryId + " not found"));
+                .orElseThrow(
+                        () -> new EntityNotFoundException("ProductCategory with id: " + categoryId + " not found"));
 
     }
 
     @Override
-    public List<ProductCategoryResponseDTO> getProductCategories() {
-        return productCategoryRepository.findAvailableProductCategories().stream()
+    public List<ProductCategoryResponseDTO> getActiveProductCategories() {
+        return productCategoryRepository.findActiveProductCategories().stream()
+                .map(productCategoryMapper::toProductCategoryResponseDTO).toList();
+    }
+
+    @Override
+    public List<ProductCategoryResponseDTO> getInactiveProductCategories() {
+        return productCategoryRepository.findInactiveProductCategories().stream()
                 .map(productCategoryMapper::toProductCategoryResponseDTO).toList();
     }
 

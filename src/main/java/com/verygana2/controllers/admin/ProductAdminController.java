@@ -1,5 +1,7 @@
 package com.verygana2.controllers.admin;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCategoryCreationRequestDTO;
+import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.enums.marketplace.ProductStatus;
@@ -30,7 +33,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/admin/products")
+@RequestMapping("/admin/products")
 @RequiredArgsConstructor
 @PreAuthorize("hasRole('ROLE_ADMIN')")
 public class ProductAdminController {
@@ -41,7 +44,7 @@ public class ProductAdminController {
     /**
      * Preparar la creacion de una categoria de producto
      */
-    @PostMapping("/categories/prepare")
+    @PostMapping("/productCategories/prepare")
     public ResponseEntity<AssetUploadPermissionDTO> prepareProductCategoryCreation(@AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody FileUploadRequestDTO productCategoryImageMetaData) {
         Long adminId = jwt.getClaim("userId");
@@ -51,25 +54,34 @@ public class ProductAdminController {
     /*
      * Crear categoria de producto (Luego de confirmar subida a R2)
      */
-
-    @PostMapping("/categories/confirm")
-    public ResponseEntity<EntityCreatedResponseDTO> confirmProductCreation(@AuthenticationPrincipal Jwt jwt,
+    @PostMapping("/productCategories/confirm")
+    public ResponseEntity<EntityCreatedResponseDTO> confirmProductCategoryCreation(@AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ConfirmProductCategoryCreationRequestDTO request) {
         Long adminId = jwt.getClaim("userId");
         return ResponseEntity.ok(productCategoryService.confirmProductCategoryCreation(adminId, request));
     }
 
-    @DeleteMapping("/categories/{productCategoryId}")
+    @DeleteMapping("/productCategories/{productCategoryId}")
     public ResponseEntity<Void> deleteProductCategory(@PathVariable Long productCategoryId){
         productCategoryService.delete(productCategoryId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/productCategories/{productCategoryId}")
+    public ResponseEntity<Void> recoverProductCategory(@PathVariable Long productCategoryId){
+        productCategoryService.recover(productCategoryId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/productCategories/inactives")
+    public ResponseEntity<List<ProductCategoryResponseDTO>> getInactiveProductCategories () {
+        return ResponseEntity.ok(productCategoryService.getInactiveProductCategories());
     }
 
     @GetMapping
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getAllProductsForAdmin (@RequestParam("status") ProductStatus status, @PageableDefault(page = 0, size = 5) Pageable pageable){
         return ResponseEntity.ok(productService.getAllProductsForAdmin(status, pageable));
     }
-
 
     @PostMapping("/{productId}/approve")
     public ResponseEntity<ProductResponseDTO> approveProduct (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId){
@@ -89,7 +101,5 @@ public class ProductAdminController {
         productService.deleteProductForAdmin(adminId, productId, reason);
         return ResponseEntity.noContent().build();
     }
-
-    
 
 }

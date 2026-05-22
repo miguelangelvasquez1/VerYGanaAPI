@@ -26,6 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         long countByCommercialIdAndIsActive(@Param("commercialId") Long commercialId);
 
         boolean existsByIdAndCommercialId(Long id, Long commercialId);
+        
+        boolean existsByProductCategoryId (Long productCategoryId);
 
         Optional<Product> findByIdAndCommercialId(Long productId, Long commercialId);
 
@@ -80,5 +82,6 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         ORDER BY p.createdAt DESC
                                 """)
         Page<Product> getAllProductsForAdmin(@Param("status") ProductStatus status, Pageable pageable);
+
 
 }

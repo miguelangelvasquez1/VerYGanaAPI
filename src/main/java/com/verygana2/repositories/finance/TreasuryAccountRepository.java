@@ -29,4 +29,7 @@ public interface TreasuryAccountRepository extends JpaRepository<TreasuryAccount
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT t FROM TreasuryAccount t WHERE t.code = :code")
     Optional<TreasuryAccount> findByCodeForUpdate(@Param("code") TreasuryAccountCode code);
+
+    @Query("SELECT COUNT(t) FROM TreasuryAccount t WHERE t.balanceCents < 0")
+    long countNegativeBalances();
 }

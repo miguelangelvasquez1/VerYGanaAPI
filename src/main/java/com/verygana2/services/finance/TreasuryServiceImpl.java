@@ -1,12 +1,17 @@
 package com.verygana2.services.finance;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.config.TreasuryConfig;
+import com.verygana2.dtos.treasury.TreasuryBalanceResponseDTO;
+import com.verygana2.dtos.treasury.TreasuryMovementResponseDTO;
 import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
@@ -351,6 +356,122 @@ public class TreasuryServiceImpl implements TreasuryService {
                                 .build();
 
                 treasuryMovementRepository.save(Objects.requireNonNull(movement));
+        }
+
+        @Transactional
+        @Override
+        public void moveExpiredKeysToFortification(Long amountCents, UUID batchId) {
+                log.info("[TREASURY] Moviendo llaves vencidas a FORTIFICATION: amount={}, batch={}",
+                                amountCents, batchId);
+
+                validateAmount(amountCents);
+
+                TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+                TreasuryAccount fortification = getAccountForUpdate(TreasuryAccountCode.FORTIFICATION);
+
+                // Si el fondo tiene menos de lo esperado (inconsistencia contable),
+                // mover lo que hay y registrarlo en log — nunca bloquear el vencimiento.
+                if (keysReserve.getBalanceCents() < amountCents) {
+                        log.error("[TREASURY] KEYS_RESERVE insuficiente al vencer llaves. " +
+                                        "disponible={}, esperado={}. Moviendo el disponible.",
+                                        keysReserve.getBalanceCents(), amountCents);
+                        amountCents = keysReserve.getBalanceCents();
+                }
+
+                keysReserve.setBalanceCents(keysReserve.getBalanceCents() - amountCents);
+                fortification.setBalanceCents(fortification.getBalanceCents() + amountCents);
+
+                treasuryAccountRepository.save(keysReserve);
+                treasuryAccountRepository.save(fortification);
+
+                recordMovement(keysReserve, fortification, amountCents,
+                                MovementConcept.EXPIRED_KEYS_TO_FORTIFICATION, batchId, "KEY_EXPIRY_BATCH");
+
+                long balanceAfter = keysReserve.getBalanceCents();
+                if (balanceAfter < treasuryConfig.getKeysReserveCriticalThresholdCents()) {
+                        log.error("[TREASURY] KEYS_RESERVE CRÍTICO tras vencimiento de llaves: saldo={}. "
+                                        + "Recargar el fondo urgente.", balanceAfter);
+                } else if (balanceAfter < treasuryConfig.getKeysReserveWarnThresholdCents()) {
+                        log.warn("[TREASURY] KEYS_RESERVE bajo tras vencimiento de llaves: saldo={}.", balanceAfter);
+                }
+
+                log.info("[TREASURY] Vencimiento completado: KEYS_RESERVE={}, FORTIFICATION+={}",
+                                keysReserve.getBalanceCents(), amountCents);
+        }
+
+        @Transactional(readOnly = true)
+        @Override
+        public TreasuryBalanceResponseDTO getBalanceReport() {
+                TreasurySnapshot snap = getSnapshot();
+
+                long warn = treasuryConfig.getKeysReserveWarnThresholdCents();
+                long critical = treasuryConfig.getKeysReserveCriticalThresholdCents();
+
+                String status;
+                if (snap.keysReserveCents() < critical) {
+                        status = "CRITICAL";
+                } else if (snap.keysReserveCents() < warn) {
+                        status = "WARNING";
+                } else {
+                        status = "OK";
+                }
+
+                List<TreasuryAccount> all = treasuryAccountRepository.findAll();
+                boolean hasNegative = all.stream().anyMatch(a -> a.getBalanceCents() < 0);
+
+                return new TreasuryBalanceResponseDTO(
+                                snap.keysReserveCents(),
+                                snap.fortificationCents(),
+                                snap.operationsCents(),
+                                snap.payoutsPendingCents(),
+                                snap.totalCents(),
+                                snap.keysReserveHealthPct(),
+                                status,
+                                hasNegative);
+        }
+
+        @Transactional(readOnly = true)
+        @Override
+        public Page<TreasuryMovementResponseDTO> getMovements(TreasuryAccountCode code, Pageable pageable) {
+                return treasuryMovementRepository.findByAccountCode(code, pageable)
+                                .map(m -> new TreasuryMovementResponseDTO(
+                                                m.getId(),
+                                                m.getFromAccount().getCode().name(),
+                                                m.getToAccount().getCode().name(),
+                                                m.getAmountCents(),
+                                                m.getConcept().name(),
+                                                m.getReferenceId(),
+                                                m.getReferenceType(),
+                                                m.getCreatedAt()));
+        }
+
+        @Transactional(readOnly = true)
+        @Override
+        public void runReconciliation() {
+                log.info("[RECONCILIATION] Iniciando reconciliación semanal de tesorería...");
+
+                TreasurySnapshot snap = getSnapshot();
+                long negativesCount = treasuryAccountRepository.countNegativeBalances();
+
+                log.info("[RECONCILIATION] KEYS_RESERVE    → {} centavos", snap.keysReserveCents());
+                log.info("[RECONCILIATION] FORTIFICATION   → {} centavos", snap.fortificationCents());
+                log.info("[RECONCILIATION] OPERATIONS      → {} centavos", snap.operationsCents());
+                log.info("[RECONCILIATION] PAYOUTS_PENDING → {} centavos", snap.payoutsPendingCents());
+                log.info("[RECONCILIATION] TOTAL           → {} centavos", snap.totalCents());
+                log.info("[RECONCILIATION] KEYS_RESERVE salud: {}% — estado: {}",
+                                String.format("%.2f", snap.keysReserveHealthPct()),
+                                snap.keysReserveCents() < treasuryConfig.getKeysReserveCriticalThresholdCents()
+                                                ? "CRITICAL"
+                                                : snap.keysReserveCents() < treasuryConfig.getKeysReserveWarnThresholdCents()
+                                                                ? "WARNING"
+                                                                : "OK");
+
+                if (negativesCount > 0) {
+                        log.error("[RECONCILIATION] ANOMALIA CRITICA: {} cuenta(s) con saldo negativo. " +
+                                        "ACCION REQUERIDA INMEDIATA.", negativesCount);
+                } else {
+                        log.info("[RECONCILIATION] Reconciliacion completada sin anomalias.");
+                }
         }
 
         private void validateAmount(Long amountCents) {
