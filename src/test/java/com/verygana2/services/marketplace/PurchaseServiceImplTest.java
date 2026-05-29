@@ -27,8 +27,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
+import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.InitiatePurchaseResponseDTO;
-import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
@@ -225,13 +225,13 @@ class PurchaseServiceImplTest {
         @DisplayName("returns paged purchases mapped to DTOs")
         void returnsMappedPurchases() {
             Purchase purchase = new Purchase();
-            PurchaseResponseDTO dto = new PurchaseResponseDTO();
+            ConsumerPurchaseResponseDTO dto = new ConsumerPurchaseResponseDTO();
             Page<Purchase> page = new PageImpl<>(List.of(purchase));
 
             when(purchaseRepository.findByConsumerId(1L, PageRequest.of(0, 10))).thenReturn(page);
-            when(purchaseMapper.toPurchaseResponseDTO(purchase)).thenReturn(dto);
+            when(purchaseMapper.toConsumerPurchaseResponseDTO(purchase)).thenReturn(dto);
 
-            PagedResponse<PurchaseResponseDTO> result = service.getConsumerPurchases(1L, PageRequest.of(0, 10));
+            PagedResponse<ConsumerPurchaseResponseDTO> result = service.getConsumerPurchases(1L, PageRequest.of(0, 10));
 
             assertThat(result.getData()).containsExactly(dto);
         }
