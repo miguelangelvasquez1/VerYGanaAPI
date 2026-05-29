@@ -237,8 +237,7 @@ public class AdServiceImpl implements AdService {
         } catch (Exception e) {
             log.error("Analysis failed for asset {}. Marking as orphaned. Reason: {}", assetId, e.getMessage(), e);
             assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(assetId));
-            throw new ValidationException(
-                    "No se pudo analizar el archivo. Verifica que el formato sea compatible y vuelve a intentarlo.");
+            throw new ValidationException("No se pudo analizar el archivo. Verifica que el formato sea compatible y vuelve a intentarlo.");
         }
     }
 
