@@ -6,9 +6,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.List;
-import java.util.Set;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -23,7 +20,6 @@ import com.verygana2.exceptions.UnauthorizedActionException;
 import com.verygana2.mappers.marketplace.ProductReviewMapper;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductReview;
-import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.marketplace.ProductRepository;
@@ -179,88 +175,6 @@ class ProductReviewServiceImplTest {
             assertThat(review.getConsumer()).isSameAs(consumer);
             assertThat(review.getProduct()).isSameAs(product);
             verify(productRepository).save(product);
-        }
-    }
-
-    // ─── getPurchaseItemsToReview ─────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("getPurchaseItemsToReview")
-    class GetPurchaseItemsToReview {
-
-        @Test
-        @DisplayName("returns only delivered items not yet reviewed by the consumer")
-        void returnsOnlyUnreviewedDeliveredItems() {
-            Product productA = new Product();
-            productA.setId(1L);
-            productA.setName("Product A");
-
-            Product productB = new Product();
-            productB.setId(2L);
-            productB.setName("Product B");
-
-            PurchaseItem itemA = new PurchaseItem();
-            itemA.setId(10L);
-            itemA.setProduct(productA);
-            itemA.setStatus(com.verygana2.models.enums.marketplace.PurchaseItemStatus.DELIVERED);
-
-            PurchaseItem itemB = new PurchaseItem();
-            itemB.setId(20L);
-            itemB.setProduct(productB);
-            itemB.setStatus(com.verygana2.models.enums.marketplace.PurchaseItemStatus.DELIVERED);
-
-            Purchase purchase = new Purchase();
-            purchase.setItems(List.of(itemA, itemB));
-
-            when(purchaseService.getByIdAndConsumerId(100L, 5L)).thenReturn(purchase);
-            // Consumer already reviewed product B
-            when(productReviewRepository.findReviewedProductIdsByConsumer(5L, List.of(1L, 2L)))
-                    .thenReturn(Set.of(2L));
-
-            var result = service.getPurchaseItemsToReview(100L, 5L);
-
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).getProductId()).isEqualTo(1L);
-        }
-
-        @Test
-        @DisplayName("returns empty list when all delivered items are already reviewed")
-        void returnsEmptyWhenAllReviewed() {
-            Product product = new Product();
-            product.setId(1L);
-            product.setName("Prod");
-
-            PurchaseItem item = new PurchaseItem();
-            item.setId(10L);
-            item.setProduct(product);
-            item.setStatus(com.verygana2.models.enums.marketplace.PurchaseItemStatus.DELIVERED);
-
-            Purchase purchase = new Purchase();
-            purchase.setItems(List.of(item));
-
-            when(purchaseService.getByIdAndConsumerId(100L, 5L)).thenReturn(purchase);
-            when(productReviewRepository.findReviewedProductIdsByConsumer(5L, List.of(1L)))
-                    .thenReturn(Set.of(1L));
-
-            var result = service.getPurchaseItemsToReview(100L, 5L);
-
-            assertThat(result).isEmpty();
-        }
-
-        @Test
-        @DisplayName("returns empty list when purchase has no delivered items")
-        void returnsEmptyWhenNoDeliveredItems() {
-            Purchase purchase = new Purchase();
-            purchase.setItems(List.of());
-
-            when(purchaseService.getByIdAndConsumerId(100L, 5L)).thenReturn(purchase);
-            // findReviewedProductIdsByConsumer is only called with an empty list — it may still be called
-            when(productReviewRepository.findReviewedProductIdsByConsumer(any(), any()))
-                    .thenReturn(Set.of());
-
-            var result = service.getPurchaseItemsToReview(100L, 5L);
-
-            assertThat(result).isEmpty();
         }
     }
 }

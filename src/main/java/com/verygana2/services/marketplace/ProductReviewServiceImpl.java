@@ -2,11 +2,6 @@ package com.verygana2.services.marketplace;
 
 import java.time.Instant;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,12 +10,10 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
-import com.verygana2.dtos.productReviews.ReviewableProductResponseDTO;
 import com.verygana2.exceptions.UnauthorizedActionException;
 import com.verygana2.mappers.marketplace.ProductReviewMapper;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductReview;
-import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.marketplace.ProductRepository;
@@ -28,7 +21,6 @@ import com.verygana2.repositories.marketplace.ProductReviewRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductReviewService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
-import com.verygana2.services.interfaces.marketplace.PurchaseService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,7 +34,6 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     private final ConsumerDetailsService consumerDetailsService;
     private final ProductRepository productRepository;
     private final PurchaseItemService purchaseItemService;
-    private final PurchaseService purchaseService;
 
     @Transactional(readOnly = true)
     @Override
@@ -103,28 +94,21 @@ public class ProductReviewServiceImpl implements ProductReviewService {
                 .map(productReviewMapper::toProductReviewResponseDTO));
     }
 
+    @Transactional(readOnly = true)
     @Override
-    public List<ReviewableProductResponseDTO> getPurchaseItemsToReview(Long purchaseId, Long consumerId) {
-        Purchase purchase = purchaseService.getByIdAndConsumerId(purchaseId, consumerId);
-        List<PurchaseItem> deliveredItems = purchase.getItems().stream().filter(PurchaseItem::isDelivered).toList();
-        Map<Long, PurchaseItem> uniqueByProduct = new HashMap<>();
-        for (PurchaseItem item : deliveredItems) {
-            uniqueByProduct.putIfAbsent(item.getProduct().getId(), item);
+    public boolean canBeReviewed (Long productId, Long consumerId){
+        if (productId == null || productId <= 0) {
+            throw new IllegalArgumentException("Product id must be positive");
         }
 
-        List<Long> productIds = uniqueByProduct.keySet().stream().toList();
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
 
-        Set<Long> reviewedProductIds = productReviewRepository
-                .findReviewedProductIdsByConsumer(consumerId, productIds);
-
-        return uniqueByProduct.values().stream().filter(item -> !reviewedProductIds.contains(item.getProduct().getId())).map(item -> new ReviewableProductResponseDTO(
-            item.getProduct().getId(),
-            item.getId(),
-            item.getProduct().getName(),
-            item.getProduct().getImageUrl()
-        ))
-        .toList();
-
+        if (!productReviewRepository.existsByConsumerIdAndProductId(consumerId, productId)) {
+            return true;
+        }
+        return false;
     }
 
 }

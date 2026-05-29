@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
+import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.InitiatePurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
@@ -103,9 +104,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<PurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
+    public PagedResponse<ConsumerPurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
         Page<Purchase> purchases = purchaseRepository.findByConsumerId(consumerId, pageable);
-        Page<PurchaseResponseDTO> dtos = purchases.map(purchaseMapper::toPurchaseResponseDTO);
+        Page<ConsumerPurchaseResponseDTO> dtos = purchases.map(purchaseMapper::toConsumerPurchaseResponseDTO);
         return PagedResponse.from(dtos);
     }
 
