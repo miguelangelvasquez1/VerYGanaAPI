@@ -205,6 +205,7 @@ ON DUPLICATE KEY UPDATE purchase_keys = VALUES(purchase_keys);
 
 INSERT INTO wallets (
     commercial_id,
+    version,
     balance_cents,
     status,
     low_balance_threshold_pct,
@@ -214,6 +215,7 @@ INSERT INTO wallets (
 )
 SELECT 
     cd.user_id,
+    1,
     5000000,                    -- 50.000 COP de saldo inicial (ajusta si quieres)
     'ACTIVE',                   -- WalletStatus.ACTIVE
     10,                         -- low_balance_threshold_pct (10%)

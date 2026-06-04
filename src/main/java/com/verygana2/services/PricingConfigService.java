@@ -1,6 +1,6 @@
 package com.verygana2.services;
 
-import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.stereotype.Service;
 
@@ -15,30 +15,36 @@ public class PricingConfigService {
 
     private final PricingConfigRepository pricingConfigRepository;
 
-    public void createPricingConfig(PricingConfig.PricingType type, BigDecimal value, String currency) {
-        // Deactivate old configs of the same type
-        PricingConfig oldConfig = pricingConfigRepository.findFirstByTypeAndActiveTrueOrderByCreatedAtDesc(type);
-        if (oldConfig != null) {
-            oldConfig.setActive(false);
-            pricingConfigRepository.save(oldConfig);
+    public List<PricingConfig> getPricingConfigs() {
+        return pricingConfigRepository.findAllByActiveTrueOrderByTypeAsc();
+    }
+
+    public PricingConfig updatePricingConfig(PricingConfig.PricingType type, Long newValue) {
+        PricingConfig current = pricingConfigRepository.findFirstByTypeAndActiveTrueOrderByCreatedAtDesc(type);
+
+        int nextVersion = 1;
+        String description = null;
+
+        if (current != null) {
+            current.setActive(false);
+            pricingConfigRepository.save(current);
+            nextVersion = current.getVersion() + 1;
+            description = current.getDescription();
         }
 
-        // Antes de guardar uno nuevo activo:
-        // pricingConfigRepository.deactivateAllByType(type);
-
-        // Create new active config
         PricingConfig newConfig = PricingConfig.builder()
+                .version(nextVersion)
                 .type(type)
-                .value(value)
-                .currency(currency)
+                .amountInCents(newValue)
+                .description(description)
                 .active(true)
                 .build();
-        pricingConfigRepository.save(newConfig);
+
+        return pricingConfigRepository.save(newConfig);
     }
-    
-    public BigDecimal getCurrentValue(PricingConfig.PricingType pricingConfig) {
-        
-        PricingConfig config = pricingConfigRepository.findFirstByTypeAndActiveTrueOrderByCreatedAtDesc(pricingConfig);
-        return config != null ? config.getValue() : BigDecimal.ZERO;
+
+    public Long getCurrentValue(PricingConfig.PricingType type) {
+        PricingConfig config = pricingConfigRepository.findFirstByTypeAndActiveTrueOrderByCreatedAtDesc(type);
+        return config != null ? config.getAmountInCents() : 0L;
     }
 }

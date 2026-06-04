@@ -26,6 +26,7 @@ public class AdResponseDTO { // Response for commercial
     private BigDecimal rewardPerLike;
     private Integer maxLikes;
     private Integer currentLikes;
+    private Integer maxLikesPerUserPerDay;
     private AdStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

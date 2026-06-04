@@ -23,7 +23,7 @@ import com.verygana2.models.enums.AdStatus;
 public interface AdService {
     
     // Para commercials
-    AssetAnalysisResultDTO analyzeAsset(Long commercialId, Long assetId);
+    AssetAnalysisResultDTO analyzeAsset(Long assetId, Long commercialId);
 
     AssetOrphanedResponseDTO markAssetAsOrphaned(Long commercialId, Long assetId);
 
@@ -67,11 +67,6 @@ public interface AdService {
     AdStatsDTO getCommercialStats(Long commercialId);
     
     Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable);
-    
-    // Tareas programadas
-    void autoDeactivateCompletedAds();
-    
-    void checkExpiredAds();
     
     // Validaciones
     void validateAdBudget(Long adId);

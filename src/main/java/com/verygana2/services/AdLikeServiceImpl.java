@@ -87,9 +87,8 @@ public class AdLikeServiceImpl implements AdLikeService {
         
         // 3. Verificar que el anuncio puede recibir likes
         if (!ad.canReceiveLike()) {
-            throw new InvalidAdStateException(
-                "Este anuncio no está disponible para recibir likes"
-            );
+
+            throw new InvalidAdStateException("Este anuncio no está disponible para recibir likes");
         }
 
         //  INTENTAR USAR ENV
@@ -113,35 +112,19 @@ public class AdLikeServiceImpl implements AdLikeService {
         // Actualizar el anuncio
         try {
             ad.incrementLike();
+
+            if (!ad.canReceiveLike() && ad.getEndDate() == null) {
+                ad.setEndDate(ZonedDateTime.now(clock));
+                ad.setStatus(AdStatus.COMPLETED);
+            }
+
             adRepository.save(ad);
         } catch (OptimisticLockException e) {
             throw new BusinessException("El anuncio fue actualizado, intente nuevamente");
         }
 
         KeyWallet keyWallet = consumer.getKeyWallet();
-
-        long purchaseKeysReward = (rewardKeys * PURCHASE_KEYS_PERCENTAGE) / 100; // GUAR5DAR EN CENTAVOS PARA SER PRECISOS
-        long connectivityKeysReward = (rewardKeys * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
-
-        ZoneId colombia = ZoneId.of("America/Bogota");
-        ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(colombia);
-        ZonedDateTime purchaseExpiry = nowColombia.toLocalDate()
-            .withDayOfMonth(1).plusMonths(1)
-            .atStartOfDay(colombia)
-            .withZoneSameInstant(ZoneOffset.UTC);
-        ZonedDateTime connectivityExpiry = nowColombia.toLocalDate()
-            .plusDays(1)
-            .atStartOfDay(colombia)
-            .withZoneSameInstant(ZoneOffset.UTC);
-
-        String reason = "Interacción con anuncio #" + adId;
-        keyTransactionRepository.save(Objects.requireNonNull(
-            KeyTransaction.forInteractionPurchaseKeys(keyWallet, purchaseKeysReward, reason, sessionId, purchaseExpiry)));
-        keyTransactionRepository.save(Objects.requireNonNull(
-            KeyTransaction.forInteractionConnectivityKeys(keyWallet, connectivityKeysReward, reason, sessionId, connectivityExpiry)));
-
-        keyWallet.creditKeys(purchaseKeysReward, connectivityKeysReward);
-        keyWalletRepository.save(keyWallet);
+        creditRewardToUser(keyWallet, rewardKeys, adId, sessionId);
 
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
@@ -223,5 +206,31 @@ public class AdLikeServiceImpl implements AdLikeService {
                 .build()
             );
         return PagedResponse.from(adLikes); 
+    }
+
+    private void creditRewardToUser(KeyWallet keyWallet, Long rewardKeys, Long adId, UUID sessionId) {
+
+        long purchaseKeysReward = (rewardKeys * PURCHASE_KEYS_PERCENTAGE) / 100; // GUAR5DAR EN CENTAVOS PARA SER PRECISOS
+        long connectivityKeysReward = (rewardKeys * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
+
+        ZoneId colombia = ZoneId.of("America/Bogota");
+        ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(colombia);
+        ZonedDateTime purchaseExpiry = nowColombia.toLocalDate()
+            .withDayOfMonth(1).plusMonths(1)
+            .atStartOfDay(colombia)
+            .withZoneSameInstant(ZoneOffset.UTC);
+        ZonedDateTime connectivityExpiry = nowColombia.toLocalDate()
+            .plusDays(1)
+            .atStartOfDay(colombia)
+            .withZoneSameInstant(ZoneOffset.UTC);
+
+        String reason = "Interacción con anuncio #" + adId;
+        keyTransactionRepository.save(Objects.requireNonNull(
+            KeyTransaction.forInteractionPurchaseKeys(keyWallet, purchaseKeysReward, reason, sessionId, purchaseExpiry)));
+        keyTransactionRepository.save(Objects.requireNonNull(
+            KeyTransaction.forInteractionConnectivityKeys(keyWallet, connectivityKeysReward, reason, sessionId, connectivityExpiry)));
+
+        keyWallet.creditKeys(purchaseKeysReward, connectivityKeysReward);
+        keyWalletRepository.save(keyWallet);
     }
 }

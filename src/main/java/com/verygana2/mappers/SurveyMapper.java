@@ -87,7 +87,7 @@ public interface SurveyMapper {
     @Mapping(target = "responses",            ignore = true)
     @Mapping(target = "createdAt",            ignore = true)
     @Mapping(target = "updatedAt",            ignore = true)
-    @Mapping(target = "rewardAmount",         ignore = true)
+    @Mapping(target = "rewardAmountPerQuestionCents",         ignore = true)
     @Mapping(target = "creator",              ignore = true)
     Survey fromCreateRequest(CreateSurveyRequest request);
  

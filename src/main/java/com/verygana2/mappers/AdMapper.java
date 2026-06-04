@@ -37,6 +37,7 @@ public interface AdMapper {
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "rewardPerLike", ignore = true) // Se setea manualmente en el servicio para incluir validación de plan
+    @Mapping(target = "endDate", ignore = true)
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta
@@ -81,6 +82,9 @@ public interface AdMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rewardPerLike", ignore = true)
+    @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "maxLikesPerUserPerDay", ignore = true)
+    @Mapping(target = "maxLikes", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

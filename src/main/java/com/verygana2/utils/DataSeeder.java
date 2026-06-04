@@ -38,6 +38,8 @@ public class DataSeeder implements CommandLineRunner {
 
     private void loadBaseData(ResourceDatabasePopulator populator) {
         populator.addScript(new ClassPathResource("db/seed/categories.sql"));
+        populator.addScript(new ClassPathResource("db/seed/system-features.sql"));
+        populator.addScript(new ClassPathResource("db/seed/pricing-config.sql"));
         populator.addScript(new ClassPathResource("db/seed/avatars.sql"));
         populator.addScript(new ClassPathResource("db/seed/departments.sql"));
         populator.addScript(new ClassPathResource("db/seed/municipalities.sql")); // depende de departamentos
@@ -45,12 +47,12 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void loadTestEntities(ResourceDatabasePopulator populator) {
-        populator.addScript(new ClassPathResource("db/seed/test-users.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test-campaigns.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test-products.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test-productStock.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test-productCategoryImageAsset.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test-productImageAsset.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-users.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-campaigns.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-products.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-productStock.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-productCategoryImageAsset.sql"));
+        populator.addScript(new ClassPathResource("db/seed/test/test-productImageAsset.sql"));
     }
 
     private void loadGames(ResourceDatabasePopulator populator) {

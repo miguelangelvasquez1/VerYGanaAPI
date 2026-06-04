@@ -1,6 +1,5 @@
 package com.verygana2.controllers;
 
-import java.math.BigDecimal;
 import java.util.Map;
 
 import org.springframework.data.domain.Page;
@@ -99,9 +98,10 @@ public class SurveyController {
 
     @PreAuthorize("hasRole('COMMERCIAL')")
     @GetMapping("/cost-per-response")
-    public ResponseEntity<Map<String, BigDecimal>> getCostPerResponse() {
+    public ResponseEntity<Map<String, Long>> getCostPerResponse() {
 
-        return ResponseEntity.ok(Map.of("costPerResponse", pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY)));
+        return ResponseEntity.ok(Map.of("costPerResponse", 
+        pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS) * 100)); 
     }
 
     @PreAuthorize("hasRole('COMMERCIAL')")

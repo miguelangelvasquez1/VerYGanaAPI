@@ -1,8 +1,8 @@
 package com.verygana2.models;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
@@ -27,23 +27,39 @@ public class PricingConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private Integer version;
+
     @Enumerated(EnumType.STRING)
     private PricingType type;
-    private BigDecimal value;
+    
+    @Column(nullable = false)
+    private Long amountInCents;
+    @Column(nullable = false)
     private String currency;
+    @Column(nullable = false)
     private boolean active;
+    @Column(nullable = false)
+    private String description;
+    @Column(nullable = false)
     private ZonedDateTime createdAt;
 
     @PrePersist
     public void prePersist() {
+
         if (createdAt == null) {
             createdAt = ZonedDateTime.now();
+        }
+
+        if (currency == null) {
+            currency = "COP";
         }
     }
 
     public enum PricingType {
-        SURVEY,
-        GAME,
-        AD
+        SURVEY_REWARD_PER_QUESTION_CENTS,
+        GAME_COST_PER_POINT_CENTS,
+        GAME_COST_PER_VICTORY_CENTS,
+        AD_COST_PER_SECOND_CENTS
     }
 }

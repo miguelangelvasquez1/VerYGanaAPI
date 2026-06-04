@@ -12,9 +12,12 @@ import com.verygana2.dtos.survey.submission.UserRewardsSummary;
 import com.verygana2.models.surveys.Survey;
 import com.verygana2.models.surveys.SurveyResponse;
 import com.verygana2.models.surveys.SurveyReward;
+import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.surveys.SurveyResponseRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -23,6 +26,9 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RewardService {
  
+    @PersistenceContext
+    private EntityManager entityManager;
+
     private final SurveyRewardRepository rewardRepository;
     private final SurveyResponseRepository responseRepository;
     // Inject your wallet/points service here:
@@ -36,11 +42,13 @@ public class RewardService {
     public SurveyReward grantReward(SurveyResponse surveyResponse) {
         Survey survey = surveyResponse.getSurvey();
         Long userId = surveyResponse.getUserId();
+        Long questionsCount = (long) survey.getQuestions().size();
+        Long rewardAmount = questionsCount * survey.getRewardAmountPerQuestionCents();
  
         SurveyReward reward = SurveyReward.builder()
-            .userId(userId)
+            .user(entityManager.getReference(ConsumerDetails.class, userId))
             .survey(survey)
-            .amount(survey.getRewardAmount())
+            .amountCents(rewardAmount)
             .status(SurveyReward.RewardStatus.PENDING)
             .build();
  
@@ -48,10 +56,10 @@ public class RewardService {
  
         // Dispatch reward depending on type
         try {
-            creditPoints(userId, survey.getRewardAmount());
+            creditPoints(userId, rewardAmount);
             reward.setStatus(SurveyReward.RewardStatus.PROCESSED);
             reward.setProcessedAt(LocalDateTime.now());
-            log.info("Reward granted to user {} for survey {}: {}",userId, survey.getId(), reward.getAmount());
+            log.info("Reward granted to user {} for survey {}: {}",userId, survey.getId(), reward.getAmountCents());
         } catch (Exception e) {
             reward.setStatus(SurveyReward.RewardStatus.FAILED);
             log.error("Failed to process reward for user {} survey {}: {}",
@@ -74,7 +82,7 @@ public class RewardService {
             .stream()
             .map(r -> RewardInfo.builder()
                 .rewardId(r.getId())
-                .amount(r.getAmount())
+                .amountCents(r.getAmountCents())
                 .status(r.getStatus())
                 .grantedAt(r.getGrantedAt())
                 .build())
@@ -89,7 +97,7 @@ public class RewardService {
  
     // ─── Private dispatch methods ─────────────────────────────────────────────
  
-    private void creditPoints(Long userId, java.math.BigDecimal amount) {
+    private void creditPoints(Long userId, Long amount) {
         // TODO: integrate with your UserWalletService / PointsService
         log.debug("Crediting {} points to user {}", amount, userId);
         // walletService.addPoints(userId, amount);
