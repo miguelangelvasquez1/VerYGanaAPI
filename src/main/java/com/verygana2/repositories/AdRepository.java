@@ -60,12 +60,6 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.commercial.id = :commercialId")
        Long sumLikesByCommercialId(@Param("commercialId") Long commercialId);
 
-       // Anuncios que necesitan ser desactivados automáticamente
-       @Query("SELECT a FROM Ad a WHERE " +
-                     "(a.currentLikes >= a.maxLikes " +
-                     "OR (a.endDate IS NOT NULL AND a.endDate < :now))")
-       List<Ad> findAdsToAutoDeactivate(@Param("now") ZonedDateTime now);
-
        // Anuncios pendientes de aprobación
        @Query("SELECT a FROM Ad a WHERE a.status = 'PENDING' ORDER BY a.createdAt ASC")
        Page<Ad> findPendingApproval(Pageable pageable);

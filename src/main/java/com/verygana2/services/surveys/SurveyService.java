@@ -80,7 +80,7 @@ public class SurveyService {
         }
  
         survey.setStatus(Survey.SurveyStatus.DRAFT);
-        survey.setRewardAmount(pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY));
+        survey.setRewardAmountPerQuestionCents(pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS));
         survey.setCreator(commercialDetailsRepository.findByUser_Id(userId)
             .orElseThrow(() -> new EntityNotFoundException("Commercial details not found for user: " + userId)));
         Survey saved = surveyRepository.save(survey);

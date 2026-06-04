@@ -1,6 +1,5 @@
 package com.verygana2.dtos.survey;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -20,7 +19,7 @@ public class SurveyResponseDTO {
     private Long id;
     private String title;
     private String description;
-    private BigDecimal rewardAmount;
+    private Long rewardAmountPerQuestionCents;
     private Integer responseCount;
     private Integer maxResponses;
     private Survey.SurveyStatus status;

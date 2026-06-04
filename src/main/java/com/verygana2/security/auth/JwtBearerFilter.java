@@ -59,7 +59,7 @@ public class JwtBearerFilter extends OncePerRequestFilter {
                 Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
                 JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                logger.debug("JWT authentication successful for user: {}", jwt.getSubject());
+                // logger.debug("JWT authentication successful for user: {}", jwt.getSubject());
 
             } catch (JwtException e) {
                 logger.warn("Invalid JWT token: {}", e.getMessage());

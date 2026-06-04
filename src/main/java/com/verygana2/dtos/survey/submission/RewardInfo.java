@@ -1,6 +1,5 @@
 package com.verygana2.dtos.survey.submission;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import com.verygana2.models.surveys.SurveyReward;
@@ -16,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class RewardInfo {
         private Long rewardId;
-        private BigDecimal amount;
+        private Long amountCents;
         private SurveyReward.RewardStatus status;
         private LocalDateTime grantedAt;
     }

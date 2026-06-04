@@ -1,9 +1,10 @@
 package com.verygana2.models.surveys;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
+
+import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,15 +36,16 @@ public class SurveyReward {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
  
-    @Column(name = "user_id", nullable = false)
-    private Long userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private ConsumerDetails user;
  
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "survey_id", nullable = false)
     private Survey survey;
  
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal amount;
+    private Long amountCents;
  
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)

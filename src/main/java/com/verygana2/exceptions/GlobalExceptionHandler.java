@@ -97,6 +97,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(FeatureDisabledException.class)
+    public ResponseEntity<ErrorResponse> handleFeatureDisabledException(FeatureDisabledException ex, WebRequest request) {
+        log.warn("Feature disabled: {}", ex.getMessage());
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request); //503
+    }
+
     // ==================== CONFLICTOS (409) ====================
 
     @ExceptionHandler(DuplicateLikeException.class)

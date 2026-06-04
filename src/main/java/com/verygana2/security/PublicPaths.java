@@ -3,7 +3,7 @@ package com.verygana2.security;
 
 public class PublicPaths {
     public static final String [] PATHS = {
-            "/avatars/**",
+        "/avatars/**",
         "/categories/all",
         "/products/{id}",
         "/auth/**",
@@ -13,6 +13,7 @@ public class PublicPaths {
         "/api/webhooks/**",
         "/wompi/events",
         "/test/wompi/**",
+        "/ads/assets/orphan/**",
         "/games/assets",
         "/games/metrics",
         "/api/payments/webhook",

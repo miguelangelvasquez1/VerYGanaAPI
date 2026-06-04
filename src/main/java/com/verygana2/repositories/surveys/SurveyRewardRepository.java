@@ -16,7 +16,7 @@ public interface SurveyRewardRepository extends JpaRepository<SurveyReward, Long
  
     Page<SurveyReward> findByUserId(Long userId, Pageable pageable);
  
-    @Query("SELECT COALESCE(SUM(r.amount), 0) FROM SurveyReward r WHERE r.userId = :userId AND r.status = 'PROCESSED'")
+    @Query("SELECT COALESCE(SUM(r.amountCents), 0) FROM SurveyReward r WHERE r.user = :userId AND r.status = 'PROCESSED'")
     BigDecimal getTotalRewardsByUser(@Param("userId") Long userId);
 }
  

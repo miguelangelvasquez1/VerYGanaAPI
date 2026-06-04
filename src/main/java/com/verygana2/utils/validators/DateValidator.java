@@ -14,4 +14,14 @@ public final class DateValidator {
                 "La fecha de fin debe ser posterior a la de inicio");
         }
     }
+
+    public static void validateFutureDate(ZonedDateTime date, String message) {
+        if (date != null && !date.isAfter(ZonedDateTime.now())) {
+            throw new InvalidAdStateException(
+                message != null
+                    ? message
+                    : "La fecha debe ser posterior a la fecha actual"
+            );
+        }
+    }
 }
