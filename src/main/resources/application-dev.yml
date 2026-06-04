@@ -157,12 +157,22 @@ marketplace:
 # ============================================
 purchase:
   expiry:
-    max-age-minutes: 120  # 2 horas (sesión Wompi expira antes de esto)
+    max-age-minutes: 40  # checkout Wompi expira en ~30 min; 40 da margen para el webhook
     cron: "0 0/30 * * * *"  # cada 30 minutos
+  cleanup:
+    interval-ms: 600000  # cada 10 minutos en dev
+
+# ============================================
+# TWILIO CONFIG (Verify para OTP SMS)
+# ============================================
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID}
+  auth-token: ${TWILIO_AUTH_TOKEN}
+  verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID}
 
 # ============================================
 # WOMPI CONFIG
-# ============================================ 
+# ============================================
 # Configuración de Wompi (Produccion)
 # wompi:
 #   public-key: ${WOMPI_PUBLIC_KEY}

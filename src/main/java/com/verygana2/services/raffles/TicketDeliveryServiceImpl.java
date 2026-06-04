@@ -1,8 +1,8 @@
 package com.verygana2.services.raffles;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import org.springframework.stereotype.Service;
@@ -18,6 +18,8 @@ import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
+import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
@@ -37,16 +39,17 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     private final RaffleTicketRepository raffleTicketRepository;
     private final RaffleService raffleService;
     private final NotificationService notificationService;
+    private final ConsumerDetailsRepository consumerDetailsRepository;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public TicketEarningResult processTicketEarningForPurchase(Long consumerId, Long purchaseId,
-            BigDecimal purchaseAmount) {
+            Long purchaseAmountCents) {
 
         log.info("Processing ticket earning for purchase: ConsumerId={}, PurchaseId={}, Amount={}",
-                consumerId, purchaseId, purchaseAmount);
+                consumerId, purchaseId, purchaseAmountCents);
 
-        validateInputs(consumerId, purchaseId, purchaseAmount);
+        validateInputs(consumerId, purchaseId, purchaseAmountCents);
 
         List<Raffle> activeRaffles = getActiveRafflesOrderedByDrawDate();
 
@@ -64,10 +67,10 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 activeRaffles,
                 consumerId,
                 purchaseId,
-                purchaseAmount);
+                purchaseAmountCents);
 
         // Log resultado final
-        logResult(result, consumerId, purchaseAmount);
+        logResult(result, consumerId, purchaseAmountCents);
 
         return result;
 
@@ -77,7 +80,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             List<Raffle> raffles,
             Long consumerId,
             Long purchaseId,
-            BigDecimal purchaseAmount) {
+            Long purchaseAmountCents) {
 
         TicketEarningResult result = new TicketEarningResult();
 
@@ -96,7 +99,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             try {
 
                 // Solo permite emitir tickets de una rifa activa encontrada
-                if (processRaffle(raffle, consumerId, purchaseId, purchaseAmount, result)) {
+                if (processRaffle(raffle, consumerId, purchaseId, purchaseAmountCents, result)) {
                     log.info("Tickets awarded. Stopping further processing.");
                     break;
                 }
@@ -120,7 +123,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             Raffle raffle,
             Long consumerId,
             Long purchaseId,
-            BigDecimal purchaseAmount,
+            Long purchaseAmountCents,
             TicketEarningResult result) {
 
         log.debug("Processing raffle: {} (ID: {})", raffle.getTitle(), raffle.getId());
@@ -144,28 +147,35 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             return false;
         }
 
-        log.info("Found PURCHASE rule: ID={}, MinAmount={}, TicketsToAward={}",
+        log.info("Found PURCHASE rule: ID={}, MinAmountCents={}, TicketsToAward={}",
                 purchaseRule.getId(),
-                purchaseRule.getTicketEarningRule().getMinPurchaseAmount(),
+                purchaseRule.getTicketEarningRule().getMinPurchaseAmountCents(),
                 purchaseRule.getTicketEarningRule().getTicketsToAward());
 
-        // 2. Obtener la regla global
+        // 2. Verificar elegibilidad del usuario para el tipo de rifa (sin lanzar excepción)
+        if (!raffleTicketService.canUserReceiveTickets(consumerId, raffle.getRaffleType())) {
+            log.debug("User {} is not eligible for {} raffle {}. Skipping.",
+                    consumerId, raffle.getRaffleType(), raffle.getId());
+            return false;
+        }
+
+        // 3. Obtener la regla global
         TicketEarningRule rule = purchaseRule.getTicketEarningRule();
 
-        boolean meetsConditions = validatePurchaseRuleConditions(rule, purchaseAmount);
+        boolean meetsConditions = validatePurchaseRuleConditions(rule, purchaseAmountCents);
 
-        log.info("Purchase validation: Amount={}, MinRequired={}, Meets conditions: {}",
-                purchaseAmount,
-                rule.getMinPurchaseAmount(),
+        log.info("Purchase validation: AmountCents={}, MinRequiredCents={}, Meets conditions: {}",
+                purchaseAmountCents,
+                rule.getMinPurchaseAmountCents(),
                 meetsConditions);
 
-        // 3. Validar condiciones de la regla
+        // 4. Validar condiciones de la regla
         if (!meetsConditions) {
             log.debug("Purchase doesn't meet rule conditions for raffle {}. Skipping.", raffle.getId());
             return false;
         }
 
-        // 4. Calcular tickets a otorgar
+        // 5. Calcular tickets a otorgar
         int ticketsToAward = rule.getTicketsToAward();
 
         log.info("Attempting to award {} tickets", ticketsToAward);
@@ -175,43 +185,35 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             return false;
         }
 
-        // 5. Intentar emitir tickets
-        try {
-            log.info(
-                    "Calling raffleTicketService.issueTickets() with: consumerId={}, raffleId={}, quantity={}, source=PURCHASE, sourceId={}",
-                    consumerId, raffle.getId(), ticketsToAward, purchaseId);
-            List<RaffleTicketResponseDTO> issuedTickets = raffleTicketService.issueTickets(
-                    consumerId,
-                    raffle.getId(),
-                    ticketsToAward,
-                    RaffleTicketSource.PURCHASE,
-                    purchaseId);
+        // 6. Emitir tickets
+        log.info("Calling raffleTicketService.issueTickets() with: consumerId={}, raffleId={}, quantity={}, source=PURCHASE, sourceId={}",
+                consumerId, raffle.getId(), ticketsToAward, purchaseId);
+        List<RaffleTicketResponseDTO> issuedTickets = raffleTicketService.issueTickets(
+                consumerId,
+                raffle.getId(),
+                ticketsToAward,
+                RaffleTicketSource.PURCHASE,
+                purchaseId);
 
-            // 6. Registrar éxito
-            result.addSuccess(raffle.getId(), raffle.getTitle(), issuedTickets.size());
+        // 7. Registrar éxito
+        result.addSuccess(raffle.getId(), raffle.getTitle(), issuedTickets.size());
 
-            log.info("Issued {} tickets to consumer {} for raffle {} ({})",
-                    issuedTickets.size(), consumerId, raffle.getId(), raffle.getTitle());
+        log.info("Issued {} tickets to consumer {} for raffle {} ({})",
+                issuedTickets.size(), consumerId, raffle.getId(), raffle.getTitle());
 
-            // 7. Enviar notificación (asíncrona)
-            if (result.getTotalTicketsIssued() > 0) {
-                sendNotification(consumerId, raffle, issuedTickets.size());
-            }
-
-        } catch (Exception e) {
-            log.error("Failed to issue tickets for raffle {}: {}", raffle.getId(), e.getMessage(), e); // ✅ LOG
-                                                                                                       // AGREGADO
-            throw e; // Re-lanzar para que sea capturado por processRaffles
+        // 8. Enviar notificación
+        if (result.getTotalTicketsIssued() > 0) {
+            sendNotification(consumerId, raffle, issuedTickets.size(), RaffleTicketSource.PURCHASE);
         }
 
         return true;
 
     }
 
-    private void validateInputs(Long consumerId, Long purchaseId, BigDecimal purchaseAmount) {
+    private void validateInputs(Long consumerId, Long purchaseId, Long purchaseAmountCents) {
 
         log.debug("Validating inputs: consumerId={}, purchaseId={}, amount={}",
-                consumerId, purchaseId, purchaseAmount);
+                consumerId, purchaseId, purchaseAmountCents);
 
         if (consumerId == null || consumerId <= 0) {
             throw new InvalidRequestException("Consumer ID must be positive");
@@ -221,7 +223,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             throw new InvalidRequestException("Purchase ID must be positive");
         }
 
-        if (purchaseAmount == null || purchaseAmount.compareTo(BigDecimal.ZERO) <= 0) {
+        if (purchaseAmountCents == null || purchaseAmountCents <= 0) {
             throw new InvalidRequestException("Purchase amount must be positive");
         }
 
@@ -230,19 +232,19 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
     private boolean validatePurchaseRuleConditions(
             TicketEarningRule rule,
-            BigDecimal purchaseAmount) {
+            Long purchaseAmount) {
 
         log.debug("Validating purchase rule conditions...");
         // 1. Validar monto mínimo
-        if (rule.getMinPurchaseAmount() != null) {
-            boolean meetsMinimum = purchaseAmount.compareTo(rule.getMinPurchaseAmount()) >= 0;
+        if (rule.getMinPurchaseAmountCents() != null) {
+            boolean meetsMinimum = purchaseAmount >= rule.getMinPurchaseAmountCents();
 
             log.debug(" Purchase amount: {}, Min required: {}, Meets: {}",
-                    purchaseAmount, rule.getMinPurchaseAmount(), meetsMinimum);
+                    purchaseAmount, rule.getMinPurchaseAmountCents(), meetsMinimum);
 
             if (!meetsMinimum) {
                 log.debug("Purchase amount {} is less than minimum {}",
-                        purchaseAmount, rule.getMinPurchaseAmount());
+                        purchaseAmount, rule.getMinPurchaseAmountCents());
                 return false;
             }
         }
@@ -271,12 +273,14 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         RaffleRule result = raffle.getRaffleRules().stream()
                 .filter(r -> {
                     boolean matches = r.getTicketEarningRule() != null &&
-                            r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.PURCHASE;
+                            r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.PURCHASE &&
+                            r.isActive();
 
-                    log.debug(" Checking rule ID {}: Type={}, Matches PURCHASE: {}",
+                    log.debug(" Checking rule ID {}: Type={}, Active={}, Matches: {}",
                             r.getId(),
                             r.getTicketEarningRule() != null ? r.getTicketEarningRule().getRuleType() : "NULL",
-                            matches); // ✅ LOG AGREGADO
+                            r.isActive(),
+                            matches);
 
                     return matches;
                 })
@@ -284,44 +288,63 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 .orElse(null);
 
         if (result != null) {
-            log.debug("Found PURCHASE rule: ID={}", result.getId()); // ✅ LOG AGREGADO
+            log.debug("Found active PURCHASE rule: ID={}", result.getId());
         } else {
-            log.warn("No PURCHASE rule found for raffle {}", raffle.getId()); // ✅ LOG AGREGADO
+            log.debug("No active PURCHASE rule found for raffle {}", raffle.getId());
         }
 
         return result;
     }
 
-    private void sendNotification(Long consumerId, Raffle raffle, int ticketsCount) {
+    private void sendNotification(Long consumerId, Raffle raffle, int ticketsCount, RaffleTicketSource source) {
         try {
-            log.debug("📧 Preparing notification for consumer {}", consumerId);
-            String title = "🎉 ¡Ganaste tickets para una rifa!";
-            String message = String.format(
-                    "Felicidades, has ganado %d ticket%s para la rifa '%s' que será sorteada el %s",
-                    ticketsCount,
-                    ticketsCount > 1 ? "s" : "",
-                    raffle.getTitle(),
-                    raffle.getDrawDate().toLocalDate());
+            String plural = ticketsCount > 1 ? "s" : "";
+            String drawDate = raffle.getDrawDate().toLocalDate().toString();
+            String raffleTitle = raffle.getTitle();
 
-            notificationService.createInternalNotification(
-                    consumerId,
-                    title,
-                    message,
-                    Instant.now());
+            String title;
+            String message;
 
-            log.info("Notification sent to consumer {}", consumerId);
+            switch (source) {
+                case PURCHASE -> {
+                    title = "¡Ganaste tickets por tu compra!";
+                    message = String.format(
+                            "Tu compra te dio %d ticket%s para la rifa '%s'. El sorteo es el %s. ¡Buena suerte!",
+                            ticketsCount, plural, raffleTitle, drawDate);
+                }
+                case DAILY_LOGIN -> {
+                    title = "¡Bonus diario desbloqueado!";
+                    message = String.format(
+                            "Por iniciar sesión hoy ganaste %d ticket%s para la rifa '%s'. El sorteo es el %s. ¡Vuelve mañana por más!",
+                            ticketsCount, plural, raffleTitle, drawDate);
+                }
+                case REFERRAL -> {
+                    title = "¡Gracias por referir a un amigo!";
+                    message = String.format(
+                            "Tu referido se unió a VerYGana y te ganaste %d ticket%s para la rifa '%s'. El sorteo es el %s. ¡Sigue refiriendo!",
+                            ticketsCount, plural, raffleTitle, drawDate);
+                }
+                default -> {
+                    title = "¡Ganaste tickets!";
+                    message = String.format(
+                            "Has ganado %d ticket%s para la rifa '%s'. El sorteo es el %s.",
+                            ticketsCount, plural, raffleTitle, drawDate);
+                }
+            }
+
+            notificationService.createInternalNotification(consumerId, title, message, Instant.now());
+            log.info("Notification ({}) sent to consumer {}", source, consumerId);
 
         } catch (Exception e) {
-            // No fallar si la notificación falla
             log.error("Failed to send notification to consumer {}: {}", consumerId, e.getMessage());
         }
     }
 
-    private void logResult(TicketEarningResult result, Long consumerId, BigDecimal purchaseAmount) {
+    private void logResult(TicketEarningResult result, Long consumerId, Long purchaseAmountCents) {
         log.info("Purchase processing completed for consumer {} (amount: ${}): " +
                 "{} tickets issued across {} raffles ({} successful, {} failed)",
                 consumerId,
-                purchaseAmount,
+                purchaseAmountCents,
                 result.getTotalTicketsIssued(),
                 result.getRafflesProcessed(),
                 result.getRafflesSuccessful(),
@@ -334,15 +357,80 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     }
 
     @Override
-    public void processTicketEarningForAds(Long consumerId, Long adSessionId, Integer adsWatchedCount) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'processTicketEarningForAds'");
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void processTicketEarningForDailyLogin(Long consumerId) {
+        if (consumerId == null || consumerId <= 0)
+            throw new InvalidRequestException("Consumer ID must be positive");
+
+        ConsumerDetails consumer = consumerDetailsRepository.findById(consumerId).orElse(null);
+        if (consumer == null) {
+            log.debug("No ConsumerDetails for userId {}. Skipping daily login reward.", consumerId);
+            return;
+        }
+
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+        ZonedDateTime last = consumer.getLastDailyLoginDate();
+
+        if (last != null && last.toLocalDate().equals(now.toLocalDate())) {
+            log.debug("Daily login ticket already awarded today for consumer {}", consumerId);
+            return;
+        }
+
+        consumer.setLastDailyLoginDate(now);
+        consumerDetailsRepository.save(consumer);
+
+        List<Raffle> activeRaffles = getActiveRafflesOrderedByDrawDate();
+        if (activeRaffles.isEmpty()) {
+            log.info("No active raffles. No daily login tickets issued for consumer {}", consumerId);
+            return;
+        }
+
+        for (Raffle raffle : activeRaffles) {
+            try {
+                if (processDailyLoginRaffle(raffle, consumerId)) {
+                    log.info("Daily login ticket awarded in raffle {}. Stopping.", raffle.getId());
+                    break;
+                }
+            } catch (LimitReachedException e) {
+                log.warn("Limit reached in raffle {} for daily login: {}", raffle.getId(), e.getMessage());
+            } catch (Exception e) {
+                log.error("Error processing daily login in raffle {}: {}", raffle.getId(), e.getMessage(), e);
+            }
+        }
     }
 
-    @Override
-    public void processTicketEarningForGames(Long consumerId, Long gameId, Integer score) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'processTicketEarningForGames'");
+    private boolean processDailyLoginRaffle(Raffle raffle, Long consumerId) {
+        RaffleRule dailyLoginRule = raffle.getRaffleRules() == null ? null :
+                raffle.getRaffleRules().stream()
+                        .filter(r -> r.getTicketEarningRule() != null
+                                && r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.DAILY_LOGIN
+                                && r.isActive())
+                        .findFirst()
+                        .orElse(null);
+
+        if (dailyLoginRule == null) {
+            log.debug("Raffle {} has no active DAILY_LOGIN rule. Skipping.", raffle.getId());
+            return false;
+        }
+
+        int ticketsToAward = dailyLoginRule.getTicketEarningRule().getTicketsToAward();
+        if (ticketsToAward <= 0) return false;
+
+        List<RaffleTicketResponseDTO> issued = raffleTicketService.issueTickets(
+                consumerId,
+                raffle.getId(),
+                ticketsToAward,
+                RaffleTicketSource.DAILY_LOGIN,
+                consumerId
+        );
+
+        log.info("Issued {} daily login ticket(s) to consumer {} in raffle {}", issued.size(), consumerId, raffle.getId());
+
+        if (!issued.isEmpty()) {
+            sendNotification(consumerId, raffle, issued.size(), RaffleTicketSource.DAILY_LOGIN);
+        }
+
+        return true;
     }
 
     @Override
@@ -420,7 +508,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 issued.size(), referrerId, raffle.getId());
 
         if (!issued.isEmpty()) {
-            sendNotification(referrerId, raffle, issued.size());
+            sendNotification(referrerId, raffle, issued.size(), RaffleTicketSource.REFERRAL);
         }
 
         return true;

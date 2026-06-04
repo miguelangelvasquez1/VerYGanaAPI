@@ -17,7 +17,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
-import com.verygana2.mappers.raffles.RaffleWinnerMapper;
+import com.verygana2.exceptions.mappers.raffles.RaffleWinnerMapper;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;

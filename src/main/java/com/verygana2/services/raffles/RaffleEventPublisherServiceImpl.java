@@ -70,7 +70,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                     .prizeValue(w.getPrize().getValue())
                     .prizeType(w.getPrize().getPrizeType())
                     .revealOrder(i + 1)
-                    .totalWinners(total)
                     .build();
 
             RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
@@ -94,7 +93,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
     @Override
     public void publishDrawCompleted(Long raffleId, List<RaffleWinner> winners, String raffleTitle,
-            int totalParticipants) {
+            long totalParticipants) {
         List<WinnerRevealPayloadDTO> allWinners = winners.stream()
                 .map(w -> WinnerRevealPayloadDTO.builder()
                         .position(w.getPrize().getPosition())
@@ -127,11 +126,12 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     @Override
-    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets) {
+    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
         WaitingRoomPayloadDTO payload = WaitingRoomPayloadDTO.builder()
                 .viewerCount(viewerCount)
                 .secondsUntilDraw(secondsUntilDraw)
                 .totalTickets(totalTickets)
+                .totalParticipants(totalParticipants)
                 .build();
 
        

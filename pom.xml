@@ -192,6 +192,13 @@
             <version>4.10.1</version>
         </dependency>
 
+        <!-- Twilio: para envío de SMS OTP (verificación Nequi/Daviplata) -->
+        <dependency>
+            <groupId>com.twilio.sdk</groupId>
+            <artifactId>twilio</artifactId>
+            <version>9.14.0</version>
+        </dependency>
+
         <!-- Test: Para pruebas unitarias -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

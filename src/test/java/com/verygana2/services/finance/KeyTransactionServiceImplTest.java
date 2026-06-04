@@ -16,7 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.finance.responses.KeyTransactionResponseDTO;
-import com.verygana2.mappers.finance.KeyTransactionMapper;
+import com.verygana2.exceptions.mappers.finance.KeyTransactionMapper;
 import com.verygana2.models.enums.finance.KeyTransactionType;
 import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.repositories.finance.KeyTransactionRepository;

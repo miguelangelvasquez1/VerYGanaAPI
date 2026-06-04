@@ -31,7 +31,6 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
     // sessionId -> raffleId (mapa inverso para desconexiones automáticas)
     private final Map<String, Long> sessionToRaffle = new ConcurrentHashMap<>();
 
-
     @Override
     public void addViewer(Long raffleId, String sessionId) {
         viewers.computeIfAbsent(raffleId, k -> ConcurrentHashMap.newKeySet()).add(sessionId);
@@ -96,13 +95,12 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
                         raffleId,
                         sessions.size(),
                         seconds,
-                        raffle.getTotalTicketsIssued());
+                        raffle.getTotalTicketsIssued(),
+                        raffle.getTotalParticipants());
             } catch (Exception e) {
                 log.error("[WaitingRoom] issuing update to raffle {} error", raffleId, e);
             }
         });
     }
-
-    
 
 }

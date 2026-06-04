@@ -24,7 +24,9 @@ import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.security.CustomUserDetails;
 import com.verygana2.services.interfaces.UserService;
+import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 import com.verygana2.utils.audit.AuditLevel;
 import com.verygana2.utils.audit.Auditable;
 
@@ -41,6 +43,7 @@ public class AuthController {
     private final TokenService tokenService;
     private final AuthenticationManager authManager;
     private final UserService userService;
+    private final TicketDeliveryService ticketDeliveryService;
 
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
@@ -48,10 +51,11 @@ public class AuthController {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
-    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService) {
+    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService) {
         this.tokenService = tokenService;
         this.authManager = authManager;
         this.userService = userService;
+        this.ticketDeliveryService = ticketDeliveryService;
     }
 
     /**
@@ -69,6 +73,9 @@ public class AuthController {
                 new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a CustomUserDetailsService
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
+
+        Long userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+        ticketDeliveryService.processTicketEarningForDailyLogin(userId);
 
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)

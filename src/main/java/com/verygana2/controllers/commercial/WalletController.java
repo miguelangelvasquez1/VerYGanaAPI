@@ -1,4 +1,4 @@
-package com.verygana2.controllers;
+package com.verygana2.controllers.commercial;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;

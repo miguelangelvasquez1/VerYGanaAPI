@@ -52,12 +52,13 @@ public class RaffleScheduler {
 
         // Procesar cada tipo de transición
         int activated = activateDraftRaffles(now);
-        int closed = closeActiveRaffles(now);
-        int live = setLiveRaffles(now);
+        int closed    = closeActiveRaffles(now);
+        int live      = setLiveRaffles(now);
         int scheduled = scheduleUpcomingDraws(now);
+        handleMissedDraws(now);
 
-        if (activated > 0 || closed > 0 || live > 0) {
-            log.info("📊 State transitions: {} activated, {} closed, {} live, {} draws scheduled",
+        if (activated > 0 || closed > 0 || live > 0 || scheduled > 0) {
+            log.info("State transitions: {} activated, {} closed, {} live, {} draws scheduled",
                     activated, closed, live, scheduled);
         }
     }
@@ -160,33 +161,38 @@ public class RaffleScheduler {
     }
 
     private int setLiveRaffles(ZonedDateTime now) {
-    ZonedDateTime windowStart = now.minusMinutes(30);
-    ZonedDateTime liveThreshold = now.plusMinutes(60);
+        ZonedDateTime liveThreshold = now.plusMinutes(60);
 
-    // 🔍 DIAGNÓSTICO - quitar después
-    log.info("now={} | windowStart={} | liveThreshold={}", now, windowStart, liveThreshold);
-    List<Raffle> found = raffleRepository.findRafflesToSetLive(windowStart, liveThreshold);
-    log.info("Raffles found for LIVE: {}", found.size());
-    found.forEach(r -> log.info("  → Raffle {} | status={} | drawDate={}", 
-        r.getId(), r.getRaffleStatus(), r.getDrawDate()));
+        List<Raffle> raffles = raffleRepository.findRafflesToSetLive(now, liveThreshold);
 
-    List<Raffle> raffles = raffleRepository.findRafflesToSetLive(windowStart, liveThreshold);
-    int lives = 0;
-
-    for (Raffle raffle : raffles) {
-        try {
-            log.debug("🔴🔵 Setting raffle to LIVE: {} (ID: {})", raffle.getTitle(), raffle.getId());
-            raffle.setRaffleStatus(RaffleStatus.LIVE);
-            raffleRepository.save(raffle);
-            lives++;
-            log.debug("✅ Raffle {} is now LIVE. Draw date: {}", raffle.getId(), raffle.getDrawDate());
-        } catch (Exception e) {
-            log.error("❌ Error setting raffle {} to LIVE: {}", raffle.getId(), e.getMessage(), e);
+        int lives = 0;
+        for (Raffle raffle : raffles) {
+            try {
+                raffle.setRaffleStatus(RaffleStatus.LIVE);
+                raffleRepository.save(raffle);
+                lives++;
+                log.info("Raffle {} is now LIVE — draw at {}", raffle.getId(), raffle.getDrawDate());
+            } catch (Exception e) {
+                log.error("Error setting raffle {} to LIVE: {}", raffle.getId(), e.getMessage(), e);
+            }
         }
+
+        return lives;
     }
 
-    return lives;
-}
+    /**
+     * Rifas CLOSED cuya drawDate ya pasó sin sortearse (ej. servidor estuvo caído).
+     * Las marca como MISSED_DRAW para revisión manual del admin en lugar de
+     * sortearlas automáticamente sin la experiencia LIVE.
+     */
+    private void handleMissedDraws(ZonedDateTime now) {
+        List<Raffle> missed = raffleRepository.findMissedDrawRaffles(now);
+
+        for (Raffle raffle : missed) {
+            log.warn("Raffle {} missed its draw window (drawDate={}, status=CLOSED). Manual review required.",
+                    raffle.getId(), raffle.getDrawDate());
+        }
+    }
 
     /**
      * Log de resumen diario (ejecuta a las 8:00 AM)

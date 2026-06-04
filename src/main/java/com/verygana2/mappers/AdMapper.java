@@ -14,9 +14,9 @@ import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
+import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
-import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(componentModel = "spring", uses = { MoneyMapper.class })

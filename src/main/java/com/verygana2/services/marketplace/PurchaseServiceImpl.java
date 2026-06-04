@@ -130,7 +130,7 @@ public class PurchaseServiceImpl implements PurchaseService {
      * 3. Validar que keysToUse no supera el máximo permitido por los productos.
      * 4. Reservar las llaves en el KeyWallet del consumidor.
      * 5. Crear Copayment (PENDING) con la parte en efectivo para Wompi.
-     *
+     * 6. Revisar si el usuario es apto para brindarle tickets
      * La compra se completa cuando el webhook de Wompi confirma el pago.
      */
     @Override
@@ -338,4 +338,5 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
         return consumer.getUser().getEmail();
     }
+
 }

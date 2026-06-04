@@ -26,6 +26,9 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
+import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
@@ -220,6 +223,29 @@ public class GlobalExceptionHandler {
             InvalidOperationException ex, WebRequest request) {
         log.warn("Invalid operation error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    // ==================== PAYOUT METHODS ====================
+
+    @ExceptionHandler(PayoutMethodNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodNotFoundException(
+            PayoutMethodNotFoundException ex, WebRequest request) {
+        log.warn("Payout method not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OtpVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleOtpVerificationException(
+            OtpVerificationException ex, WebRequest request) {
+        log.warn("OTP verification failed: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidPayoutMethodStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPayoutMethodStateException(
+            InvalidPayoutMethodStateException ex, WebRequest request) {
+        log.warn("Invalid payout method state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

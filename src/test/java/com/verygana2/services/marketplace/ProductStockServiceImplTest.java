@@ -26,7 +26,7 @@ import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
 import com.verygana2.dtos.product.responses.BulkStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
 import com.verygana2.exceptions.ProductStock.DuplicateResourceException;
-import com.verygana2.mappers.marketplace.ProductStockMapper;
+import com.verygana2.exceptions.mappers.marketplace.ProductStockMapper;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;

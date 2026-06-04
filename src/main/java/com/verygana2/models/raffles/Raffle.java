@@ -8,10 +8,12 @@ import java.util.List;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -197,6 +199,10 @@ public class Raffle {
                 now.isAfter(drawDate) &&
                 !prizes.isEmpty() &&
                 totalTicketsIssued > 0;
+    }
+
+    public RaffleRule getTicketEarningRuleByType (TicketEarningRuleType type) {
+        return this.getActiveRules().stream().filter(r -> r.getTicketEarningRule().getRuleType() == type).findAny().orElseThrow(() -> new EntityNotFoundException("Ticket earning rule with type : " + type + " not found"));
     }
 
 }

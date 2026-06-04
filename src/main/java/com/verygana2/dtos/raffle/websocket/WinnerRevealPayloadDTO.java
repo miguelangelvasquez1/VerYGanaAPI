@@ -19,5 +19,4 @@ public class WinnerRevealPayloadDTO {
     private BigDecimal prizeValue;  
     private PrizeType prizeType;    
     private int revealOrder;        // En qué número de revelación estamos (1 de 3, 2 de 3...)
-    private int totalWinners;       
 }

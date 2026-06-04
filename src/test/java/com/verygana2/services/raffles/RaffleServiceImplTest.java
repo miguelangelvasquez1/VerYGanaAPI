@@ -20,9 +20,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
+import com.verygana2.exceptions.mappers.raffles.PrizeMapper;
+import com.verygana2.exceptions.mappers.raffles.RaffleMapper;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
-import com.verygana2.mappers.raffles.PrizeMapper;
-import com.verygana2.mappers.raffles.RaffleMapper;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;

@@ -25,7 +25,7 @@ import com.verygana2.dtos.raffle.requests.CreateTicketEarningRuleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateTicketEarningRuleRequestDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.ProductStock.DuplicateResourceException;
-import com.verygana2.mappers.raffles.TicketEarningRuleMapper;
+import com.verygana2.exceptions.mappers.raffles.TicketEarningRuleMapper;
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
