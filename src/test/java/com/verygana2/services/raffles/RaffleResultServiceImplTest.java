@@ -18,11 +18,10 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.raffle.responses.DrawProofResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResultResponseDTO;
-import com.verygana2.exceptions.mappers.raffles.RaffleResultMapper;
+import com.verygana2.mappers.raffles.RaffleResultMapper;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.repositories.raffles.RaffleResultRepository;

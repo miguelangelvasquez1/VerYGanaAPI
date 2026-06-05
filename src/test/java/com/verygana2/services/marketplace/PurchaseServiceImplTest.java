@@ -33,7 +33,7 @@ import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.ProductNotAvailableException;
-import com.verygana2.exceptions.mappers.marketplace.PurchaseMapper;
+import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;

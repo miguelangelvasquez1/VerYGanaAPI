@@ -28,8 +28,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     private final SimpMessagingTemplate messagingTemplate;
     private final RaffleDrawStateCache drawStateCache;
 
-    private static final String domain = "https://cdn.verygana.com/";
-
     private static final String RAFFLE_TOPIC = "/topic/raffle/";
     private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
 
@@ -66,7 +64,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                     .userName(w.getWinner().getUserName())
                     .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                     .prizeTitle(w.getPrize().getTitle())
-                    .prizeImageUrl(domain + w.getPrize().getImageAsset().getObjectKey())
+                    .prizeImageUrl(w.getPrize().getImageUrl())
                     .prizeValue(w.getPrize().getValue())
                     .prizeType(w.getPrize().getPrizeType())
                     .revealOrder(i + 1)

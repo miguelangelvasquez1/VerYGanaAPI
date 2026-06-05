@@ -17,7 +17,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.exceptions.UnauthorizedActionException;
-import com.verygana2.exceptions.mappers.marketplace.ProductReviewMapper;
+import com.verygana2.mappers.marketplace.ProductReviewMapper;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductReview;
 import com.verygana2.models.marketplace.PurchaseItem;
