@@ -1,6 +1,7 @@
 package com.verygana2.services.referrals;
 
 import com.verygana2.dtos.referral.responses.ReferralItemDTO;
+import com.verygana2.mappers.ReferralMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
@@ -8,7 +9,6 @@ import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.utils.referral.ReferralCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.verygana2.mappers.ReferralMapper;
 
 import java.util.List;
 

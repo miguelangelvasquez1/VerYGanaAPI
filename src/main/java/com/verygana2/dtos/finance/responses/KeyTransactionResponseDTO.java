@@ -20,7 +20,7 @@ public class KeyTransactionResponseDTO {
         private Long connectivityKeysDelta;
         private String reason;
         private UUID referenceId;
-        private ZonedDateTime expiresAt;
+        private ZonedDateTime expiredAt;
         private ZonedDateTime createdAt;
 
 }

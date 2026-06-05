@@ -18,11 +18,50 @@ import com.verygana2.models.finance.KeyTransaction;
 @Repository
 public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, UUID> {
 
-    @Query("SELECT kt FROM KeyTransaction kt WHERE kt.keyWallet.consumer.id = :consumerId ORDER BY kt.createdAt DESC")
-    Page<KeyTransaction> findByConsumerId(@Param("consumerId") Long consumerId, Pageable pageable);
+    @Query("""
+            SELECT kt FROM KeyTransaction kt 
+            WHERE kt.keyWallet.consumer.id = :consumerId 
+            AND (:initialDate IS NULL OR kt.createdAt >= :initialDate)
+            AND (:endDate IS NULL OR kt.createdAt <= :endDate)
+            AND (:type IS NULL OR kt.type = :type) 
+            ORDER BY kt.createdAt DESC
+            """)
+    Page<KeyTransaction> findByConsumerId(@Param("consumerId") Long consumerId, @Param ("initialDate") ZonedDateTime initialDate, @Param ("endDate") ZonedDateTime endDate, @Param("type") KeyTransactionType type, Pageable pageable);
 
-    @Query("SELECT kt FROM KeyTransaction kt WHERE kt.keyWallet.consumer.id = :consumerId AND kt.type = :type ORDER BY kt.createdAt DESC")
-    Page<KeyTransaction> findByConsumerIdAndType(@Param("consumerId") Long consumerId, @Param("type") KeyTransactionType type, Pageable pageable);
+    @Query("""
+            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            FROM KeyTransaction kt
+            JOIN kt.keyWallet kw
+            WHERE kw.consumer.id = :consumerId
+            AND kt.type IN (
+                com.verygana2.models.enums.finance.KeyTransactionType.CREDIT_INTERACTION,
+                com.verygana2.models.enums.finance.KeyTransactionType.CREDIT_REFERRAL_BONUS,
+                com.verygana2.models.enums.finance.KeyTransactionType.CREDIT_ADMIN_ADJUSTMENT
+            )
+            """)
+    Long sumTotalEarnedKeys(@Param("consumerId") Long consumerId);
+
+    @Query("""
+            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            FROM KeyTransaction kt
+            JOIN kt.keyWallet kw
+            WHERE kw.consumer.id = :consumerId
+            AND kt.type IN (
+                com.verygana2.models.enums.finance.KeyTransactionType.DEBIT_COPAYMENT,
+                com.verygana2.models.enums.finance.KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE,
+                com.verygana2.models.enums.finance.KeyTransactionType.DEBIT_ADMIN_ADJUSTMENT
+            )
+            """)
+    Long sumTotalUsedKeys(@Param("consumerId") Long consumerId);
+
+    @Query("""
+            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            FROM KeyTransaction kt
+            JOIN kt.keyWallet kw
+            WHERE kw.consumer.id = :consumerId
+            AND kt.type = com.verygana2.models.enums.finance.KeyTransactionType.EXPIRED
+            """)
+    Long sumTotalExpiredKeys(@Param("consumerId") Long consumerId);
 
     /**
      * Devuelve todos los créditos de llaves que ya vencieron y aún no se procesaron.
@@ -31,8 +70,8 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
     @Query("""
             SELECT kt FROM KeyTransaction kt
             JOIN FETCH kt.keyWallet kw
-            WHERE kt.expiresAt IS NOT NULL
-            AND kt.expiresAt < :now
+            WHERE kt.expiredAt IS NOT NULL
+            AND kt.expiredAt < :now
             AND kt.expiryProcessed = false
             AND (kt.purchaseKeysDelta > 0 OR kt.connectivityKeysDelta > 0)
             ORDER BY kt.keyWallet.id

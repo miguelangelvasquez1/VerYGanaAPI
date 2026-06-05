@@ -28,8 +28,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     private final SimpMessagingTemplate messagingTemplate;
     private final RaffleDrawStateCache drawStateCache;
 
-    private static final String domain = "https://cdn.verygana.com/";
-
     private static final String RAFFLE_TOPIC = "/topic/raffle/";
     private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
 
@@ -66,11 +64,10 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                     .userName(w.getWinner().getUserName())
                     .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                     .prizeTitle(w.getPrize().getTitle())
-                    .prizeImageUrl(domain + w.getPrize().getImageAsset().getObjectKey())
+                    .prizeImageUrl(w.getPrize().getImageUrl())
                     .prizeValue(w.getPrize().getValue())
                     .prizeType(w.getPrize().getPrizeType())
                     .revealOrder(i + 1)
-                    .totalWinners(total)
                     .build();
 
             RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
@@ -94,7 +91,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
     @Override
     public void publishDrawCompleted(Long raffleId, List<RaffleWinner> winners, String raffleTitle,
-            int totalParticipants) {
+            long totalParticipants) {
         List<WinnerRevealPayloadDTO> allWinners = winners.stream()
                 .map(w -> WinnerRevealPayloadDTO.builder()
                         .position(w.getPrize().getPosition())
@@ -127,11 +124,12 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     @Override
-    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets) {
+    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
         WaitingRoomPayloadDTO payload = WaitingRoomPayloadDTO.builder()
                 .viewerCount(viewerCount)
                 .secondsUntilDraw(secondsUntilDraw)
                 .totalTickets(totalTickets)
+                .totalParticipants(totalParticipants)
                 .build();
 
        

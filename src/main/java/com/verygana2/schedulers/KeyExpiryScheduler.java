@@ -12,7 +12,7 @@ import lombok.extern.slf4j.Slf4j;
  * Procesa llaves vencidas a las 00:05 AM Colombia (05:05 AM UTC).
  *
  * Los 5 minutos de margen aseguran que las llaves cuyo expires_at es exactamente
- * medianoche Colombia ya sean visibles con expiresAt < NOW() en la query.
+ * medianoche Colombia ya sean visibles con expiredAt < NOW() en la query.
  *
  * - Purchase keys: vencen el día 1 del mes siguiente a las 00:00 Colombia.
  * - Connectivity keys: vencen al día siguiente a las 00:00 Colombia.

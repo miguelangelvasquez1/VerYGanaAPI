@@ -28,6 +28,7 @@ import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
+import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CopaymentServiceImpl implements CopaymentService {
 
     private final CopaymentRepository copaymentRepository;
+    private final TicketDeliveryService ticketDeliveryService;
     private final WompiTransactionRepository wompiTransactionRepository;
     private final PurchaseRepository purchaseRepository;
     private final KeyWalletRepository keyWalletRepository;
@@ -102,7 +104,8 @@ public class CopaymentServiceImpl implements CopaymentService {
         long keysValueCents = copayment.getKeysValueCents();
         long cashAmountCents = copayment.getCashAmountCents();
 
-        // 1. Confirmar llaves reservadas (blockedPurchaseKeys → 0, definitivamente gastadas)
+        // 1. Confirmar llaves reservadas (blockedPurchaseKeys → 0, definitivamente
+        // gastadas)
         if (keysUsed > 0) {
             KeyWallet keyWallet = keyWalletRepository
                     .findByConsumerId(copayment.getConsumer().getId())
@@ -136,10 +139,23 @@ public class CopaymentServiceImpl implements CopaymentService {
         // 4. Entregar códigos de producto al comprador
         deliverProducts(purchase);
 
-        // 4. Completar compra y copago
+        // 5. Completar compra y copago
         purchase.markAsCompleted();
         copayment.setWompiTransaction(wompiTx);
         copayment.setStatus(CopaymentStatus.COMPLETED);
+
+        // 6. Emitir tickets de rifa (transacción independiente — fallo no revierte el
+        // pago)
+        try {
+            ticketDeliveryService.processTicketEarningForPurchase(
+                    copayment.getConsumer().getId(),
+                    purchase.getId(),
+                    purchase.getTotalCents()
+            );
+        } catch (Exception e) {
+            log.error("[COPAYMENT] Error emitiendo tickets para purchaseId={}: {}", purchase.getId(), e.getMessage(),
+                    e);
+        }
 
         log.info("[COPAYMENT] Completado: keysUsed={}, keysValueCents={}, cashAmountCents={}",
                 keysUsed, keysValueCents, cashAmountCents);
@@ -200,6 +216,10 @@ public class CopaymentServiceImpl implements CopaymentService {
         for (PurchaseItem item : purchase.getItems()) {
             ProductStock stock = item.getAssignedProductStock();
             if (stock != null) {
+                // Limpiar el FK primero (owning side) para que el stock pueda
+                // ser asignado a una nueva compra sin violar el UNIQUE constraint
+                item.setAssignedProductStock(null);
+                item.setStatus(PurchaseItemStatus.CANCELLED);
                 stock.markAsAvailable();
                 productStockRepository.save(stock);
             }
@@ -221,7 +241,8 @@ public class CopaymentServiceImpl implements CopaymentService {
         ZonedDateTime cutoff = ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(maxAgeMinutes);
         List<Copayment> stale = copaymentRepository.findExpiredPending(CopaymentStatus.PENDING, cutoff);
 
-        if (stale.isEmpty()) return;
+        if (stale.isEmpty())
+            return;
 
         log.info("[COPAYMENT-EXPIRY] Expirando {} copago(s) PENDING anteriores a {}", stale.size(), cutoff);
 

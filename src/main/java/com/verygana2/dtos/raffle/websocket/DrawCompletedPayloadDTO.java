@@ -10,5 +10,5 @@ public class DrawCompletedPayloadDTO {
     private String raffleTitle;
     private List<WinnerRevealPayloadDTO> allWinners; // Lista completa para la pantalla final
     private String drawProofUrl;  // GET /api/raffles/{id}/draw-proof
-    private int totalParticipants;
+    private Long totalParticipants;
 }

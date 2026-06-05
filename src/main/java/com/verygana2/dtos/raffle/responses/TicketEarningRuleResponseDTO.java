@@ -22,13 +22,10 @@ public class TicketEarningRuleResponseDTO {
     private Integer ticketsToAward; 
 
     // Para PURCHASE:
-    private BigDecimal minPurchaseAmount; 
+    private BigDecimal minPurchaseAmountCents; 
 
     // Para ADS:
-    private Integer minAdsWatched; 
-
-    // Para GAME_ACHIEVEMENT:
-    private String achievementType; 
+    private boolean dailyLogin;
 
     // Para REFERRAL:
     private Integer referralAddedQuantity; 

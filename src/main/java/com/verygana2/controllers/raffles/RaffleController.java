@@ -75,7 +75,7 @@ public class RaffleController {
 
     @GetMapping("/actives")
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(
-            @RequestParam("type") RaffleType type, @RequestParam("pageNumber") int pageNumber) {
+            @RequestParam(name = "type", required = false) RaffleType type, @RequestParam("pageNumber") int pageNumber) {
         return ResponseEntity.ok(raffleService.getActiveRaffles(type, pageNumber));
     }
 
@@ -95,7 +95,8 @@ public class RaffleController {
                 raffleId,
                 viewerCount,
                 secondsUntilDrawClamped,
-                raffle);
+                raffle,
+                raffle.getTotalParticipants());
 
         return ResponseEntity.ok(status);
     }

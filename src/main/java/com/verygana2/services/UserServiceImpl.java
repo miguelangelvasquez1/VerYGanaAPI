@@ -21,6 +21,7 @@ import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -93,11 +94,11 @@ public class UserServiceImpl implements UserService {
 
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
+        // userHash NOT NULL+UNIQUE requiere un valor único antes del INSERT (IDENTITY);
+        // se reemplaza con el hash real tras obtener el ID generado por la BD.
+        details.setUserHash(UUID.randomUUID().toString());
         userRepository.saveAndFlush(user);
-        
-        // Asignar hash
-        String userHash = userHashGenerator.generate(user.getId());
-        details.setUserHash(userHash);
+        details.setUserHash(userHashGenerator.generate(user.getId()));
 
         keyWalletService.createFor(user.getId());
 

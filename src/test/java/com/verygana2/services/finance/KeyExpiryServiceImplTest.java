@@ -69,7 +69,7 @@ class KeyExpiryServiceImplTest {
                 .keyWallet(wallet)
                 .purchaseKeysDelta(purchaseDelta)
                 .connectivityKeysDelta(connectivityDelta)
-                .expiresAt(expiresAt)
+                .expiredAt(expiresAt)
                 .expiryProcessed(false)
                 .build();
     }
@@ -151,11 +151,11 @@ class KeyExpiryServiceImplTest {
             KeyTransaction tx1 = KeyTransaction.builder()
                     .id(txId1).keyWallet(wallet)
                     .purchaseKeysDelta(3L).connectivityKeysDelta(0L)
-                    .expiresAt(past).expiryProcessed(false).build();
+                    .expiredAt(past).expiryProcessed(false).build();
             KeyTransaction tx2 = KeyTransaction.builder()
                     .id(txId2).keyWallet(wallet)
                     .purchaseKeysDelta(2L).connectivityKeysDelta(0L)
-                    .expiresAt(past).expiryProcessed(false).build();
+                    .expiredAt(past).expiryProcessed(false).build();
 
             when(keyTransactionRepository.findExpiredNotProcessed(any()))
                     .thenReturn(List.of(tx1, tx2));

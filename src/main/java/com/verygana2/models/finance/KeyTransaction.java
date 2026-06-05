@@ -138,8 +138,8 @@ public class KeyTransaction {
      *       .plusDays(1)
      *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
      */
-    @Column(name = "expires_at", updatable = false)
-    private ZonedDateTime expiresAt;
+    @Column(name = "expired_at", updatable = false)
+    private ZonedDateTime expiredAt;
 
     /**
      * Flag que el job de vencimientos marca como true cuando procesa este lote.
@@ -168,41 +168,41 @@ public class KeyTransaction {
     public static KeyTransaction forInteractionPurchaseKeys(
             KeyWallet wallet, long purchaseDelta,
             String reason, UUID referenceId,
-            ZonedDateTime expiresAt) {
+            ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_INTERACTION)
                 .purchaseKeysDelta(purchaseDelta)
                 .reason(reason)
                 .referenceId(referenceId)
-                .expiresAt(expiresAt)
+                .expiredAt(expiredAt)
                 .build();
     }
 
     public static KeyTransaction forInteractionConnectivityKeys(
             KeyWallet wallet, long connectivityDelta,
             String reason, UUID referenceId,
-            ZonedDateTime expiresAt) {
+            ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_INTERACTION)
                 .connectivityKeysDelta(connectivityDelta)
                 .reason(reason)
                 .referenceId(referenceId)
-                .expiresAt(expiresAt)
+                .expiredAt(expiredAt)
                 .build();
     }
 
     public static KeyTransaction forReferralBonus(
             KeyWallet wallet, long purchaseDelta, String reason,
-            UUID referenceId, ZonedDateTime expiresAt) {
+            UUID referenceId, ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_REFERRAL_BONUS)
                 .purchaseKeysDelta(purchaseDelta)
                 .reason(reason)
                 .referenceId(referenceId)
-                .expiresAt(expiresAt)
+                .expiredAt(expiredAt)
                 .build();
     }
 
@@ -255,7 +255,7 @@ public class KeyTransaction {
             UUID expiryBatchId, String period) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
-                .type(KeyTransactionType.DEBIT_EXPIRY)
+                .type(KeyTransactionType.EXPIRED)
                 .purchaseKeysDelta(purchaseExpired > 0 ? -purchaseExpired : null)
                 .connectivityKeysDelta(connectivityExpired > 0 ? -connectivityExpired : null)
                 .reason("Vencimiento de llaves - período " + period)

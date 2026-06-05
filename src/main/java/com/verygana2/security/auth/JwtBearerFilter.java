@@ -35,7 +35,10 @@ public class JwtBearerFilter extends OncePerRequestFilter {
         this.jwtDecoder = jwtDecoder;
     }
 
-    // shouldFilterInternal?
+    @Override
+    protected boolean shouldNotFilterAsyncDispatch() {
+        return false;
+    }
 
     @Override
     protected void doFilterInternal(@NonNull HttpServletRequest request,
