@@ -323,8 +323,7 @@ public class AdServiceImpl implements AdService {
             // Re-validate pricePerLike server-side against the persisted real duration
             double durationSeconds = asset.getDurationSeconds();
             long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
-            long rawMinPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
-            long minPricePerLike = roundUpToMultipleOf10(rawMinPrice);
+            long minPricePerLike = (long) Math.ceil(durationSeconds * costPerSecondCents);
  
             long pricePerLike = request.getPricePerLike();
 
@@ -436,7 +435,7 @@ public class AdServiceImpl implements AdService {
         Page<Ad> adsPage = adRepository.findAll(spec, fixedSortPageable);
 
         Page<AdResponseDTO> dtoPage = adsPage.map(ad -> {
-
+            log.info("ad: " + ad.getRewardPerLike().toString());
             AdResponseDTO dto = adMapper.toDto(ad);
 
             AdAsset asset = ad.getAsset();
@@ -447,7 +446,7 @@ public class AdServiceImpl implements AdService {
             }
 
             dto.setContentUrl(resolveContentUrl(ad));
-
+            log.info("dto: " + dto.getRewardPerLike().toString());
             return dto;
         });
 
@@ -455,10 +454,16 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public AdResponseDTO getAdById(Long adId) {
-        Ad ad = getAdEntityById(adId);
-        return adMapper.toDto(ad);
+    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        AdResponseDTO dto = adMapper.toDto(ad);
+        dto.setContentUrl(
+            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+        );
+
+        return dto;
     }
 
     @Override
@@ -994,7 +999,7 @@ public class AdServiceImpl implements AdService {
         switch (ad.getStatus()) {
             case PENDING:
             case REJECTED:
-                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200);
+                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
             case APPROVED:
             case ACTIVE:
             case PAUSED:

@@ -160,9 +160,9 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --include "*.wasm.gz" `
   --content-encoding gzip `
   --content-type application/wasm
-  
-- hacer validacion de planes en el front globalmente no solo sidebar.?
 
-- hacer env de valor de llaves o cents, wallets en cents, poner 100.000 maximo de likes, ver que los asstes se borren del cdn. mejorar el coso de like ad vista. preguntar a nestor, validar que el flujo sea perfecto.
 
-- organizar mejor las rutas, seguir con ads full.
+- wallets en cents, ver que los asstes se borren del cdn. mejorar el coso de like ad vista. preguntar a nestor, validar que el flujo sea perfecto.
+
+- revisar app.security.monitoring
+- CAMBIAR WALLETS Y TRANSACTIONS A CENTAVOS?

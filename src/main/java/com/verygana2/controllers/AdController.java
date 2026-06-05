@@ -153,6 +153,15 @@ public class AdController {
         return ResponseEntity.ok(ads);
     }
 
+    @GetMapping("/{adId}/details")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<AdResponseDTO> getAdDetails(
+        @PathVariable Long adId,
+        @AuthenticationPrincipal Jwt jwt
+    ) {
+        return ResponseEntity.ok(adService.getAdDetails(adId, jwt.getClaim("userId")));
+    }
+
     @PostMapping("/{id}/activate")
     @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AdResponseDTO> activateAdAsCommercial(

@@ -4,19 +4,18 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
-  # =====================
+  # ============================================
   # DATABASE CONFIGURATION
-  # =====================
+  # ============================================
   datasource:
     # Para Docker usa host.docker.internal
     url: ${DB_URL:jdbc:mysql://localhost:3306/verygana2?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
-    # driver-class-name: ${DB_DRIVER:com.mysql.cj.jdbc.Driver}
 
-  # =====================
+  # ============================================
   # JPA/HIBERNATE CONFIGURATION
-  # =====================
+  # ============================================
   jpa:
     hibernate:
       ddl-auto: update
@@ -27,17 +26,6 @@ spring:
         jdbc:
           time_zone: UTC
 
-  # =====================
-  # MULTIPART/FILE UPLOAD
-  # =====================
-  servlet:
-    multipart:
-      enabled: true
-      max-file-size: 100MB
-      max-request-size: 100MB
-      file-size-threshold: 2MB
-      # max-file-count: 20
-
 # ============================================
 # JWT CONFIGURATION
 # ============================================
@@ -45,28 +33,24 @@ rsa:
   private-key: classpath:certs/private.pem
   public-key: classpath:certs/public.pem
 
-commissions:
-  ad-commission: 0.1
-  
-
 jwt:
   access-token:
     expiration: 86400      # 1 day (in seconds)
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
-# =====================
+# ============================================
 # CLOUDFLARE R2 CONFIGURATION
-# =====================
+# ============================================
 cloudflare:
   r2:
     account-id: ${R2_ACCOUNT_ID}
     access-key-id: ${R2_ACCESS_KEY_ID}
     secret-access-key: ${R2_SECRET_ACCESS_KEY}
     bucket-name: ${R2_BUCKET_NAME}
-    cdn-domain: ${R2_CDN_DOMAIN} # Opcional: cdn.verygana.com
+    cdn-domain: ${R2_CDN_DOMAIN}
     games-domain: ${R2_GAMES_DOMAIN:games.verygana.com}
-    endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
+    endpoint: ${R2_ENDPOINT:}
     pets-bucket-name: ${R2_PETS_BUCKET_NAME:verygana-pets}
     pets-cdn-domain: ${R2_PETS_CDN_DOMAIN:}
 
@@ -118,12 +102,6 @@ sendgrid:
   support-email: soporte@verygana.com
 
 # ============================================
-# TAXES
-# ============================================      
-taxes:
-  iva: ${IVA}
-
-# ============================================
 # GAMES CONFIG
 # ============================================ 
 games:
@@ -139,12 +117,13 @@ treasury:
     keys-reserve-pct: 60
     fortification-pct: 10
     operations-pct: 30
-    # Umbral WARNING: log de alerta, no bloquea (default $100.000 COP)
-    keys-reserve-warn-threshold-cents: 10000000
-    # Umbral CRÍTICO: bloquea copagos con llaves hasta que se reponga (default $20.000 COP)
-    keys-reserve-critical-threshold-cents: 2000000
-  values:
-    key-value: 1000 # $1.000 centavos de COP por cada key
+    keys-reserve-warn-threshold-cents: 10000000 # Umbral WARNING: log de alerta, no bloquea (default $100.000 COP)
+    keys-reserve-critical-threshold-cents: 2000000 # Umbral CRÍTICO: bloquea copagos con llaves hasta que se reponga (default $20.000 COP)
+
+financial:
+  purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
+  connectivity-keys-percentage: ${CONNECTIVITY_KEYS_PERCENTAGE:25}
+  key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
 
 # ============================================
 # MARKETPLACE LIMITS
@@ -262,8 +241,10 @@ audit:
     queue-capacity: 500
     thread-name-prefix: "audit-"
 
-  # Sorteos con API externa (Random.org)
+# ============================================
+# Sorteos con API externa (Random.org)
+# ============================================
 randomOrg:
-    api-url: https://api.random.org/json-rpc/4/invoke
-    api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
-    timeout: 30000 # 30 segundos
+  api-url: https://api.random.org/json-rpc/4/invoke
+  api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
+  timeout: 30000 # 30 segundos

@@ -8,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,12 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
-import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
-import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdLikeId;
@@ -40,8 +39,6 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
-import com.verygana2.storage.service.R2Service;
-
 import jakarta.persistence.OptimisticLockException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,8 +49,12 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class AdLikeServiceImpl implements AdLikeService {
 
-    private static final Long PURCHASE_KEYS_PERCENTAGE = 75L;
-    private static final Long CONNECTIVITY_KEYS_PERCENTAGE = 25L;
+    @Value("${financial.key-value-cents:1000}")
+    private long KEY_VALUE_CENTS;
+    @Value("${financial.purchase-keys-percentage:75}")
+    private Long PURCHASE_KEYS_PERCENTAGE;
+    @Value("${financial.connectivity-keys-percentage:25}")
+    private Long CONNECTIVITY_KEYS_PERCENTAGE;
 
     private final AdLikeRepository adLikeRepository;
     private final ConsumerDetailsService consumerDetailsService;
@@ -63,8 +64,6 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdService adService;
     private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
-    private final R2Service r2Service;
-    private final AdMapper adMapper;
     
     @Override
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
@@ -92,14 +91,14 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         //  INTENTAR USAR ENV
-        Long rewardKeys = ad.getRewardPerLike() / 1000; // Convertir a keys (1 key = 1000 cents), Java redondea automaticamente hacia abajo
+        Long rewardKeysCents = ad.getRewardPerLike();
         
         // 4. Crear el like
         AdLike adLike = AdLike.builder()
             .id(new AdLikeId(consumerId, adId))
             .consumer(consumer)
             .ad(ad)
-            .rewardAmount(rewardKeys)
+            .rewardAmount(rewardKeysCents)
             .createdAt(ZonedDateTime.now(clock))
             .build();
 
@@ -110,6 +109,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         // Actualizar el anuncio
+
         try {
             ad.incrementLike();
 
@@ -124,15 +124,15 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         KeyWallet keyWallet = consumer.getKeyWallet();
-        creditRewardToUser(keyWallet, rewardKeys, adId, sessionId);
+        creditRewardToUser(keyWallet, rewardKeysCents, adId, sessionId);
 
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
         
-        log.info("Like processed successfully. User rewarded with: {}", rewardKeys);
+        log.info("Like processed successfully. User rewarded with: {}", rewardKeysCents);
         
-        return new AdLikedResponse(true, rewardKeys);
+        return new AdLikedResponse(true, rewardKeysCents);
     }
 
     @Override
@@ -180,18 +180,6 @@ public class AdLikeServiceImpl implements AdLikeService {
     }
 
     @Override
-    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
-        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
-            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
-
-        AdResponseDTO dto = adMapper.toDto(ad);
-        dto.setContentUrl(
-            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
-        );
-        return dto;
-    }
-
-    @Override
     public PagedResponse<AdLikeResponseDTO> getAdLikes(Long adId, Long commercialId, Pageable pageable) {
         // Verificar que el anuncio pertenece al comercial
         adRepository.findByIdAndCommercialId(adId, commercialId)
@@ -208,10 +196,10 @@ public class AdLikeServiceImpl implements AdLikeService {
         return PagedResponse.from(adLikes); 
     }
 
-    private void creditRewardToUser(KeyWallet keyWallet, Long rewardKeys, Long adId, UUID sessionId) {
+    private void creditRewardToUser(KeyWallet keyWallet, Long rewardKeysCents, Long adId, UUID sessionId) {
 
-        long purchaseKeysReward = (rewardKeys * PURCHASE_KEYS_PERCENTAGE) / 100; // GUAR5DAR EN CENTAVOS PARA SER PRECISOS
-        long connectivityKeysReward = (rewardKeys * CONNECTIVITY_KEYS_PERCENTAGE) / 100;
+        long purchaseKeysReward = Math.multiplyExact(rewardKeysCents, PURCHASE_KEYS_PERCENTAGE) / 100;
+        long connectivityKeysReward = rewardKeysCents - purchaseKeysReward;
 
         ZoneId colombia = ZoneId.of("America/Bogota");
         ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(colombia);
@@ -219,7 +207,7 @@ public class AdLikeServiceImpl implements AdLikeService {
             .withDayOfMonth(1).plusMonths(1)
             .atStartOfDay(colombia)
             .withZoneSameInstant(ZoneOffset.UTC);
-        ZonedDateTime connectivityExpiry = nowColombia.toLocalDate()
+        ZonedDateTime connectivityExpiry = nowColombia.toLocalDate() // quemado esta mal
             .plusDays(1)
             .atStartOfDay(colombia)
             .withZoneSameInstant(ZoneOffset.UTC);

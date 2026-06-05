@@ -3,160 +3,130 @@ INSERT INTO system_features
 VALUES
 
 -- ============================================================
--- MONETIZACIÓN PRINCIPAL
+-- MONETIZACION: ads, surveys, raffles, games, marketplace, campaigns
 -- ============================================================
 
 ('ADS_SYSTEM',
 '/ads',
 'ENABLED',
-'MONETIZATION',
+'MONETIZACION',
 'Sistema de anuncios: visualización, interacción y assets'),
 
 ('SURVEYS_SYSTEM',
 '/surveys',
 'ENABLED',
-'MONETIZATION',
+'MONETIZACION',
 'Sistema de encuestas: participación y recompensas'),
 
 ('RAFFLES_SYSTEM',
 '/api/raffles',
 'ENABLED',
-'MONETIZATION',
-'Sistema de rifas y sorteos: compra de tickets y participación'),
-
-('RAFFLE_RESULTS',
-'/api/results',
-'ENABLED',
-'MONETIZATION',
-'Resultados de sorteos'),
-
-('RAFFLE_WINNERS',
-'/api/winners',
-'ENABLED',
-'MONETIZATION',
-'Ganadores de sorteos'),
-
-('RAFFLE_TICKETS',
-'/api/my/raffle-tickets',
-'ENABLED',
-'MONETIZATION',
-'Mis tickets de rifa'),
+'MONETIZACION',
+'Sistema de rifas: tickets, resultados y ganadores'),
 
 ('GAMES_SYSTEM',
 '/games',
 'ENABLED',
-'MONETIZATION',
+'MONETIZACION',
 'Sistema de juegos y minijuegos'),
 
--- ============================================================
--- MARKETPLACE
--- ============================================================
-
-('MARKETPLACE_CATALOG',
+('MARKETPLACE',
 '/products',
 'ENABLED',
-'MARKETPLACE',
-'Catálogo de productos: listado y detalle'),
+'MONETIZACION',
+'Marketplace: catálogo, compras y reseñas de productos'),
 
-('MARKETPLACE_PURCHASES',
-'/purchases',
+('CAMPAIGNS_SYSTEM',
+'/campaigns',
 'ENABLED',
-'MARKETPLACE',
-'Flujo de compras en marketplace'),
-
-('MARKETPLACE_REVIEWS',
-'/productsReviews',
-'ENABLED',
-'MARKETPLACE',
-'Reseñas y calificaciones de productos'),
+'MONETIZACION',
+'Gestión de campañas publicitarias de comerciales'),
 
 -- ============================================================
--- SISTEMA FINANCIERO
+-- IMPACTO
+-- ============================================================
+
+('IMPACT_STORIES_SYSTEM',
+'/impact-stories',
+'ENABLED',
+'IMPACTO',
+'Historias de impacto social: publicación y medios'),
+
+-- ============================================================
+-- FINANCIERO
 -- ============================================================
 
 ('WALLET_SYSTEM',
 '/commercial/wallet',
 'ENABLED',
-'FINANCIAL',
+'FINANCIERO',
 'Billetera y saldo de cuentas comerciales'),
 
 ('KEY_TRANSACTIONS',
 '/consumer/transactions',
 'ENABLED',
-'FINANCIAL',
+'FINANCIERO',
 'Movimientos y transacciones de llaves de consumidores'),
 
 ('PLANS_SYSTEM',
 '/plans',
 'ENABLED',
-'FINANCIAL',
+'FINANCIERO',
 'Planes y suscripciones para comerciales'),
 
 -- ============================================================
--- ADQUISICIÓN DE USUARIOS
+-- ADQUISICION
 -- ============================================================
 
 ('USER_REGISTRATION',
 '/auth/register',
 'ENABLED',
-'USER_ACQUISITION',
+'ADQUISICION',
 'Registro de nuevos usuarios (consumidores y comerciales)'),
 
 ('REFERRAL_SYSTEM',
 '/referrals',
 'ENABLED',
-'USER_ACQUISITION',
+'ADQUISICION',
 'Programa de referidos'),
 
 -- ============================================================
--- ENGAGEMENT Y COMUNICACIÓN
+-- NOTIFICACIONES
 -- ============================================================
 
 ('NOTIFICATIONS_SYSTEM',
 '/notifications',
 'ENABLED',
-'ENGAGEMENT',
+'NOTIFICACIONES',
 'Notificaciones en tiempo real para usuarios'),
 
-('CAMPAIGNS_SYSTEM',
-'/campaigns',
-'ENABLED',
-'ENGAGEMENT',
-'Gestión de campañas publicitarias de comerciales'),
-
-('IMPACT_STORIES_SYSTEM',
-'/impact-stories',
-'ENABLED',
-'ENGAGEMENT',
-'Historias de impacto social: publicación y medios'),
-
 -- ============================================================
--- PERFILES DE USUARIO
+-- PERFILES
 -- ============================================================
 
 ('CONSUMER_PROFILES',
 '/consumers',
 'ENABLED',
-'USER_PROFILES',
+'PERFILES',
 'Perfiles y configuración de consumidores'),
 
 ('COMMERCIAL_PROFILES',
 '/commercials',
 'ENABLED',
-'USER_PROFILES',
+'PERFILES',
 'Perfiles y configuración de comerciales'),
 
 -- ============================================================
--- ADMINISTRACIÓN
--- Un solo prefijo cubre /api/admin/raffles, /api/admin/treasury,
--- /api/admin/tickets, /api/admin/payouts, /api/admin/ticket-rules.
+-- ADMINISTRACION
 -- ============================================================
 
 ('ADMIN_PANEL',
 '/api/admin',
 'ENABLED',
-'ADMINISTRATION',
+'ADMINISTRACION',
 'Panel de administración general')
 
 ON DUPLICATE KEY UPDATE
-feature_key = feature_key;
+status      = VALUES(status),
+category    = VALUES(category),
+description = VALUES(description);

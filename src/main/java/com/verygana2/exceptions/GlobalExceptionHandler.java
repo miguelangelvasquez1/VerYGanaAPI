@@ -19,7 +19,6 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.multipart.MultipartException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
@@ -197,13 +196,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleSurveyAlreadyCompletedException(
             SurveyAlreadyCompletedException ex, WebRequest request) {
         log.warn("Survey already completed: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(MultipartException.class)
-    public ResponseEntity<ErrorResponse> handleMultipartException(
-            MultipartException ex, WebRequest request) {
-        log.warn("Multipart error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 

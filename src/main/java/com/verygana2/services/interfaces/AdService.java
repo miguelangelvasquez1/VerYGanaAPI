@@ -34,8 +34,8 @@ public interface AdService {
     AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId);
 
     PagedResponse<AdResponseDTO> getFilteredAds(Long commercialId, AdFilterDTO filters, Pageable pageable);
-    
-    AdResponseDTO getAdById(Long adId);
+
+    AdResponseDTO getAdDetails(Long adId, Long commercialId);
 
     Ad getAdEntityById(Long adId);
 
