@@ -2,7 +2,6 @@ package com.verygana2.services.pet;
 
 import com.verygana2.dtos.pet.PetCatalogItemRequestDTO;
 import com.verygana2.dtos.pet.PetCatalogItemResponseDTO;
-
 import com.verygana2.mappers.pet.PetCatalogItemMapper;
 import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;

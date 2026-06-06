@@ -1,5 +1,6 @@
 package com.verygana2.models.userDetails;
 
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -24,7 +25,7 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class ConsumerDetails extends UserDetails {
 
-    @Column(nullable = false, unique = true, length = 64, updatable = false)
+    @Column(nullable = false, unique = true, length = 64)
     private String userHash;
 
     @NotBlank(message = "Username is required")
@@ -91,6 +92,9 @@ public class ConsumerDetails extends UserDetails {
 
     @Column(name = "referral_code", nullable = false, length = 16, updatable = false)
     private String referralCode;
+
+    @Column(name = "last_daily_login_date")
+    private ZonedDateTime lastDailyLoginDate;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "referred_by_consumer_id")

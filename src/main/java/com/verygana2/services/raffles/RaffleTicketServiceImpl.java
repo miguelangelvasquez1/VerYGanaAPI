@@ -15,8 +15,8 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
-import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
 import com.verygana2.mappers.raffles.RaffleTicketMapper;
+import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
 import com.verygana2.models.enums.raffles.AuditAction;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
@@ -483,8 +483,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         return switch (source) {
             case PURCHASE -> TicketEarningRuleType.PURCHASE;
             case DAILY_LOGIN -> TicketEarningRuleType.DAILY_LOGIN;
-            case ADS_LIKED -> TicketEarningRuleType.ADS_LIKED;
-            case SURVEYS_DONE -> TicketEarningRuleType.SURVEYS_DONE;
             case REFERRAL -> TicketEarningRuleType.REFERRAL;
             default -> throw new InvalidRequestException("Unknown source type: " + source);
         };

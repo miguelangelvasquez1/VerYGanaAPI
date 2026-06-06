@@ -1,7 +1,5 @@
 package com.verygana2.dtos.raffle.requests;
 
-import java.math.BigDecimal;
-
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 
 import jakarta.validation.constraints.Max;
@@ -43,21 +41,13 @@ public class UpdateTicketEarningRuleRequestDTO {
     @Min(value = 1, message = "Tickets to award must be at least 1")
     private Integer ticketsToAward;
     
-    // ========== CONDICIONES PARA PURCHASE ==========
+    // ========== CONDICIONES ==========
     
     @PositiveOrZero(message = "Min purchase amount must be positive")
-    private BigDecimal minPurchaseAmount;
+    private Long minPurchaseAmount;
 
-    // ========== CONDICIONES ADS_WATCHED ==========
-    @PositiveOrZero(message = "Min ads watched must be positive")
-    private Integer minAdsWatched;
-    
-    // ========== CONDICIONES PARA GAME_ACHIEVEMENT ==========
-    
-    @Size(max = 100, message = "Achievement type cannot exceed 100 characters")
-    private String achievementType;
-    
-    // ========== CONDICIONES PARA REFERRAL ==========
+    @NotNull(message = "Daily login is required")
+    private boolean dailyLogin;
     
     @PositiveOrZero(message = "referral added quantity must be positive")
     private Integer referralAddedQuantity;

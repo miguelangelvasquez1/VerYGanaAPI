@@ -1,6 +1,5 @@
 package com.verygana2.services.details;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Objects;
 
@@ -10,7 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
-import com.verygana2.dtos.user.consumer.responses.BalanceResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.mappers.ConsumerDetailsMapper;
@@ -30,11 +28,11 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
 
     @Override
     @Transactional(readOnly = true)
-    public BalanceResponseDTO getConsumerBalance(Long consumerId) {
+    public Long getConsumerAvailableKeys(Long consumerId) {
         if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id exists");
+            throw new IllegalArgumentException("Consumer id must be positive");
         }
-        return new BalanceResponseDTO(BigDecimal.valueOf(getConsumerById(consumerId).getKeyWallet().getAvailableKeys()));
+        return getConsumerById(consumerId).getKeyWallet().getAvailableKeys();
     }
 
     @Override

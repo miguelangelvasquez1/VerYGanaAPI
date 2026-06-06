@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
-import com.verygana2.dtos.user.consumer.responses.BalanceResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -27,11 +26,11 @@ public class ConsumerDetailsController {
     
     private final ConsumerDetailsService consumerDetailsService;
 
-    @GetMapping("/balance")
+    @GetMapping("/available-keys")
     @PreAuthorize("hasRole('ROLE_CONSUMER')")
-    public ResponseEntity<BalanceResponseDTO> getConsumerBalance (@AuthenticationPrincipal Jwt jwt){
+    public ResponseEntity<Long> getConsumerAvailableKeys (@AuthenticationPrincipal Jwt jwt){
         Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(consumerDetailsService.getConsumerBalance(consumerId));
+        return ResponseEntity.ok(consumerDetailsService.getConsumerAvailableKeys(consumerId));
     }
 
     @GetMapping("/initialData")
