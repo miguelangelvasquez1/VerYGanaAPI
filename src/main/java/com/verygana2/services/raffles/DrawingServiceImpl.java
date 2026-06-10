@@ -2,7 +2,7 @@ package com.verygana2.services.raffles;
 
 import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -18,6 +18,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.raffle.responses.DrawProofResponseDTO;
 import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
+import com.verygana2.dtos.raffle.responses.RandomOrgDrawMetadata;
+import com.verygana2.dtos.raffle.responses.RandomOrgDrawResult;
 import com.verygana2.dtos.raffle.responses.WinnerProofResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
@@ -25,6 +27,7 @@ import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
 import com.verygana2.exceptions.rafflesExceptions.RandomOrgException;
 import com.verygana2.models.Notification;
 import com.verygana2.models.enums.NotificationType;
+import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.models.raffles.Prize;
@@ -69,7 +72,7 @@ public class DrawingServiceImpl implements DrawingService {
     @Override
     public DrawResultResponseDTO conductDraw(Long raffleId) {
 
-        log.info("=== STARTING RAFFLE DRAW === Raffle ID: {}, Winners: {}", raffleId);
+        log.info("=== STARTING RAFFLE DRAW === Raffle ID: {}", raffleId);
 
         // ========== 1. VALIDAR RIFA ==========
 
@@ -87,21 +90,23 @@ public class DrawingServiceImpl implements DrawingService {
         // ========== 4. EJECUTAR SORTEO — agregar evento ==========
         raffle.setRaffleStatus(RaffleStatus.DRAWING);
         raffleRepository.save(raffle);
-        raffleEventPublisherService.publishDrawingStarted(raffleId, raffle.getTotalTicketsIssued(), prizes.size());
+        raffleEventPublisherService.publishDrawingStarted(raffleId, numberOfWinners, raffle.getTotalTicketsIssued(), raffle.getMaxTotalTickets());
 
         log.info("Executing draw...");
-        List<RaffleTicket> winningTickets = executeDraw(raffle, tickets, numberOfWinners);
+        DrawExecution drawExecution = executeDraw(raffle, tickets, numberOfWinners);
 
         log.info("Creating raffle result...");
         RaffleResult result = createRaffleResult(raffle);
 
         // ========== 5. CREAR REGISTROS DE GANADORES ==========
         log.info("Creating winner records...");
-        List<RaffleWinner> winners = createWinnerRecords(result, prizes, winningTickets);
+        List<RaffleWinner> winners = createWinnerRecords(result, prizes, drawExecution.winners());
 
         // ========== 6. GENERAR PROOF ==========
         log.info("Generating draw proof...");
-        String drawProof = generateDrawProof(raffle.getId(), winners);
+        String drawProof = generateDrawProof(raffle.getId(), winners,
+                drawExecution.actualMethod(), drawExecution.methodNote(),
+                drawExecution.randomOrgMetadata());
         result.setDrawProof(drawProof);
 
         // ========== 7. ACTUALIZAR ESTADO DE LA RIFA ==========
@@ -155,7 +160,7 @@ public class DrawingServiceImpl implements DrawingService {
         }
 
         // Validar que la fecha de sorteo ha llegado o pasado
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         if (now.isBefore(raffle.getDrawDate())) {
             throw new InvalidOperationException(
                     String.format("Cannot draw raffle before draw date. Draw date: %s, Now: %s",
@@ -197,28 +202,48 @@ public class DrawingServiceImpl implements DrawingService {
         return activeTickets;
     }
 
-    private List<RaffleTicket> executeDraw(Raffle raffle, List<RaffleTicket> tickets, int numberOfWinners) {
+    private record DrawExecution(List<RaffleTicket> winners, DrawMethod actualMethod,
+                                 String methodNote, RandomOrgDrawMetadata randomOrgMetadata) {}
 
-        raffle.setRaffleStatus(RaffleStatus.DRAWING);
-        raffleRepository.save(raffle);
+    private record ExternalDrawResult(List<RaffleTicket> winners, RandomOrgDrawMetadata metadata) {}
 
-        List<RaffleTicket> winners;
+    private DrawExecution executeDraw(Raffle raffle, List<RaffleTicket> tickets, int numberOfWinners) {
 
         switch (raffle.getDrawMethod()) {
             case RANDOM_ORG -> {
                 log.info("Using RANDOM_ORG (external draw method)");
-                winners = randomExternalDraw(tickets, numberOfWinners);
+                try {
+                    ExternalDrawResult ext = executeExternalDrawWithMetadata(tickets, numberOfWinners);
+                    return new DrawExecution(ext.winners(), DrawMethod.RANDOM_ORG, null, ext.metadata());
+                } catch (Exception e) {
+                    log.warn("Random.org failed ({}). Falling back to SYSTEM_RANDOM.", e.getMessage());
+                    List<RaffleTicket> winners = randomInternalDraw(tickets, numberOfWinners);
+                    return new DrawExecution(winners, DrawMethod.SYSTEM_RANDOM,
+                            "Fallback to SYSTEM_RANDOM: Random.org unavailable — " + e.getMessage(), null);
+                }
             }
-
             case SYSTEM_RANDOM -> {
                 log.info("Using SYSTEM_RANDOM (internal draw method)");
-                winners = randomInternalDraw(tickets, numberOfWinners);
+                List<RaffleTicket> winners = randomInternalDraw(tickets, numberOfWinners);
+                return new DrawExecution(winners, DrawMethod.SYSTEM_RANDOM, null, null);
             }
-
             default -> throw new InvalidOperationException(
                     "Unsupported draw method: " + raffle.getDrawMethod());
         }
-        return winners;
+    }
+
+    private ExternalDrawResult executeExternalDrawWithMetadata(List<RaffleTicket> tickets, int numberOfWinners) {
+        RandomOrgDrawResult result = randomOrgService.generateRandomIntegers(0, tickets.size() - 1, numberOfWinners);
+        List<RaffleTicket> winners = new ArrayList<>(numberOfWinners);
+        for (Integer index : result.indices()) {
+            winners.add(tickets.get(index));
+        }
+        winners.forEach(w -> w.setIsWinner(true));
+        raffleTicketRepository.saveAll(winners);
+        log.info("External draw completed. Serial: {}. Winners: {}",
+                result.metadata().getSerialNumber(),
+                winners.stream().map(RaffleTicket::getTicketNumber).collect(Collectors.joining(", ")));
+        return new ExternalDrawResult(winners, result.metadata());
     }
 
     private RaffleResult createRaffleResult(Raffle raffle) {
@@ -313,48 +338,48 @@ public class DrawingServiceImpl implements DrawingService {
                 numberOfWinners, tickets.size());
 
         try {
-            List<Integer> randomIndexes = randomOrgService.generateRandomIntegers(0, tickets.size() - 1,
+            RandomOrgDrawResult result = randomOrgService.generateRandomIntegers(0, tickets.size() - 1,
                     (int) numberOfWinners);
             List<RaffleTicket> winners = new ArrayList<>(numberOfWinners);
 
-            for (Integer index : randomIndexes) {
+            for (Integer index : result.indices()) {
                 winners.add(tickets.get(index));
             }
 
             winners.forEach(w -> w.setIsWinner(true));
-
             raffleTicketRepository.saveAll(winners);
 
-            log.info("External draw completed successfully. Winners: {}",
-                    winners.stream()
-                            .map(RaffleTicket::getTicketNumber)
-                            .collect(Collectors.joining(", ")));
+            log.info("External draw completed successfully. Serial: {}. Winners: {}",
+                    result.metadata().getSerialNumber(),
+                    winners.stream().map(RaffleTicket::getTicketNumber).collect(Collectors.joining(", ")));
 
             return winners;
 
         } catch (RandomOrgException e) {
-            log.error("Random.org external draw failed", e);
-
-            log.warn("Falling back to internal draw algorithm");
-            return randomInternalDraw(tickets, numberOfWinners);
+            log.error("Random.org external draw failed: {}", e.getMessage());
+            throw e;
         }
     }
 
     @Override
-    public String generateDrawProof(Long raffleId, List<RaffleWinner> winners) {
+    public String generateDrawProof(Long raffleId, List<RaffleWinner> winners,
+                                    DrawMethod actualMethod, String drawMethodNote,
+                                    RandomOrgDrawMetadata randomOrgMetadata) {
 
         log.info("Generating draw proof for raffle {}", raffleId);
 
         try {
             Raffle raffle = raffleService.getRaffleById(raffleId);
 
-            // Construir objeto de evidencia
             DrawProofResponseDTO proof = DrawProofResponseDTO.builder()
                     .raffleId(raffleId)
                     .raffleTitle(raffle.getTitle())
-                    .drawMethod(raffle.getDrawMethod().toString())
+                    .configuredDrawMethod(raffle.getDrawMethod().toString())
+                    .actualDrawMethod(actualMethod.toString())
+                    .drawMethodNote(drawMethodNote)
+                    .randomOrgMetadata(randomOrgMetadata)
                     .drawDate(raffle.getDrawDate())
-                    .executedAt(ZonedDateTime.now(ZoneId.of("America/Bogota")))
+                    .executedAt(ZonedDateTime.now(ZoneOffset.UTC))
                     .totalParticipants(raffle.getTotalParticipants())
                     .totalTickets(raffle.getTotalTicketsIssued())
                     .numberOfWinners(winners.size())
@@ -374,11 +399,12 @@ public class DrawingServiceImpl implements DrawingService {
                             .toList())
                     .build();
 
-            // Convertir a JSON
             String proofJson = objectMapper.writerWithDefaultPrettyPrinter()
                     .writeValueAsString(proof);
 
-            log.info("Draw proof generated successfully");
+            log.info("Draw proof generated. configuredMethod={}, actualMethod={}, randomOrgSerial={}",
+                    raffle.getDrawMethod(), actualMethod,
+                    randomOrgMetadata != null ? randomOrgMetadata.getSerialNumber() : "N/A");
             return proofJson;
 
         } catch (JsonProcessingException e) {
@@ -401,7 +427,7 @@ public class DrawingServiceImpl implements DrawingService {
      * 8. Expira todos los tickets que no ganaron
      */
     private void expireTickets(Long raffleId) {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         int expiredCount = raffleTicketRepository.expireTicketsByRaffle(raffleId, now);
 
         log.info("Expired {} non-winning tickets for raffle {}", expiredCount, raffleId);

@@ -29,7 +29,6 @@ import lombok.NoArgsConstructor;
 @Entity
 @Table(name = "raffle_tickets", indexes = {
         @Index(name = "idx_raffle_consumer", columnList = "raffle_id, ticket_owner_id"),
-        @Index(name = "idx_ticket_number", columnList = "ticket_number"),
         @Index(name = "idx_consumer_tickets", columnList = "ticket_owner_id, status"),
         @Index(name = "idx_ticket_source_lookup", columnList = "ticket_owner_id, source, source_id")
 }, uniqueConstraints = {
@@ -49,7 +48,7 @@ public class RaffleTicket {
     @Column(nullable = false)
     private RaffleTicketStatus status;
 
-    @Column(name = "ticket_number", unique = true, nullable = false)
+    @Column(name = "ticket_number", nullable = false)
     @Size(max = 50, message = "Ticket number cannot exceed 50 characters")
     private String ticketNumber;
 

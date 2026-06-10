@@ -49,6 +49,7 @@ public interface ProductMapper {
     @Mapping(target = "deletionReason", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "priceCents", source = "price")
+    @Mapping(target = "isGameReward", ignore = true)
     Product toProduct(CreateProductRequestDTO request);
 
     List<ProductStock> toProductStockList(List<ProductStockRequestDTO> stockRequests);
@@ -90,6 +91,7 @@ public interface ProductMapper {
     @Mapping(target = "deletionReason", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "priceCents", source = "price")
+    @Mapping(target = "isGameReward", ignore = true)
     void updateProductFromRequest(UpdateProductRequestDTO request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponseDTO (completed) =====

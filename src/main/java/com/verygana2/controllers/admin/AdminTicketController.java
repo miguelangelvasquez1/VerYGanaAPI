@@ -40,9 +40,11 @@ public class AdminTicketController {
                 .ok(raffleTicketService.getTicketsByRaffle(raffleId, status, source, issuedAt, pageable));
     }
 
-    @GetMapping("/{ticketNumber}/validate")
-    public ResponseEntity<Boolean> validateTicket(@PathVariable String ticketNumber) {
-        return ResponseEntity.ok(raffleTicketService.validateTicket(ticketNumber));
+    @GetMapping("/raffle/{raffleId}/{ticketNumber}/validate")
+    public ResponseEntity<Boolean> validateTicket(
+            @PathVariable Long raffleId,
+            @PathVariable String ticketNumber) {
+        return ResponseEntity.ok(raffleTicketService.validateTicket(ticketNumber, raffleId));
     }
 
     @PostMapping("/raffle/{raffleId}/expire")

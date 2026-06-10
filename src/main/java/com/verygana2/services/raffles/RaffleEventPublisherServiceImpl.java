@@ -3,13 +3,13 @@ package com.verygana2.services.raffles;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.raffle.websocket.DrawCompletedPayloadDTO;
+import com.verygana2.dtos.raffle.websocket.DrawingStartedPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.RaffleDrawEventDTO;
 import com.verygana2.dtos.raffle.websocket.WaitingRoomPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.WinnerRevealPayloadDTO;
@@ -32,15 +32,16 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
 
     @Override
-    public void publishDrawingStarted(Long raffleId, long totalTickets, int totalWinners) {
+    public void publishDrawingStarted(Long raffleId, int totalWinners, long totalTickets, int maxTickets) {
+
+        DrawingStartedPayloadDTO payload = DrawingStartedPayloadDTO.builder()
+        .totalWinners(totalWinners).totalTickets(totalTickets).maxTickets(maxTickets).build();
+
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                 .type(DrawEventType.DRAWING_STARTED)
                 .raffleId(raffleId)
                 .timestamp(now())
-                .payload(Map.of("totalTickets", totalTickets,
-                        "totalWinners", totalWinners
-
-                )) // El frontend sabe cuántas boletas animar
+                .payload(payload)
                 .build();
 
         broadcast(raffleId, event);
@@ -124,7 +125,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     @Override
-    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
+    public void publishWaitingRoomUpdate(Long raffleId, long viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
         WaitingRoomPayloadDTO payload = WaitingRoomPayloadDTO.builder()
                 .viewerCount(viewerCount)
                 .secondsUntilDraw(secondsUntilDraw)

@@ -156,6 +156,10 @@ games:
   cdn-url: ${GAMES_CDN_URL}
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
+
+app:
+  frontend:
+    base-url: ${FRONTEND_BASE_URL}
   
 payment:
   min-deposit: 5000      # $5.000 COP
