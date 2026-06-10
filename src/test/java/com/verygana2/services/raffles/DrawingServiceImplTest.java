@@ -24,7 +24,6 @@ import com.verygana2.exceptions.rafflesExceptions.RandomOrgException;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
-import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleTicket;
@@ -67,8 +66,8 @@ class DrawingServiceImplTest {
         r.setRaffleStatus(RaffleStatus.LIVE);
         r.setDrawDate(java.time.ZonedDateTime.now().minusMinutes(1));
         r.setDrawMethod(method);
-        r.setTotalTicketsIssued(10L);
-        r.setTotalParticipants(10L);
+        r.setTotalTicketsIssued(10);
+        r.setTotalParticipants(10);
         return r;
     }
 

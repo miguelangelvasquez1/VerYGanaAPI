@@ -115,6 +115,9 @@ public class Product {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    @Column(name = "is_game_reward")
+    private Boolean isGameReward;
+
     // Auditoria
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -165,6 +168,7 @@ public class Product {
         this.averageRate = 0.0;
         this.reviewCount = 0;
         this.status = ProductStatus.PENDING;
+        this.isGameReward = false;
     }
 
     @PreUpdate

@@ -11,6 +11,7 @@ import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
+import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 
 public interface GameService {
@@ -23,4 +24,5 @@ public interface GameService {
     void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event);
     void completeSession(GameEventDTO<EndSessionDTO> event, Long userId);
     PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable);
+    List<RewardCardResponseDTO> getGameRewards (String gameSessionToken);
 }

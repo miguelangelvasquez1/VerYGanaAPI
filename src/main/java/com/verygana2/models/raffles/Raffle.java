@@ -79,16 +79,16 @@ public class Raffle {
     private ZonedDateTime drawDate;
 
     @Column(name = "max_tickets_per_user")
-    private Long maxTicketsPerUser;
+    private Integer maxTicketsPerUser;
 
     @Column(name = "max_total_tickets")
-    private Long maxTotalTickets; // null = sin límite
+    private Integer maxTotalTickets;
 
     @Column(name = "total_tickets_issued")
-    private Long totalTicketsIssued;
+    private Integer totalTicketsIssued;
 
     @Column(name = "total_participants")
-    private Long totalParticipants;
+    private Integer totalParticipants;
 
     @OneToMany(mappedBy = "raffle", cascade = CascadeType.ALL)
     private List<Prize> prizes;
@@ -125,8 +125,8 @@ public class Raffle {
         this.raffleStatus = RaffleStatus.DRAFT;
         this.createdAt = now;
         this.updatedAt = now;
-        this.totalTicketsIssued = 0L;
-        this.totalParticipants = 0L;
+        this.totalTicketsIssued = 0;
+        this.totalParticipants = 0;
     }
 
     @PreUpdate
@@ -160,7 +160,7 @@ public class Raffle {
         return totalTicketsIssued >= maxTotalTickets;
     }
 
-    public Long getAvailableTickets() {
+    public Integer getAvailableTickets() {
         if (maxTotalTickets == null) {
             return null;
         }

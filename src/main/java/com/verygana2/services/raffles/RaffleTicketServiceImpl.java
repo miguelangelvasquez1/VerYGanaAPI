@@ -264,7 +264,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             ticket.setSourceId(sourceId);
 
             // ✅ GENERACIÓN DE NÚMERO ÚNICO SECUENCIAL
-            String ticketNumber = generateUniqueTicketNumber(raffle.getId(), startSequence + i);
+            String ticketNumber = generateUniqueTicketNumber(raffle, startSequence + i);
             ticket.setTicketNumber(ticketNumber);
 
             // El @PrePersist configura: status=ACTIVE, isWinner=false, issuedAt=now
@@ -274,13 +274,11 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         return tickets;
     }
 
-    /**
-     * Genera un número de ticket único y secuencial
-     * Formato: R{raffleId}-{sequentialNumber}
-     * Ejemplo: R123-000001
-     */
-    private String generateUniqueTicketNumber(Long raffleId, long sequentialNumber) {
-        return String.format("R%d-%06d", raffleId, sequentialNumber);
+    private String generateUniqueTicketNumber(Raffle raffle, long sequentialNumber) {
+        int digits = raffle.getMaxTotalTickets() != null
+                ? String.valueOf(raffle.getMaxTotalTickets()).length()
+                : 6;
+        return String.format("%0" + digits + "d", sequentialNumber);
     }
 
     private void updateAllCounters(Raffle raffle, ConsumerDetails consumer, int quantity, RaffleTicketSource source) {
@@ -458,8 +456,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
     @Override
     @Transactional(readOnly = true)
-    public boolean validateTicket(String ticketNumber) {
-        return raffleTicketRepository.findByTicketNumber(ticketNumber)
+    public boolean validateTicket(String ticketNumber, Long raffleId) {
+        return raffleTicketRepository.findByTicketNumberAndRaffleId(ticketNumber, raffleId)
                 .map(ticket -> ticket.getStatus() == RaffleTicketStatus.ACTIVE)
                 .orElse(false);
     }

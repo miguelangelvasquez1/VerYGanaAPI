@@ -4,19 +4,27 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class DrawProofResponseDTO {
     private Long raffleId;
     private String raffleTitle;
-    private String drawMethod;
+    private String configuredDrawMethod;
+    private String actualDrawMethod;
+    private String drawMethodNote;
+    /** Solo presente cuando actualDrawMethod == RANDOM_ORG. Null en sorteos internos. */
+    private RandomOrgDrawMetadata randomOrgMetadata;
     private ZonedDateTime drawDate;
     private ZonedDateTime executedAt;
-    private Long totalParticipants;
-    private Long totalTickets;
+    private Integer totalParticipants;
+    private Integer totalTickets;
     private Integer numberOfWinners;
     private List<WinnerProofResponseDTO> winners;
 }

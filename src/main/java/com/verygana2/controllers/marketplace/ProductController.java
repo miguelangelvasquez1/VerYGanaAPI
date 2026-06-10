@@ -327,4 +327,16 @@ public class ProductController {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.countFavoriteProductsByConsumerId(consumerId));
     }
+
+    /*
+    * Marcar un producto para que aparezca al final de los juegos de cada commercial
+    */
+
+    @PatchMapping("{productId}/gameReward")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Void> pickGameReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
+        Long commercialId = jwt.getClaim("userId");
+        productService.pickGameReward(commercialId, productId);
+        return ResponseEntity.noContent().build();
+    }
 }

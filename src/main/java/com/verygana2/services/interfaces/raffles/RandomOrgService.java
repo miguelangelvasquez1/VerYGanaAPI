@@ -1,9 +1,16 @@
 package com.verygana2.services.interfaces.raffles;
 
-import java.util.List;
+import com.verygana2.dtos.raffle.responses.RandomOrgDrawResult;
 
 public interface RandomOrgService {
-    
-    List<Integer> generateRandomIntegers(int min, int max, int count);
+
+    /**
+     * Genera {@code count} enteros únicos en [min, max] usando Random.org.
+     * Retorna los índices junto con la metadata del request (serialNumber,
+     * completionTime, bits) para incluirla en la prueba de sorteo.
+     *
+     * @throws com.verygana2.exceptions.rafflesExceptions.RandomOrgException si el servicio no está disponible.
+     */
+    RandomOrgDrawResult generateRandomIntegers(int min, int max, int count);
 
 }
