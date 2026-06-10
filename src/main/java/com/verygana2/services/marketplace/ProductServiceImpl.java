@@ -29,6 +29,8 @@ import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.exceptions.FavoriteProductException;
+import com.verygana2.exceptions.GameRewardException;
+import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
@@ -175,7 +177,7 @@ public class ProductServiceImpl implements ProductService {
             asset.setStatus(AssetStatus.VALIDATED);
 
             ProductCategory category = productCategoryService.getById(request.getProductData().getProductCategoryId());
-            Plan plan =  commercial.getCurrentPlan();
+            Plan plan = commercial.getCurrentPlan();
             Product product = productMapper.toProduct(request.getProductData());
             validateProductPrice(product.getPriceCents());
             product.setCommercial(commercial);
@@ -191,7 +193,8 @@ public class ProductServiceImpl implements ProductService {
 
             productImageAssetRepository.save(asset);
 
-            return new EntityCreatedResponseDTO(savedProduct.getId(), "Product creation request sent succesfully", Instant.now());
+            return new EntityCreatedResponseDTO(savedProduct.getId(), "Product creation request sent succesfully",
+                    Instant.now());
 
         } catch (Exception e) {
             if (asset != null) {
@@ -610,5 +613,31 @@ public class ProductServiceImpl implements ProductService {
                 "Tu producto: " + product.getName() + " ha sido eliminado por uno de nuestros administradores. ",
                 reason, Instant.now());
 
+    }
+
+    @Override
+    public void pickGameReward(Long commercialId, Long productId) {
+        Product product = getById(productId);
+
+        if (!commercialId.equals(product.getCommercial().getId())) {
+            throw new InvalidRequestException("Product does not belong to this commercial");
+        }
+
+        if (Boolean.TRUE.equals(product.getIsGameReward())) {
+            product.setIsGameReward(false);
+            productRepository.save(product);
+            return;
+        }
+
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new InvalidStatusException("Only active products can be marked as game rewards");
+        }
+
+        if (productRepository.countGameRewards(commercialId) >= 3) {
+            throw new GameRewardException("You already have 3 active products marked as game rewards");
+        }
+
+        product.setIsGameReward(true);
+        productRepository.save(product);
     }
 }

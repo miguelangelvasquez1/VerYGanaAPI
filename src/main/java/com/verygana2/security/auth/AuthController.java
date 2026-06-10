@@ -65,7 +65,7 @@ public class AuthController {
     @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request,
             @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
-    ) throws InterruptedException {
+    ) {
 
         log.info("Login attempt for user: {} from {}", request.getIdentifier(), clientType);
 
@@ -74,8 +74,17 @@ public class AuthController {
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 
-        Long userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
-        ticketDeliveryService.processTicketEarningForDailyLogin(userId);
+        boolean isConsumer = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONSUMER"));
+
+        if (isConsumer) {
+            Long userId = ((CustomUserDetails) authentication.getPrincipal()).getId();
+            try {
+                ticketDeliveryService.processTicketEarningForDailyLogin(userId);
+            } catch (Exception e) {
+                log.warn("Daily login ticket processing failed for user {}: {}", userId, e.getMessage());
+            }
+        }
 
         String scope = authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)

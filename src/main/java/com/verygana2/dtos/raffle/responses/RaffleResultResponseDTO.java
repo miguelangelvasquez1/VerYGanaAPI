@@ -22,8 +22,8 @@ public class RaffleResultResponseDTO {
     private RaffleType raffleType;
     private ZonedDateTime drawnAt;
     private String drawProof;
-    private Long totalParticipants;
-    private Long totalTicketsIssued;
+    private Integer totalParticipants;
+    private Integer totalTicketsIssued;
     private List<WinnerDetailResponseDTO> winners;
 
 }

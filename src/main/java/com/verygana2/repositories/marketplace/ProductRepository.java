@@ -1,6 +1,7 @@
 package com.verygana2.repositories.marketplace;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -70,6 +71,24 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         WHERE p.commercial.id = :commercialId AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                         """)
         Page<Product> findByCommercialId(@Param("commercialId") Long commercialId, Pageable pageable);
+
+        @Query("""
+                SELECT p FROM Product p
+                WHERE p.commercial.id = :commercialId
+                AND p.isGameReward = TRUE
+                AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                ORDER BY p.name DESC
+                LIMIT 3
+                        """)
+        List<Product> findGameRewardsProducts(@Param("commercialId") Long commercialId);
+
+        @Query("""
+                SELECT COUNT(p) FROM Product p
+                WHERE p.commercial.id = :commercialId
+                AND p.isGameReward = TRUE
+                AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        """)
+        Integer countGameRewards(@Param("commercialId") Long commercialId);
 
         @Query("SELECT COUNT(p) FROM Product p WHERE p.status = :status AND p.commercial.id = :commercialId")
         Long countCommercialProducts(@Param("commercialId") Long commercialId, @Param("status") ProductStatus status);

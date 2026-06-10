@@ -67,4 +67,6 @@ public interface ProductService {
     ProductEditInfoResponseDTO getProductEditInfo(Long productId, Long commercialId);
 
     Long countFavoriteProductsByConsumerId(Long consumerId);
+
+    void pickGameReward (Long commercialId, Long productId);
 }

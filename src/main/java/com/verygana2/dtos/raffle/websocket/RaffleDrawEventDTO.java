@@ -13,5 +13,5 @@ public class RaffleDrawEventDTO {
     private DrawEventType type;
     private Long raffleId;
     private ZonedDateTime timestamp;
-    private Object payload; // WaitingRoomPayload | WinnerRevealPayload | DrawCompletedPayload
+    private Object payload; // DrawingStartedPayload | WaitingRoomPayload | WinnerRevealPayload | DrawCompletedPayload
 }

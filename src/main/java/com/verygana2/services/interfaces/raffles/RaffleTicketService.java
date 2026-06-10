@@ -33,7 +33,7 @@ public interface RaffleTicketService {
     PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
             RaffleTicketSource source,ZonedDateTime issuedAt, Pageable pageable);
 
-    boolean validateTicket(String ticketNumber);
+    boolean validateTicket(String ticketNumber, Long raffleId);
 
     void expireTickets(Long raffleId);
 }

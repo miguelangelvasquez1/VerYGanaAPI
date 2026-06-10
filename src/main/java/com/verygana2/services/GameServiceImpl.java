@@ -16,11 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.EndSessionDTO; 
+import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
+import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.UnauthorizedException;
@@ -31,12 +32,14 @@ import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameMetricDefinition;
 import com.verygana2.models.games.GameSession;
 import com.verygana2.models.games.GameSessionMetric;
+import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
+import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.utils.validators.MetricValidator;
 
@@ -69,7 +72,8 @@ public class GameServiceImpl implements GameService {
     private final GameMetricDefinitionRepository metricDefinitionRepository;
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
-    
+    private final ProductRepository productRepository;
+
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
@@ -85,48 +89,47 @@ public class GameServiceImpl implements GameService {
                 game.getTitle(),
                 configDefinition.getVersion().toString(),
                 configDefinition.getJsonSchema(),
-                configDefinition.getUiSchema()
-        );
+                configDefinition.getUiSchema());
     }
 
     @Override
     public String initGameSponsored(InitGameRequestDTO request, Long userId) {
-         
+
         ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
 
         // 2. Validar juego
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
-            .orElseThrow(() -> new ValidationException("Game not available"));
+                .orElseThrow(() -> new ValidationException("Game not available"));
 
         // 3. Seleccionar campaña válida para el juego
         Campaign campaign = campaignRepository.findRandomActiveCampaignByGameId(gameId)
-            .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
+                .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
 
         // 4. Crear sesión
         GameSession session = GameSession.start(consumer, game, resolvePlatform(), campaign);
 
         // 5. Persistir
-        GameSession savedSession = gameSessionRepository.save(java.util.Objects.requireNonNull(session, "session must not be null"));
+        GameSession savedSession = gameSessionRepository
+                .save(java.util.Objects.requireNonNull(session, "session must not be null"));
 
         String sessionToken = savedSession.getSessionToken();
         String userHash = savedSession.getUserHash();
         String isBrandedMode = "true";
         Long campaignId = campaign.getId();
-        
+
         String baseUrl = generateGameUrl(game);
-        
-        //Para pruebas
+
+        // Para pruebas
         // String testUrl = String.format(
-        //     "http://localhost:63035/?game_title=%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-        //     game.getUrl(), sessionToken, userHash, isBrandedMode, campaignId
+        // "http://localhost:63035/?game_title=%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+        // game.getUrl(), sessionToken, userHash, isBrandedMode, campaignId
         // );
 
         return String.format(
-            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-            baseUrl, sessionToken, userHash, isBrandedMode, campaignId
-        );
+                "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+                baseUrl, sessionToken, userHash, isBrandedMode, campaignId);
     }
 
     @Override
@@ -135,28 +138,24 @@ public class GameServiceImpl implements GameService {
         Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
 
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
-            .orElseThrow(() -> new ValidationException("Game not available"));
+                .orElseThrow(() -> new ValidationException("Game not available"));
 
         String baseUrl = generateGameUrl(game);
 
         return String.format(
-            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-            baseUrl, "public", userId.toString(), "false", "none"
-        );
+                "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+                baseUrl, "public", userId.toString(), "false", "none");
     }
 
     @Transactional(readOnly = true)
-    public Map<String,Object> getGameAssets(GameEventDTO<Void> req) {
+    public Map<String, Object> getGameAssets(GameEventDTO<Void> req) {
         if (req.getCampaignId() == null) {
             throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
         }
 
         Campaign campaign = campaignRepository.findById(req.getCampaignId())
-            .orElseThrow(() ->
-                new ObjectNotFoundException(
-                    "Campaign not found with id: " + req.getCampaignId(), Campaign.class
-                )
-            );
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "Campaign not found with id: " + req.getCampaignId(), Campaign.class));
         return campaign.getConfigData();
     }
 
@@ -170,7 +169,7 @@ public class GameServiceImpl implements GameService {
 
         // Obtener definiciones de métricas del juego
         List<GameMetricDefinition> definitions = metricDefinitionRepository
-            .findByGameId(session.getGame().getId());
+                .findByGameId(session.getGame().getId());
 
         List<GameMetricDTO> metrics = event.getPayload();
 
@@ -179,11 +178,11 @@ public class GameServiceImpl implements GameService {
 
         // Convertir y guardar métricas
         List<GameSessionMetric> sessionMetrics = metrics.stream()
-            .map(dto -> buildSessionMetric(dto, session))
-            .collect(Collectors.toList());
+                .map(dto -> buildSessionMetric(dto, session))
+                .collect(Collectors.toList());
 
         gameSessionMetricRepository.saveAll(java.util.Objects.requireNonNull(
-            sessionMetrics, "sessionMetrics must not be null"));
+                sessionMetrics, "sessionMetrics must not be null"));
 
         // Devolver los puntos ganados por el usuario
 
@@ -200,20 +199,19 @@ public class GameServiceImpl implements GameService {
         session.setCompleted(true);
         session.setEndTime(end);
         session.setPlayTimeSeconds(
-            java.time.Duration.between(session.getStartTime(), end).getSeconds()
-        );
+                java.time.Duration.between(session.getStartTime(), end).getSeconds());
         session.setScore(event.getPayload().getFinalScore());
 
         gameSessionRepository.save(session);
     }
 
     @Override
-    public PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable) {
+    public PagedResponse<GameDTO> getAvailableGamesPage(Pageable pageable) {
         Page<GameDTO> page = gameRepository.findAvailableGames(pageable);
         return PagedResponse.from(page);
     }
 
-    //Métodos privados auxiliares
+    // Métodos privados auxiliares
 
     private String generateGameUrl(Game game) {
         String baseUrl;
@@ -221,24 +219,22 @@ public class GameServiceImpl implements GameService {
         if (game.getDeliveryType() == Game.DeliveryType.PATH) {
 
             // Para justudios
-            baseUrl = String.format("https://%s/%s/build/?",
-                "justudios.co/test-verygana",
-                game.getUrl()
-            );
+            baseUrl = String.format("https://%s/%s/?",
+                    "cdn.verygana.com",
+                    game.getUrl());
 
             // baseUrl = String.format("https://%s/%s/%s/%s/?",
-            //     cdnUrl,
-            //     "builds/build-bogota",
-            //     "28-04-2026", // Cambia segun version
-            //     game.getUrl()
+            // cdnUrl,
+            // "builds/build-bogota",
+            // "28-04-2026", // Cambia segun version
+            // game.getUrl()
             // );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
             baseUrl = String.format("https://%s/%s/?game_title=%s&",
-                cdnUrl,
-                "builds/build-cali",
-                game.getUrl()
-            );
+                    cdnUrl,
+                    "builds/build-cali",
+                    game.getUrl());
         } else {
             throw new ValidationException("Unsupported routing type");
         }
@@ -253,15 +249,15 @@ public class GameServiceImpl implements GameService {
     private GameSession validateSessionOwnership(String sessionToken, String userHash) {
 
         GameSession session = gameSessionRepository.findBySessionToken(
-            java.util.Objects.requireNonNull(sessionToken, "sessionToken must not be null"))
-            .orElseThrow(() -> new EntityNotFoundException("Session not found"));
+                java.util.Objects.requireNonNull(sessionToken, "sessionToken must not be null"))
+                .orElseThrow(() -> new EntityNotFoundException("Session not found"));
 
         if (!session.getUserHash().equals(userHash)) {
             throw new UnauthorizedException("Session does not belong to user");
         }
 
         // if (!session.getConsumer().getId().equals(userId)) {
-        //     throw new UnauthorizedException("Session does not belong to user");
+        // throw new UnauthorizedException("Session does not belong to user");
         // }
 
         if (session.getStartTime().plusMinutes(sessionExpirationTime).isBefore(ZonedDateTime.now())) {
@@ -271,7 +267,7 @@ public class GameServiceImpl implements GameService {
         if (session.isCompleted()) {
             throw new BusinessException("Cannot submit metrics for completed session");
         }
-        
+
         return session;
     }
 
@@ -287,8 +283,45 @@ public class GameServiceImpl implements GameService {
     }
 
     private JsonNode toJsonNode(Object value) {
-    return value == null
-            ? objectMapper.nullNode()
-            : objectMapper.valueToTree(value);
+        return value == null
+                ? objectMapper.nullNode()
+                : objectMapper.valueToTree(value);
+    }
+
+    @Override
+    public List<RewardCardResponseDTO> getGameRewards(String gameSessionToken) {
+        GameSession session = gameSessionRepository.findBySessionToken(gameSessionToken)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Game session with token: " + gameSessionToken + " not found"));
+
+        List<Product> gameRewards = productRepository
+                .findGameRewardsProducts(session.getCampaign().getCommercial().getId());
+
+        if (gameRewards.isEmpty()) {
+            return List.of();
+        }
+
+        return gameRewards.stream()
+                .map(p -> RewardCardResponseDTO.builder()
+                        .id(p.getId())
+                        .name(p.getName())
+                        .imageUrl(p.getImageUrl())
+                        .imageMessage(p.getMaxKeysPct() + "% Descuento")
+                        .regularPrice(p.getPriceCents() / 100)
+                        .keysMessage("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
+                                + formatNumber(p.getMinCashCents() / 100) + " COP]]")
+                        .commercial(p.getCommercial().getCompanyName())
+                        .rating(p.getAverageRate())
+                        .cartUrl("cart")
+                        // .maxKeysAllowed(p.getMaxKeysAllowed())
+                        // .minCashCents(p.getMinCashCents())
+                        // .stock(p.getAvailableStock())
+                        // .categoryName(p.getProductCategory().getName())
+                        .build())
+                .toList();
+    }
+
+    private String formatNumber(long number) {
+        return String.format("%,d", number).replace(",", ".");
     }
 }

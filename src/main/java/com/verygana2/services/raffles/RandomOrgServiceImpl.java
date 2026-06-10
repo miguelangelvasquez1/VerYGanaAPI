@@ -14,6 +14,8 @@ import org.springframework.web.client.RestTemplate;
 
 import com.verygana2.dtos.raffle.requests.RandomOrgParams;
 import com.verygana2.dtos.raffle.requests.RandomOrgRequestDTO;
+import com.verygana2.dtos.raffle.responses.RandomOrgDrawMetadata;
+import com.verygana2.dtos.raffle.responses.RandomOrgDrawResult;
 import com.verygana2.dtos.raffle.responses.RandomOrgResponseDTO;
 import com.verygana2.exceptions.rafflesExceptions.RandomOrgException;
 import com.verygana2.services.interfaces.raffles.RandomOrgService;
@@ -36,14 +38,12 @@ public class RandomOrgServiceImpl implements RandomOrgService {
 
     @Override
     @SuppressWarnings("null")
-    public List<Integer> generateRandomIntegers(int min, int max, int count) {
+    public RandomOrgDrawResult generateRandomIntegers(int min, int max, int count) {
 
         log.info("Requesting {} random integers from Random.org (range: {}-{})", count, min, max);
 
-        // Validaciones
         validateParameters(min, max, count);
 
-        // Construir request
         RandomOrgRequestDTO request = RandomOrgRequestDTO.builder().jsonrpc("2.0").method("generateIntegers")
                 .params(RandomOrgParams.builder()
                         .apiKey(apiKey)
@@ -55,17 +55,14 @@ public class RandomOrgServiceImpl implements RandomOrgService {
                 .id(UUID.randomUUID().toString())
                 .build();
 
-        // Configurar headers
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         HttpEntity<RandomOrgRequestDTO> entity = new HttpEntity<>(request, headers);
 
         try {
-            // Llamar a la API
             ResponseEntity<RandomOrgResponseDTO> response = restTemplate.postForEntity(apiUrl, entity,
                     RandomOrgResponseDTO.class);
 
-            // Validar respuesta
             RandomOrgResponseDTO body = response.getBody();
 
             if (body == null) {
@@ -73,29 +70,33 @@ public class RandomOrgServiceImpl implements RandomOrgService {
             }
 
             if (body.getError() != null) {
-                log.error("Random.org API error : {} - {}", body.getError().getCode(), body.getError().getMessage());
-                throw new RandomOrgException("Random.org error :" + body.getError().getMessage());
+                log.error("Random.org API error: {} - {}", body.getError().getCode(), body.getError().getMessage());
+                throw new RandomOrgException("Random.org error: " + body.getError().getMessage());
             }
 
             if (body.getResult() == null || body.getResult().getRandom() == null) {
                 throw new RandomOrgException("Random.org returned invalid result");
             }
 
-            List<Integer> randomIndexes = body.getResult().getRandom().getData();
+            List<Integer> indices = body.getResult().getRandom().getData();
 
-            log.info("Random.org response: {} indices generated. Serial: {}, Bits used: {}, Bits left: {}",
-                    randomIndexes.size(),
-                    body.getResult().getRandom().getSerialNumber(),
-                    body.getResult().getBitsUsed(),
-                    body.getResult().getBitsLeft());
+            RandomOrgDrawMetadata metadata = RandomOrgDrawMetadata.builder()
+                    .serialNumber(body.getResult().getRandom().getSerialNumber())
+                    .completionTime(body.getResult().getRandom().getCompletionTime())
+                    .bitsUsed(body.getResult().getBitsUsed())
+                    .bitsLeft(body.getResult().getBitsLeft())
+                    .build();
 
-            return randomIndexes;
+            log.info("Random.org response: {} indices generated. Serial: {}, CompletionTime: {}, Bits used: {}, Bits left: {}",
+                    indices.size(), metadata.getSerialNumber(), metadata.getCompletionTime(),
+                    metadata.getBitsUsed(), metadata.getBitsLeft());
+
+            return new RandomOrgDrawResult(indices, metadata);
 
         } catch (RestClientException e) {
             log.error("Failed to connect to Random.org", e);
-            throw new RandomOrgException("Failed to generate random number from Random.org: " + e.getMessage() + e);
+            throw new RandomOrgException("Failed to connect to Random.org: " + e.getMessage());
         }
-
     }
 
     /**

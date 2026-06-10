@@ -61,8 +61,8 @@ class RaffleTicketServiceImplTest {
         r.setRaffleStatus(RaffleStatus.ACTIVE);
         r.setRaffleType(type);
         r.setEndDate(ZonedDateTime.now().plusDays(1));
-        r.setTotalTicketsIssued(0L);
-        r.setTotalParticipants(0L);
+        r.setTotalTicketsIssued(0);
+        r.setTotalParticipants(0);
         r.setMaxTotalTickets(null);
         r.setMaxTicketsPerUser(null);
         return r;
@@ -169,8 +169,8 @@ class RaffleTicketServiceImplTest {
         @DisplayName("throws LimitReachedException when raffle total limit is reached")
         void throwsWhenTotalLimitReached() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
-            raffle.setMaxTotalTickets(5L);
-            raffle.setTotalTicketsIssued(5L);
+            raffle.setMaxTotalTickets(5);
+            raffle.setTotalTicketsIssued(5);
 
             ConsumerDetails consumer = consumer(1L, false);
             RaffleRule rule = unlimitedRule();
@@ -188,8 +188,8 @@ class RaffleTicketServiceImplTest {
         @DisplayName("throws LimitReachedException when per-user limit would be exceeded")
         void throwsWhenUserLimitExceeded() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
-            raffle.setMaxTicketsPerUser(3L);
-            raffle.setTotalTicketsIssued(0L);
+            raffle.setMaxTicketsPerUser(3);
+            raffle.setTotalTicketsIssued(0);
 
             ConsumerDetails consumer = consumer(1L, false);
             RaffleRule rule = unlimitedRule();
