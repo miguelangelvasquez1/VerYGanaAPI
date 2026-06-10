@@ -110,6 +110,21 @@ games:
   session-expiration-minutes: 30
 
 # ============================================
+# ADS CONFIG
+# ============================================
+ads:
+  watch-session-expiration-minutes: 5
+  cooldown-minutes: 60
+  scoring:
+    category-match: 40.0
+    age-match: 15.0
+    gender-match: 15.0
+    opportunity-ratio: 20.0
+    recency-penalty: 20.0
+    recency-decay-window-minutes: 10080
+    candidate-limit: 50
+
+# ============================================
 # TREASURY DISTRIBUTION
 # ============================================
 treasury:
@@ -146,9 +161,9 @@ purchase:
 # TWILIO CONFIG (Verify para OTP SMS)
 # ============================================
 twilio:
-  account-sid: ${TWILIO_ACCOUNT_SID}
-  auth-token: ${TWILIO_AUTH_TOKEN}
-  verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID}
+  account-sid: ${TWILIO_ACCOUNT_SID:1}
+  auth-token: ${TWILIO_AUTH_TOKEN:1}
+  verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID:1}
 
 # ============================================
 # WOMPI CONFIG

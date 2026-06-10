@@ -44,6 +44,7 @@ public interface UserMapper {
     @Mapping(target = "keyWallet", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
+    @Mapping(target = "lastDailyLoginDate", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- COMMERCIAL ----

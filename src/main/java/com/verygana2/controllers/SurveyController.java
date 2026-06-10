@@ -94,14 +94,12 @@ public class SurveyController {
         return ResponseEntity.ok(surveyService.getUserRewardsSummary(jwt.getClaim("userId")));
     }
 
-    // FOR ADMIN:
-
     @PreAuthorize("hasRole('COMMERCIAL')")
-    @GetMapping("/cost-per-response")
-    public ResponseEntity<Map<String, Long>> getCostPerResponse() {
+    @GetMapping("/cost-per-question")
+    public ResponseEntity<Map<String, Long>> getCostPerQuestion() {
 
-        return ResponseEntity.ok(Map.of("costPerResponse", 
-        pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS) * 100)); 
+        return ResponseEntity.ok(Map.of("costPerQuestion", 
+        pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS) / 100L)); 
     }
 
     @PreAuthorize("hasRole('COMMERCIAL')")
@@ -145,12 +143,13 @@ public class SurveyController {
      * PATCH /api/v1/admin/surveys/{surveyId}/publish
      * Moves a DRAFT survey to ACTIVE.
      */
-    @PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     @PatchMapping("/{surveyId}/publish")
     public ResponseEntity<SurveyResponseDTO> publishSurvey(
-            @PathVariable Long surveyId) {
- 
-        return ResponseEntity.ok(surveyService.publishSurvey(surveyId));
+            @PathVariable Long surveyId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.publishSurvey(surveyId, jwt.getClaim("userId")));
     }
  
     /**

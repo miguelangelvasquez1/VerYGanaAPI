@@ -2,6 +2,7 @@ package com.verygana2.services.surveys;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -31,19 +32,23 @@ import com.verygana2.models.surveys.QuestionOption;
 import com.verygana2.models.surveys.Survey;
 import com.verygana2.models.surveys.SurveyAnswer;
 import com.verygana2.models.PricingConfig;
+import com.verygana2.models.finance.Wallet;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
+import com.verygana2.repositories.WalletRepository;
 import com.verygana2.models.surveys.SurveyQuestion;
 import com.verygana2.models.surveys.SurveyResponse;
 import com.verygana2.models.surveys.SurveyReward;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.repositories.CategoryRepository;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.repositories.surveys.SurveyRepository;
 import com.verygana2.repositories.surveys.SurveyResponseRepository;
 import com.verygana2.services.PricingConfigService;
+import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,46 +59,76 @@ public class SurveyService {
  
     private final SurveyRepository surveyRepository;
     private final SurveyResponseRepository responseRepository;
-    private final CategoryRepository categoryRepository;
-    private final MunicipalityRepository municipalityRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final ConsumerDetailsRepository userDetailsRepository;
+    private final WalletRepository walletRepository;
     private final SurveyMapper mapper;
     private final RewardService rewardService;
     private final PricingConfigService pricingConfigService;
- 
-    // ─── Admin: create survey ─────────────────────────────────────────────────
- 
+    private final CategoryService categoryService;
+    private final TargetingValidator targetingValidator;
+  
     @Transactional
-    public SurveyResponseDTO createSurvey(CreateSurveyRequest request, Long userId) {
-        Survey survey = mapper.fromCreateRequest(request);
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS})
+    public SurveyResponseDTO createSurvey(CreateSurveyRequest request, Long commercialId) {
 
-        attachQuestions(request, survey);
- 
-        List<Category> categories = categoryRepository.findAllById(request.getCategoryIds());
-        survey.setCategories(categories);
- 
-        if (request.getMunicipalityCodes() != null && !request.getMunicipalityCodes().isEmpty()) {
-            List<Municipality> municipalities =
-                municipalityRepository.findAllById(request.getMunicipalityCodes());
-            survey.setTargetMunicipalities(municipalities);
+        long minPricePerQuestion = pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS);
+        long pricePerQuestionCents = request.getPricePerQuestionCents();
+
+        if (pricePerQuestionCents < minPricePerQuestion) {
+            throw new ValidationException(String.format(
+                    "El precio por pregunta (%d ¢) es menor al mínimo permitido (%d ¢)",
+                    pricePerQuestionCents, minPricePerQuestion));
         }
- 
+
+        Survey survey = mapper.fromCreateRequest(request);
+        attachQuestions(request, survey);
+
+        List<Category> selectedCategories = categoryService.getValidatedCategories(request.getCategoryIds());
+        survey.setCategories(selectedCategories);
+
+        List<Municipality> municipalities = Collections.emptyList();
+        if (request.getMunicipalityCodes() != null && !request.getMunicipalityCodes().isEmpty()) {
+            municipalities = targetingValidator.getValidatedMunicipalities(request.getMunicipalityCodes());
+        }
+
+        int questionCount = request.getQuestions().size();
+        long totalBudgetCents = pricePerQuestionCents * questionCount * request.getMaxResponses().longValue();
+
+        Wallet wallet = walletRepository.findByCommercialId(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+
+        wallet.consume(totalBudgetCents);
+        walletRepository.save(wallet);
+
+        survey.setTargetMunicipalities(municipalities);
         survey.setStatus(Survey.SurveyStatus.DRAFT);
-        survey.setRewardAmountPerQuestionCents(pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS));
-        survey.setCreator(commercialDetailsRepository.findByUser_Id(userId)
-            .orElseThrow(() -> new EntityNotFoundException("Commercial details not found for user: " + userId)));
+        survey.setRewardAmountPerQuestionCents(pricePerQuestionCents);
+        survey.setCreator(commercialDetailsRepository.findByUser_Id(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Comercial no encontrado: " + commercialId)));
+
         Survey saved = surveyRepository.save(survey);
-        log.info("Survey created with id={}", saved.getId());
+        log.info("Survey {} created for commercial {}. Budget deducted: {} ¢",
+                saved.getId(), commercialId, totalBudgetCents);
         return mapper.toResponse(saved);
     }
 
-    public PagedResponse<SurveySummaryResponse> getAllSurveysForCommercial(Pageable pageable, Long userId) {
-        Page<SurveySummaryResponse> page = surveyRepository.findAllByCreatorId(pageable, userId)
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS})
+    public PagedResponse<SurveySummaryResponse> getAllSurveysForCommercial(Pageable pageable, Long commercialId) {
+        Page<SurveySummaryResponse> page = surveyRepository.findAllByCreatorId(pageable, commercialId)
             .map(mapper::toSummaryResponse);
         return PagedResponse.from(page);
     }
 
+    @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS})
+    public SurveyResponseDTO publishSurvey(Long surveyId, Long commercialId) {
+        Survey survey = findSurveyOrThrow(surveyId);
+        survey.setStatus(Survey.SurveyStatus.ACTIVE);
+        return mapper.toResponse(surveyRepository.save(survey));
+    }
+
+    // ADMIN
     public PagedResponse<SurveySummaryResponse> getAllSurveys(Pageable pageable) {
         Page<SurveySummaryResponse> page = surveyRepository.findAll(pageable)
             .map(mapper::toSummaryResponse);
@@ -105,13 +140,7 @@ public class SurveyService {
         return mapper.toResponse(survey);
     }
  
-    @Transactional
-    public SurveyResponseDTO publishSurvey(Long surveyId) {
-        Survey survey = findSurveyOrThrow(surveyId);
-        survey.setStatus(Survey.SurveyStatus.ACTIVE);
-        return mapper.toResponse(surveyRepository.save(survey));
-    }
- 
+    //admin, commercial
     @Transactional
     public SurveyResponseDTO updateSurveyStatus(Long surveyId, Survey.SurveyStatus status) {
         Survey survey = findSurveyOrThrow(surveyId);
@@ -131,7 +160,7 @@ public class SurveyService {
         ConsumerDetails user = userDetailsRepository.findById(userId)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
  
-            // REVISAR ESTO DE LA EDAD
+        // REVISAR ESTO DE LA EDAD
         Integer age = user.getAge();
         String gender = user.getGender() != null ? user.getGender().name() : null;
  
@@ -272,13 +301,10 @@ public class SurveyService {
 
                     options.add(option);
                 }
-
                 question.setOptions(options);
             }
-
             questions.add(question);
         }
-
         survey.setQuestions(questions);
     }
  

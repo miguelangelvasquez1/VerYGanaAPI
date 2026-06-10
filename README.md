@@ -162,7 +162,9 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
-- wallets en cents, ver que los asstes se borren del cdn. mejorar el coso de like ad vista. preguntar a nestor, validar que el flujo sea perfecto.
+- probar max_ads, max_surveys, hacer el createSurvey full, organizar metodos por roll, 
 
-- revisar app.security.monitoring
-- CAMBIAR WALLETS Y TRANSACTIONS A CENTAVOS?
+- star?date no se muestra bien?,
+- ver que los asstes se borren del cdn.
+
+- revisar app.security.monitoring, muchos active tokens

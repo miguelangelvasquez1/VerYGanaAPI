@@ -87,8 +87,9 @@ public interface SurveyMapper {
     @Mapping(target = "responses",            ignore = true)
     @Mapping(target = "createdAt",            ignore = true)
     @Mapping(target = "updatedAt",            ignore = true)
-    @Mapping(target = "rewardAmountPerQuestionCents",         ignore = true)
-    @Mapping(target = "creator",              ignore = true)
+    @Mapping(target = "rewardAmountPerQuestionCents", ignore = true)
+    @Mapping(target = "creator",                      ignore = true)
+    @Mapping(target = "endsAt",                       ignore = true)
     Survey fromCreateRequest(CreateSurveyRequest request);
  
     // ─── Default helpers (used in @Mapping expressions) ──────────────────────

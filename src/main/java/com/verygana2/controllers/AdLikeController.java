@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdLikeRequest;
+import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
 import com.verygana2.exceptions.BusinessException;
@@ -69,6 +70,18 @@ public class AdLikeController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/next")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<AdForConsumerDTO> getNextAd(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long consumerId = jwt.getClaim("userId");
+
+        return adLikeService.getNextAdForConsumer(consumerId)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{id}/has-liked")

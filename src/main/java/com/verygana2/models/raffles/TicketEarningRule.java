@@ -1,6 +1,5 @@
 package com.verygana2.models.raffles;
 
-import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;

@@ -196,7 +196,7 @@ SELECT
 FROM consumer_details cd
 JOIN users u ON u.id = cd.user_id
 WHERE u.email = 'consumer@verygana.com'
-ON DUPLICATE KEY UPDATE purchase_keys = VALUES(purchase_keys);
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
 
 
 -- ============================================================
@@ -225,4 +225,4 @@ SELECT
 FROM commercial_details cd
 JOIN users u ON u.id = cd.user_id
 WHERE u.email = 'comercial@verygana.com'
-ON DUPLICATE KEY UPDATE balance_cents = VALUES(balance_cents), status = VALUES(status);
+ON DUPLICATE KEY UPDATE commercial_id = commercial_id;

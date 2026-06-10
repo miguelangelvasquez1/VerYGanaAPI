@@ -15,6 +15,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.Category;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
@@ -97,6 +98,19 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
 
        // ------------------------ Consultas para usuarios consumer --------------------------
 
+       /**
+        * Retorna anuncios candidatos que pasan TODOS los hard filters.
+        * La selección final del mejor candidato se realiza en {@code AdScorer} mediante scoring ponderado.
+        *
+        * <p>Hard filters aplicados:
+        * <ul>
+        *   <li>status = ACTIVE, currentLikes &lt; maxLikes, dentro del rango de fechas</li>
+        *   <li>Municipio: si el anuncio tiene municipios objetivo, el consumidor debe pertenecer a uno</li>
+        *   <li>El usuario no ha dado like previamente (AdLike ni sesión LIKED)</li>
+        *   <li>Límite diario: si maxLikesPerUserPerDay está definido, no puede haberlo superado hoy</li>
+        *   <li>Cooldown: el usuario no ha visto este anuncio dentro de la ventana de cooldown</li>
+        * </ul>
+        */
        @Query("""
               SELECT a FROM Ad a
               WHERE a.status = :status
@@ -104,43 +118,9 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               AND (a.startDate IS NULL OR a.startDate <= :now)
               AND (a.endDate IS NULL OR a.endDate > :now)
 
-              AND NOT EXISTS (
-                     SELECT 1 FROM AdLike al
-                     WHERE al.ad.id = a.id
-                     AND al.consumer.id = :consumerId
-              )
-
-              AND EXISTS (
-                     SELECT 1
-                     FROM ConsumerDetails cd
-                     JOIN cd.categories c
-                     WHERE cd.id = :consumerId
-                     AND c MEMBER OF a.categories
-              )
-
-              AND NOT EXISTS (
-                     SELECT 1 FROM AdWatchSession s
-                     WHERE s.ad.id = a.id
-                     AND s.consumer.id = :consumerId
-                     AND s.status IN :blockedStatuses
-              )
-
-              ORDER BY a.createdAt DESC
-       """)
-       List<Ad> findFirstAvailableAdForUser(
-              @Param("consumerId") Long consumerId,
-              @Param("status") AdStatus status,
-              @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
-              @Param("now") ZonedDateTime now,
-              Pageable pageable
-       );
-       
-       @Query("""
-              SELECT a FROM Ad a
-              WHERE a.status = :status
-              AND a.currentLikes < a.maxLikes
-              AND (a.startDate IS NULL OR a.startDate <= :now)
-              AND (a.endDate IS NULL OR a.endDate > :now)
+              AND (:municipality IS NULL
+                   OR a.targetMunicipalities IS EMPTY
+                   OR :municipality MEMBER OF a.targetMunicipalities)
 
               AND NOT EXISTS (
                      SELECT 1 FROM AdLike al
@@ -155,13 +135,39 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      AND s.status IN :blockedStatuses
               )
 
-              ORDER BY a.createdAt DESC
+              AND NOT EXISTS (
+                     SELECT 1 FROM AdWatchSession sa
+                     WHERE sa.ad.id = a.id
+                     AND sa.consumer.id = :consumerId
+                     AND sa.status = :activeStatus
+                     AND sa.expiresAt > :now
+              )
+
+              AND (a.maxLikesPerUserPerDay IS NULL OR (
+                     SELECT COUNT(sd) FROM AdWatchSession sd
+                     WHERE sd.ad.id = a.id
+                     AND sd.consumer.id = :consumerId
+                     AND sd.status = :likedStatus
+                     AND sd.startedAt >= :todayStart
+              ) < a.maxLikesPerUserPerDay)
+
+              AND NOT EXISTS (
+                     SELECT 1 FROM AdWatchSession sc
+                     WHERE sc.ad.id = a.id
+                     AND sc.consumer.id = :consumerId
+                     AND sc.startedAt >= :cooldownThreshold
+              )
        """)
-       List<Ad> findNextAdWithoutCategoryMatch(
+       List<Ad> findEligibleAdsForConsumer(
               @Param("consumerId") Long consumerId,
               @Param("status") AdStatus status,
               @Param("blockedStatuses") Collection<AdWatchSessionStatus> blockedStatuses,
+              @Param("likedStatus") AdWatchSessionStatus likedStatus,
               @Param("now") ZonedDateTime now,
+              @Param("municipality") Municipality municipality,
+              @Param("todayStart") ZonedDateTime todayStart,
+              @Param("cooldownThreshold") ZonedDateTime cooldownThreshold,
+              @Param("activeStatus") AdWatchSessionStatus activeStatus,
               Pageable pageable
        );
 

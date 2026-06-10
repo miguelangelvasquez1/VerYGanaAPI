@@ -3,6 +3,8 @@ package com.verygana2.mappers;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
+import org.mapstruct.Named;
+import org.springframework.beans.factory.annotation.Value;
 
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
@@ -10,14 +12,23 @@ import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 @Mapper(componentModel = "spring")
-public interface ConsumerDetailsMapper {
-    
-    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys")
-    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeys")
-    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys")
-    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys")
-    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys")
-    ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO (ConsumerDetails consumer);
+public abstract class ConsumerDetailsMapper {
+
+    @Value("${financial.key-value-cents:1000}")
+    protected long keyValueCents;
+
+    @Named("centsToKeys")
+    protected Long centsToKeys(Long cents) {
+        if (cents == null) return 0L;
+        return cents / keyValueCents;
+    }
+
+    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys", qualifiedByName = "centsToKeys")
+    public abstract ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO(ConsumerDetails consumer);
     
     @Mapping(target = "id", source = "user.id")
     @Mapping(target = "email", source = "consumer.user.email")
@@ -25,7 +36,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "role", source = "consumer.user.role")
     @Mapping(target = "userState", source = "consumer.user.userState")
     @Mapping(target = "department", ignore = true)
-    ConsumerProfileResponseDTO toConsumerProfileResponseDTO (ConsumerDetails consumer);
+    public abstract ConsumerProfileResponseDTO toConsumerProfileResponseDTO(ConsumerDetails consumer);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
@@ -52,7 +63,8 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "keyWallet", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
-    void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
+    @Mapping(target = "lastDailyLoginDate", ignore = true)
+    public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     
 }

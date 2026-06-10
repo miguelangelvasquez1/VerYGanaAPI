@@ -16,8 +16,10 @@ public @interface RequirePlanCapability {
     enum Capability {
         CAN_ADVERTISE,
         CAN_USE_GAMES,
-        PRODUCT_LIMIT,
-        AD_LIMIT,
-        BRANDED_GAME_LIMIT
+        CAN_USE_SURVEYS,
+        MAX_PRODUCTS,
+        MAX_ADS,
+        MAX_BRANDED_GAMES,
+        MAX_SURVEYS
     }
 }

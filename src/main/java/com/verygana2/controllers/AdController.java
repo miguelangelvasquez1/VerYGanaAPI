@@ -26,7 +26,6 @@ import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
-import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
@@ -180,33 +179,6 @@ public class AdController {
         
         AdResponseDTO ad = adService.pauseAdAsCommercial(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
-    }
-
-    // ==================== ENDPOINTS PARA USUARIOS CONSUMER ====================
-
-    @GetMapping("/next")
-    @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<AdForConsumerDTO> getNextAd(
-            @AuthenticationPrincipal Jwt jwt
-    ) {
-        Long consumerId = jwt.getClaim("userId");
-
-        return adService.getNextAdForConsumer(consumerId)
-            .map(ResponseEntity::ok)
-            .orElseGet(() -> ResponseEntity.noContent().build());
-    }
-
-    @GetMapping("/user/available/count")
-    @PreAuthorize("hasRole('CONSUMER')")
-    public ResponseEntity<Long> countAvailableAdsForUser(
-            @AuthenticationPrincipal Jwt jwt
-    ) {
-        Long userId = jwt.getClaim("userId");
-        long count = adService.countAvailableAdsForUser(userId);
-        
-        log.debug("Usuario {} tiene {} anuncios disponibles", userId, count);
-        
-        return ResponseEntity.ok(count);
     }
 
     //Stats anunciantes
