@@ -160,11 +160,17 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --include "*.wasm.gz" `
   --content-encoding gzip `
   --content-type application/wasm
+  
 
+anadir politica de planes?, ver todo despues de haber preguntado a nestor, seguir con el panel de designer. hacer que al subir un archivo se guarde de una vez en el json. logout con backend
+- ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero), hacer gestion de solicitudes admin, hacer gestion de solicitudes designer(panel, etc)
 
-- probar max_ads, max_surveys, hacer el createSurvey full, organizar metodos por roll, 
+- hacer panel para solicitar juego, crear nuevo rol, trasladar panel de creacion de juegos, etc.
+- probar subir video a ads
+- probar max_ads, max_surveys, flujo de sesiones y recompena bien revisar.
 
-- star?date no se muestra bien?,
+- star?date no se muestra bien?, fecha de iniico... para surveys tambien
 - ver que los asstes se borren del cdn.
+- ver que se puede editar o no despues de los contratos
 
 - revisar app.security.monitoring, muchos active tokens

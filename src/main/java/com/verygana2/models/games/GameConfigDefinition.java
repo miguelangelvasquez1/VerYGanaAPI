@@ -67,24 +67,26 @@ public class GameConfigDefinition {
     
     @Column(name = "created_by", length = 100)
     private String createdBy;
-    
+
+    // CONFIG DE RECOMPENSAS
+
+    @Column(name = "average_reward_per_session_cents")
+    private Long averageRewardPerSessionCents;
+
+    @Column(name = "completion_reward_cents")
+    private Long completionRewardCents;
+
+    @Column(name = "max_reward_per_session_cents")
+    private Long maxRewardPerSessionCents;
+
+    @Column(name = "score_reward_factor")
+    private Double scoreRewardFactor;
+
+    @Column(name = "average_duration_seconds")
+    private Integer averageDurationSeconds;
+
     @PrePersist
     protected void onCreate() {
         createdAt = ZonedDateTime.now();
     }
-
-    // @Column(name = "block_key", nullable = false)
-    // private String blockKey; // root, branding
-
-    // @Column(name = "json_key", nullable = false)
-    // private String jsonKey; // colors, rewards, texts, etc
-
-    // @Column(name = "config_schema", columnDefinition = "json", nullable = false)
-    // private String schema; // json de los nodos hijos con su tipo de dato
-
-    // @Column(name = "required", nullable = false)
-    // private boolean required;
-
-    // @Column(name = "description")
-    // private String description;
 }

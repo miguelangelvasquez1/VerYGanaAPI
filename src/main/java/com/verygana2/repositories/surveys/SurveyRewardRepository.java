@@ -13,10 +13,9 @@ import com.verygana2.models.surveys.SurveyReward;
 
 @Repository
 public interface SurveyRewardRepository extends JpaRepository<SurveyReward, Long> {
- 
-    Page<SurveyReward> findByUserId(Long userId, Pageable pageable);
- 
-    @Query("SELECT COALESCE(SUM(r.amountCents), 0) FROM SurveyReward r WHERE r.user = :userId AND r.status = 'PROCESSED'")
-    BigDecimal getTotalRewardsByUser(@Param("userId") Long userId);
+
+    Page<SurveyReward> findBySessionConsumerId(Long consumerId, Pageable pageable);
+
+    @Query("SELECT COALESCE(SUM(r.amountCents), 0) FROM SurveyReward r WHERE r.session.consumer.id = :consumerId AND r.status = 'PROCESSED'")
+    BigDecimal getTotalRewardsByConsumer(@Param("consumerId") Long consumerId);
 }
- 

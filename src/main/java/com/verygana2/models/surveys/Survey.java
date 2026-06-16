@@ -129,7 +129,7 @@ public class Survey {
  
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<SurveyResponse> responses = new ArrayList<>();
+    private List<SurveySession> sessions = new ArrayList<>();
  
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -143,8 +143,7 @@ public class Survey {
         LocalDateTime now = LocalDateTime.now();
         return status == SurveyStatus.ACTIVE
             && (startsAt == null || !now.isBefore(startsAt))
-            && (endsAt == null || !now.isAfter(endsAt))
-            && (maxResponses == null || responseCount < maxResponses);
+            && (endsAt == null || !now.isAfter(endsAt));
     }
  
     public enum SurveyStatus {

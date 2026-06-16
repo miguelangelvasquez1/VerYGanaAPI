@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Pageable;
@@ -18,13 +17,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
-import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
-import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateAssetRequestDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
@@ -38,8 +34,6 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.CampaignStatus;
-import com.verygana2.models.enums.MediaType;
-import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
@@ -53,8 +47,6 @@ import com.verygana2.repositories.games.GameConfigDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.CampaignService;
 import com.verygana2.services.interfaces.CategoryService;
-import com.verygana2.storage.service.AssetOrphanedService;
-import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
 import com.verygana2.utils.validators.games.ValidationPipeline;
 
@@ -78,7 +70,6 @@ public class CampaignServiceImpl implements CampaignService {
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
     private final CampaignMapper campaignMapper;
-    private final AssetOrphanedService assetOrphanedService;
     private final CampaignRepository campaignRepository;
     private final GameRepository gameRepository;
     private final GameAssetDefinitionRepository assetDefinitionRepository;
@@ -86,98 +77,7 @@ public class CampaignServiceImpl implements CampaignService {
     private final ValidationPipeline validationPipeline;
     private final AssetRepository assetRepository;
     private final GameMapper gameMapper;
-    private final R2Service r2Service;
     private final Clock clock;
-
-    /**
-     * 1. Generate presigned upload URL for direct upload to R2
-     * Creates temporary asset record
-     */
-    @Transactional
-    @Override
-    public AssetUploadPermissionDTO generateUploadUrl(FileUploadRequestDTO request, Long userId) {
-        log.info("Generating upload URL for file: {}", request.getOriginalFileName());
-        
-        // Validate file type
-        MediaType assetType = MediaType.fromMimeType(request.getContentType());
-        
-        // Generate unique asset key
-        String assetKey = UUID.randomUUID().toString();
-        String objectKey = String.format("campaigns/commercial-%s/%s/%s", userId, assetType.getValue(), assetKey);
-        
-        // Generate presigned upload URL from R2
-        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(
-            true,
-            objectKey,
-            request.getContentType()
-        );
-        
-        // Generate final public URL
-        String temporalUrl = r2Service.getPrivateObject(objectKey, 2000);
-        
-        // Create temporary asset record
-        Asset asset = Asset.builder()
-            .objectKey(objectKey)
-            .mediaType(assetType)
-            .mimeType(SupportedMimeType.fromValue(request.getContentType()))
-            .sizeBytes(request.getSizeBytes())
-            .status(AssetStatus.PENDING)
-            .uploadedBy(userId)
-            .build();
-        
-        asset = assetRepository.save(asset);
-        
-        log.info("Created temporary asset record with ID: {}", asset.getId());
-        
-        return AssetUploadPermissionDTO.builder()
-            .assetId(asset.getId())
-            .temporalUrl(temporalUrl)
-            .publicUrl("https://cdn.verygana.com/public/" + objectKey)
-            .permission(permission)
-            .build();
-    }
-    
-    /**
-     * 2. Confirm asset upload after client successfully     uploads to R2
-     */
-    @Transactional
-    @Override
-    public void confirmUpload(AssetConfirmRequest request) {
-        log.info("Confirming upload for asset ID: {}", request.getAssetId());
-        Asset asset = null;
-
-        try {
-
-            asset = assetRepository.findById(request.getAssetId())
-                .orElseThrow(() -> new IllegalArgumentException("Asset not found: " + request.getAssetId()));
-            
-            if (asset.getStatus() != AssetStatus.PENDING) {
-                log.warn("Asset {} is not in PENDING status: {}", request.getAssetId(), asset.getStatus());
-                throw new IllegalStateException("Asset is not in pending status");
-            }
-            
-            // Verify upload actually succeeded (optional: call R2 HEAD request)
-            long maxSizeBytes = 1024*1024*10; // 10MB
-            Set<SupportedMimeType> allowedMimeType = SupportedMimeType.getSupportedMimeTypesForMediaType(asset.getMediaType());
-
-            SupportedMimeType realMime = r2Service.validateUploadedObject(true, asset.getObjectKey(), asset.getSizeBytes(), maxSizeBytes, allowedMimeType);
-            
-            if (realMime == null) {
-                log.error("Asset {} was not found in R2 storage", request.getAssetId());
-                throw new IllegalStateException("Asset upload verification failed");
-            }
-            
-            log.info("Asset upload confirmed: {}", request.getAssetId());
-            asset.setStatus(AssetStatus.VALIDATED);
-            asset.setMimeType(realMime);
-            assetRepository.save(asset);
-
-        } catch (Exception e) {
-            log.error("Error confirming asset upload: {}, marking asset as ORPHANED", e.getMessage());
-            assetOrphanedService.markAsOrphaned(request.getAssetId());
-            throw e;
-        }
-    }
 
     /**
      * Create new campaign with full validation

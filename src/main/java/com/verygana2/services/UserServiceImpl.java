@@ -2,8 +2,6 @@ package com.verygana2.services;
 
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
-import com.verygana2.services.interfaces.AvatarService;
-import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.services.interfaces.*;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,12 +10,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.GameDesignerRegisterDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.repositories.UserRepository;
-import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
@@ -44,6 +43,22 @@ public class UserServiceImpl implements UserService {
     private final OutboxService outboxService;
     private final LocationService locationService;
 
+    @Override
+    public User registerGameDesigner(GameDesignerRegisterDTO dto) {
+        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
+
+        User user = userMapper.toUser(dto);
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+
+        GameDesignerDetails details = userMapper.toGameDesignerDetails(dto);
+        details.setDesignerCode("GD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        details.setJoinedAt(LocalDate.now());
+        details.setUser(user);
+        user.setUserDetails(details);
+
+        return userRepository.save(user);
+    }
+
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
@@ -57,13 +72,6 @@ public class UserServiceImpl implements UserService {
         User savedUser = userRepository.save(user);
 
         return savedUser;
-    }
-
-    private String normalizeUsername(String u) {
-        return u == null ? null : u.trim();
-    }
-    private int calculateAge(LocalDate birthDate) {
-        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 
     @Override
@@ -109,6 +117,13 @@ public class UserServiceImpl implements UserService {
             );
         }
         return user;
+    }
+
+    private String normalizeUsername(String u) {
+        return u == null ? null : u.trim();
+    }
+    private int calculateAge(LocalDate birthDate) {
+        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {

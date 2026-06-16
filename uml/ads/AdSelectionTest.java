@@ -1,4 +1,4 @@
-package com.verygana2.services.ads;
+package ads;
 
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
@@ -11,6 +11,10 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
+import com.verygana2.services.ads.AdScorer;
+import com.verygana2.services.ads.AdScoringConfig;
+import com.verygana2.services.ads.AdScoringContext;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

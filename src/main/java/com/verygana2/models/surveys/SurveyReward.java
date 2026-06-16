@@ -1,10 +1,8 @@
 package com.verygana2.models.surveys;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import org.hibernate.annotations.CreationTimestamp;
-
-import com.verygana2.models.userDetails.ConsumerDetails;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,7 +13,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -31,34 +29,30 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SurveyReward {
- 
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
- 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private ConsumerDetails user;
- 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "survey_id", nullable = false)
-    private Survey survey;
- 
-    @Column(name = "amount", nullable = false, precision = 10, scale = 2)
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "session_id", nullable = false, unique = true)
+    private SurveySession session;
+
+    @Column(name = "amount", nullable = false)
     private Long amountCents;
- 
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private RewardStatus status = RewardStatus.PENDING;
- 
+
     @CreationTimestamp
     @Column(name = "granted_at", updatable = false)
-    private LocalDateTime grantedAt;
- 
+    private ZonedDateTime grantedAt;
+
     @Column(name = "processed_at")
-    private LocalDateTime processedAt;
- 
+    private ZonedDateTime processedAt;
+
     public enum RewardStatus {
         PENDING, PROCESSED, FAILED
     }

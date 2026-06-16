@@ -16,6 +16,7 @@ public class PublicPaths {
         "/ads/assets/orphan/**",
         "/games/assets",
         "/games/metrics",
+        "/game-designers/password/reset",
         "/api/payments/webhook",
         "/api/raffles/**",
         "/ws/**",
