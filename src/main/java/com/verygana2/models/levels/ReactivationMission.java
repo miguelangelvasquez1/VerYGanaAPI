@@ -1,0 +1,51 @@
+package com.verygana2.models.levels;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+/**
+ * Misión especial que se activa cuando el usuario vuelve tras 31+ días inactivo.
+ * Meta: ganar 200 llaves en 7 días para restaurar beneficios.
+ */
+@Entity
+@Table(name = "reactivation_mission")
+@Getter @Setter
+@NoArgsConstructor
+@Builder
+@AllArgsConstructor
+public class ReactivationMission {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(name = "consumer_id", nullable = false)
+    private Long consumerId;
+
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime startedAt;
+
+    /** startedAt + 7 días */
+    @Column(nullable = false)
+    private LocalDateTime expiresAt;
+
+    /** Meta fija según el documento: 200 llaves en 7 días */
+    @Column(nullable = false)
+    @Builder.Default
+    private Long keysGoal = 200L;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Long keysProgress = 0L;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean completed = false;
+
+    /** Si expiró sin completarse */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean expired = false;
+}

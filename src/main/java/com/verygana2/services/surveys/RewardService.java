@@ -3,6 +3,9 @@ package com.verygana2.services.surveys;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.verygana2.event.XpAwardRequestedEvent;
+import com.verygana2.models.enums.ActivityType;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,6 +28,7 @@ public class RewardService {
  
     private final SurveyRewardRepository rewardRepository;
     private final SurveyResponseRepository responseRepository;
+    private final ApplicationEventPublisher eventPublisher;
     // Inject your wallet/points service here:
     // private final UserWalletService walletService;
  
@@ -52,12 +56,15 @@ public class RewardService {
             reward.setStatus(SurveyReward.RewardStatus.PROCESSED);
             reward.setProcessedAt(LocalDateTime.now());
             log.info("Reward granted to user {} for survey {}: {}",userId, survey.getId(), reward.getAmount());
+
+            eventPublisher.publishEvent(
+                    new XpAwardRequestedEvent(this, userId, ActivityType.SURVEY_COMPLETED));
         } catch (Exception e) {
             reward.setStatus(SurveyReward.RewardStatus.FAILED);
             log.error("Failed to process reward for user {} survey {}: {}",
                 userId, survey.getId(), e.getMessage(), e);
         }
- 
+
         // Link reward to response
         surveyResponse.setReward(reward);
         surveyResponse.setStatus(SurveyResponse.ResponseStatus.REWARDED);
@@ -94,4 +101,6 @@ public class RewardService {
         log.debug("Crediting {} points to user {}", amount, userId);
         // walletService.addPoints(userId, amount);
     }
+
+
 }

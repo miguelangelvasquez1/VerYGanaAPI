@@ -8,6 +8,7 @@ import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.models.Municipality;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
+import com.verygana2.services.interfaces.levels.LevelService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -46,6 +47,7 @@ public class UserServiceImpl implements UserService {
     private final OutboxService outboxService;
     private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
+    private  final LevelService levelService;
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -77,8 +79,6 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
-        details.setUser(user);
-        user.setUserDetails(details);
 
         // === ASIGNACIÓN DEL MUNICIPIO ===
         if (dto.getMunicipalityCode() != null) {
@@ -100,10 +100,14 @@ public class UserServiceImpl implements UserService {
         userRepository.saveAndFlush(user);
         
         // Asignar hash
-        String userHash = userHashGenerator.generate(user.getId());
-        details.setUserHash(userHash);
+        details.setUserHash(userHashGenerator.generate(user.getId()));
+        details.setUser(user);
+        user.setUserDetails(details);
+
+        userRepository.saveAndFlush(user);
 
         keyWalletService.createFor(user.getId());
+        levelService.initializeProfile(user.getId());
 
         if (details.getReferredBy() != null) {
             outboxService.saveReferralEvent(

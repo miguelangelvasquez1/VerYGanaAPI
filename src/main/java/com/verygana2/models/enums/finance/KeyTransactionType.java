@@ -77,5 +77,7 @@ public enum KeyTransactionType {
      * Llaves devueltas al saldo disponible porque el copago fue rechazado o cancelado.
      * Revierte un RESERVE_COPAYMENT_PENDING.
      */
-    RELEASE_COPAYMENT_CANCELLED
+    RELEASE_COPAYMENT_CANCELLED,
+
+    DEBIT_PET_GAME
 }

@@ -1,10 +1,12 @@
 package com.verygana2.exceptions;
 
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
@@ -47,6 +49,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Unexpected error: ", ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request);
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, WebRequest request) {
+        log.warn("Business rule violation: {}", ex.getMessage());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
 
     // ==================== AUTENTICACIÓN Y AUTORIZACIÓN ====================
@@ -287,6 +295,29 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, "Transaction processing failed", request);
     }
 
+    // ── 404 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex, WebRequest request) {
+        log.warn("Entity not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    // ── 401 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
+        log.warn("Unauthorized: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    // ── helper ────────────────────────────────────────────────────────────────
+    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
+        return ResponseEntity.status(status).body(Map.of(
+                "status", status.value(),
+                "error", status.getReasonPhrase(),
+                "message", message,
+                "timestamp", ZonedDateTime.now().toString()
+        ));
+    }
     // ==================== MÉTODOS AUXILIARES ====================
 
     private ResponseEntity<ErrorResponse> buildError(

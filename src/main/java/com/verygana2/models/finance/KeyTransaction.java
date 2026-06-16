@@ -263,4 +263,16 @@ public class KeyTransaction {
                 .expiryProcessed(true)
                 .build();
     }
+
+    // KeyTransaction.java — agregar factory method
+    public static KeyTransaction forPetGame(
+            KeyWallet wallet, long keysSpent, String itemName) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.DEBIT_PET_GAME)
+                .purchaseKeysDelta(-keysSpent)
+                .reason("Mascota virtual: " + itemName)
+                .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
+                .build();
+    }
 }

@@ -17,6 +17,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys")
     @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys")
     @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys")
+    @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
     ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO (ConsumerDetails consumer);
     
     @Mapping(target = "id", source = "user.id")
