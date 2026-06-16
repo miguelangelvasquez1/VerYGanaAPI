@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 public class RandomOrgResult {
 
     private RandomOrgRandom random;
+    private String signature;
     private int bitsUsed;
     private int bitsLeft;
     private int requestsLeft;

@@ -19,14 +19,16 @@ public class NotificationEmitterRegistry {
     private final Map<Long, SseEmitter> emitters = new ConcurrentHashMap<>();
 
     public SseEmitter register(Long userId) {
-        // Timeout de 5 minutos; el frontend reconecta automáticamente
         SseEmitter emitter = new SseEmitter(5 * 60 * 1000L);
 
         emitter.onCompletion(() -> emitters.remove(userId));
         emitter.onTimeout(() -> emitters.remove(userId));
         emitter.onError(e -> emitters.remove(userId));
 
-        emitters.put(userId, emitter);
+        SseEmitter previous = emitters.put(userId, emitter);
+        if (previous != null) {
+            previous.complete();
+        }
         log.info("SSE registered for userId={}", userId);
         return emitter;
     }

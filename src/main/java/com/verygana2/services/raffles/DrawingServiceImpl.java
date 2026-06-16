@@ -1,11 +1,15 @@
 package com.verygana2.services.raffles;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -87,7 +91,11 @@ public class DrawingServiceImpl implements DrawingService {
         // ========== 3. OBTENER TICKETS ACTIVOS ==========
         List<RaffleTicket> tickets = getActiveTickets(raffle);
 
-        // ========== 4. EJECUTAR SORTEO — agregar evento ==========
+        // ========== 4. HASH DEL POOL — compromiso antes del sorteo ==========
+        String ticketPoolHash = computeTicketPoolHash(tickets);
+        log.info("Ticket pool hash (pre-draw): {}", ticketPoolHash);
+
+        // ========== 5. EJECUTAR SORTEO — agregar evento ==========
         raffle.setRaffleStatus(RaffleStatus.DRAWING);
         raffleRepository.save(raffle);
         raffleEventPublisherService.publishDrawingStarted(raffleId, numberOfWinners, raffle.getTotalTicketsIssued(), raffle.getMaxTotalTickets());
@@ -106,8 +114,9 @@ public class DrawingServiceImpl implements DrawingService {
         log.info("Generating draw proof...");
         String drawProof = generateDrawProof(raffle.getId(), winners,
                 drawExecution.actualMethod(), drawExecution.methodNote(),
-                drawExecution.randomOrgMetadata());
+                drawExecution.randomOrgMetadata(), ticketPoolHash);
         result.setDrawProof(drawProof);
+        raffleResultRepository.save(result);
 
         // ========== 7. ACTUALIZAR ESTADO DE LA RIFA ==========
         log.info("Updating raffle status...");
@@ -126,8 +135,7 @@ public class DrawingServiceImpl implements DrawingService {
         raffleEventPublisherService.publishWinnersWithDelay(raffleId, initializedWinners, raffle.getTitle());
 
         // Notificaciones in-app también async
-        notifyWinners(raffleId);
-        publishResults(raffleId);
+        notifyWinners(result.getId());
 
         // ========== 10. Construir response ==========
         return DrawResultResponseDTO.builder()
@@ -364,7 +372,8 @@ public class DrawingServiceImpl implements DrawingService {
     @Override
     public String generateDrawProof(Long raffleId, List<RaffleWinner> winners,
                                     DrawMethod actualMethod, String drawMethodNote,
-                                    RandomOrgDrawMetadata randomOrgMetadata) {
+                                    RandomOrgDrawMetadata randomOrgMetadata,
+                                    String ticketPoolHash) {
 
         log.info("Generating draw proof for raffle {}", raffleId);
 
@@ -382,6 +391,7 @@ public class DrawingServiceImpl implements DrawingService {
                     .executedAt(ZonedDateTime.now(ZoneOffset.UTC))
                     .totalParticipants(raffle.getTotalParticipants())
                     .totalTickets(raffle.getTotalTicketsIssued())
+                    .ticketPoolHash(ticketPoolHash)
                     .numberOfWinners(winners.size())
                     .winners(winners.stream()
                             .map(w -> WinnerProofResponseDTO.builder()
@@ -394,7 +404,6 @@ public class DrawingServiceImpl implements DrawingService {
                                     .prizeClaimed(w.isPrizeClaimed())
                                     .claimDeadline(w.getClaimDeadline())
                                     .prizeClaimedAt(w.getPrizeClaimedAt())
-                                    .prizeTrackingNumber(w.getPrizeTrackingNumber())
                                     .build())
                             .toList())
                     .build();
@@ -505,28 +514,26 @@ public class DrawingServiceImpl implements DrawingService {
         }
     }
 
-    @Override
-    public void publishResults(Long raffleId) {
-        // TODO: Implementar publicación de resultados
-        // - Actualizar página pública de resultados
-        // - Enviar a redes sociales (si aplica)
-        // - Notificar a todos los participantes
-
-        log.info("Results published for raffle {}", raffleId);
-
-        RaffleResult result = raffleResultService.getByRaffleId(raffleId);
-
-        List<RaffleWinner> winners = raffleWinnerRepository.findByRaffleResultId(result.getId());
-
-        log.info("Published results: Raffle '{}' - {} winners",
-                result.getRaffle().getTitle(),
-                winners.size());
-
-        // notificationService.notifyAllParticipants(raffleId);
-    }
-
-
     // Metodos privados
+
+    /**
+     * SHA-256 del listado de ticketNumbers activos ordenados de forma determinista.
+     * Se computa ANTES del sorteo para que sirva como compromiso del pool.
+     * Algoritmo: SHA-256( "000001,000002,...,010000" en UTF-8 ) → hex lowercase.
+     */
+    private String computeTicketPoolHash(List<RaffleTicket> tickets) {
+        String poolData = tickets.stream()
+                .map(RaffleTicket::getTicketNumber)
+                .sorted()
+                .collect(Collectors.joining(","));
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256")
+                    .digest(poolData.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new InvalidOperationException("SHA-256 not available: " + e.getMessage());
+        }
+    }
 
     /**
      * Fuerza la inicialización de todas las relaciones lazy que

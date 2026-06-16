@@ -12,8 +12,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RandomOrgRandom {
-    private List<Integer> data;  // ✅ Los índices aleatorios
+    private List<Integer> data;
     private String completionTime;
     @JsonProperty("serialNumber")
     private Long serialNumber;
+    private String hashedApiKey;
+    private Object license;
 }

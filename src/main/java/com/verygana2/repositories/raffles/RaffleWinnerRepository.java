@@ -73,4 +73,10 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
                         LIMIT 20
                                 """)
         List<RaffleWinner> findLastWinners();
+        
+        @Query("""
+                SELECT rf FROM RaffleWinner rf
+                WHERE rf.prize.id = :prizeId        
+                        """)
+        Optional<RaffleWinner> findByPrizeId (@Param ("prizeId") Long prizeId);
 }

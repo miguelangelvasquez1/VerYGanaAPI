@@ -98,6 +98,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                         .position(w.getPrize().getPosition())
                         .ticketNumber(w.getWinningTicket().getTicketNumber())
                         .userName(w.getWinner().getUserName())
+                        .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                         .prizeTitle(w.getPrize().getTitle())
                         .prizeValue(w.getPrize().getValue())
                         .prizeType(w.getPrize().getPrizeType())
@@ -107,7 +108,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
         DrawCompletedPayloadDTO payload = DrawCompletedPayloadDTO.builder()
                 .raffleTitle(raffleTitle)
                 .allWinners(allWinners)
-                .drawProofUrl("/api/raffles/" + raffleId + "/draw-proof")
                 .totalParticipants(totalParticipants)
                 .build();
 
@@ -133,14 +133,15 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                 .totalParticipants(totalParticipants)
                 .build();
 
-       
-        @SuppressWarnings("unused")
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                 .type(DrawEventType.WAITING_ROOM_UPDATE)
                 .raffleId(raffleId)
                 .timestamp(now())
                 .payload(payload)
                 .build();
+
+        broadcast(raffleId, event);
+        log.debug("[WS] WAITING_ROOM_UPDATE publicado para rifa {} — viewers: {}", raffleId, viewerCount);
     }
 
     // ============================================================

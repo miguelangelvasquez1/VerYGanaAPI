@@ -5,8 +5,11 @@ import org.springframework.stereotype.Service;
 
 import com.twilio.exception.ApiException;
 import com.twilio.http.TwilioRestClient;
+import com.twilio.rest.api.v2010.account.Message;
 import com.twilio.rest.verify.v2.service.Verification;
 import com.twilio.rest.verify.v2.service.VerificationCheck;
+import com.twilio.type.PhoneNumber;
+import com.verygana2.models.raffles.Prize;
 import com.verygana2.services.interfaces.TwilioSmsService;
 
 import lombok.RequiredArgsConstructor;
@@ -19,6 +22,9 @@ public class TwilioSmsServiceImpl implements TwilioSmsService {
 
     @Value("${twilio.verify-service-sid}")
     private String verifyServiceSid;
+
+    @Value("${twilio.phone-number}")
+    private String fromPhoneNumber;
 
     private final TwilioRestClient twilioRestClient;
 
@@ -59,5 +65,34 @@ public class TwilioSmsServiceImpl implements TwilioSmsService {
             return "+" + digits;
         }
         return "+" + digits;
+    }
+
+    @Override
+    public void sendPrizeClaimConfirmation(Prize prize, String phoneNumber, String decryptedClaimCode) {
+        String e164 = toE164(phoneNumber);
+        log.info("Sending prize claim SMS to {} for prize {}", e164, prize.getId());
+        try {
+            String body = buildPrizeClaimSms(prize, decryptedClaimCode);
+            Message.creator(
+                    new PhoneNumber(e164),
+                    new PhoneNumber(fromPhoneNumber),
+                    body
+            ).create(twilioRestClient);
+            log.info("Prize claim SMS sent to {}", e164);
+        } catch (Exception e) {
+            log.error("Failed to send prize claim SMS to {}: {}", e164, e.getMessage());
+            throw e;
+        }
+    }
+
+    private String buildPrizeClaimSms(Prize prize, String claimCode) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("🏆 VeryGana - ¡Felicitaciones!\n");
+        sb.append("Premio: ").append(prize.getTitle()).append("\n");
+        sb.append("Código de reclamación: ").append(claimCode).append("\n");
+        if (prize.getClaimInstructions() != null && !prize.getClaimInstructions().isBlank()) {
+            sb.append("\nInstrucciones:\n").append(prize.getClaimInstructions());
+        }
+        return sb.toString();
     }
 }

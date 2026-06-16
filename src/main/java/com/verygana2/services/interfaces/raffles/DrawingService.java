@@ -23,15 +23,16 @@ public interface DrawingService {
     /**
      * @param actualMethod      Método realmente usado (puede diferir del configurado si hubo fallback).
      * @param drawMethodNote    Nota explicativa cuando hubo fallback; null si no aplica.
-     * @param randomOrgMetadata Evidencia de Random.org (serialNumber, completionTime, bits);
+     * @param randomOrgMetadata Evidencia de Random.org (serialNumber, signature, etc.);
      *                          null cuando el método real fue SYSTEM_RANDOM.
+     * @param ticketPoolHash    SHA-256 del pool de tickets activos computado ANTES del sorteo.
      */
     String generateDrawProof(Long raffleId, List<RaffleWinner> winners,
                              DrawMethod actualMethod, String drawMethodNote,
-                             RandomOrgDrawMetadata randomOrgMetadata);
+                             RandomOrgDrawMetadata randomOrgMetadata,
+                             String ticketPoolHash);
 
     boolean verifyDrawIntegrity(Long raffleId);
 
     void notifyWinners(Long raffleId);
-    void publishResults(Long raffleId);
 }

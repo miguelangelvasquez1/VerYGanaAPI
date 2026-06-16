@@ -26,6 +26,7 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
+import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
@@ -46,6 +47,7 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final KeyTransactionRepository keyTransactionRepository;
     private final ProductStockRepository productStockRepository;
     private final TreasuryService treasuryService;
+    private final EmailService emailService;
 
     /**
      * Punto de entrada del webhook de Wompi para CHARGE_COPAYMENT.
@@ -155,6 +157,15 @@ public class CopaymentServiceImpl implements CopaymentService {
         } catch (Exception e) {
             log.error("[COPAYMENT] Error emitiendo tickets para purchaseId={}: {}", purchase.getId(), e.getMessage(),
                     e);
+        }
+
+        // 7. Notificar al comprador por email con sus códigos (async — fallo no
+        // revierte el pago)
+        try {
+            emailService.sendPurchaseConfirmation(purchase, purchase.getDeliveryEmail());
+        } catch (Exception e) {
+            log.error("[COPAYMENT] Error enviando email de confirmación para purchaseId={}: {}",
+                    purchase.getId(), e.getMessage(), e);
         }
 
         log.info("[COPAYMENT] Completado: keysUsed={}, keysValueCents={}, cashAmountCents={}",

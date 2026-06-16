@@ -160,6 +160,8 @@ games:
 app:
   frontend:
     base-url: ${FRONTEND_BASE_URL}
+  claim-code:
+    encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   
 payment:
   min-deposit: 5000      # $5.000 COP
@@ -235,7 +237,13 @@ randomOrg:
     api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
     timeout: 30000 # 30 segundoswompi:
 
-wompi:    
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID}
+  auth-token: ${TWILIO_AUTH_TOKEN}
+  verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID}
+  phone-number: ${TWILIO_PHONE_NUMBER}
+
+wompi:
   public-key: ${WOMPI_PUBLIC_KEY}
   private-key: ${WOMPI_PRIVATE_KEY}
   integrity-secret: ${WOMPI_INTEGRITY_SECRET}

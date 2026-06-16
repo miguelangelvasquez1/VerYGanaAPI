@@ -43,7 +43,9 @@ public class CreatePrizeRequestDTO {
     @Positive(message = "Prize quantity must be positive")
     private Integer quantity;
 
-    private boolean requiresShipping;
-    private Integer estimatedDeliveryDays;
-    private String redemptionInstructions;
+    @NotBlank(message = "Claim code is required")
+    private String claimCode;
+
+    @NotBlank(message = "Claim instructions is required")
+    private String claimInstructions;
 }

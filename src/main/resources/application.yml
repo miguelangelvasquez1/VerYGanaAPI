@@ -2,6 +2,10 @@ spring:
   application:
     name: VerYGanaAPI
 
+  mvc:
+    async:
+      request-timeout: 330000  # 5.5 min — mayor que el SseEmitter timeout (5 min)
+
   profiles:
     active: dev
 

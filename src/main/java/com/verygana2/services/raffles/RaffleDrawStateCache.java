@@ -100,17 +100,12 @@ public class RaffleDrawStateCache {
                     .build();
         }
 
-        String proofUrl = state.phase == DrawEventType.DRAW_COMPLETED
-                ? "/api/raffles/" + raffleId + "/draw-proof"
-                : null;
-
         return DrawStatusResponseDTO.builder()
                 .currentPhase(state.phase)
                 .secondsUntilDraw(secondsUntilDraw)
                 .viewerCount(viewerCount)
                 .revealedWinners(new ArrayList<>(state.revealedWinners))
                 .totalWinners(state.totalWinners)
-                .drawProofUrl(proofUrl)
                 .asOf(ZonedDateTime.now(ZoneOffset.UTC))
                 .build();
     }

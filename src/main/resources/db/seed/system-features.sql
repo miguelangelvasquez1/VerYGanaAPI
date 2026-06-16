@@ -21,8 +21,31 @@ VALUES
 ('RAFFLES_SYSTEM',
 '/api/raffles',
 'ENABLED',
+<<<<<<< HEAD
+'MONETIZATION',
+'Sistema de rifas y sorteos: compra de tickets y participación'),
+
+('RAFFLE_RESULTS',
+'/results',
+'ENABLED',
+'MONETIZATION',
+'Resultados de sorteos'),
+
+('RAFFLE_WINNERS',
+'/api/winners',
+'ENABLED',
+'MONETIZATION',
+'Ganadores de sorteos'),
+
+('RAFFLE_TICKETS',
+'/api/my/raffle-tickets',
+'ENABLED',
+'MONETIZATION',
+'Mis tickets de rifa'),
+=======
 'MONETIZACION',
 'Sistema de rifas: tickets, resultados y ganadores'),
+>>>>>>> e5d79941ef5708df07a78bfb27225ce91fdf4ac7
 
 ('GAMES_SYSTEM',
 '/games',

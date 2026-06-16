@@ -1,9 +1,11 @@
 package com.verygana2.services.raffles;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -416,12 +418,13 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         int ticketsToAward = dailyLoginRule.getTicketEarningRule().getTicketsToAward();
         if (ticketsToAward <= 0) return false;
 
+        long todayId = Long.parseLong(LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.BASIC_ISO_DATE));
         List<RaffleTicketResponseDTO> issued = raffleTicketService.issueTickets(
                 consumerId,
                 raffle.getId(),
                 ticketsToAward,
                 RaffleTicketSource.DAILY_LOGIN,
-                consumerId
+                todayId
         );
 
         log.info("Issued {} daily login ticket(s) to consumer {} in raffle {}", issued.size(), consumerId, raffle.getId());

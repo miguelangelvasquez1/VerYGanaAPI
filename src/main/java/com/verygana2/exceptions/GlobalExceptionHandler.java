@@ -19,6 +19,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
@@ -29,12 +30,14 @@ import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
@@ -45,6 +48,12 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     // ==================== EXCEPCIONES GENÉRICAS ====================
+
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex, WebRequest request) {
+        log.debug("SSE connection timed out for {}", request.getDescription(false));
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "SSE connection timed out", request);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
@@ -97,6 +106,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleEntityNotFoundException(EntityNotFoundException ex, WebRequest request) {
+        log.warn("Entity not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(FeatureDisabledException.class)
     public ResponseEntity<ErrorResponse> handleFeatureDisabledException(FeatureDisabledException ex, WebRequest request) {
         log.warn("Feature disabled: {}", ex.getMessage());
@@ -136,9 +151,15 @@ public class GlobalExceptionHandler {
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalAccessException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
         log.warn("Illegal argument: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ClaimPrizeException.class)
+    public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
+        log.warn("Claim prize error: {}", ex.getMessage());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ValidationException.class)

@@ -1,4 +1,4 @@
-package ads;
+package com.verygana2.ads;
 
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;

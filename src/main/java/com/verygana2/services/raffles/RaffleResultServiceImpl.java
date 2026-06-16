@@ -50,7 +50,7 @@ public class RaffleResultServiceImpl implements RaffleResultService {
     }
 
     @Override
-    public DrawProofResponseDTO getDrawProof(Long raffleId) {
+    public DrawProofResponseDTO getDrawProofByRaffleId(Long raffleId) {
         RaffleResult result = getByRaffleId(raffleId);
 
         if (result.getDrawProof() == null || result.getDrawProof().isBlank()) {

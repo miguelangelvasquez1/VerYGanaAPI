@@ -5,12 +5,16 @@ import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.PrizeType;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 //para admin o el propio ganador
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WinnerProofResponseDTO {
     private String userName;
     private String ticketNumber;
@@ -21,5 +25,5 @@ public class WinnerProofResponseDTO {
     private boolean prizeClaimed;
     private ZonedDateTime claimDeadline;
     private ZonedDateTime prizeClaimedAt;
-    private String prizeTrackingNumber;
+    private String prizeTrackingInfo;
 }

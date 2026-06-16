@@ -32,8 +32,5 @@ public class DrawStatusResponseDTO {
     // Total de participantes
     private Long totalParticipants;
 
-    // Solo presente si currentPhase = DRAW_COMPLETED
-    private String drawProofUrl;
-
     private ZonedDateTime asOf; // Timestamp de cuándo se consultó este estado
 }
