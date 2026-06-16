@@ -26,14 +26,18 @@ public class CreateSurveyRequest {
     @NotBlank
     @Size(max = 200)
     private String title;
- 
+
     @Size(max = 1000)
     private String description;
- 
+
+    @NotNull @Min(1)
     private Integer maxResponses;
- 
+
+    /** Reward paid to each respondent per question answered. Must be >= system minimum. */
+    @NotNull @Min(1)
+    private Long pricePerQuestionCents;
+
     private LocalDateTime startsAt;
-    private LocalDateTime endsAt;
  
     // Targeting
     @NotNull @Size(min = 1)

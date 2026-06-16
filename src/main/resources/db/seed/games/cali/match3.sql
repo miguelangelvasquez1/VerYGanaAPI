@@ -18,7 +18,12 @@ INSERT INTO game_config_definitions (
     active,
     is_latest,
     created_at,
-    created_by
+    created_by,
+    average_reward_per_session_cents,
+    completion_reward_cents,
+    max_reward_per_session_cents,
+    score_reward_factor,
+    average_duration_seconds
 )
 SELECT
     6,
@@ -840,7 +845,12 @@ SELECT
     true,
     true,
     NOW(),
-    'system'
+    'system',
+    15000,
+    5000,
+    20000,
+    1,
+    60
 WHERE NOT EXISTS (
     SELECT 1 FROM game_config_definitions 
     WHERE game_id = 6 AND version = 1

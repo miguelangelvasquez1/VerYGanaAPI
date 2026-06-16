@@ -1,7 +1,9 @@
 package com.verygana2.services.surveys;
 
-import java.time.LocalDateTime;
+import java.math.BigDecimal;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -9,15 +11,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.survey.submission.RewardInfo;
 import com.verygana2.dtos.survey.submission.UserRewardsSummary;
-import com.verygana2.models.surveys.Survey;
-import com.verygana2.models.surveys.SurveyResponse;
+import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.surveys.SurveyReward;
-import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.repositories.surveys.SurveyResponseRepository;
+import com.verygana2.models.surveys.SurveySession;
+import com.verygana2.repositories.finance.KeyTransactionRepository;
+import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
+import com.verygana2.repositories.surveys.SurveySessionRepository;
+import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
+import com.verygana2.services.interfaces.finance.KeyWalletService;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,81 +29,81 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @Slf4j
 public class RewardService {
- 
-    @PersistenceContext
-    private EntityManager entityManager;
 
     private final SurveyRewardRepository rewardRepository;
-    private final SurveyResponseRepository responseRepository;
-    // Inject your wallet/points service here:
-    // private final UserWalletService walletService;
- 
-    /**
-     * Grants the configured reward to the user who completed the survey.
-     * This is called after the response is validated and persisted.
-     */
+    private final SurveySessionRepository sessionRepository;
+    private final KeyWalletRepository keyWalletRepository;
+    private final KeyWalletService keyWalletService;
+    private final KeyTransactionRepository keyTransactionRepository;
+
     @Transactional
-    public SurveyReward grantReward(SurveyResponse surveyResponse) {
-        Survey survey = surveyResponse.getSurvey();
-        Long userId = surveyResponse.getUserId();
-        Long questionsCount = (long) survey.getQuestions().size();
-        Long rewardAmount = questionsCount * survey.getRewardAmountPerQuestionCents();
- 
+    public SurveyReward grantReward(SurveySession session) {
+        long questionCount = session.getSurvey().getQuestions().size();
+        long rewardAmount  = questionCount * session.getSurvey().getRewardAmountPerQuestionCents();
+
         SurveyReward reward = SurveyReward.builder()
-            .user(entityManager.getReference(ConsumerDetails.class, userId))
-            .survey(survey)
-            .amountCents(rewardAmount)
-            .status(SurveyReward.RewardStatus.PENDING)
-            .build();
- 
+                .session(session)
+                .amountCents(rewardAmount)
+                .status(SurveyReward.RewardStatus.PENDING)
+                .build();
         reward = rewardRepository.save(reward);
- 
-        // Dispatch reward depending on type
+
         try {
-            creditPoints(userId, rewardAmount);
+            creditPoints(session, rewardAmount);
             reward.setStatus(SurveyReward.RewardStatus.PROCESSED);
-            reward.setProcessedAt(LocalDateTime.now());
-            log.info("Reward granted to user {} for survey {}: {}",userId, survey.getId(), reward.getAmountCents());
+            reward.setProcessedAt(ZonedDateTime.now());
+            log.info("Reward granted to consumer {} for survey {}: {} ¢",
+                    session.getConsumer().getId(), session.getSurvey().getId(), rewardAmount);
         } catch (Exception e) {
             reward.setStatus(SurveyReward.RewardStatus.FAILED);
-            log.error("Failed to process reward for user {} survey {}: {}",
-                userId, survey.getId(), e.getMessage(), e);
+            log.error("Failed to process reward for consumer {} survey {}: {}",
+                    session.getConsumer().getId(), session.getSurvey().getId(), e.getMessage(), e);
         }
- 
-        // Link reward to response
-        surveyResponse.setReward(reward);
-        surveyResponse.setStatus(SurveyResponse.ResponseStatus.REWARDED);
- 
+
         return rewardRepository.save(reward);
     }
- 
-    public UserRewardsSummary getUserRewardsSummary(Long userId) {
-        long completedSurveys = responseRepository.countCompletedByUser(userId);
-        var totalEarned = rewardRepository.getTotalRewardsByUser(userId);
- 
+
+    public UserRewardsSummary getUserRewardsSummary(Long consumerId) {
+        long completedSurveys = sessionRepository.countCompletedByConsumer(consumerId);
+        BigDecimal totalEarned = rewardRepository.getTotalRewardsByConsumer(consumerId);
+
         List<RewardInfo> recent = rewardRepository
-            .findByUserId(userId, Pageable.ofSize(10))
-            .stream()
-            .map(r -> RewardInfo.builder()
-                .rewardId(r.getId())
-                .amountCents(r.getAmountCents())
-                .status(r.getStatus())
-                .grantedAt(r.getGrantedAt())
-                .build())
-            .toList();
- 
+                .findBySessionConsumerId(consumerId, Pageable.ofSize(10))
+                .stream()
+                .map(r -> RewardInfo.builder()
+                        .rewardId(r.getId())
+                        .amountCents(r.getAmountCents())
+                        .status(r.getStatus())
+                        .grantedAt(r.getGrantedAt())
+                        .build())
+                .toList();
+
         return UserRewardsSummary.builder()
-            .completedSurveys(completedSurveys)
-            .totalRewardsEarned(totalEarned)
-            .recentRewards(recent)
-            .build();
+                .completedSurveys(completedSurveys)
+                .totalRewardsEarned(totalEarned)
+                .recentRewards(recent)
+                .build();
     }
- 
-    // ─── Private dispatch methods ─────────────────────────────────────────────
- 
-    private void creditPoints(Long userId, Long amount) {
-        // TODO: integrate with your UserWalletService / PointsService
-        log.debug("Crediting {} points to user {}", amount, userId);
-        // walletService.addPoints(userId, amount);
+
+    private void creditPoints(SurveySession session, long amountCents) {
+        Long consumerId = session.getConsumer().getId();
+        KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
+        RewardSplit split = keyWalletService.calculate(amountCents);
+
+        UUID referenceId = UUID.nameUUIDFromBytes(
+                ("survey-session-" + session.getId()).getBytes());
+        String reason = "Encuesta completada #" + session.getSurvey().getId();
+
+        ZonedDateTime purchaseExpiry     = keyWalletService.calculatePurchaseExpiry();
+        ZonedDateTime connectivityExpiry = keyWalletService.calculateConnectivityExpiry();
+
+        keyTransactionRepository.saveAll(List.of(
+                KeyTransaction.forInteractionPurchaseKeys(
+                        keyWallet, split.purchaseKeysReward(), reason, referenceId, purchaseExpiry),
+                KeyTransaction.forInteractionConnectivityKeys(
+                        keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
+
+        keyWallet.creditKeys(split.purchaseKeysReward(), split.connectivityKeysReward());
+        keyWalletRepository.save(keyWallet);
     }
 }

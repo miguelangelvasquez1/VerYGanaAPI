@@ -1,6 +1,6 @@
 package com.verygana2.dtos.survey.submission;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import com.verygana2.models.surveys.SurveyReward;
 
@@ -9,13 +9,13 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Data
 public class RewardInfo {
-        private Long rewardId;
-        private Long amountCents;
-        private SurveyReward.RewardStatus status;
-        private LocalDateTime grantedAt;
-    }
+    private Long rewardId;
+    private Long amountCents;
+    private SurveyReward.RewardStatus status;
+    private ZonedDateTime grantedAt;
+}

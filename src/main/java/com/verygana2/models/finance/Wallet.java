@@ -111,8 +111,7 @@ public class Wallet {
     }
 
     public void deposit(Long amount) {
-        if (amount <= 0)
-            throw new IllegalArgumentException("Amount must be positive");
+        if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
         this.balanceCents += amount;
         recalculateStatus();
     }

@@ -35,7 +35,7 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
     private final TreasuryService treasuryService;
 
     /** Centavos de COP que vale cada llave. Configurable en treasury.values.key-value */
-    @Value("${treasury.values.key-value:1000}")
+    @Value("${financial.key-value-cents:1000}")
     private long keyValueCents;
 
     private static final ZoneId COLOMBIA = ZoneId.of("America/Bogota");

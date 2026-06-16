@@ -127,8 +127,8 @@ public interface ProductMapper {
     @Mapping(target = "companyName", source = "product.commercial.companyName")
     @Mapping(target = "maxKeysAllowed", expression = "java(favoriteProduct.getProduct().getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(favoriteProduct.getProduct().getMinCashCents())")
-    @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "reviewCount", ignore = true)
+    @Mapping(target = "maxKeysPct", ignore = true)
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping

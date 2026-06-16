@@ -80,7 +80,7 @@ public class GameController {
     }
 
     // Método para que el juego obtenga los assets
-    @PostMapping("/assets")
+    @GetMapping("/assets")
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {

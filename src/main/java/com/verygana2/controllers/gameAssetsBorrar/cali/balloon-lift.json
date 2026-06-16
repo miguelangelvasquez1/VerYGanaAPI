@@ -1,0 +1,87 @@
+{
+  "meta": {
+    "brand_id": "0001"
+  },
+  "game_config": {
+    "time_limit": 30,
+    "difficulty": "normal",
+    "max_attempts": 3
+  },
+  "branding": {
+    "images": {
+      "main_logo_url": "https://games.verygana.com/asset_tests/aseguradora/sura-logo-blanco-png.png",
+      "main_logo_offset_y": 100,
+      "logo_watermark_offset_y": -200
+    },
+    "shader_background_config": {
+      "Back": {
+        "SpriteUrl": "https://games.verygana.com/asset_tests/aseguradora/carretera.jpg",
+        "Enabled": true,
+        "ColorHex": "#FFFFFFFF",
+        "Speed": 0.0,
+        "Alpha": 1.0,
+        "Tiling": {
+          "x": 1,
+          "y": 1
+        },
+        "Direction": {
+          "x": 1,
+          "y": 0
+        },
+        "Rotation": 0
+      },
+      "Front": {
+        "SpriteUrl": "",
+        "Enabled": false,
+        "ColorHex": "#FFFFFF00",
+        "Speed": 0.0,
+        "Alpha": 0.0
+      }
+    }
+  },
+  "game": {
+    "images": {
+      "main_image_url": "https://games.verygana.com/asset_tests/aseguradora/carro.png"
+    },
+    "stages": [],
+    "obstacle_models_urls": [],
+    "obstacle_sprite_urls": [
+      "https://games.verygana.com/asset_tests/aseguradora/charco.png",
+      "https://games.verygana.com/asset_tests/aseguradora/cono.png",
+      "https://games.verygana.com/asset_tests/aseguradora/multa.png"
+    ],
+    "coin_model_url": "",
+    "power_ups_config": [],
+    "attributes": {
+      "lift_force": 4.0,
+      "horizontal_force": 10.0,
+      "max_velocity": 8.0,
+      "level_duration": 60,
+      "gravity": 1.0,
+      "obstacle_spawn_interval": 1.5,
+      "obstacle_speed": 0.0,
+      "sway_frequency": 0.0,
+      "sway_magnitude": 0.0
+    }
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "victory_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "coin_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "obstacle_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "powerup_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "shield_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "¡VICTORIA!",
+    "victory_phrase": "¡Felicidades, has ganado!",
+    "defeat_title": "DERROTA",
+    "defeat_phrase": "¡No te rindas, inténtalo de nuevo!"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {}
+}

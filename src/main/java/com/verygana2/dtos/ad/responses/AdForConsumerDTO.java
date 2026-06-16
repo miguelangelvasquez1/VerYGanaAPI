@@ -20,6 +20,7 @@ public class AdForConsumerDTO {
     private String description;
     private Integer currentLikes;
     private String contentUrl;
+    private Integer durationSeconds;
     private String targetUrl;
     private MediaType mediaType;
 

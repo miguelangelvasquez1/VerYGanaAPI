@@ -16,9 +16,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdLikeRequest;
+import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
-import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.services.interfaces.AdLikeService;
 
@@ -34,14 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 public class AdLikeController {
     
     private final AdLikeService adLikeService;
-
-    @GetMapping("/{adId}/details")
-    public ResponseEntity<AdResponseDTO> getAdDetails(
-        @PathVariable Long adId,
-        @AuthenticationPrincipal Jwt jwt
-    ) {
-        return ResponseEntity.ok(adLikeService.getAdDetails(adId, jwt.getClaim("userId")));
-    }
 
     @GetMapping("/{adId}/likes")
     public ResponseEntity<PagedResponse<AdLikeResponseDTO>> getAdLikes(
@@ -78,6 +70,18 @@ public class AdLikeController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/next")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<AdForConsumerDTO> getNextAd(
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        Long consumerId = jwt.getClaim("userId");
+
+        return adLikeService.getNextAdForConsumer(consumerId)
+            .map(ResponseEntity::ok)
+            .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/{id}/has-liked")

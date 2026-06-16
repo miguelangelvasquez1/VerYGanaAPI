@@ -28,29 +28,26 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class SurveyAnswer {
- 
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
- 
+
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "response_id", nullable = false)
-    private SurveyResponse surveyResponse;
- 
+    @JoinColumn(name = "session_id", nullable = false)
+    private SurveySession session;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "question_id", nullable = false)
     private SurveyQuestion question;
- 
-    // For TEXT and RATING questions
+
     @Column(name = "text_answer", length = 1000)
     private String textAnswer;
- 
-    // For SINGLE_CHOICE and YES_NO
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "selected_option_id")
     private QuestionOption selectedOption;
- 
-    // For MULTIPLE_CHOICE
+
     @ManyToMany
     @JoinTable(
         name = "answer_selected_options",

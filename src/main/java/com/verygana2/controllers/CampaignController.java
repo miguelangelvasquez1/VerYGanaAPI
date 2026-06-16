@@ -16,11 +16,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.GameDTO;
-import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
-import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
@@ -70,29 +67,6 @@ public class CampaignController {
         service.updateCampaign(campaignId, userId, request);
 
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping("/assets/upload-url")
-    public ResponseEntity<AssetUploadPermissionDTO> generateUploadUrl(
-        @Valid @RequestBody FileUploadRequestDTO request,
-        @AuthenticationPrincipal Jwt jwt) {
-        log.info("Request for upload URL: {}", request.getOriginalFileName());
-        
-        Long userId = jwt.getClaim("userId");
-        AssetUploadPermissionDTO response = service.generateUploadUrl(request, userId);
-        
-        return ResponseEntity.ok(response);
-    }
-    
-    @PostMapping("/assets/confirm")
-    public ResponseEntity<Void> confirmUpload(
-        @Valid @RequestBody AssetConfirmRequest request
-    ) {
-        log.info("Confirming upload for asset: {}", request.getAssetId());
-        
-        service.confirmUpload(request);
-        
-        return ResponseEntity.ok().build();
     }
 
     @PostMapping

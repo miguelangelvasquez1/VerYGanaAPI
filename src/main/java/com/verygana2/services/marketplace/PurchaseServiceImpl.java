@@ -61,7 +61,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
     
-    @Value("${treasury.values.key-value}")
+    @Value("${financial.key-value-cents}")
     private Long KEY_VALUE; // 1 llave = 10 COP = 1000 CENTAVOS DE COP
 
     private final PurchaseRepository purchaseRepository;

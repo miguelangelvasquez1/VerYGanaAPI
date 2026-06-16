@@ -1,6 +1,5 @@
 package com.verygana2.models.ads;
 
-import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -16,6 +15,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -43,6 +43,9 @@ public class AdWatchSession {
     @GeneratedValue
     private UUID id;
 
+    @Version
+    private Long version;
+
     @ManyToOne
     private ConsumerDetails consumer;
 
@@ -55,6 +58,8 @@ public class AdWatchSession {
     @Enumerated(EnumType.STRING)
     private AdWatchSessionStatus status;
 
+    private Integer resumeCount;
+
     public AdWatchSession(ConsumerDetails consumer, Ad ad) {
         this.consumer = consumer;
         this.ad = ad;
@@ -62,19 +67,11 @@ public class AdWatchSession {
 
     @PrePersist
     protected void onCreate() {
-        if (startedAt == null) {
-            startedAt = ZonedDateTime.now(ZoneOffset.UTC);
-        }
-        if (expiresAt == null) {
-
-            double duration = ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0;
-            long durationSeconds = Math.round(duration);
-            long marginSeconds = Math.max(300L, Math.round(duration * 0.1)); // 5 min de margen
-
-            expiresAt = startedAt.plusSeconds(durationSeconds + marginSeconds);
-        }
         if (status == null) {
             status = AdWatchSessionStatus.ACTIVE;
+        }
+        if (resumeCount == null) {
+            resumeCount = 0;
         }
     }
 }

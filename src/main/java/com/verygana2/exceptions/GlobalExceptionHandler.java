@@ -20,12 +20,12 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
-import org.springframework.web.multipart.MultipartException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
+import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
@@ -127,6 +127,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(LimitReachedException.class)
+    public ResponseEntity<ErrorResponse> handleLimitReachedException(
+            LimitReachedException ex, WebRequest request) {
+        log.warn("Limit reached: {}", ex.getMessage());
+        return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(EmailAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExistsException(
             EmailAlreadyExistsException ex, WebRequest request) {
@@ -221,13 +228,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleSurveyAlreadyCompletedException(
             SurveyAlreadyCompletedException ex, WebRequest request) {
         log.warn("Survey already completed: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
-    @ExceptionHandler(MultipartException.class)
-    public ResponseEntity<ErrorResponse> handleMultipartException(
-            MultipartException ex, WebRequest request) {
-        log.warn("Multipart error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 

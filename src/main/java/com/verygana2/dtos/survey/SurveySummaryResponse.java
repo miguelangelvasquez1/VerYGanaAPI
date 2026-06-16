@@ -19,6 +19,8 @@ public class SurveySummaryResponse {
     private String title;
     private String description;
     private Long rewardAmountPerQuestionCents;
+    private Long maxResponses;
+    private int totalQuestions;
     private Survey.SurveyStatus status;
     private boolean alreadyCompleted;
     private Long totalResponses;

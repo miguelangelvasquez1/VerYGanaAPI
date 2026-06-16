@@ -41,7 +41,7 @@ public class CreateAdRequestDTO {
     
     @NotNull(message = "Max likes is required")
     @Min(value = 1, message = "Max likes must be at least 1")
-    @Max(value = 100000, message = "Max likes must not exceed 10,000")
+    @Max(value = 10000000, message = "Max likes must not exceed 10,000,000")
     private Integer maxLikes;
 
     @NotNull(message = "Max likes per user per day is required")

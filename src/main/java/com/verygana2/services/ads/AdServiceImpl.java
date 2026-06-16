@@ -1,4 +1,4 @@
-package com.verygana2.services;
+package com.verygana2.services.ads;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -9,11 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -30,7 +27,6 @@ import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
-import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
@@ -42,26 +38,21 @@ import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.PricingConfig;
-import com.verygana2.models.User;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdAsset;
-import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.userDetails.CommercialDetails;
-import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
-import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.repositories.details.ConsumerDetailsRepository;
+import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
@@ -89,13 +80,11 @@ public class AdServiceImpl implements AdService {
 
     private final AdRepository adRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
-    private final ConsumerDetailsRepository consumerDetailsRepository;
     private final WalletRepository walletRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
     private final MunicipalityRepository municipalityRepository;
     private final TargetingValidator targetingValidator;
-    private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
     private final R2Service r2Service;
     private final AdAssetRepository adAssetRepository;
@@ -119,7 +108,7 @@ public class AdServiceImpl implements AdService {
      * No pricing info is returned here — that comes after the file is in R2.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
  
         commercialDetailsRepository
@@ -176,7 +165,7 @@ public class AdServiceImpl implements AdService {
      * the pricing panel to the advertiser.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AssetAnalysisResultDTO analyzeAsset(Long assetId, Long commercialId) {
  
         AdAsset asset = adAssetRepository
@@ -301,7 +290,7 @@ public class AdServiceImpl implements AdService {
      * On any failure, marks the asset as ORPHANED.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
  
         AdAsset asset = null;
@@ -323,8 +312,7 @@ public class AdServiceImpl implements AdService {
             // Re-validate pricePerLike server-side against the persisted real duration
             double durationSeconds = asset.getDurationSeconds();
             long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
-            long rawMinPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
-            long minPricePerLike = roundUpToMultipleOf10(rawMinPrice);
+            long minPricePerLike = (long) Math.ceil(durationSeconds * costPerSecondCents);
  
             long pricePerLike = request.getPricePerLike();
 
@@ -345,12 +333,6 @@ public class AdServiceImpl implements AdService {
  
             Wallet wallet = walletRepository.findByCommercialId(commercialId)
                     .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
- 
-            if (wallet.getBalanceCents() < totalBudgetCents) {
-                throw new ValidationException(String.format(
-                        "Saldo insuficiente. Requerido: %d ¢, Disponible: %d ¢",
-                        totalBudgetCents, wallet.getBalanceCents()));
-            }
  
             wallet.consume(totalBudgetCents);
             walletRepository.save(wallet);
@@ -436,7 +418,7 @@ public class AdServiceImpl implements AdService {
         Page<Ad> adsPage = adRepository.findAll(spec, fixedSortPageable);
 
         Page<AdResponseDTO> dtoPage = adsPage.map(ad -> {
-
+            log.info("ad: " + ad.getRewardPerLike().toString());
             AdResponseDTO dto = adMapper.toDto(ad);
 
             AdAsset asset = ad.getAsset();
@@ -447,7 +429,7 @@ public class AdServiceImpl implements AdService {
             }
 
             dto.setContentUrl(resolveContentUrl(ad));
-
+            log.info("dto: " + dto.getRewardPerLike().toString());
             return dto;
         });
 
@@ -455,10 +437,16 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public AdResponseDTO getAdById(Long adId) {
-        Ad ad = getAdEntityById(adId);
-        return adMapper.toDto(ad);
+    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        AdResponseDTO dto = adMapper.toDto(ad);
+        dto.setContentUrl(
+            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+        );
+
+        return dto;
     }
 
     @Override
@@ -470,7 +458,7 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId) {
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
                 .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
@@ -515,95 +503,6 @@ public class AdServiceImpl implements AdService {
         responseDto.setContentUrl(resolveContentUrl(savedAd));
 
         return responseDto;
-    }
-
-    // ==================== Consultas para Consumers ====================
-
-    @Override
-    @Transactional
-    public Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId) {
-
-        log.debug("Buscando siguiente anuncio disponible para usuario: {}", consumerId);
-
-        Objects.requireNonNull(consumerId, "El ID de usuario no puede ser nulo");
-
-        ConsumerDetails consumer = consumerDetailsRepository.findById(consumerId).orElseThrow(
-                () -> new ObjectNotFoundException("Consumer with id: " + consumerId + " not found ", User.class));
-
-        ZonedDateTime now = ZonedDateTime.now(clock);
-
-        // Reanudar sesión activa si existe
-        Optional<AdWatchSession> activeSession = adWatchSessionRepository
-                .findByConsumerIdAndStatusAndExpiresAtAfter(
-                        consumerId,
-                        AdWatchSessionStatus.ACTIVE,
-                        now);
-
-        if (activeSession.isPresent()) {
-            log.info("Reanudando sesión activa {}", activeSession.get().getId());
-            AdWatchSession session = activeSession.get();
-            AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
-            dto.setContentUrl(r2Service.buildPublicUrl(session.getAd().getAsset().getObjectKey()));
-            dto.setSessionUUID(session.getId());
-            return Optional.of(dto);
-        }
-
-        Optional<Ad> adOpt = findWithCategoryMatch(consumerId, now)
-                .or(() -> findWithoutCategoryMatch(consumerId, now));
-
-        if (adOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Ad ad = adOpt.get();
-        AdWatchSession session = new AdWatchSession(consumer, ad);
-        adWatchSessionRepository.save(session);
-
-        // Posibilidad de fallback de nivel 2 con los anuncios vistos
-
-        AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
-        dto.setContentUrl(r2Service.buildPublicUrl(ad.getAsset().getObjectKey()));
-        dto.setSessionUUID(session.getId());
-
-        return Optional.of(dto);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<Ad> findWithCategoryMatch(Long consumerId, ZonedDateTime now) {
-        log.info("Mostrando anuncio con coincidencia de categoría para el consumer {}", consumerId);
-        List<Ad> ads = adRepository.findFirstAvailableAdForUser(
-                consumerId,
-                AdStatus.ACTIVE,
-                List.of(AdWatchSessionStatus.LIKED),
-                now,
-                PageRequest.of(0, 1));
-
-        return ads.stream().findFirst();
-    }
-
-    private Optional<Ad> findWithoutCategoryMatch(Long consumerId, ZonedDateTime now) {
-        log.info("Mostrando anuncio sin coincidencia de categoría para el usuario {}", consumerId);
-        List<Ad> ads = adRepository.findNextAdWithoutCategoryMatch(
-                consumerId,
-                AdStatus.ACTIVE,
-                List.of(AdWatchSessionStatus.LIKED),
-                now,
-                PageRequest.of(0, 1));
-        return ads.stream().findFirst();
-    }
-
-    /**
-     * Cuenta los anuncios disponibles para un usuario.
-     * 
-     * @param consumerId ID del consumidor
-     * @return Cantidad de anuncios disponibles
-     */
-    @Transactional(readOnly = true)
-    // @Cacheable(value = "availableAdsCount", key = "#consumerId")
-    @Override
-    public long countAvailableAdsForUser(Long consumerId) {
-        ZonedDateTime now = ZonedDateTime.now(clock);
-        return adRepository.countAvailableAdsForUser(consumerId, AdStatus.ACTIVE, now);
     }
 
     // ==================== Gestión de Estado (Admin) ====================
@@ -994,7 +893,7 @@ public class AdServiceImpl implements AdService {
         switch (ad.getStatus()) {
             case PENDING:
             case REJECTED:
-                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200);
+                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
             case APPROVED:
             case ACTIVE:
             case PAUSED:

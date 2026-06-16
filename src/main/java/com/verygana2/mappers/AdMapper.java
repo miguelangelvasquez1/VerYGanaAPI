@@ -55,7 +55,8 @@ public interface AdMapper {
     @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "sessionUUID", ignore = true)
     @Mapping(target = "contentUrl", ignore = true)
-    @Mapping(target = "mediaType", ignore = true)
+    @Mapping(target = "mediaType", expression = "java(ad.getAsset() != null ? ad.getAsset().getMediaType() : null)")
+    @Mapping(target = "durationSeconds", expression = "java(ad.getAsset() != null ? ad.getAsset().getDurationSeconds() : null)")
     AdForConsumerDTO toConsumerDto(Ad ad);
 
     // Mapear entidad a DTO para administrador
