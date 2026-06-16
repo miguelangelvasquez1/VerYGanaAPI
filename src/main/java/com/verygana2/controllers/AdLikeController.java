@@ -80,6 +80,25 @@ public class AdLikeController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/complete")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<Void> completeAdWatch(
+            @RequestBody AdLikeRequest req,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        log.info("Received watch completion for ad ID: {} and session {}",
+                req.getAdId(), req.getSessionUUID());
+        Long userId = jwt.getClaim("userId");
+
+        if (userId == null) {
+            throw new BusinessException("Token inválido");
+        }
+
+        adLikeService.markWatchSessionCompleted(req.getSessionUUID(), req.getAdId(), userId);
+
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}/has-liked")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Boolean> hasUserLikedAd(

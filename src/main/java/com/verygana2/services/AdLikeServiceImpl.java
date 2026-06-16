@@ -8,6 +8,9 @@ import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.UUID;
 
+import com.verygana2.event.XpAwardRequestedEvent;
+import com.verygana2.models.enums.ActivityType;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -65,7 +68,9 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final Clock clock;
     private final R2Service r2Service;
     private final AdMapper adMapper;
-    
+    private final ApplicationEventPublisher eventPublisher;
+
+
     @Override
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
 
@@ -146,10 +151,44 @@ public class AdLikeServiceImpl implements AdLikeService {
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
-        
+
         log.info("Like processed successfully. User rewarded with: {}", rewardKeys);
-        
+
         return new AdLikedResponse(true, rewardKeys);
+    }
+
+    /**
+     * Marca la sesión como WATCHED y solicita XP por video finalizado.
+     *
+     * Idempotente: si la sesión ya estaba WATCHED o LIKED no se hace nada
+     * (el XP ya fue solicitado en la transición anterior).
+     */
+    @Override
+    public void markWatchSessionCompleted(UUID sessionId, Long adId, Long consumerId) {
+        log.info("Marking watch session {} as completed for consumer {} on ad {}",
+                sessionId, consumerId, adId);
+
+        // Pre-check de idempotencia para no romper en validateSession() cuando
+        // la sesión ya pasó por WATCHED o LIKED en una llamada previa.
+        AdWatchSession preCheck = adWatchSessionRepository
+                .findByIdAndConsumerIdAndAdId(sessionId, consumerId, adId)
+                .orElseThrow(() -> new BusinessException("Sesión de visualización inválida"));
+
+        if (preCheck.getStatus() == AdWatchSessionStatus.WATCHED
+                || preCheck.getStatus() == AdWatchSessionStatus.LIKED) {
+            log.info("Session {} already marked as {} — skipping XP award",
+                    sessionId, preCheck.getStatus());
+            return;
+        }
+
+        Ad ad = adService.getAdEntityById(adId);
+        AdWatchSession session = validateSession(sessionId, consumerId, ad);
+
+        session.setStatus(AdWatchSessionStatus.WATCHED);
+        adWatchSessionRepository.save(session);
+
+        eventPublisher.publishEvent(
+                new XpAwardRequestedEvent(this, consumerId, ActivityType.VIDEO_WATCHED));
     }
 
     @Override
@@ -170,7 +209,10 @@ public class AdLikeServiceImpl implements AdLikeService {
             throw new BusinessException("El anuncio ya no está activo");
         }
 
-        if (session.getStatus() != AdWatchSessionStatus.ACTIVE) {
+        // ACTIVE: aún viendo / WATCHED: ya completado pero pendiente de like.
+        // Cualquier otro estado (LIKED, EXPIRED, INVALIDATED) bloquea.
+        if (session.getStatus() != AdWatchSessionStatus.ACTIVE
+                && session.getStatus() != AdWatchSessionStatus.WATCHED) {
             throw new BusinessException("La sesión no está activa");
         }
 
@@ -187,9 +229,9 @@ public class AdLikeServiceImpl implements AdLikeService {
             ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0
         );
 
-        Duration watched = Duration.between(session.getStartedAt(), now);
+        double watchedSeconds = Duration.between(session.getStartedAt(), now).toMillis() / 1000.0;
 
-        if (watched.getSeconds() < requiredSeconds * 0.95) {
+        if (watchedSeconds < requiredSeconds * 0.95) {
             throw new BusinessException("Anuncio no visto completamente");
         }
 
