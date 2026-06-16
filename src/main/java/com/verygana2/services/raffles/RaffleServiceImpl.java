@@ -56,6 +56,7 @@ import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.raffles.RaffleService;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.R2Service;
 
 import lombok.RequiredArgsConstructor;
@@ -77,6 +78,7 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
+    private final ClaimCodeEncryptor claimCodeEncryptor;
 
     private static final String domain = "https://cdn.verygana.com/public/";
 
@@ -260,6 +262,7 @@ public class RaffleServiceImpl implements RaffleService {
             List<Prize> rafflePrizes = new ArrayList<>();
             for (int i = 0; i < raffleData.getPrizes().size(); i++) {
                 Prize prize = prizeMapper.toPrize(raffleData.getPrizes().get(i));
+                prize.setClaimCode(claimCodeEncryptor.encrypt(prize.getClaimCode()));
                 prize.setRaffle(raffle);
                 rafflePrizes.add(prize);
             }

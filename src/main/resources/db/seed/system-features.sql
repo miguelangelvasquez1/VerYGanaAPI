@@ -25,7 +25,7 @@ VALUES
 'Sistema de rifas y sorteos: compra de tickets y participación'),
 
 ('RAFFLE_RESULTS',
-'/api/results',
+'/results',
 'ENABLED',
 'MONETIZATION',
 'Resultados de sorteos'),

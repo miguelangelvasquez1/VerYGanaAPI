@@ -12,5 +12,5 @@ public interface RaffleResultService {
     RaffleResult getByRaffleId(Long raffleId);
     RaffleResultResponseDTO getResultByRaffleId(Long raffleId);
     List<RaffleSummaryResultResponseDTO> getLastRaffleResults();
-    DrawProofResponseDTO getDrawProof (Long raffleId);
+    DrawProofResponseDTO getDrawProofByRaffleId (Long raffleId);
 }

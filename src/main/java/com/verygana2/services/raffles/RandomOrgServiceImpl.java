@@ -44,7 +44,7 @@ public class RandomOrgServiceImpl implements RandomOrgService {
 
         validateParameters(min, max, count);
 
-        RandomOrgRequestDTO request = RandomOrgRequestDTO.builder().jsonrpc("2.0").method("generateIntegers")
+        RandomOrgRequestDTO request = RandomOrgRequestDTO.builder().jsonrpc("2.0").method("generateSignedIntegers")
                 .params(RandomOrgParams.builder()
                         .apiKey(apiKey)
                         .n(count)
@@ -85,10 +85,13 @@ public class RandomOrgServiceImpl implements RandomOrgService {
                     .completionTime(body.getResult().getRandom().getCompletionTime())
                     .bitsUsed(body.getResult().getBitsUsed())
                     .bitsLeft(body.getResult().getBitsLeft())
+                    .signature(body.getResult().getSignature())
+                    .hashedApiKey(body.getResult().getRandom().getHashedApiKey())
+                    .license(body.getResult().getRandom().getLicense())
                     .build();
 
-            log.info("Random.org response: {} indices generated. Serial: {}, CompletionTime: {}, Bits used: {}, Bits left: {}",
-                    indices.size(), metadata.getSerialNumber(), metadata.getCompletionTime(),
+            log.info("Random.org signed response: {} indices. Serial: {}, License: {}, Bits used: {}/left: {}",
+                    indices.size(), metadata.getSerialNumber(), metadata.getLicense(),
                     metadata.getBitsUsed(), metadata.getBitsLeft());
 
             return new RandomOrgDrawResult(indices, metadata);
@@ -107,8 +110,8 @@ public class RandomOrgServiceImpl implements RandomOrgService {
             throw new IllegalArgumentException("Min value cannot be negative");
         }
 
-        if (max < min) {
-            throw new IllegalArgumentException("Max value must be greater than or equal to min");
+        if (max <= min) {
+            throw new IllegalArgumentException("Max value must be strictly greater than min (Random.org requires min < max). Use SYSTEM_RANDOM for single-ticket draws.");
         }
 
         if (count <= 0) {

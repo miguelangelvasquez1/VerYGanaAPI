@@ -16,8 +16,10 @@ import com.sendgrid.SendGrid;
 import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
+import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
+import com.verygana2.models.raffles.Prize;
 import com.verygana2.services.interfaces.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class SendGridEmailService implements EmailService {
     private String supportEmail;
 
     private final SendGrid sendGrid;
+    private final MoneyMapper moneyMapper;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -211,7 +214,7 @@ public class SendGridEmailService implements EmailService {
         html.append(String.format("<p><strong>📅 Fecha:</strong> %s</p>",
                 purchase.getCreatedAt().format(DATE_FORMATTER)));
         html.append(String.format("<p><strong>💰 Total Pagado:</strong> $%,.0f COP</p>",
-                purchase.getTotalCents()));
+                moneyMapper.fromCents(purchase.getTotalCents())));
         html.append("</div>");
 
         // Products
@@ -222,7 +225,7 @@ public class SendGridEmailService implements EmailService {
             html.append(String.format("<div class='product-name'>%s</div>",
                     escapeHtml(item.getProduct().getName())));
             html.append(String.format("<div class='product-price'>Precio: $%,.0f COP</div>",
-                    item.getProduct().getPriceCents()));
+                    moneyMapper.fromCents(item.getProduct().getPriceCents())));
 
             // Código
             if (item.getDeliveredCode() != null) {
@@ -285,5 +288,88 @@ public class SendGridEmailService implements EmailService {
                 .replace(">", "&gt;")
                 .replace("\"", "&quot;")
                 .replace("'", "&#x27;");
+    }
+
+    @Override
+    public boolean verifyEmail(String email, String code) {
+        // Not used in the prize claim flow — email ownership is guaranteed by JWT auth
+        return false;
+    }
+
+    @Override
+    @Async
+    public void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode) {
+        log.info("Sending prize claim confirmation to: {} for prize: {}", consumerEmail, prize.getId());
+        try {
+            String subject = "🎉 ¡Código de reclamación de tu premio! - " + prize.getTitle();
+            String html = buildPrizeClaimHtml(prize, decryptedClaimCode);
+            boolean sent = sendEmail(consumerEmail, subject, html);
+            if (sent) {
+                log.info("Prize claim email sent to: {}", consumerEmail);
+            } else {
+                log.error("Failed to send prize claim email to: {}", consumerEmail);
+            }
+        } catch (Exception e) {
+            log.error("Error sending prize claim confirmation to: {}", consumerEmail, e);
+        }
+    }
+
+    private String buildPrizeClaimHtml(Prize prize, String claimCode) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'>");
+        html.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+        html.append("<style>");
+        html.append("* { margin:0; padding:0; box-sizing:border-box; }");
+        html.append("body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; line-height:1.6; color:#333; background:#f4f4f4; }");
+        html.append(".container { max-width:600px; margin:20px auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.1); }");
+        html.append(".header { background:linear-gradient(135deg,#f093fb 0%,#f5576c 100%); color:white; padding:40px 20px; text-align:center; }");
+        html.append(".header h1 { font-size:28px; margin-bottom:10px; }");
+        html.append(".content { padding:30px; }");
+        html.append(".prize-box { background:#fff9e6; border:2px solid #ffc107; border-radius:8px; padding:20px; margin-bottom:24px; text-align:center; }");
+        html.append(".prize-name { font-size:22px; font-weight:bold; color:#333; margin-bottom:6px; }");
+        html.append(".prize-value { font-size:16px; color:#666; }");
+        html.append(".code-box { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); border-radius:10px; padding:24px; text-align:center; margin:24px 0; }");
+        html.append(".code-label { font-size:13px; font-weight:bold; color:rgba(255,255,255,0.8); text-transform:uppercase; letter-spacing:1px; margin-bottom:10px; }");
+        html.append(".code-value { font-family:'Courier New',monospace; font-size:26px; font-weight:bold; color:white; letter-spacing:4px; word-break:break-all; }");
+        html.append(".instructions { background:#e8f5e9; border-left:4px solid #4caf50; padding:16px; border-radius:4px; margin:16px 0; font-size:14px; }");
+        html.append(".warning { background:#fff3cd; border-left:4px solid #ffc107; padding:14px; border-radius:4px; margin-top:16px; font-size:13px; }");
+        html.append(".footer { background:#f9f9f9; padding:20px; text-align:center; border-top:1px solid #e0e0e0; font-size:13px; color:#666; }");
+        html.append(".footer a { color:#667eea; text-decoration:none; }");
+        html.append("</style></head><body><div class='container'>");
+
+        html.append("<div class='header'><h1>🏆 ¡Felicitaciones, ganador/a!</h1>");
+        html.append("<p>Tu código de reclamación está listo</p></div>");
+
+        html.append("<div class='content'>");
+        html.append("<div class='prize-box'>");
+        html.append("<div class='prize-name'>").append(escapeHtml(prize.getTitle())).append("</div>");
+        if (prize.getValue() != null) {
+            html.append("<div class='prize-value'>Valor: $").append(String.format("%,.0f", prize.getValue())).append(" COP</div>");
+        }
+        html.append("</div>");
+
+        html.append("<div class='code-box'>");
+        html.append("<div class='code-label'>🔑 Tu código de reclamación</div>");
+        html.append("<div class='code-value'>").append(escapeHtml(claimCode)).append("</div>");
+        html.append("</div>");
+
+        if (prize.getClaimInstructions() != null && !prize.getClaimInstructions().isBlank()) {
+            html.append("<div class='instructions'>");
+            html.append("<strong>📋 Instrucciones para reclamar tu premio:</strong><br/><br/>");
+            html.append(escapeHtml(prize.getClaimInstructions()).replace("\n", "<br/>"));
+            html.append("</div>");
+        }
+
+        html.append("<div class='warning'>⚠️ <strong>Importante:</strong> Guarda este correo en un lugar seguro. ");
+        html.append("Este código es de uso único y personal. No lo compartas con nadie.</div>");
+        html.append("</div>");
+
+        html.append("<div class='footer'>");
+        html.append("<p><strong>¿Necesitas ayuda?</strong></p>");
+        html.append(String.format("<p>Contáctanos en <a href='mailto:%s'>%s</a></p>", supportEmail, supportEmail));
+        html.append("<p style='margin-top:12px;font-size:11px;color:#999;'>© 2025 VeryGana. Todos los derechos reservados.</p>");
+        html.append("</div></div></body></html>");
+
+        return html.toString();
     }
 }

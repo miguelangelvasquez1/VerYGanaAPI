@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.raffle.requests.ClaimPrizeRequestDTO;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 
@@ -13,5 +14,5 @@ public interface RaffleWinnerService {
     List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId (Long raffleId);
     PagedResponse<PrizeWonResponseDTO> getWonPrizesList (Long consumerId, Boolean isClaimed, Pageable pageable);
     List<WinnerSummaryResponseDTO> getLastRaffleWinners();
-    void claimPrize ();
+    void claimPrize (Long consumerId, ClaimPrizeRequestDTO request);
 }

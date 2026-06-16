@@ -1,6 +1,7 @@
-
 package com.verygana2.services.raffles;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Page;
@@ -9,43 +10,54 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.raffle.requests.ClaimPrizeRequestDTO;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
+import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.mappers.raffles.RaffleWinnerMapper;
+import com.verygana2.models.User;
+import com.verygana2.models.enums.raffles.ClaimPreferenceDeliveryMethod;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleWinner;
+import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
+import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
     private final RaffleWinnerRepository raffleWinnerRepository;
+    private final PrizeRepository prizeRepository;
     private final RaffleResultService raffleResultService;
     private final RaffleWinnerMapper raffleWinnerMapper;
+    private final EmailService emailService;
+    private final TwilioSmsService twilioSmsService;
+    private final ClaimCodeEncryptor claimCodeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Transactional(readOnly = true)
     @Override
     public List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId(Long raffleId) {
-
         RaffleResult result = raffleResultService.getByRaffleId(raffleId);
-        
         List<RaffleWinner> winners = raffleWinnerRepository.findByRaffleResultId(result.getId());
-
         return winners.stream().map(raffleWinnerMapper::toWinnerSummaryResponseDTO).toList();
     }
 
     @Transactional(readOnly = true)
     @Override
     public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Boolean isClaimed, Pageable pageable) {
-
         Page<RaffleWinner> wins = raffleWinnerRepository.findWonPrizesByConsumer(consumerId, isClaimed, pageable);
         return PagedResponse.from(wins.map(w -> {
             Prize prize = w.getPrize();
@@ -69,15 +81,86 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     }
 
     @Override
-    public List<WinnerSummaryResponseDTO> getLastRaffleWinners(){
+    public List<WinnerSummaryResponseDTO> getLastRaffleWinners() {
         List<RaffleWinner> winners = raffleWinnerRepository.findLastWinners();
         return winners.stream().map(raffleWinnerMapper::toWinnerSummaryResponseDTO).toList();
     }
 
     @Override
-    public void claimPrize() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'claimPrize'");
+    public void claimPrize(Long consumerId, ClaimPrizeRequestDTO request) {
+
+        // 1. Buscar registro del ganador
+        RaffleWinner raffleWinner = raffleWinnerRepository.findByPrizeId(request.getPrizeId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "No winner record found for prize id: " + request.getPrizeId()));
+
+        // 2. Verificar que el usuario autenticado es el ganador
+        if (!raffleWinner.getWinner().getId().equals(consumerId)) {
+            throw new ClaimPrizeException("You are not the winner of this prize");
+        }
+
+        // 3. Verificar que no haya sido reclamado previamente
+        if (raffleWinner.isPrizeClaimed()) {
+            throw new ClaimPrizeException("Prize has already been claimed");
+        }
+
+        // 4. Verificar que el plazo de reclamación no haya expirado
+        if (ZonedDateTime.now(ZoneOffset.UTC).isAfter(raffleWinner.getClaimDeadline())) {
+            throw new ClaimPrizeException(
+                    "Claim deadline has passed. Prize expired on: " + raffleWinner.getClaimDeadline());
+        }
+
+        Prize prize = raffleWinner.getPrize();
+        User user = raffleWinner.getWinner().getUser();
+
+        // 5. Descifrar el código de reclamación
+        String decryptedCode = claimCodeEncryptor.decrypt(prize.getClaimCode());
+
+        // 6. Determinar canal de entrega y enviar
+        String deliveryRef = deliver(request, prize, user, decryptedCode);
+
+        // 7. Persistir estado de reclamación
+        raffleWinner.setPrizeClaimed(true);
+        raffleWinner.setPrizeClaimedAt(ZonedDateTime.now(ZoneOffset.UTC));
+        raffleWinner.setPrizeTrackingInfo(deliveryRef);
+        raffleWinnerRepository.save(raffleWinner);
+
+        prize.incrementClaimedCount();
+        prizeRepository.save(prize);
+
+        log.info("Prize claimed. consumer={}, prize={}, method={}, ref={}",
+                consumerId, prize.getId(), request.getDeliveryMethod(), deliveryRef);
     }
 
+    private String deliver(ClaimPrizeRequestDTO request, Prize prize, User user, String decryptedCode) {
+        if (request.getDeliveryMethod() == ClaimPreferenceDeliveryMethod.EMAIL) {
+            String targetEmail = hasValue(request.getNewEmail()) ? request.getNewEmail() : user.getEmail();
+            emailService.sendPrizeClaimConfirmation(prize, targetEmail, decryptedCode);
+            return "EMAIL:" + targetEmail;
+        }
+
+        if (request.getDeliveryMethod() == ClaimPreferenceDeliveryMethod.SMS) {
+            String targetPhone = hasValue(request.getNewPhoneNumber()) ? request.getNewPhoneNumber() : user.getPhoneNumber();
+
+            // Si usa un número alternativo, verificar OTP de Twilio primero
+            if (hasValue(request.getNewPhoneNumber())) {
+                if (!hasValue(request.getSmsOtpCode())) {
+                    throw new ClaimPrizeException("SMS OTP code is required to verify a new phone number");
+                }
+                boolean verified = twilioSmsService.verifyOtp(request.getNewPhoneNumber(), request.getSmsOtpCode());
+                if (!verified) {
+                    throw new ClaimPrizeException("SMS verification code is invalid or has expired");
+                }
+            }
+
+            twilioSmsService.sendPrizeClaimConfirmation(prize, targetPhone, decryptedCode);
+            return "SMS:" + targetPhone;
+        }
+
+        throw new ClaimPrizeException("Unsupported delivery method: " + request.getDeliveryMethod());
+    }
+
+    private boolean hasValue(String s) {
+        return s != null && !s.isBlank();
+    }
 }

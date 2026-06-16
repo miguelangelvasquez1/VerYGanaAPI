@@ -16,7 +16,7 @@ import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/results")
+@RequestMapping("/results")
 @RequiredArgsConstructor
 public class RaffleResultController {
 
@@ -32,13 +32,11 @@ public class RaffleResultController {
         return ResponseEntity.ok(raffleResultService.getLastRaffleResults());
     }
 
-    @GetMapping("/{raffleId}/draw-proof")
-    public ResponseEntity<DrawProofResponseDTO> getDrawProof(
+    @GetMapping("/raffle/{raffleId}/draw-proof")
+    public ResponseEntity<DrawProofResponseDTO> getDrawProofByRaffleId(
             @PathVariable Long raffleId) {
 
-        return ResponseEntity.ok(raffleResultService.getDrawProof(raffleId));
+        return ResponseEntity.ok(raffleResultService.getDrawProofByRaffleId(raffleId));
     }
     
-    // Falta incluir un metodo para admin que retorne un informe mas detallado sobre
-    // el resultado de una rifa (con mas datos)
 }

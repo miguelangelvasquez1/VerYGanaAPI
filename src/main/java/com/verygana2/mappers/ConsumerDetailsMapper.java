@@ -52,6 +52,7 @@ public interface ConsumerDetailsMapper {
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "keyWallet", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "lastDailyLoginDate", ignore = true)
     void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     

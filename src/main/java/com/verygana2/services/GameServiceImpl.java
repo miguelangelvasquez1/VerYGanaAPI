@@ -219,8 +219,8 @@ public class GameServiceImpl implements GameService {
         if (game.getDeliveryType() == Game.DeliveryType.PATH) {
 
             // Para justudios
-            baseUrl = String.format("https://%s/%s/?",
-                    "cdn.verygana.com",
+            baseUrl = String.format("https://%s/%s/build/?",
+                    "justudios.co/test-verygana",
                     game.getUrl());
 
             // baseUrl = String.format("https://%s/%s/%s/%s/?",

@@ -1,5 +1,7 @@
 package com.verygana2.services.interfaces;
 
+import com.verygana2.models.raffles.Prize;
+
 public interface TwilioSmsService {
 
     /**
@@ -14,4 +16,6 @@ public interface TwilioSmsService {
      * @return true si el código es correcto y no ha expirado, false en caso contrario.
      */
     boolean verifyOtp(String phoneNumber, String code);
+
+    void sendPrizeClaimConfirmation(Prize prize, String phoneNumber, String decryptedClaimCode);
 }

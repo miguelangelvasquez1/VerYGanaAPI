@@ -170,6 +170,7 @@ twilio:
   account-sid: ${TWILIO_ACCOUNT_SID}
   auth-token: ${TWILIO_AUTH_TOKEN}
   verify-service-sid: ${TWILIO_VERIFY_SERVICE_SID}
+  phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
 # WOMPI CONFIG
@@ -200,6 +201,8 @@ payment:
 # SECURITY MONITORING CONFIG
 # ============================================
 app:
+  claim-code:
+    encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   security:
     monitoring:
       enabled: true

@@ -95,14 +95,11 @@ public class Prize {
 
     // ========== ENTREGA ==========
     
-    @Column(name = "requires_shipping", nullable = false)
-    private boolean requiresShipping;
+    @Column(name = "claim_code", nullable = false)
+    private String claimCode;
 
-    @Column(name = "estimated_delivery_days")
-    private Integer estimatedDeliveryDays;
-
-    @Column(name = "redemption_instructions", columnDefinition = "TEXT")
-    private String redemptionInstructions; // Para premios digitales
+    @Column(name = "claim_instructions", columnDefinition = "TEXT")
+    private String claimInstructions;
 
     // ========== RELACIÓN CON GANADOR ==========
     
