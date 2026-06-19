@@ -50,12 +50,12 @@ public class SystemFeature {
     }
 
     public enum FeatureCategory {
-        MONETIZACION,
-        FINANCIERO,
-        ADQUISICION,
-        NOTIFICACIONES,
-        IMPACTO,
-        PERFILES,
-        ADMINISTRACION
+        MONETIZATION,
+        FINANCIAL,
+        USER_ACQUISITION,
+        ENGAGEMENT,
+        MARKETPLACE,
+        USER_PROFILES,
+        ADMINISTRATION
     }
 }

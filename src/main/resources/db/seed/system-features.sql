@@ -3,25 +3,24 @@ INSERT INTO system_features
 VALUES
 
 -- ============================================================
--- MONETIZACION: ads, surveys, raffles, games, marketplace, campaigns
+-- MONETIZATION: ads, surveys, raffles, games, campaigns
 -- ============================================================
 
 ('ADS_SYSTEM',
 '/ads',
 'ENABLED',
-'MONETIZACION',
+'MONETIZATION',
 'Sistema de anuncios: visualización, interacción y assets'),
 
 ('SURVEYS_SYSTEM',
 '/surveys',
 'ENABLED',
-'MONETIZACION',
+'MONETIZATION',
 'Sistema de encuestas: participación y recompensas'),
 
 ('RAFFLES_SYSTEM',
 '/api/raffles',
 'ENABLED',
-<<<<<<< HEAD
 'MONETIZATION',
 'Sistema de rifas y sorteos: compra de tickets y participación'),
 
@@ -42,111 +41,107 @@ VALUES
 'ENABLED',
 'MONETIZATION',
 'Mis tickets de rifa'),
-=======
-'MONETIZACION',
-'Sistema de rifas: tickets, resultados y ganadores'),
->>>>>>> e5d79941ef5708df07a78bfb27225ce91fdf4ac7
 
 ('GAMES_SYSTEM',
 '/games',
 'ENABLED',
-'MONETIZACION',
+'MONETIZATION',
 'Sistema de juegos y minijuegos'),
-
-('MARKETPLACE',
-'/products',
-'ENABLED',
-'MONETIZACION',
-'Marketplace: catálogo, compras y reseñas de productos'),
 
 ('CAMPAIGNS_SYSTEM',
 '/campaigns',
 'ENABLED',
-'MONETIZACION',
+'MONETIZATION',
 'Gestión de campañas publicitarias de comerciales'),
 
 -- ============================================================
--- IMPACTO
+-- MARKETPLACE
+-- ============================================================
+
+('MARKETPLACE',
+'/products',
+'ENABLED',
+'MARKETPLACE',
+'Marketplace: catálogo, compras y reseñas de productos'),
+
+-- ============================================================
+-- ENGAGEMENT: impact stories, notifications
 -- ============================================================
 
 ('IMPACT_STORIES_SYSTEM',
 '/impact-stories',
 'ENABLED',
-'IMPACTO',
+'ENGAGEMENT',
 'Historias de impacto social: publicación y medios'),
 
+('NOTIFICATIONS_SYSTEM',
+'/notifications',
+'ENABLED',
+'ENGAGEMENT',
+'Notificaciones en tiempo real para usuarios'),
+
 -- ============================================================
--- FINANCIERO
+-- FINANCIAL
 -- ============================================================
 
 ('WALLET_SYSTEM',
 '/commercial/wallet',
 'ENABLED',
-'FINANCIERO',
+'FINANCIAL',
 'Billetera y saldo de cuentas comerciales'),
 
 ('KEY_TRANSACTIONS',
 '/consumer/transactions',
 'ENABLED',
-'FINANCIERO',
+'FINANCIAL',
 'Movimientos y transacciones de llaves de consumidores'),
 
 ('PLANS_SYSTEM',
 '/plans',
 'ENABLED',
-'FINANCIERO',
+'FINANCIAL',
 'Planes y suscripciones para comerciales'),
 
 -- ============================================================
--- ADQUISICION
+-- USER_ACQUISITION
 -- ============================================================
 
 ('USER_REGISTRATION',
 '/auth/register',
 'ENABLED',
-'ADQUISICION',
+'USER_ACQUISITION',
 'Registro de nuevos usuarios (consumidores y comerciales)'),
 
 ('REFERRAL_SYSTEM',
 '/referrals',
 'ENABLED',
-'ADQUISICION',
+'USER_ACQUISITION',
 'Programa de referidos'),
 
 -- ============================================================
--- NOTIFICACIONES
--- ============================================================
-
-('NOTIFICATIONS_SYSTEM',
-'/notifications',
-'ENABLED',
-'NOTIFICACIONES',
-'Notificaciones en tiempo real para usuarios'),
-
--- ============================================================
--- PERFILES
+-- USER_PROFILES
 -- ============================================================
 
 ('CONSUMER_PROFILES',
 '/consumers',
 'ENABLED',
-'PERFILES',
+'USER_PROFILES',
 'Perfiles y configuración de consumidores'),
 
 ('COMMERCIAL_PROFILES',
 '/commercials',
 'ENABLED',
-'PERFILES',
+'USER_PROFILES',
 'Perfiles y configuración de comerciales'),
 
 -- ============================================================
--- ADMINISTRACION
+-- ADMINISTRATION
 -- ============================================================
 
 ('ADMIN_PANEL',
 '/api/admin',
 'ENABLED',
-'ADMINISTRACION',
+'ADMINISTRATION',
 'Panel de administración general')
 
 ON DUPLICATE KEY UPDATE
