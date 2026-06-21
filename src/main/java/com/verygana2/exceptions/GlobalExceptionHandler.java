@@ -252,6 +252,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidContentException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidContentException(
+            InvalidContentException ex, WebRequest request) {
+        log.warn("Invalid content error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     // ==================== PAYOUT METHODS ====================
 
     @ExceptionHandler(PayoutMethodNotFoundException.class)

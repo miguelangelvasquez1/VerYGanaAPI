@@ -75,7 +75,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         }
 
         if (profanityFilterService.containsProfanity(request.getComment())) {
-        throw new InvalidContentException("Review contains not allowed lenguage. Por favor revísalo.");
+        throw new InvalidContentException("Review contains not allowed lenguage.");
     }
 
         ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
@@ -104,6 +104,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     @Transactional(readOnly = true)
     @Override
     public boolean canBeReviewed (Long productId, Long consumerId){
+        
         if (productId == null || productId <= 0) {
             throw new IllegalArgumentException("Product id must be positive");
         }

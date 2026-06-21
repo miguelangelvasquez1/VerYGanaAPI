@@ -98,7 +98,7 @@ public interface ProductMapper {
     @Mapping(target = "categoryName", source = "productCategory.name")
     @Mapping(target = "companyName", source = "commercial.companyName")
     @Mapping(target = "reviews", source = "reviews")
-    @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "price", source = "priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
@@ -109,7 +109,7 @@ public interface ProductMapper {
 
     @Mapping(target = "categoryName", source = "productCategory.name")
     @Mapping(target = "stock", expression = "java(product.getAvailableStock())")
-    @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "companyName", source = "commercial.companyName")
     @Mapping(target = "price", source = "priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
@@ -139,7 +139,7 @@ public interface ProductMapper {
     @Mapping(target = "productCategoryId", source = "productCategory.id")
     @Mapping(target = "totalStockItems", ignore = true)
     @Mapping(target = "availableStockItems", expression = "java(product.getAvailableStock())")
-    @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
+    @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "price", source = "priceCents")
     ProductEditInfoResponseDTO toProductEditInfoDTO (Product product);
 }

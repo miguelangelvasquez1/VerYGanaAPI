@@ -385,7 +385,11 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page) {
         Pageable pageable = PageRequest.of(page, 20, Direction.DESC, "createdAt");
         PagedResponse<Product> activeProducts = PagedResponse.from(productRepository.findAllActiveProducts(pageable));
-        return activeProducts.map(productMapper::toProductSummaryResponseDTO);
+        return activeProducts.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
@@ -406,7 +410,11 @@ public class ProductServiceImpl implements ProductService {
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
                         pageable));
 
-        return productPage.map(productMapper::toProductSummaryResponseDTO);
+        return productPage.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
 
     }
 
@@ -427,6 +435,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDTO detailProduct(Long productId) {
         Product product = getById(productId);
         ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
         return response;
     }
 
@@ -443,7 +452,11 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findByCommercialId(commercialId, pageable));
-        return products.map(productMapper::toProductSummaryResponseDTO);
+        return products.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
@@ -508,6 +521,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = getByIdAndCommercialId(productId, commercialId);
 
         ProductEditInfoResponseDTO dto = productMapper.toProductEditInfoDTO(product);
+        dto.setImageUrl(resolveImageUrl(product));
 
         // Agregar información de stock
         dto.setTotalStockItems(product.getStockItems() != null ? product.getStockItems().size() : 0);
@@ -530,7 +544,11 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.getAllProductsForAdmin(status, pageable));
-        return products.map(productMapper::toProductSummaryResponseDTO);
+        return products.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
@@ -613,6 +631,20 @@ public class ProductServiceImpl implements ProductService {
                 "Tu producto: " + product.getName() + " ha sido eliminado por uno de nuestros administradores. ",
                 reason, Instant.now());
 
+    }
+
+    private String resolveImageUrl(Product product) {
+        if (product.getImageAsset() == null) {
+            return null;
+        }
+
+        String objectKey = product.getImageAsset().getObjectKey();
+
+        if (product.getStatus() == ProductStatus.PENDING || product.getStatus() == ProductStatus.REJECTED) {
+            return r2Service.getPrivateObject(objectKey, 600);
+        }
+
+        return product.getImageUrl();
     }
 
     @Override
