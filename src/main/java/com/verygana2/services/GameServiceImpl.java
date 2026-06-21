@@ -154,9 +154,19 @@ public class GameServiceImpl implements GameService {
         }
 
         Campaign campaign = campaignRepository.findById(req.getCampaignId())
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Campaign not found with id: " + req.getCampaignId(), Campaign.class));
-        return campaign.getConfigData();
+                .orElseThrow(() -> new ObjectNotFoundException("Campaign not found with id: " + req.getCampaignId(), Campaign.class));
+        
+        Map<String, Object> assets = new java.util.HashMap<>(campaign.getConfigData());
+
+        List<RewardCardResponseDTO> rewards = getGameRewards(req.getSessionToken());
+
+        Map<String, Object> rewardPopup = Map.of(
+                "popup_title", "Recompensas desbloqueadas",
+                "products", rewards
+        );
+        assets.put("reward_popup", rewardPopup);
+
+        return assets;
     }
 
     /**
@@ -219,16 +229,16 @@ public class GameServiceImpl implements GameService {
         if (game.getDeliveryType() == Game.DeliveryType.PATH) {
 
             // Para justudios
-            baseUrl = String.format("https://%s/%s/build/?",
-                    "justudios.co/test-verygana",
-                    game.getUrl());
+        //     baseUrl = String.format("https://%s/%s/build/?",
+        //             "justudios.co/test-verygana",
+        //             game.getUrl());
 
-            // baseUrl = String.format("https://%s/%s/%s/%s/?",
-            // cdnUrl,
-            // "builds/build-bogota",
-            // "28-04-2026", // Cambia segun version
-            // game.getUrl()
-            // );
+            baseUrl = String.format("https://%s/%s/%s/?",
+            cdnUrl,
+            "builds/build-bogota",
+            //"28-04-2026", // Cambia segun version
+            game.getUrl()
+            );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
             baseUrl = String.format("https://%s/%s/?game_title=%s&",
@@ -288,8 +298,7 @@ public class GameServiceImpl implements GameService {
                 : objectMapper.valueToTree(value);
     }
 
-    @Override
-    public List<RewardCardResponseDTO> getGameRewards(String gameSessionToken) {
+    private List<RewardCardResponseDTO> getGameRewards(String gameSessionToken) {
         GameSession session = gameSessionRepository.findBySessionToken(gameSessionToken)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "Game session with token: " + gameSessionToken + " not found"));
