@@ -5,10 +5,12 @@ import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.GameDesignerRegisterDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.userDetails.GameDesignerDetails;
 
 @Mapper(componentModel = "spring")
 public interface UserMapper {
@@ -44,6 +46,7 @@ public interface UserMapper {
     @Mapping(target = "keyWallet", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
+    @Mapping(target = "lastDailyLoginDate", ignore = true)
     ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     // ---- COMMERCIAL ----
@@ -68,4 +71,22 @@ public interface UserMapper {
 
     @Mapping(target = "email", source = "details.user.email")
     CommercialInitialDataResponseDTO toCommercialInitialDataResponseDTO(CommercialDetails details);
+
+    // ---- GAME DESIGNER ----
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "role", constant = "GAME_DESIGNER")
+    @Mapping(target = "userDetails", ignore = true)
+    @Mapping(target = "userState", constant = "ACTIVE")
+    @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
+    @Mapping(target = "verification", ignore = true)
+    @Mapping(target = "publicId", ignore = true)
+    User toUser(GameDesignerRegisterDTO dto);
+
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "user", ignore = true)
+    @Mapping(target = "notifications", ignore = true)
+    @Mapping(target = "designerCode", ignore = true)
+    @Mapping(target = "campaignsDesigned", ignore = true)
+    @Mapping(target = "joinedAt", ignore = true)
+    GameDesignerDetails toGameDesignerDetails(GameDesignerRegisterDTO dto);
 }

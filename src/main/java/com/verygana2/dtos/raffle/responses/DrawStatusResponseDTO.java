@@ -29,8 +29,8 @@ public class DrawStatusResponseDTO {
     // Total de ganadores que habrá (para que el frontend sepa "2 de 3")
     private int totalWinners;
 
-    // Solo presente si currentPhase = DRAW_COMPLETED
-    private String drawProofUrl;
+    // Total de participantes
+    private Long totalParticipants;
 
     private ZonedDateTime asOf; // Timestamp de cuándo se consultó este estado
 }

@@ -59,8 +59,8 @@ public class RaffleWinner {
     @Column(name = "prize_claimed_at")
     private ZonedDateTime prizeClaimedAt;
 
-    @Column(name = "prize_tracking_number")
-    private String prizeTrackingNumber;
+    @Column(name = "prize_tracking_info")
+    private String prizeTrackingInfo;
 
     @Column(name = "claim_deadline")
     private ZonedDateTime claimDeadline;

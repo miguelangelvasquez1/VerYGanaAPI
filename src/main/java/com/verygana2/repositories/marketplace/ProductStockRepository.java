@@ -20,8 +20,23 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
     @Query("SELECT ps FROM ProductStock ps WHERE ps.id = :id")
     Optional<ProductStock> findByIdWithLock(@Param("id") Long id);
 
-    // En ProductStockRepository
-    @Query(value = "SELECT * FROM product_stock WHERE product_id = :productId AND status = 'AVAILABLE' AND (expiration_date IS NULL OR expiration_date > NOW()) ORDER BY id ASC LIMIT 1", nativeQuery = true)
+    // FOR UPDATE SKIP LOCKED: evita que dos transacciones concurrentes tomen el mismo stock.
+    // NOT EXISTS en purchase_items: protege ante inconsistencias donde el stock dice AVAILABLE
+    // pero ya tiene un PurchaseItem activo apuntando a él.
+    @Query(value = """
+            SELECT ps.* FROM product_stock ps
+            WHERE ps.product_id = :productId
+              AND ps.status = 'AVAILABLE'
+              AND (ps.expiration_date IS NULL OR ps.expiration_date > NOW())
+              AND NOT EXISTS (
+                  SELECT 1 FROM purchase_items pi
+                  WHERE pi.product_stock_id = ps.id
+                    AND pi.status != 'CANCELLED'
+              )
+            ORDER BY ps.id ASC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
     Optional<ProductStock> findNextAvailableForProduct(@Param("productId") Long productId);
 
     Page<ProductStock> findByProductId(Long productId, Pageable pageable);

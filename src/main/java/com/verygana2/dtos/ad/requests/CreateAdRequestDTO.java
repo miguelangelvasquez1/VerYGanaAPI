@@ -3,6 +3,8 @@ package com.verygana2.dtos.ad.requests;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import org.hibernate.validator.constraints.URL;
+
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -39,16 +41,20 @@ public class CreateAdRequestDTO {
     
     @NotNull(message = "Max likes is required")
     @Min(value = 1, message = "Max likes must be at least 1")
-    @Max(value = 10000, message = "Max likes must not exceed 10,000")
+    @Max(value = 10000000, message = "Max likes must not exceed 10,000,000")
     private Integer maxLikes;
+
+    @NotNull(message = "Max likes per user per day is required")
+    @Min(value = 1, message = "Max likes per user per day must be at least 1")
+    @Max(value = 100, message = "Max likes per user per day must not exceed 100")
+    private Integer maxLikesPerUserPerDay;
     
     @Size(max = 500, message = "Target URL must not exceed 500 characters")
-    @Pattern(regexp = "^(https?://)?.*", message = "Target URL must be a valid URL")
+    @URL(message = "Target URL must be a valid URL")
     private String targetUrl;
     
     // Fechas (pueden ser null)
     private ZonedDateTime startDate;
-    private ZonedDateTime endDate;
     
     @NotEmpty(message = "At least one category must be selected")
     @Size(max = 10, message = "Cannot select more than 10 categories")
@@ -77,14 +83,6 @@ public class CreateAdRequestDTO {
             return true; // Let @NotNull handle null validation
         }
         return maxAge >= minAge;
-    }
-    
-    @AssertTrue(message = "End date must be after start date")
-    public boolean isDateRangeValid() {
-        if (startDate == null || endDate == null) {
-            return true; // Dates are optional
-        }
-        return endDate.isAfter(startDate);
     }
 
     @AssertTrue(message = "Price per like must be a multiple of 10")

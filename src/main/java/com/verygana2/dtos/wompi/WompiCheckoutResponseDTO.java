@@ -1,7 +1,9 @@
 package com.verygana2.dtos.wompi;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 /**
  * Respuesta del backend al frontend cuando se inicia un checkout de Wompi.
@@ -9,6 +11,8 @@ import lombok.Data;
  */
 @Data
 @Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class WompiCheckoutResponseDTO {
 
     /**

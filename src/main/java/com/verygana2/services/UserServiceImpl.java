@@ -1,10 +1,6 @@
 package com.verygana2.services;
 
-import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.models.Avatar;
-import com.verygana2.models.Municipality;
-import com.verygana2.services.interfaces.AvatarService;
-import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.models.Municipality;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
@@ -16,15 +12,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.dtos.user.GameDesignerRegisterDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.repositories.UserRepository;
-import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -47,7 +45,23 @@ public class UserServiceImpl implements UserService {
     private final OutboxService outboxService;
     private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
-    private  final LevelService levelService;
+    private final LevelService levelService;
+
+    @Override
+    public User registerGameDesigner(GameDesignerRegisterDTO dto) {
+        validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
+
+        User user = userMapper.toUser(dto);
+        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+
+        GameDesignerDetails details = userMapper.toGameDesignerDetails(dto);
+        details.setDesignerCode("GD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
+        details.setJoinedAt(LocalDate.now());
+        details.setUser(user);
+        user.setUserDetails(details);
+
+        return userRepository.save(user);
+    }
 
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -64,13 +78,6 @@ public class UserServiceImpl implements UserService {
         return savedUser;
     }
 
-    private String normalizeUsername(String u) {
-        return u == null ? null : u.trim();
-    }
-    private int calculateAge(LocalDate birthDate) {
-        return Period.between(birthDate, LocalDate.now()).getYears();
-    }
-
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
@@ -79,6 +86,8 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
+        details.setUser(user);
+        user.setUserDetails(details);
 
         // === ASIGNACIÓN DEL MUNICIPIO ===
         if (dto.getMunicipalityCode() != null) {
@@ -97,14 +106,11 @@ public class UserServiceImpl implements UserService {
 
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
+        // userHash NOT NULL+UNIQUE requiere un valor único antes del INSERT (IDENTITY);
+        // se reemplaza con el hash real tras obtener el ID generado por la BD.
+        details.setUserHash(UUID.randomUUID().toString());
         userRepository.saveAndFlush(user);
-        
-        // Asignar hash
         details.setUserHash(userHashGenerator.generate(user.getId()));
-        details.setUser(user);
-        user.setUserDetails(details);
-
-        userRepository.saveAndFlush(user);
 
         keyWalletService.createFor(user.getId());
         levelService.initializeProfile(user.getId());
@@ -116,6 +122,13 @@ public class UserServiceImpl implements UserService {
             );
         }
         return user;
+    }
+
+    private String normalizeUsername(String u) {
+        return u == null ? null : u.trim();
+    }
+    private int calculateAge(LocalDate birthDate) {
+        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {

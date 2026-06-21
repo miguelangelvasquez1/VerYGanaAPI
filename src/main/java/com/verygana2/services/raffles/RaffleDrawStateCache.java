@@ -1,7 +1,5 @@
 package com.verygana2.services.raffles;
 
-
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -35,7 +33,7 @@ public class RaffleDrawStateCache {
             this.phase = phase;
             this.totalWinners = totalWinners;
             this.revealedWinners = new ArrayList<>();
-            this.updatedAt = ZonedDateTime.now(ZoneId.from(ZoneOffset.UTC));
+            this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -51,7 +49,7 @@ public class RaffleDrawStateCache {
         if (state != null) {
             state.revealedWinners.add(winner);
             state.phase = DrawEventType.WINNER_REVEALED;
-            state.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+            state.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -59,7 +57,7 @@ public class RaffleDrawStateCache {
         DrawState state = cache.get(raffleId);
         if (state != null) {
             state.phase = DrawEventType.DRAW_COMPLETED;
-            state.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+            state.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -67,7 +65,7 @@ public class RaffleDrawStateCache {
         DrawState state = cache.get(raffleId);
         if (state != null) {
             state.phase = DrawEventType.DRAW_ERROR;
-            state.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+            state.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
 
@@ -86,7 +84,7 @@ public class RaffleDrawStateCache {
      * (significa que el sorteo no ha empezado aún).
      */
     public DrawStatusResponseDTO buildStatus(Long raffleId, int viewerCount,
-                                              Long secondsUntilDraw, Raffle raffle) {
+                                              Long secondsUntilDraw, Raffle raffle, long totalParticipants) {
         DrawState state = cache.get(raffleId);
 
         // Sorteo aún no empezó — está en sala de espera
@@ -97,13 +95,10 @@ public class RaffleDrawStateCache {
                     .viewerCount(viewerCount)
                     .revealedWinners(List.of())
                     .totalWinners(0)
-                    .asOf(ZonedDateTime.now(ZoneId.of("America/Bogota")))
+                    .totalParticipants(totalParticipants)
+                    .asOf(ZonedDateTime.now(ZoneOffset.UTC))
                     .build();
         }
-
-        String proofUrl = state.phase == DrawEventType.DRAW_COMPLETED
-                ? "/api/raffles/" + raffleId + "/draw-proof"
-                : null;
 
         return DrawStatusResponseDTO.builder()
                 .currentPhase(state.phase)
@@ -111,8 +106,7 @@ public class RaffleDrawStateCache {
                 .viewerCount(viewerCount)
                 .revealedWinners(new ArrayList<>(state.revealedWinners))
                 .totalWinners(state.totalWinners)
-                .drawProofUrl(proofUrl)
-                .asOf(ZonedDateTime.now(ZoneId.of("America/Bogota")))
+                .asOf(ZonedDateTime.now(ZoneOffset.UTC))
                 .build();
     }
 }

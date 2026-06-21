@@ -25,7 +25,8 @@ import lombok.NoArgsConstructor;
 
 @Entity
 @Table(name = "payout_methods", indexes = {
-        @Index(name = "idx_payout_methods_commercial_id", columnList = "commercial_id")
+        @Index(name = "idx_payout_methods_commercial_id", columnList = "commercial_id"),
+        @Index(name = "idx_payout_methods_verification_status", columnList = "verification_status")
 })
 @Data
 @Builder
@@ -115,14 +116,33 @@ public class PayoutMethod {
     @Column(name = "account_holder_doc_type", nullable = false, length = 10)
     private DocType accountHolderDocType;
 
+    // ===== VERIFICACIÓN =====
+
     /**
-     * Indica si este método fue verificado por el administrador de VeryGana.
-     * El PayoutScheduler solo ejecuta transferencias a métodos verificados.
-     * Un método no verificado bloquea el payout hasta que el admin lo apruebe.
+     * Estado actual del flujo de verificación del método de pago.
+     *
+     * Flujo NEQUI / DAVIPLATA (automático vía Twilio Verify):
+     *   PENDING_VERIFICATION → AWAITING_OTP → VERIFIED
+     *                                       → REJECTED (si se agotan los intentos)
+     *
+     * Flujo BANK_TRANSFER (revisión manual admin):
+     *   PENDING_VERIFICATION → UNDER_REVIEW → VERIFIED
+     *                                       → REJECTED
+     *
+     * El PayoutScheduler solo ejecuta pagos a métodos en estado VERIFIED y activos.
+     * Primer pago: retenido 24h (flag firstPayoutCompleted = false) estilo Airbnb.
      */
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "verification_status", nullable = false, length = 30)
     @Builder.Default
-    private boolean verified = false;
+    private VerificationStatus verificationStatus = VerificationStatus.PENDING_VERIFICATION;
+
+    /**
+     * Motivo de rechazo, si el método fue rechazado por el admin o por OTP fallido.
+     * Nulo cuando el estado es distinto de REJECTED.
+     */
+    @Column(name = "rejection_reason", length = 500)
+    private String rejectionReason;
 
     /**
      * Indica si este método está activo. Un comercial puede desactivar
@@ -132,6 +152,15 @@ public class PayoutMethod {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /**
+     * Bandera estilo Airbnb: el primer payout hacia este método queda retenido
+     * 24h para revisión antifraude. Una vez que el primer pago se completa
+     * exitosamente, los siguientes se liberan en el ciclo normal.
+     */
+    @Column(name = "first_payout_completed", nullable = false)
+    @Builder.Default
+    private boolean firstPayoutCompleted = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -147,7 +176,22 @@ public class PayoutMethod {
     // ===== MÉTODOS DE NEGOCIO =====
 
     public boolean canBeUsedForPayout() {
-        return verified && active;
+        return verificationStatus == VerificationStatus.VERIFIED && active;
+    }
+
+    public void markVerified() {
+        this.verificationStatus = VerificationStatus.VERIFIED;
+        this.verifiedAt = ZonedDateTime.now(ZoneOffset.UTC);
+        this.rejectionReason = null;
+    }
+
+    public void reject(String reason) {
+        this.verificationStatus = VerificationStatus.REJECTED;
+        this.rejectionReason = reason;
+    }
+
+    public void markFirstPayoutCompleted() {
+        this.firstPayoutCompleted = true;
     }
 
     // ===== ENUMS =====
@@ -168,5 +212,20 @@ public class PayoutMethod {
         CE,   // Cédula de extranjería
         NIT,  // NIT empresa
         PP    // Pasaporte
+    }
+
+    public enum VerificationStatus {
+        /** Recién registrado, aún no se ha iniciado verificación. */
+        PENDING_VERIFICATION,
+        /** OTP enviado vía SMS, esperando confirmación del commercial (NEQUI/DAVIPLATA). */
+        AWAITING_OTP,
+        /** En revisión manual por admin (BANK_TRANSFER). */
+        UNDER_REVIEW,
+        /** Verificado y listo para recibir pagos. */
+        VERIFIED,
+        /** Falló la verificación (max intentos OTP o rechazo admin). */
+        REJECTED,
+        /** Suspendido por admin, no puede usarse aunque esté verificado. */
+        SUSPENDED
     }
 }

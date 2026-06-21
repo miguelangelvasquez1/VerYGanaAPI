@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
+import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.InitiatePurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
@@ -60,7 +61,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     private static final Logger log = LoggerFactory.getLogger(PurchaseServiceImpl.class);
     
-    @Value("${treasury.values.key-value}")
+    @Value("${financial.key-value-cents}")
     private Long KEY_VALUE; // 1 llave = 10 COP = 1000 CENTAVOS DE COP
 
     private final PurchaseRepository purchaseRepository;
@@ -103,9 +104,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<PurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
+    public PagedResponse<ConsumerPurchaseResponseDTO> getConsumerPurchases(Long consumerId, Pageable pageable) {
         Page<Purchase> purchases = purchaseRepository.findByConsumerId(consumerId, pageable);
-        Page<PurchaseResponseDTO> dtos = purchases.map(purchaseMapper::toPurchaseResponseDTO);
+        Page<ConsumerPurchaseResponseDTO> dtos = purchases.map(purchaseMapper::toConsumerPurchaseResponseDTO);
         return PagedResponse.from(dtos);
     }
 
@@ -129,7 +130,7 @@ public class PurchaseServiceImpl implements PurchaseService {
      * 3. Validar que keysToUse no supera el máximo permitido por los productos.
      * 4. Reservar las llaves en el KeyWallet del consumidor.
      * 5. Crear Copayment (PENDING) con la parte en efectivo para Wompi.
-     *
+     * 6. Revisar si el usuario es apto para brindarle tickets
      * La compra se completa cuando el webhook de Wompi confirma el pago.
      */
     @Override
@@ -337,4 +338,5 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
         return consumer.getUser().getEmail();
     }
+
 }

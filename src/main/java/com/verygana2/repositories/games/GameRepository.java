@@ -45,4 +45,6 @@ public interface GameRepository extends JpaRepository<Game, Long> {
         )
     """)
     Page<GameDTO> findGamesWithoutCampaign(@Param("commercialId") Long commercialId, Pageable pageable);
+
+    Page<Game> findByActiveTrue(Pageable pageable);
 }

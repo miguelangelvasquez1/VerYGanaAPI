@@ -21,13 +21,18 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
+import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
+import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
@@ -44,6 +49,12 @@ import lombok.extern.slf4j.Slf4j;
 public class GlobalExceptionHandler {
 
     // ==================== EXCEPCIONES GENÉRICAS ====================
+
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex, WebRequest request) {
+        log.debug("SSE connection timed out for {}", request.getDescription(false));
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "SSE connection timed out", request);
+    }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
@@ -102,6 +113,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+
+    @ExceptionHandler(FeatureDisabledException.class)
+    public ResponseEntity<ErrorResponse> handleFeatureDisabledException(FeatureDisabledException ex, WebRequest request) {
+        log.warn("Feature disabled: {}", ex.getMessage());
+        return buildError(HttpStatus.SERVICE_UNAVAILABLE, ex.getMessage(), request); //503
+    }
+
     // ==================== CONFLICTOS (409) ====================
 
     @ExceptionHandler(DuplicateLikeException.class)
@@ -109,6 +127,13 @@ public class GlobalExceptionHandler {
             DuplicateLikeException ex, WebRequest request) {
         log.warn("Duplicate like: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(LimitReachedException.class)
+    public ResponseEntity<ErrorResponse> handleLimitReachedException(
+            LimitReachedException ex, WebRequest request) {
+        log.warn("Limit reached: {}", ex.getMessage());
+        return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -128,9 +153,15 @@ public class GlobalExceptionHandler {
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalAccessException ex, WebRequest request) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(IllegalArgumentException ex, WebRequest request) {
         log.warn("Illegal argument: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(ClaimPrizeException.class)
+    public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
+        log.warn("Claim prize error: {}", ex.getMessage());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -202,13 +233,6 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(MultipartException.class)
-    public ResponseEntity<ErrorResponse> handleMultipartException(
-            MultipartException ex, WebRequest request) {
-        log.warn("Multipart error: {}", ex.getMessage());
-        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
-    }
-
     @ExceptionHandler(JDBCConnectionException.class)
     public ResponseEntity<ErrorResponse> handleJDBCConnectionException(
             JDBCConnectionException ex, WebRequest request) {
@@ -228,6 +252,29 @@ public class GlobalExceptionHandler {
             InvalidOperationException ex, WebRequest request) {
         log.warn("Invalid operation error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    // ==================== PAYOUT METHODS ====================
+
+    @ExceptionHandler(PayoutMethodNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodNotFoundException(
+            PayoutMethodNotFoundException ex, WebRequest request) {
+        log.warn("Payout method not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(OtpVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleOtpVerificationException(
+            OtpVerificationException ex, WebRequest request) {
+        log.warn("OTP verification failed: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidPayoutMethodStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidPayoutMethodStateException(
+            InvalidPayoutMethodStateException ex, WebRequest request) {
+        log.warn("Invalid payout method state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

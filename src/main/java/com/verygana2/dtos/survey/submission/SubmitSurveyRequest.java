@@ -10,15 +10,15 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@NoArgsConstructor 
-@AllArgsConstructor 
+@NoArgsConstructor
+@AllArgsConstructor
 @Builder
 @Data
 public class SubmitSurveyRequest {
- 
+
     @NotNull
-    private Long surveyId;
+    private Long sessionId;
 
     @Valid @NotEmpty
-        private List<AnswerRequest> answers;
-    }
+    private List<AnswerRequest> answers;
+}

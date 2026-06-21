@@ -14,9 +14,9 @@ import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
+import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
-import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(componentModel = "spring", uses = { MoneyMapper.class })
@@ -37,6 +37,7 @@ public interface AdMapper {
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     @Mapping(target = "rewardPerLike", ignore = true) // Se setea manualmente en el servicio para incluir validación de plan
+    @Mapping(target = "endDate", ignore = true)
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta
@@ -54,7 +55,8 @@ public interface AdMapper {
     @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "sessionUUID", ignore = true)
     @Mapping(target = "contentUrl", ignore = true)
-    @Mapping(target = "mediaType", ignore = true)
+    @Mapping(target = "mediaType", expression = "java(ad.getAsset() != null ? ad.getAsset().getMediaType() : null)")
+    @Mapping(target = "durationSeconds", expression = "java(ad.getAsset() != null ? ad.getAsset().getDurationSeconds() : null)")
     AdForConsumerDTO toConsumerDto(Ad ad);
 
     // Mapear entidad a DTO para administrador
@@ -81,6 +83,9 @@ public interface AdMapper {
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rewardPerLike", ignore = true)
+    @Mapping(target = "endDate", ignore = true)
+    @Mapping(target = "maxLikesPerUserPerDay", ignore = true)
+    @Mapping(target = "maxLikes", ignore = true)
     void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
 
     // 🔹 Listado (opcional)

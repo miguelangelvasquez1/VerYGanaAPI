@@ -10,8 +10,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.models.ImpactStory.StoryMediaAsset;
+import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.games.Asset;
+import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 
@@ -19,8 +21,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Job programado para limpiar assets huérfanos en R2
- * Se ejecuta automáticamente para liberar espacio de storage
+ * Scheduled job to clean up orphaned assets in R2.
+ * Runs automatically to free up storage space.
  */
 @Component
 @ConditionalOnProperty(
@@ -33,22 +35,47 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class OrphanedAssetsCleanupJob {
 
+    private final AdAssetRepository adAssetRepository;
     private final AssetRepository assetRepository;
     private final StoryMediaAssetRepository storyMediaAssetRepository;
     private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
-    private int maxAgeHours;
+    private int maxAgeHours; // Configurable: how long to wait before deleting orphaned assets
 
-    // Para Impact Stories
+    // For Ads
     @Transactional
-    @Scheduled(cron = "0 0 * * * *") // cada hora
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupAdAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<AdAsset> assets = adAssetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} candidate ad assets", assets.size());
+
+        for (AdAsset asset : assets) {
+            try {
+                r2Service.deleteObject("private/" + asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                adAssetRepository.save(asset);
+
+                log.info("Ad Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    }
+
+    // For Impact Stories
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
     public void cleanupImpactStoriesAssets() {
 
         ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
 
         List<StoryMediaAsset> assets = storyMediaAssetRepository.findDeletableAssets( StoryMediaAsset.MediaAssetStatus.ORPHANED, threshold);
-        log.info("Cleanup job: {} assets candidatos", assets.size());
+        log.info("Cleanup job: {} candidate impact story assets", assets.size());
 
         for (StoryMediaAsset asset : assets) {
             try {
@@ -56,26 +83,24 @@ public class OrphanedAssetsCleanupJob {
                 asset.setStatus(StoryMediaAsset.MediaAssetStatus.DELETED);
                 storyMediaAssetRepository.save(asset);
 
-                log.info("Asset {} eliminado de R2", asset.getId());
-                // Opcional: enviar métricas a sistema de monitoreo
-                // metricsService.recordCleanup(deletedCount, durationSeconds);
+                log.info("Impact Story Asset {} deleted from R2", asset.getId());
 
             } catch (Exception e) {
-                log.warn("No se pudo eliminar asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
             }
         }
-    } 
+    }
 
-    // Para campaigns
+    // For campaigns
     @Transactional //    @Scheduled(cron = "${cleanup.orphaned-assets.cron:0 0 2 * * ?}")
-    @Scheduled(cron = "0 0 * * * *") // cada hora
+    @Scheduled(cron = "0 0 * * * *") // every hour
     public void cleanupAssets() {
 
         ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
 
-        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold); //falta poner pending assets si llevan mucho como pendign y tambien el trabajo de remove para assets de anuncios
+        List<Asset> assets = assetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold); // TODO: also handle assets stuck in PENDING and remove job for ad assets
 
-        log.info("Cleanup job: {} assets candidatos", assets.size());
+        log.info("Cleanup job: {} candidate campaign assets", assets.size());
 
         for (Asset asset : assets) {
             try {
@@ -83,29 +108,27 @@ public class OrphanedAssetsCleanupJob {
                 asset.setStatus(AssetStatus.DELETED);
                 assetRepository.save(asset);
 
-                log.info("Asset {} eliminado de R2", asset.getId());
-                // Opcional: enviar métricas a sistema de monitoreo
-                // metricsService.recordCleanup(deletedCount, durationSeconds);
+                log.info("Campaign Asset {} deleted from R2", asset.getId());
 
             } catch (Exception e) {
                 log.warn(
-                    "No se pudo eliminar asset {} ({}): {}",
+                    "Failed to delete asset {} ({}): {}",
                     asset.getId(),
                     asset.getObjectKey(),
                     e.getMessage()
                 );
             }
         }
-    } 
+    }
 
     /**
-     * Health check del servicio R2 cada 5 minutos
+     * R2 service health check every 5 minutes.
      */
-    @Scheduled(fixedRate = 300000) // 5 minutos
+    @Scheduled(fixedRate = 300000) // 5 minutes
     public void healthCheck() {
         if (!r2Service.healthCheck()) {
-            log.error("R2 health check FALLÓ - Servicio no disponible");
-            // Opcional: enviar alerta crítica
+            log.error("R2 health check FAILED - Service unavailable");
+            // Optional: send critical alert
         }
     }
 }

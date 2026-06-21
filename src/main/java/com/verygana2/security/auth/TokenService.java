@@ -30,6 +30,8 @@ import com.verygana2.security.auth.refreshToken.RefreshTokenRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 @Service
 @Slf4j
@@ -199,11 +201,26 @@ public class TokenService {
         String jti = jwt.getId();
         Instant expiryDate = jwt.getExpiresAt();
 
+        String ipAddress = null;
+        String userAgent = null;
+        try {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpServletRequest req = attrs.getRequest();
+            String xff = req.getHeader("X-Forwarded-For");
+            ipAddress = (xff != null && !xff.isBlank()) ? xff.split(",")[0].trim() : req.getRemoteAddr();
+            userAgent = req.getHeader("User-Agent");
+        } catch (Exception ignored) {
+            // No hay contexto HTTP (tests, async, etc.)
+        }
+
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUsername(username);
         refreshToken.setToken(token);
         refreshToken.setJti(jti);
         refreshToken.setExpiresAt(expiryDate);
+        refreshToken.setIpAddress(ipAddress);
+        refreshToken.setUserAgent(userAgent);
+        refreshToken.setLastUsedAt(Instant.now());
 
         return refreshTokenRepository.save(refreshToken);
     }

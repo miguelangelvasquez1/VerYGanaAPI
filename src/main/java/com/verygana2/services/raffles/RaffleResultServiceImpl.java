@@ -10,8 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.raffle.responses.DrawProofResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResultResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResultResponseDTO;
-import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.mappers.raffles.RaffleResultMapper;
+import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.repositories.raffles.RaffleResultRepository;
 import com.verygana2.services.interfaces.raffles.RaffleResultService;
@@ -50,7 +50,7 @@ public class RaffleResultServiceImpl implements RaffleResultService {
     }
 
     @Override
-    public DrawProofResponseDTO getDrawProof(Long raffleId) {
+    public DrawProofResponseDTO getDrawProofByRaffleId(Long raffleId) {
         RaffleResult result = getByRaffleId(raffleId);
 
         if (result.getDrawProof() == null || result.getDrawProof().isBlank()) {

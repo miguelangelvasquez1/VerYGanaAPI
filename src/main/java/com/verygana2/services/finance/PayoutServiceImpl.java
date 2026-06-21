@@ -2,7 +2,6 @@ package com.verygana2.services.finance;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.HashMap;
@@ -41,7 +40,7 @@ public class PayoutServiceImpl implements PayoutService {
 
     @Override
     public BigDecimal getCommercialEarningsForPeriod(Long commercialId, Integer year, Integer month) {
-        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
+        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneOffset.UTC);
         ZonedDateTime endDate = startDate.plusMonths(1);
         return payoutRepository.sumTotalByCommercialIdAndPeriod(commercialId, startDate, endDate);
     }
@@ -153,7 +152,7 @@ public class PayoutServiceImpl implements PayoutService {
         if (scheduled.isEmpty()) {
             log.info("[PAYOUT-SCHEDULER] Sin payouts SCHEDULED para procesar.");
             return;
-        }
+        }           
 
         log.info("[PAYOUT-SCHEDULER] Procesando {} payouts SCHEDULED.", scheduled.size());
 

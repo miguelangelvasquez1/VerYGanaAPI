@@ -14,8 +14,9 @@ public interface ProductCategoryService {
 
     AssetUploadPermissionDTO prepareProductCategoryCreation (Long adminId, FileUploadRequestDTO productCategoryImageMetadata);
     EntityCreatedResponseDTO confirmProductCategoryCreation(Long adminId, ConfirmProductCategoryCreationRequestDTO request);
-    // ProductCategoryResponseDTO getById(Long categoryId);
-    ProductCategory getById (Long categoryId);
-    void delete (Long categoryId);
-    List<ProductCategoryResponseDTO> getProductCategories();
+    ProductCategory getById (Long productCategoryId);
+    void delete (Long productCategoryId);
+    void recover (Long productCategoryId);
+    List<ProductCategoryResponseDTO> getActiveProductCategories();
+    List<ProductCategoryResponseDTO> getInactiveProductCategories();
 }

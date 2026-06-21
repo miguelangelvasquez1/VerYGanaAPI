@@ -6,9 +6,11 @@ import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
+import com.verygana2.models.surveys.Survey.SurveyStatus;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
+import com.verygana2.repositories.surveys.SurveyRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,7 @@ public class PlanFeatureGuard {
     private final ProductRepository productRepository;
     private final AdRepository adRepository;
     private final CampaignRepository campaignRepository;
+    private final SurveyRepository surveyRepository;
 
     public void assertCapability(Long commercialId, RequirePlanCapability.Capability capability) {
         EffectivePlanState state = planResolver.resolve(commercialId);
@@ -48,12 +51,18 @@ public class PlanFeatureGuard {
                 }
             }
             case CAN_USE_GAMES -> {
-                if (!state.isCanUseGames()) {   
+                if (!state.isCanUseGames()) {
                     throw new PlanCapabilityException(
                         "Juegos branded no disponibles en el plan: " + state.getEffectivePlan().name());
                 }
             }
-            case PRODUCT_LIMIT -> {
+            case CAN_USE_SURVEYS -> {
+                if (!state.isCanUseSurveys()) {
+                    throw new PlanCapabilityException(
+                        "Encuestas no disponibles en el plan: " + state.getEffectivePlan().name());
+                }
+            }
+            case MAX_PRODUCTS -> {
                 long current = productRepository.countByCommercialIdAndIsActive(commercialId);
                 if (current >= state.getMaxProducts()) {
                     throw new PlanCapabilityException(
@@ -61,7 +70,7 @@ public class PlanFeatureGuard {
                         " permite máximo " + state.getMaxProducts() + " (actual: " + current + ")");
                 }
             }
-            case AD_LIMIT -> {
+            case MAX_ADS -> {
                 long current = adRepository.countByCommercialIdAndStatus(commercialId, AdStatus.ACTIVE);
                 if (current >= state.getMaxAds()) {
                     throw new PlanCapabilityException(
@@ -69,12 +78,20 @@ public class PlanFeatureGuard {
                         " permite máximo " + state.getMaxAds() + " (actual: " + current + ")");
                 }
             }
-            case BRANDED_GAME_LIMIT -> {
+            case MAX_BRANDED_GAMES -> {
                 long current = campaignRepository.countByCommercialIdAndStatus(commercialId, CampaignStatus.ACTIVE);
                 if (current >= state.getMaxBrandedGames()) {
                     throw new PlanCapabilityException(
                         "Límite de juegos branded alcanzado. Plan " + state.getEffectivePlan().name() +
                         " permite máximo " + state.getMaxBrandedGames() + " (actual: " + current + ")");
+                }
+            }
+            case MAX_SURVEYS -> {
+                long current = surveyRepository.countByCreatorIdAndStatus(commercialId, SurveyStatus.ACTIVE);
+                if (current >= state.getMaxSurveys()) {
+                    throw new PlanCapabilityException(
+                        "Límite de encuestas alcanzado. Plan " + state.getEffectivePlan().name() +
+                        " permite máximo " + state.getMaxSurveys() + " (actual: " + current + ")");
                 }
             }
 

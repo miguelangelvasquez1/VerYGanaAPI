@@ -1,4 +1,4 @@
-package com.verygana2.services;
+package com.verygana2.services.ads;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -9,12 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-
-import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -31,7 +27,6 @@ import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
-import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
@@ -42,26 +37,22 @@ import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
-import com.verygana2.models.User;
+import com.verygana2.models.PricingConfig;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdAsset;
-import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.AdWatchSessionStatus;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.userDetails.CommercialDetails;
-import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
-import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.repositories.details.ConsumerDetailsRepository;
+import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
@@ -84,26 +75,22 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 public class AdServiceImpl implements AdService {
 
-    @Value("${ad.pricing.cost-per-second-cents}")
-    private long costPerSecondCents;
-
     @PersistenceContext
     private EntityManager entityManager;
 
     private final AdRepository adRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
-    private final ConsumerDetailsRepository consumerDetailsRepository;
     private final WalletRepository walletRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
     private final MunicipalityRepository municipalityRepository;
     private final TargetingValidator targetingValidator;
-    private final AdWatchSessionRepository adWatchSessionRepository;
     private final Clock clock;
     private final R2Service r2Service;
     private final AdAssetRepository adAssetRepository;
     private final AssetOrphanedService assetOrphanedService;
     private final AssetDurationService mediaMetadataService;
+    private final PricingConfigService pricingConfigService;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -121,7 +108,7 @@ public class AdServiceImpl implements AdService {
      * No pricing info is returned here — that comes after the file is in R2.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AdAssetUploadPermissionDTO prepareAdAssetUpload(Long commercialId, FileUploadRequestDTO request) {
  
         commercialDetailsRepository
@@ -178,7 +165,8 @@ public class AdServiceImpl implements AdService {
      * the pricing panel to the advertiser.
      */
     @Transactional
-    public AssetAnalysisResultDTO analyzeAsset(Long commercialId, Long assetId) {
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
+    public AssetAnalysisResultDTO analyzeAsset(Long assetId, Long commercialId) {
  
         AdAsset asset = adAssetRepository
                 .findById(Objects.requireNonNull(assetId))
@@ -218,6 +206,7 @@ public class AdServiceImpl implements AdService {
             double durationSeconds = resolveDuration(asset);
 
             // 3. Calcular precio mínimo
+            long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
             long rawPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
             long minPricePerLike = roundUpToMultipleOf10(rawPrice);
 
@@ -237,8 +226,7 @@ public class AdServiceImpl implements AdService {
         } catch (Exception e) {
             log.error("Analysis failed for asset {}. Marking as orphaned. Reason: {}", assetId, e.getMessage(), e);
             assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(assetId));
-            throw new ValidationException(
-                    "No se pudo analizar el archivo. Verifica que el formato sea compatible y vuelve a intentarlo.");
+            throw new ValidationException("No se pudo analizar el archivo. Verifica que el formato sea compatible y vuelve a intentarlo.");
         }
     }
 
@@ -256,8 +244,9 @@ public class AdServiceImpl implements AdService {
      */
     @Transactional
     @Override
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
     public AssetOrphanedResponseDTO markAssetAsOrphaned(Long commercialId, Long assetId) {
- 
+
         AdAsset asset = adAssetRepository.findById(Objects.requireNonNull(assetId))
                 .orElseThrow(() -> new EntityNotFoundException("Asset no encontrado: " + assetId));
  
@@ -301,7 +290,7 @@ public class AdServiceImpl implements AdService {
      * On any failure, marks the asset as ORPHANED.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
  
         AdAsset asset = null;
@@ -317,20 +306,16 @@ public class AdServiceImpl implements AdService {
  
             // Must be VALIDATED — analyze must have run successfully
             if (asset.getStatus() != AssetStatus.VALIDATED) {
-                throw new ValidationException(
-                        "El archivo no ha sido analizado correctamente. Estado actual: " + asset.getStatus());
+                throw new ValidationException("El archivo no ha sido analizado correctamente. Estado actual: " + asset.getStatus());
             }
  
             // Re-validate pricePerLike server-side against the persisted real duration
             double durationSeconds = asset.getDurationSeconds();
-            long rawMinPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
-            long minPricePerLike = roundUpToMultipleOf10(rawMinPrice);
+            long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
+            long minPricePerLike = (long) Math.ceil(durationSeconds * costPerSecondCents);
  
             long pricePerLike = request.getPricePerLike();
- 
-            if (pricePerLike % 10 != 0) {
-                throw new ValidationException("El precio por like debe ser múltiplo de 10. Recibido: " + pricePerLike);
-            }
+
             if (pricePerLike < minPricePerLike) {
                 throw new ValidationException(String.format(
                         "El precio por like (%d ¢) es menor al mínimo permitido (%d ¢)",
@@ -348,12 +333,6 @@ public class AdServiceImpl implements AdService {
  
             Wallet wallet = walletRepository.findByCommercialId(commercialId)
                     .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
- 
-            if (wallet.getBalanceCents() < totalBudgetCents) {
-                throw new ValidationException(String.format(
-                        "Saldo insuficiente. Requerido: %d ¢, Disponible: %d ¢",
-                        totalBudgetCents, wallet.getBalanceCents()));
-            }
  
             wallet.consume(totalBudgetCents);
             walletRepository.save(wallet);
@@ -383,11 +362,11 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
     public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
         log.info("Updating ad {} for commercial {}", adId, commercialId);
 
-        DateValidator.validateStartBeforeEnd(updateDto.getStartDate(), updateDto.getEndDate(),
-            "La fecha de fin debe ser posterior a la de inicio");
+        DateValidator.validateFutureDate(updateDto.getStartDate(), "La fecha de inicio debe ser futura");
 
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
@@ -397,13 +376,6 @@ public class AdServiceImpl implements AdService {
             throw new InvalidAdStateException(
                 "Solo se pueden editar anuncios en estado PENDING o PAUSED"
             );
-        }
-
-        // Redistribución de presupuesto (solo si se envía un nuevo maxLikes)
-        if (updateDto.getMaxLikes() != null && !updateDto.getMaxLikes().equals(ad.getMaxLikes())) {
-            CommercialDetails commercialDetails = ad.getCommercial();
-            redistributeBudget(ad, updateDto.getMaxLikes(), commercialDetails);
-            walletRepository.save(commercialDetails.getWallet());
         }
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(updateDto.getCategoryIds());
@@ -423,7 +395,7 @@ public class AdServiceImpl implements AdService {
         Ad updatedAd = adRepository.save(ad);
 
         AdResponseDTO responseDto = adMapper.toDto(updatedAd);
-        responseDto.setContentUrl(r2Service.getPrivateObject("private/" + updatedAd.getAsset().getObjectKey(), 200));
+        responseDto.setContentUrl(resolveContentUrl(updatedAd));
 
         log.info("Ad {} updated successfully by commercial {}", adId, commercialId);
         return responseDto;
@@ -431,6 +403,7 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
     public PagedResponse<AdResponseDTO> getFilteredAds(Long commercialId, AdFilterDTO filters, Pageable pageable) {
 
         Specification<Ad> spec = AdSpecifications.hasCommercial(commercialId)
@@ -445,7 +418,7 @@ public class AdServiceImpl implements AdService {
         Page<Ad> adsPage = adRepository.findAll(spec, fixedSortPageable);
 
         Page<AdResponseDTO> dtoPage = adsPage.map(ad -> {
-
+            log.info("ad: " + ad.getRewardPerLike().toString());
             AdResponseDTO dto = adMapper.toDto(ad);
 
             AdAsset asset = ad.getAsset();
@@ -455,30 +428,8 @@ public class AdServiceImpl implements AdService {
                 return dto;
             }
 
-            switch (ad.getStatus()) {
-
-                case PENDING:
-                case REJECTED:
-                    // Asset privado → presigned URL
-                    dto.setContentUrl(
-                        r2Service.getPrivateObject(asset.getObjectKey(), 200));
-                    break;
-
-                case APPROVED:
-                case ACTIVE:
-                case PAUSED:
-                case COMPLETED:
-                case EXPIRED:
-                    // Asset público → CDN
-                    dto.setContentUrl(
-                            r2Service.buildPublicUrl("public/" + asset.getObjectKey()));
-                    break;
-
-                case BLOCKED:
-                default:
-                    dto.setContentUrl(null);
-            }
-
+            dto.setContentUrl(resolveContentUrl(ad));
+            log.info("dto: " + dto.getRewardPerLike().toString());
             return dto;
         });
 
@@ -486,10 +437,16 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    @Transactional(readOnly = true)
-    public AdResponseDTO getAdById(Long adId) {
-        Ad ad = getAdEntityById(adId);
-        return adMapper.toDto(ad);
+    public AdResponseDTO getAdDetails(Long adId, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
+            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        AdResponseDTO dto = adMapper.toDto(ad);
+        dto.setContentUrl(
+            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+        );
+
+        return dto;
     }
 
     @Override
@@ -501,14 +458,13 @@ public class AdServiceImpl implements AdService {
     }
 
     @Override
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.AD_LIMIT})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId) {
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
                 .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
         if (ad.getStatus() != AdStatus.APPROVED && ad.getStatus() != AdStatus.PAUSED) {
-            throw new InvalidAdStateException(
-                    "Solo se pueden activar anuncios aprobados o pausados");
+            throw new InvalidAdStateException("Solo se pueden activar anuncios aprobados o pausados");
         }
 
         ad.setStatus(AdStatus.ACTIVE);
@@ -521,17 +477,20 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} activated", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     @Override
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
     public AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId) {
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
                 .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
         if (ad.getStatus() != AdStatus.ACTIVE) {
-            throw new InvalidAdStateException(
-                    "Solo se pueden pausar anuncios activos");
+            throw new InvalidAdStateException("Solo se pueden pausar anuncios activos");
         }
 
         ad.setStatus(AdStatus.PAUSED);
@@ -540,96 +499,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} paused", adId);
 
-        return adMapper.toDto(savedAd);
-    }
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
 
-    // ==================== Consultas para Consumers ====================
-
-    @Override
-    @Transactional
-    public Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId) {
-
-        log.debug("Buscando siguiente anuncio disponible para usuario: {}", consumerId);
-
-        Objects.requireNonNull(consumerId, "El ID de usuario no puede ser nulo");
-
-        ConsumerDetails consumer = consumerDetailsRepository.findById(consumerId).orElseThrow(
-                () -> new ObjectNotFoundException("Consumer with id: " + consumerId + " not found ", User.class));
-
-        ZonedDateTime now = ZonedDateTime.now(clock);
-
-        // Reanudar sesión activa si existe
-        Optional<AdWatchSession> activeSession = adWatchSessionRepository
-                .findByConsumerIdAndStatusAndExpiresAtAfter(
-                        consumerId,
-                        AdWatchSessionStatus.ACTIVE,
-                        now);
-
-        if (activeSession.isPresent()) {
-            log.info("Reanudando sesión activa {}", activeSession.get().getId());
-            AdWatchSession session = activeSession.get();
-            AdForConsumerDTO dto = adMapper.toConsumerDto(session.getAd());
-            dto.setContentUrl(r2Service.buildPublicUrl(session.getAd().getAsset().getObjectKey()));
-            dto.setSessionUUID(session.getId());
-            return Optional.of(dto);
-        }
-
-        Optional<Ad> adOpt = findWithCategoryMatch(consumerId, now)
-                .or(() -> findWithoutCategoryMatch(consumerId, now));
-
-        if (adOpt.isEmpty()) {
-            return Optional.empty();
-        }
-
-        Ad ad = adOpt.get();
-        AdWatchSession session = new AdWatchSession(consumer, ad);
-        adWatchSessionRepository.save(session);
-
-        // Posibilidad de fallback de nivel 2 con los anuncios vistos
-
-        AdForConsumerDTO dto = adMapper.toConsumerDto(ad);
-        dto.setContentUrl(r2Service.buildPublicUrl(ad.getAsset().getObjectKey()));
-        dto.setSessionUUID(session.getId());
-
-        return Optional.of(dto);
-    }
-
-    @Transactional(readOnly = true)
-    public Optional<Ad> findWithCategoryMatch(Long consumerId, ZonedDateTime now) {
-        log.info("Mostrando anuncio con coincidencia de categoría para el consumer {}", consumerId);
-        List<Ad> ads = adRepository.findFirstAvailableAdForUser(
-                consumerId,
-                AdStatus.ACTIVE,
-                List.of(AdWatchSessionStatus.LIKED),
-                now,
-                PageRequest.of(0, 1));
-
-        return ads.stream().findFirst();
-    }
-
-    private Optional<Ad> findWithoutCategoryMatch(Long consumerId, ZonedDateTime now) {
-        log.info("Mostrando anuncio sin coincidencia de categoría para el usuario {}", consumerId);
-        List<Ad> ads = adRepository.findNextAdWithoutCategoryMatch(
-                consumerId,
-                AdStatus.ACTIVE,
-                List.of(AdWatchSessionStatus.LIKED),
-                now,
-                PageRequest.of(0, 1));
-        return ads.stream().findFirst();
-    }
-
-    /**
-     * Cuenta los anuncios disponibles para un usuario.
-     * 
-     * @param consumerId ID del consumidor
-     * @return Cantidad de anuncios disponibles
-     */
-    @Transactional(readOnly = true)
-    // @Cacheable(value = "availableAdsCount", key = "#consumerId")
-    @Override
-    public long countAvailableAdsForUser(Long consumerId) {
-        ZonedDateTime now = ZonedDateTime.now(clock);
-        return adRepository.countAvailableAdsForUser(consumerId, AdStatus.ACTIVE, now);
+        return responseDto;
     }
 
     // ==================== Gestión de Estado (Admin) ====================
@@ -656,7 +529,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} activated", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     @Override
@@ -676,7 +552,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} paused", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     @Override
@@ -697,7 +576,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} blocked", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     @Override
@@ -718,7 +600,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} approved successfully", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     @Override
@@ -739,7 +624,10 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} rejected", adId);
 
-        return adMapper.toDto(savedAd);
+        AdResponseDTO responseDto = adMapper.toDto(savedAd);
+        responseDto.setContentUrl(resolveContentUrl(savedAd));
+
+        return responseDto;
     }
 
     // Get all ads for admin
@@ -759,36 +647,7 @@ public class AdServiceImpl implements AdService {
                 return dto;
             }
 
-            switch (ad.getStatus()) {
-
-                case PENDING:
-                case REJECTED:
-                    // Asset privado → Presigned URL
-                    dto.setContentUrl(
-                        r2Service.getPrivateObject(
-                            asset.getObjectKey(),
-                            200
-                        )
-                    );
-                    break;
-
-                case APPROVED:
-                case ACTIVE:
-                case PAUSED:
-                case COMPLETED:
-                case EXPIRED:
-                    // Asset público → CDN
-                    dto.setContentUrl(
-                        r2Service.buildPublicUrl(
-                            "public/" + asset.getObjectKey()
-                        )
-                    );
-                    break;
-
-                case BLOCKED:
-                default:
-                    dto.setContentUrl(null);
-            }
+            dto.setContentUrl(resolveContentUrl(ad));
 
             return dto;
         });
@@ -840,52 +699,6 @@ public class AdServiceImpl implements AdService {
     public Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable) {
         Page<Ad> ads = adRepository.findTopAdsByLikes(pageable);
         return ads.map(adMapper::toDto);
-    }
-
-    // ==================== Tareas Programadas ====================
-
-    @Override
-    public void autoDeactivateCompletedAds() {
-        log.info("Running auto-deactivation task for completed ads");
-
-        ZonedDateTime now = ZonedDateTime.now(clock);
-        List<Ad> adsToDeactivate = adRepository.findAdsToAutoDeactivate(now);
-
-        if (adsToDeactivate.isEmpty()) {
-            log.info("No ads to deactivate");
-            return;
-        }
-
-        for (Ad ad : adsToDeactivate) {
-            ad.setStatus(AdStatus.COMPLETED);
-            ad.setUpdatedAt(now);
-            adRepository.save(ad);
-
-            log.info("Ad {} auto-deactivated. Reason: {} likes of {}, Budget: {} of {}",
-                    ad.getId(), ad.getCurrentLikes(), ad.getMaxLikes(),
-                    ad.getSpentBudget(), ad.getTotalBudget());
-        }
-
-        log.info("Auto-deactivation completed. Total ads deactivated: {}",
-                adsToDeactivate.size());
-    }
-
-    @Override
-    public void checkExpiredAds() {
-        log.info("Checking for expired ads");
-
-        ZonedDateTime now = ZonedDateTime.now(clock);
-        List<Ad> expiredAds = adRepository.findAdsToAutoDeactivate(now);
-
-        for (Ad ad : expiredAds) {
-            if (ad.getEndDate() != null && ad.getEndDate().isBefore(now)) {
-                ad.setStatus(AdStatus.EXPIRED);
-                ad.setUpdatedAt(now);
-                adRepository.save(ad);
-
-                log.info("Ad {} marked as expired", ad.getId());
-            }
-        }
     }
 
     // ==================== Validaciones ====================
@@ -948,58 +761,6 @@ public class AdServiceImpl implements AdService {
     }
 
     // Métodos privados auxiliares -----------------------------
-
-    /**
-     * Redistribuye el presupuesto del anuncio cuando se modifica maxLikes.
-     *
-     * Reglas:
-     * - Solo aplica si el nuevo maxLikes difiere del actual.
-     * - No se puede bajar por debajo de currentLikes + 1.
-     * - Si se baja: se devuelve al anunciante solo el presupuesto no consumido liberado.
-     * - Si se sube: se deduce el presupuesto adicional del saldo del anunciante.
-     *
-     * @param ad                el anuncio a modificar
-     * @param newMaxLikes       el nuevo valor de maxLikes solicitado
-     * @param commercialDetails los detalles del anunciante (con activeInvestment)
-     */
-    private void redistributeBudget(Ad ad, Integer newMaxLikes, CommercialDetails commercialDetails) {
-        Integer currentMaxLikes = ad.getMaxLikes();
-
-        if (newMaxLikes.equals(currentMaxLikes)) return;
-
-        int currentLikes = ad.getCurrentLikes() != null ? ad.getCurrentLikes() : 0;
-
-        if (newMaxLikes <= currentLikes) {
-            throw new ValidationException(
-                String.format(
-                    "El máximo de likes no puede ser menor o igual a los likes ya consumidos (%d). Mínimo permitido: %d",
-                    currentLikes, currentLikes + 1
-                )
-            );
-        }
-
-        // delta = rewardPerLike × (newMaxLikes - currentMaxLikes)
-        // > 0 → subida (se necesita más presupuesto)
-        // < 0 → bajada (se libera presupuesto)
-        long delta = ad.getRewardPerLike() * (newMaxLikes - currentMaxLikes);
-        Wallet wallet = commercialDetails.getWallet();
-
-        if (delta > 0) {
-            if (!wallet.hasFundsFor(delta)) {
-                throw new ValidationException(
-                    String.format(
-                        "Saldo insuficiente para aumentar el presupuesto. Requerido adicional: %d centavos, Disponible: %d centavos",
-                        delta, wallet.getBalanceCents()
-                    )
-                );
-            }
-            wallet.consume(delta);
-            log.info("Budget increased for ad {}: consumed {} centavos from wallet", ad.getId(), delta);
-        } else {
-            wallet.deposit(-delta);
-            log.info("Budget decreased for ad {}: refunded {} centavos to wallet", ad.getId(), -delta);
-        }
-    }
 
     /**
      * Determinar tipo de media según content-type
@@ -1122,6 +883,26 @@ public class AdServiceImpl implements AdService {
         // For VIDEO, imageDurationSeconds must not be set
         if (!isImage && durationSeconds != null) {
             throw new ValidationException("La duración manual solo aplica para imágenes");
+        }
+    }
+
+    private String resolveContentUrl(Ad ad) {
+        if (ad.getAsset() == null) {
+            return null;
+        }
+        switch (ad.getStatus()) {
+            case PENDING:
+            case REJECTED:
+                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
+            case APPROVED:
+            case ACTIVE:
+            case PAUSED:
+            case COMPLETED:
+            case EXPIRED:
+                return r2Service.buildPublicUrl(ad.getAsset().getObjectKey());
+            case BLOCKED:
+            default:
+                return null;
         }
     }
 }

@@ -12,5 +12,8 @@ import com.verygana2.models.marketplace.ProductCategory;
 public interface ProductCategoryRepository extends JpaRepository<ProductCategory, Long>{
 
     @Query("SELECT p FROM ProductCategory p WHERE p.isActive = true")
-    List<ProductCategory> findAvailableProductCategories();
+    List<ProductCategory> findActiveProductCategories();
+
+    @Query("SELECT p FROM ProductCategory p WHERE p.isActive = false")
+    List<ProductCategory> findInactiveProductCategories();
 }

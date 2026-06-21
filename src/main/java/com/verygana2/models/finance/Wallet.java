@@ -39,7 +39,7 @@ public class Wallet {
     private Long id;
 
     @Version
-    private Long version;
+    private long version;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "commercial_id", nullable = false, unique = true)
@@ -111,8 +111,7 @@ public class Wallet {
     }
 
     public void deposit(Long amount) {
-        if (amount <= 0)
-            throw new IllegalArgumentException("Amount must be positive");
+        if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
         this.balanceCents += amount;
         recalculateStatus();
     }

@@ -64,17 +64,22 @@ public class Ad {
     @Min(value = 1,     message = "La recompensa mínima es 1 centavo")
     @Max(value = 100000, message = "La recompensa no puede exceder 100.000 centavos (1.000 COP)")
     @Column(name = "reward_per_like", nullable = false)
-    private Long rewardPerLike; // poner cents
+    private Long rewardPerLike;
 
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1,     message = "Debe permitir al menos 1 like")
-    @Max(value = 10000, message = "No puede exceder 10,000 likes")
+    @Max(value = 10000000, message = "No puede exceder 10,000,000 likes")
     @Column(name = "max_likes", nullable = false)
     private Integer maxLikes;
 
     @Column(name = "current_likes", nullable = false)
     @Builder.Default
     private Integer currentLikes = 0;
+
+    @Column(name = "max_likes_per_user_per_day")
+    @Min(value = 1, message = "El máximo de likes por usuario por día debe ser al menos 1")
+    @Max(value = 100, message = "El máximo de likes por usuario por día no puede exceder 100")
+    private Integer maxLikesPerUserPerDay;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -161,7 +166,6 @@ public class Ad {
     public boolean canReceiveLike() {
         return status == AdStatus.ACTIVE
                 && currentLikes < maxLikes
-                && (endDate == null || endDate.isAfter(ZonedDateTime.now()))
                 && hasRemainingBudget();
     }
 

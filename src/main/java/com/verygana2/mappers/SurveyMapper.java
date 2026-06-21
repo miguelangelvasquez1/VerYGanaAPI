@@ -7,9 +7,14 @@ import org.mapstruct.Mapping;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.mapstruct.ReportingPolicy;
 
+import com.verygana2.dtos.survey.AvailableSurveyDTO;
 import com.verygana2.dtos.survey.CreateSurveyRequest;
+import com.verygana2.dtos.survey.SurveyDetailDTO;
+import com.verygana2.dtos.survey.SurveySessionDTO;
 import com.verygana2.dtos.survey.OptionResponse;
 import com.verygana2.dtos.survey.QuestionResponse;
+import com.verygana2.dtos.survey.SurveyAdminDetailDTO;
+import com.verygana2.dtos.survey.SurveyCommercialDetailDTO;
 import com.verygana2.dtos.survey.SurveyResponseDTO;
 import com.verygana2.dtos.survey.SurveySummaryResponse;
 import com.verygana2.dtos.survey.submission.RewardInfo;
@@ -31,7 +36,8 @@ import com.verygana2.models.surveys.SurveyReward;
 @Mapper(
     componentModel       = "spring",
     unmappedTargetPolicy = ReportingPolicy.ERROR,
-    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
+    nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
+    uses = LocationMapper.class
 )
 public interface SurveyMapper {
  
@@ -42,11 +48,28 @@ public interface SurveyMapper {
     @Mapping(target = "questions", source = "survey.questions")
     SurveyResponseDTO toResponse(Survey survey);
  
+    // ─── Survey → AvailableSurveyDTO (consumer list) ─────────────────────────
+
+    @Mapping(target = "totalQuestions", expression = "java(survey.getQuestions().size())")
+    AvailableSurveyDTO toAvailableSurvey(Survey survey);
+
+    // ─── Survey → SurveyDetailDTO (consumer detail, no questions) ────────────
+
+    @Mapping(target = "categoryNames",  expression = "java(categoriesToNames(survey.getCategories()))")
+    @Mapping(target = "totalQuestions", expression = "java(survey.getQuestions().size())")
+    SurveyDetailDTO toSurveyDetail(Survey survey);
+
+    // ─── Survey → SurveySessionDTO (inside StartSurveyResponse) ─────────────
+
+    @Mapping(target = "questions", source = "survey.questions")
+    SurveySessionDTO toSurveySessionDTO(Survey survey);
+
     // ─── Survey → SurveySummaryResponse (list item) ──────────────────────────
  
     // alreadyCompleted is not in the entity; service sets it manually when needed
     @Mapping(target = "alreadyCompleted", ignore = true)
     @Mapping(target = "totalResponses", source = "survey.responseCount")
+    @Mapping(target = "totalQuestions", expression = "java(survey.getQuestions().size())")
     SurveySummaryResponse toSummaryResponse(Survey survey);
  
     // ─── SurveyQuestion → QuestionResponse ───────────────────────────────────
@@ -62,6 +85,33 @@ public interface SurveyMapper {
  
     List<OptionResponse> toOptionResponseList(List<QuestionOption> options);
  
+    // ─── Survey → SurveyAdminDetailDTO ───────────────────────────────────────
+
+    @Mapping(target = "categoryNames",    expression = "java(categoriesToNames(survey.getCategories()))")
+    @Mapping(target = "municipalityNames",expression = "java(municipalitiesToNames(survey.getTargetMunicipalities()))")
+    @Mapping(target = "questions",        source = "survey.questions")
+    @Mapping(target = "creatorId",        source = "survey.creator.id")
+    @Mapping(target = "companyName",      source = "survey.creator.companyName")
+    @Mapping(target = "creatorEmail",     source = "survey.creator.user.email")
+    // Computed stats — populated by the service via setters after this call
+    @Mapping(target = "totalSessions",    ignore = true)
+    @Mapping(target = "activeSessions",   ignore = true)
+    @Mapping(target = "completedSessions",ignore = true)
+    @Mapping(target = "expiredSessions",  ignore = true)
+    @Mapping(target = "abandonedSessions",ignore = true)
+    @Mapping(target = "totalBudgetCents", ignore = true)
+    @Mapping(target = "spentCents",       ignore = true)
+    @Mapping(target = "completionRate",   ignore = true)
+    SurveyAdminDetailDTO toAdminDetail(Survey survey);
+
+    // ─── Survey → SurveyCommercialDetailDTO ──────────────────────────────────
+
+    @Mapping(target = "questions",        source = "survey.questions")
+    // Computed stats — populated by the service via setters after this call
+    @Mapping(target = "completedSessions",ignore = true)
+    @Mapping(target = "totalBudgetCents", ignore = true)
+    SurveyCommercialDetailDTO toCommercialDetail(Survey survey);
+
     // ─── SurveyReward → RewardInfo ────────────────────────────────────────────
  
     @Mapping(target = "rewardId", source = "reward.id")
@@ -84,13 +134,14 @@ public interface SurveyMapper {
     @Mapping(target = "categories",           ignore = true)
     @Mapping(target = "targetMunicipalities", ignore = true)
     @Mapping(target = "questions",            ignore = true)
-    @Mapping(target = "responses",            ignore = true)
+    @Mapping(target = "sessions",             ignore = true)
     @Mapping(target = "createdAt",            ignore = true)
     @Mapping(target = "updatedAt",            ignore = true)
-    @Mapping(target = "rewardAmount",         ignore = true)
-    @Mapping(target = "creator",              ignore = true)
+    @Mapping(target = "rewardAmountPerQuestionCents", ignore = true)
+    @Mapping(target = "creator",                      ignore = true)
+    @Mapping(target = "endsAt",                       ignore = true)
     Survey fromCreateRequest(CreateSurveyRequest request);
- 
+
     // ─── Default helpers (used in @Mapping expressions) ──────────────────────
  
     default List<String> categoriesToNames(List<Category> categories) {

@@ -19,8 +19,8 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/pet")
 @RequiredArgsConstructor
+@RequestMapping("/pet")
 public class PetGameConfigController {
 
     private final PetSessionService petSessionService;

@@ -20,7 +20,7 @@ public class ProductCategoryController {
     private final ProductCategoryService productCategoryService;
 
     @GetMapping
-    public ResponseEntity<List<ProductCategoryResponseDTO>> getProductCategories (){
-        return ResponseEntity.ok(productCategoryService.getProductCategories());
+    public ResponseEntity<List<ProductCategoryResponseDTO>> getActiveProductCategories (){
+        return ResponseEntity.ok(productCategoryService.getActiveProductCategories());
     }
 }

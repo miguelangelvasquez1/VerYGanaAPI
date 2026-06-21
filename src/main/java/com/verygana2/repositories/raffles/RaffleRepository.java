@@ -130,6 +130,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                 SELECT r FROM Raffle r
                 WHERE r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.DRAFT
                 AND r.startDate <= :now
+                AND r.drawDate > :now
                 AND SIZE(r.prizes) > 0
                 AND SIZE(r.raffleRules) > 0
                 ORDER BY r.startDate ASC
@@ -144,16 +145,26 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
             """)
     List<Raffle> findRafflesToClose(@Param("now") ZonedDateTime now);
 
+    // LIVE: drawDate está en el futuro pero dentro de la próxima hora
     @Query("""
                 SELECT r FROM Raffle r
                 WHERE r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.CLOSED
-                AND r.drawDate >= :windowStart
+                AND r.drawDate > :now
                 AND r.drawDate <= :liveThreshold
                 ORDER BY r.drawDate ASC
             """)
     List<Raffle> findRafflesToSetLive(
-            @Param("windowStart") ZonedDateTime windowStart,
+            @Param("now") ZonedDateTime now,
             @Param("liveThreshold") ZonedDateTime liveThreshold);
+
+    // Rifas CLOSED cuya drawDate ya pasó sin haberse sorteado (servidor caído, etc.)
+    @Query("""
+                SELECT r FROM Raffle r
+                WHERE r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.CLOSED
+                AND r.drawDate <= :now
+                ORDER BY r.drawDate ASC
+            """)
+    List<Raffle> findMissedDrawRaffles(@Param("now") ZonedDateTime now);
 
     @Query("""
             SELECT r FROM Raffle r

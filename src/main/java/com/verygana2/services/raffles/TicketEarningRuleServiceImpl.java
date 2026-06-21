@@ -176,47 +176,33 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
             }
             default -> throw new IllegalArgumentException("Unexpected value: " + ruleType);
 
-            // case DAILY_LOGIN -> {
-            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-            //         if (create.getMinAdsWatched() == null) {
-            //             throw new InvalidRequestException(
-            //                     "Min ads watched is required for ADS_WATCHED rules");
-            //         }
-            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-            //         if (update.getMinAdsWatched() == null) {
-            //             throw new InvalidRequestException(
-            //                     "Min ads watched is required for ADS_WATCHED rules");
-            //         }
-            //     }
-            // }
+            case DAILY_LOGIN -> {
+                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
+                    if (!create.isDailyLogin()) {
+                        throw new InvalidRequestException(
+                                "Daily login must be true for DAILY_LOGIN rules");
+                    }
+                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
+                    if (!update.isDailyLogin()) {
+                        throw new InvalidRequestException(
+                                "Daily login must be true for DAILY_LOGIN rules");
+                    }
+                }
+            }
 
-            // case GAME_ACHIEVEMENT -> {
-            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-            //         if (create.getAchievementType() == null || create.getAchievementType().isBlank()) {
-            //             throw new InvalidRequestException(
-            //                     "Achievement type is required for GAME_ACHIEVEMENT rules");
-            //         }
-            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-            //         if (update.getAchievementType() == null || update.getAchievementType().isBlank()) {
-            //             throw new InvalidRequestException(
-            //                     "Achievement type is required for GAME_ACHIEVEMENT rules");
-            //         }
-            //     }
-            // }
-
-            // case REFERRAL -> {
-            //     if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-            //         if (create.getReferralAddedQuantity() == null) {
-            //             throw new InvalidRequestException(
-            //                     "Referral added quantity is required for REFERRAL rules");
-            //         }
-            //     } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-            //         if (update.getReferralAddedQuantity() == null) {
-            //             throw new InvalidRequestException(
-            //                     "Referral added quantity is required for REFERRAL rules");
-            //         }
-            //     }
-            // }
+            case REFERRAL -> {
+                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
+                    if (create.getReferralAddedQuantity() == null) {
+                        throw new InvalidRequestException(
+                                "Referral added quantity is required for REFERRAL rules");
+                    }
+                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
+                    if (update.getReferralAddedQuantity() == null) {
+                        throw new InvalidRequestException(
+                                "Referral added quantity is required for REFERRAL rules");
+                    }
+                }
+            }
 
         }
     }
@@ -230,9 +216,8 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         rule.setRuleType(request.getRuleType());
         rule.setPriority(request.getPriority() != null ? request.getPriority() : 0);
         rule.setTicketsToAward(request.getTicketsToAward());
-        rule.setMinPurchaseAmount(request.getMinPurchaseAmount());
-        rule.setMinAdsWatched(request.getMinAdsWatched());
-        rule.setAchievementType(request.getAchievementType());
+        rule.setMinPurchaseAmountCents(request.getMinPurchaseAmount() != null ? request.getMinPurchaseAmount() * 100 : null);
+        rule.setDailyLogin(request.isDailyLogin());
         rule.setReferralAddedQuantity(request.getReferralAddedQuantity());
         return rule;
     }
@@ -244,9 +229,8 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         rule.setRuleType(request.getRuleType());
         rule.setPriority(request.getPriority());
         rule.setTicketsToAward(request.getTicketsToAward());
-        rule.setMinPurchaseAmount(request.getMinPurchaseAmount());
-        rule.setMinAdsWatched(request.getMinAdsWatched());
-        rule.setAchievementType(request.getAchievementType());
+        rule.setMinPurchaseAmountCents(request.getMinPurchaseAmount() != null ? request.getMinPurchaseAmount() * 100 : null);
+        rule.setDailyLogin(request.isDailyLogin());
         rule.setReferralAddedQuantity(request.getReferralAddedQuantity());
     }
 

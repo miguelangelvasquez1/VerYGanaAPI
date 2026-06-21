@@ -51,17 +51,19 @@ public enum KeyTransactionType {
     DEBIT_CONNECTIVITY_RECHARGE,
 
     /**
-     * Llaves vencidas al cambio de período (mensual para purchase, diario para connectivity).
-     * Generado por el job nocturno de vencimientos.
-     * El valor equivalente en COP se transfiere a TreasuryAccount(FORTIFICATION).
-     */
-    DEBIT_EXPIRY,
-
-    /**
      * Débito manual por el administrador.
      * Uso: correcciones, penalizaciones por fraude.
      */
     DEBIT_ADMIN_ADJUSTMENT,
+
+    // ─── EXPIRADAS (Llaves que pasan al fondo de fortalecimiento de VerYGana) ──────────────
+
+    /**
+     * Llaves vencidas al cambio de período (mensual para purchase, diario para connectivity).
+     * Generado por el job nocturno de vencimientos.
+     * El valor equivalente en COP se transfiere a TreasuryAccount(FORTIFICATION).
+     */
+    EXPIRED,
 
     // ─── RESERVAS (bloqueo temporal durante un copago en curso) ──────────────
 

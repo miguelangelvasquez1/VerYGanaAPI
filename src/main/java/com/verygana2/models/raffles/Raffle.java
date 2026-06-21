@@ -8,10 +8,12 @@ import java.util.List;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -77,16 +79,16 @@ public class Raffle {
     private ZonedDateTime drawDate;
 
     @Column(name = "max_tickets_per_user")
-    private Long maxTicketsPerUser;
+    private Integer maxTicketsPerUser;
 
     @Column(name = "max_total_tickets")
-    private Long maxTotalTickets; // null = sin límite
+    private Integer maxTotalTickets;
 
     @Column(name = "total_tickets_issued")
-    private Long totalTicketsIssued;
+    private Integer totalTicketsIssued;
 
     @Column(name = "total_participants")
-    private Long totalParticipants;
+    private Integer totalParticipants;
 
     @OneToMany(mappedBy = "raffle", cascade = CascadeType.ALL)
     private List<Prize> prizes;
@@ -123,8 +125,8 @@ public class Raffle {
         this.raffleStatus = RaffleStatus.DRAFT;
         this.createdAt = now;
         this.updatedAt = now;
-        this.totalTicketsIssued = 0L;
-        this.totalParticipants = 0L;
+        this.totalTicketsIssued = 0;
+        this.totalParticipants = 0;
     }
 
     @PreUpdate
@@ -158,7 +160,7 @@ public class Raffle {
         return totalTicketsIssued >= maxTotalTickets;
     }
 
-    public Long getAvailableTickets() {
+    public Integer getAvailableTickets() {
         if (maxTotalTickets == null) {
             return null;
         }
@@ -197,6 +199,10 @@ public class Raffle {
                 now.isAfter(drawDate) &&
                 !prizes.isEmpty() &&
                 totalTicketsIssued > 0;
+    }
+
+    public RaffleRule getTicketEarningRuleByType (TicketEarningRuleType type) {
+        return this.getActiveRules().stream().filter(r -> r.getTicketEarningRule().getRuleType() == type).findAny().orElseThrow(() -> new EntityNotFoundException("Ticket earning rule with type : " + type + " not found"));
     }
 
 }

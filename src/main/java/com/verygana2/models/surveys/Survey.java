@@ -1,6 +1,5 @@
 package com.verygana2.models.surveys;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -69,8 +68,8 @@ public class Survey {
  
     @NotNull(message = "Reward amount is required")
     @DecimalMin(value = "0.0", inclusive = false)
-    @Column(name = "reward_amount", nullable = false, precision = 10, scale = 2)
-    private BigDecimal rewardAmount;
+    @Column(name = "reward_amount_per_question_cents", nullable = false, precision = 10, scale = 2)
+    private Long rewardAmountPerQuestionCents;
  
     @Column(name = "max_responses")
     private Integer maxResponses;
@@ -130,7 +129,7 @@ public class Survey {
  
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
-    private List<SurveyResponse> responses = new ArrayList<>();
+    private List<SurveySession> sessions = new ArrayList<>();
  
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -144,8 +143,7 @@ public class Survey {
         LocalDateTime now = LocalDateTime.now();
         return status == SurveyStatus.ACTIVE
             && (startsAt == null || !now.isBefore(startsAt))
-            && (endsAt == null || !now.isAfter(endsAt))
-            && (maxResponses == null || responseCount < maxResponses);
+            && (endsAt == null || !now.isAfter(endsAt));
     }
  
     public enum SurveyStatus {

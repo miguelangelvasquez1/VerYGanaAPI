@@ -2,24 +2,41 @@ package com.verygana2.mappers.marketplace;
 
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.springframework.beans.factory.annotation.Autowired;
 
+import com.verygana2.dtos.purchase.responses.ConsumerPurchaseItemResponseDTO;
+import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseItemResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
+import com.verygana2.services.interfaces.marketplace.ProductReviewService;
+
 
 @Mapper(componentModel = "spring")
-public interface PurchaseMapper {
-    
-    @Mapping(target = "totalItems", expression = "java(getTotalItems(purchase))")
-    PurchaseResponseDTO toPurchaseResponseDTO (Purchase purchase);
+public abstract class PurchaseMapper {
 
+    @Autowired
+    protected ProductReviewService productReviewService;
+
+    @Mapping(target = "totalItems", expression = "java(getTotalItems(purchase))")
+    public abstract PurchaseResponseDTO toPurchaseResponseDTO(Purchase purchase);
+
+    @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", source = "product.name")
     @Mapping(target = "imageUrl", source = "product.imageUrl")
-    @Mapping(target = "productId", source = "product.id")
-    PurchaseItemResponseDTO toPurchaseItemResponseDTO(PurchaseItem purchaseItem);
+    public abstract PurchaseItemResponseDTO toPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
-    default Integer getTotalItems (Purchase purchase){
+    @Mapping(target = "totalItems", expression = "java(getTotalItems(purchase))")
+    public abstract ConsumerPurchaseResponseDTO toConsumerPurchaseResponseDTO(Purchase purchase);
+
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productName", source = "product.name")
+    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "canBeReviewed", expression = "java(productReviewService.canBeReviewed(purchaseItem.getProduct().getId(), purchaseItem.getPurchase().getConsumer().getId()))")
+    public abstract ConsumerPurchaseItemResponseDTO toConsumerPurchaseItemResponseDTO(PurchaseItem purchaseItem);
+
+    protected Integer getTotalItems(Purchase purchase) {
         return purchase.getItems().size();
     }
 }

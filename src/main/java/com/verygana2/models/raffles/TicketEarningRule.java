@@ -1,6 +1,5 @@
 package com.verygana2.models.raffles;
 
-import java.math.BigDecimal;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -67,15 +66,11 @@ public class TicketEarningRule {
 
     // ========== CONFIGURACIÓN DE CONDICIONES ==========
     
-    @Column(name = "min_purchase_amount", precision = 10, scale = 2)
-    private BigDecimal minPurchaseAmount; // Mínimo a comprar
+    @Column(name = "min_purchase_amount_cents")
+    private Long minPurchaseAmountCents; // Mínimo a comprar, en centavos de COP
 
-    @Column(name = "min_ads_watched")
-    private Integer minAdsWatched; // Mínimo a visualizar
-
-    @Column(name = "achievement_type")
-    @Size(max = 100)
-    private String achievementType; // "LEVEL_UP", "PERFECT_GAME", "DAILY_STREAK"
+    @Column(name = "daily_login")
+    private boolean dailyLogin; // login diario
 
     @Column(name = "referral_added_quantity")
     private Integer referralAddedQuantity; // Ej: por cada persona referida te damos 3 tickets

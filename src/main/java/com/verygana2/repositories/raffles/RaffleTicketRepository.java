@@ -21,15 +21,9 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
 
        // ========== BÚSQUEDAS BÁSICAS ==========
 
-       /**
-        * Encuentra un ticket por su número único
-        */
-       Optional<RaffleTicket> findByTicketNumber(String ticketNumber);
+       Optional<RaffleTicket> findByTicketNumberAndRaffleId(String ticketNumber, Long raffleId);
 
-       /**
-        * Verifica si existe un ticket con ese número
-        */
-       boolean existsByTicketNumber(String ticketNumber);
+       boolean existsByTicketNumberAndRaffleId(String ticketNumber, Long raffleId);
 
        // ========== CONTADORES POR USUARIO ==========
 

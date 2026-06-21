@@ -3,13 +3,13 @@ package com.verygana2.services.raffles;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.raffle.websocket.DrawCompletedPayloadDTO;
+import com.verygana2.dtos.raffle.websocket.DrawingStartedPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.RaffleDrawEventDTO;
 import com.verygana2.dtos.raffle.websocket.WaitingRoomPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.WinnerRevealPayloadDTO;
@@ -28,21 +28,20 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     private final SimpMessagingTemplate messagingTemplate;
     private final RaffleDrawStateCache drawStateCache;
 
-    private static final String domain = "https://cdn.verygana.com/";
-
     private static final String RAFFLE_TOPIC = "/topic/raffle/";
     private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
 
     @Override
-    public void publishDrawingStarted(Long raffleId, long totalTickets, int totalWinners) {
+    public void publishDrawingStarted(Long raffleId, int totalWinners, long totalTickets, int maxTickets) {
+
+        DrawingStartedPayloadDTO payload = DrawingStartedPayloadDTO.builder()
+        .totalWinners(totalWinners).totalTickets(totalTickets).maxTickets(maxTickets).build();
+
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                 .type(DrawEventType.DRAWING_STARTED)
                 .raffleId(raffleId)
                 .timestamp(now())
-                .payload(Map.of("totalTickets", totalTickets,
-                        "totalWinners", totalWinners
-
-                )) // El frontend sabe cuántas boletas animar
+                .payload(payload)
                 .build();
 
         broadcast(raffleId, event);
@@ -66,11 +65,10 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
                     .userName(w.getWinner().getUserName())
                     .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                     .prizeTitle(w.getPrize().getTitle())
-                    .prizeImageUrl(domain + w.getPrize().getImageAsset().getObjectKey())
+                    .prizeImageUrl(w.getPrize().getImageUrl())
                     .prizeValue(w.getPrize().getValue())
                     .prizeType(w.getPrize().getPrizeType())
                     .revealOrder(i + 1)
-                    .totalWinners(total)
                     .build();
 
             RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
@@ -94,12 +92,13 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
     @Override
     public void publishDrawCompleted(Long raffleId, List<RaffleWinner> winners, String raffleTitle,
-            int totalParticipants) {
+            long totalParticipants) {
         List<WinnerRevealPayloadDTO> allWinners = winners.stream()
                 .map(w -> WinnerRevealPayloadDTO.builder()
                         .position(w.getPrize().getPosition())
                         .ticketNumber(w.getWinningTicket().getTicketNumber())
                         .userName(w.getWinner().getUserName())
+                        .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
                         .prizeTitle(w.getPrize().getTitle())
                         .prizeValue(w.getPrize().getValue())
                         .prizeType(w.getPrize().getPrizeType())
@@ -109,7 +108,6 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
         DrawCompletedPayloadDTO payload = DrawCompletedPayloadDTO.builder()
                 .raffleTitle(raffleTitle)
                 .allWinners(allWinners)
-                .drawProofUrl("/api/raffles/" + raffleId + "/draw-proof")
                 .totalParticipants(totalParticipants)
                 .build();
 
@@ -127,21 +125,23 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     @Override
-    public void publishWaitingRoomUpdate(Long raffleId, int viewerCount, long secondsUntilDraw, long totalTickets) {
+    public void publishWaitingRoomUpdate(Long raffleId, long viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
         WaitingRoomPayloadDTO payload = WaitingRoomPayloadDTO.builder()
                 .viewerCount(viewerCount)
                 .secondsUntilDraw(secondsUntilDraw)
                 .totalTickets(totalTickets)
+                .totalParticipants(totalParticipants)
                 .build();
 
-       
-        @SuppressWarnings("unused")
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                 .type(DrawEventType.WAITING_ROOM_UPDATE)
                 .raffleId(raffleId)
                 .timestamp(now())
                 .payload(payload)
                 .build();
+
+        broadcast(raffleId, event);
+        log.debug("[WS] WAITING_ROOM_UPDATE publicado para rifa {} — viewers: {}", raffleId, viewerCount);
     }
 
     // ============================================================

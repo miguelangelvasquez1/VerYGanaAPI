@@ -9,7 +9,9 @@ import com.verygana2.models.Municipality;
 import com.verygana2.repositories.MunicipalityRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class TargetingValidator {
@@ -24,6 +26,8 @@ public class TargetingValidator {
             targetMunicipalities = municipalityRepository.findAllById(codes);
 
             if (targetMunicipalities.size() != codes.size()) {
+                log.info("Códigos de municipio recibidos: {}, encontrados en BD: {}",
+                        codes, targetMunicipalities.stream().map(Municipality::getCode).toList());
                 throw new IllegalArgumentException("Algunos códigos de municipio no existen");
             }
         }

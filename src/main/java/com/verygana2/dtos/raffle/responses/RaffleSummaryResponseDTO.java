@@ -23,8 +23,8 @@ public class RaffleSummaryResponseDTO {
     private ZonedDateTime startDate;
     private ZonedDateTime endDate;
     private ZonedDateTime drawDate;
-    private Long totalTicketsIssued;
-    private Long totalParticipants;
+    private Integer totalTicketsIssued;
+    private Integer totalParticipants;
     private Long prizeCount;
     private boolean requiresPet;
 }
