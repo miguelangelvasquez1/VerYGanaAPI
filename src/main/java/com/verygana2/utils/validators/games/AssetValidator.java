@@ -9,10 +9,10 @@ import java.util.Set;
 
 import org.springframework.stereotype.Component;
 
+import com.verygana2.models.branding.Asset;
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
-import com.verygana2.models.games.Asset;
-import com.verygana2.models.games.Campaign;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.utils.validators.games.ValidationPipeline.ErrorType;
 import com.verygana2.utils.validators.games.ValidationPipeline.ValidationError;

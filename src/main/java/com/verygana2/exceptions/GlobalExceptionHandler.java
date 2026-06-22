@@ -1,7 +1,6 @@
 package com.verygana2.exceptions;
 
 import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -356,15 +355,6 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
-    // ── helper ────────────────────────────────────────────────────────────────
-    private ResponseEntity<Map<String, Object>> buildResponse(HttpStatus status, String message) {
-        return ResponseEntity.status(status).body(Map.of(
-                "status", status.value(),
-                "error", status.getReasonPhrase(),
-                "message", message,
-                "timestamp", ZonedDateTime.now().toString()
-        ));
-    }
     // ==================== MÉTODOS AUXILIARES ====================
 
     private ResponseEntity<ErrorResponse> buildError(

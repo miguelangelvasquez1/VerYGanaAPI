@@ -1,10 +1,11 @@
-package com.verygana2.models.games;
+package com.verygana2.models.branding;
 
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.games.GameAssetDefinition;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;

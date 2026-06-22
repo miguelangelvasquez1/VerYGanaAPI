@@ -15,8 +15,8 @@ import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.CampaignStatus;
-import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.userDetails.CommercialDetails;
 

@@ -122,7 +122,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         Long estimatedSessions = null;
         Long completionRewardCents = null;
         Long maxRewardPerSessionCents = null;
-
         if (game.getConfigDefinitions() != null) {
             var latestConfig = game.getConfigDefinitions().stream()
                 .filter(c -> Boolean.TRUE.equals(c.getIsLatest()))

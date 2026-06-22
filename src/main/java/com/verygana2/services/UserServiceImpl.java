@@ -2,7 +2,6 @@ package com.verygana2.services;
 
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.levels.LevelService;
 import org.hibernate.ObjectNotFoundException;
@@ -43,7 +42,6 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final OutboxService outboxService;
-    private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
     private final LevelService levelService;
 
