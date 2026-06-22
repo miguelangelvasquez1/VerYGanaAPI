@@ -3,6 +3,7 @@ package com.verygana2.services;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.services.interfaces.*;
+import com.verygana2.services.interfaces.levels.LevelService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -42,6 +43,7 @@ public class UserServiceImpl implements UserService {
     private final UserMapper userMapper;
     private final OutboxService outboxService;
     private final LocationService locationService;
+    private final LevelService levelService;
 
     @Override
     public User registerGameDesigner(GameDesignerRegisterDTO dto) {
@@ -109,6 +111,7 @@ public class UserServiceImpl implements UserService {
         details.setUserHash(userHashGenerator.generate(user.getId()));
 
         keyWalletService.createFor(user.getId());
+        levelService.initializeProfile(user.getId());
 
         if (details.getReferredBy() != null) {
             outboxService.saveReferralEvent(

@@ -157,13 +157,19 @@ games:
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
 
+
+pets:
+  cdn-domain: ${R2_PETS_CDN_DOMAIN}
+  game-path: ${PETS_GAME_PATH:index.html}
+
+
 app:
   base-url: ${APP_BASE_URL}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
-  
+
 payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP

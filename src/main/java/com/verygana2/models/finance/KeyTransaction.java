@@ -138,7 +138,7 @@ public class KeyTransaction {
      *       .plusDays(1)
      *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
      */
-    @Column(name = "expired_at", updatable = false)
+    @Column(name = "expires_at", updatable = false)
     private ZonedDateTime expiredAt;
 
     /**
@@ -261,6 +261,18 @@ public class KeyTransaction {
                 .reason("Vencimiento de llaves - período " + period)
                 .referenceId(expiryBatchId)
                 .expiryProcessed(true)
+                .build();
+    }
+
+    // KeyTransaction.java — agregar factory method
+    public static KeyTransaction forPetGame(
+            KeyWallet wallet, long keysSpent, String itemName) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.DEBIT_PET_GAME)
+                .purchaseKeysDelta(-keysSpent)
+                .reason("Mascota virtual: " + itemName)
+                .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
                 .build();
     }
 }

@@ -3,6 +3,7 @@ package com.verygana2.models.branding;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +12,6 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.CampaignGoal;
 import com.verygana2.models.enums.TargetGender;
-import com.verygana2.models.games.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
@@ -188,6 +188,12 @@ public class BrandingRequest {
     @Column(name = "game_config", columnDefinition = "json")
     private Map<String, Object> gameConfig;
 
+    // Borrador del formData RJSF: se actualiza al subir assets y al guardar cambios manualmente.
+    // Cada clave corresponde a un campo del jsonSchema; su valor es el dato ingresado por el diseñador.
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "draft_form_data", columnDefinition = "json")
+    private Map<String, Object> draftFormData;
+
     // ===== CAMPAÑA GENERADA =====
 
     // Se enlaza solo cuando el admin lanza la campaña (estado LAUNCHED)
@@ -208,6 +214,7 @@ public class BrandingRequest {
         createdAt = ZonedDateTime.now();
         updatedAt = createdAt;
         if (status == null) status = BrandingRequestStatus.DRAFT;
+        if (draftFormData == null) draftFormData = new HashMap<>();
     }
 
     @PreUpdate

@@ -110,6 +110,10 @@ games:
   user-hash-secret: ${USER_HASH_SECRET}
   session-expiration-minutes: 30
 
+pets:
+  cdn-domain: ${R2_PETS_CDN_DOMAIN}
+  game-path: ${PETS_GAME_PATH:index.html}
+
 # ============================================
 # ADS CONFIG
 # ============================================

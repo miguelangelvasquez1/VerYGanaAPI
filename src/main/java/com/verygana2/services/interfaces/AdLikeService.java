@@ -11,8 +11,15 @@ import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
 
 public interface AdLikeService {
-    
+
     AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress);
+
+    /**
+     * Marca una sesión de visualización como completada (video visto hasta el umbral)
+     * y solicita el XP correspondiente. Idempotente: si ya estaba WATCHED o LIKED,
+     * no vuelve a otorgar XP.
+     */
+    void markWatchSessionCompleted(UUID sessionId, Long adId, Long consumerId);
 
     Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId);
 

@@ -5,6 +5,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import jakarta.persistence.EntityNotFoundException;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
@@ -37,7 +38,6 @@ import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
@@ -59,6 +59,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Unexpected error: ", ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request);
+    }
+
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponse> handleBusinessException(BusinessException ex, WebRequest request) {
+        log.warn("Business rule violation: {}", ex.getMessage());
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
 
     // ==================== AUTENTICACIÓN Y AUTORIZACIÓN ====================
@@ -106,11 +112,6 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(EntityNotFoundException.class)
-    public ResponseEntity<ErrorResponse> handleEntityNotFoundException(EntityNotFoundException ex, WebRequest request) {
-        log.warn("Entity not found: {}", ex.getMessage());
-        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
-    }
 
     @ExceptionHandler(FeatureDisabledException.class)
     public ResponseEntity<ErrorResponse> handleFeatureDisabledException(FeatureDisabledException ex, WebRequest request) {
@@ -345,6 +346,20 @@ public class GlobalExceptionHandler {
 
         log.error("Transaction system error: ", ex);
         return buildError(HttpStatus.BAD_REQUEST, "Transaction processing failed", request);
+    }
+
+    // ── 404 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(EntityNotFoundException.class)
+    public ResponseEntity<ErrorResponse> handleEntityNotFound(EntityNotFoundException ex, WebRequest request) {
+        log.warn("Entity not found: {}", ex.getMessage());
+        return buildError(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+    }
+
+    // ── 401 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(UnauthorizedException.class)
+    public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
+        log.warn("Unauthorized: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

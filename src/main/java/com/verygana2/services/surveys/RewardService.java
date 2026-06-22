@@ -5,6 +5,10 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import com.verygana2.event.XpAwardRequestedEvent;
+import com.verygana2.models.enums.ActivityType;
+import org.springframework.context.ApplicationEventPublisher;
+
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,6 +39,7 @@ public class RewardService {
     private final KeyWalletRepository keyWalletRepository;
     private final KeyWalletService keyWalletService;
     private final KeyTransactionRepository keyTransactionRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public SurveyReward grantReward(SurveySession session) {
@@ -54,6 +59,8 @@ public class RewardService {
             reward.setProcessedAt(ZonedDateTime.now());
             log.info("Reward granted to consumer {} for survey {}: {} ¢",
                     session.getConsumer().getId(), session.getSurvey().getId(), rewardAmount);
+            eventPublisher.publishEvent(
+                    new XpAwardRequestedEvent(this, session.getConsumer().getId(), ActivityType.SURVEY_COMPLETED));
         } catch (Exception e) {
             reward.setStatus(SurveyReward.RewardStatus.FAILED);
             log.error("Failed to process reward for consumer {} survey {}: {}",

@@ -10,6 +10,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.event.XpAwardRequestedEvent;
+import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
@@ -31,6 +33,8 @@ import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 
+import org.springframework.context.ApplicationEventPublisher;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -48,6 +52,7 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final ProductStockRepository productStockRepository;
     private final TreasuryService treasuryService;
     private final EmailService emailService;
+    private final ApplicationEventPublisher eventPublisher;
 
     /**
      * Punto de entrada del webhook de Wompi para CHARGE_COPAYMENT.
@@ -145,6 +150,13 @@ public class CopaymentServiceImpl implements CopaymentService {
         purchase.markAsCompleted();
         copayment.setWompiTransaction(wompiTx);
         copayment.setStatus(CopaymentStatus.COMPLETED);
+
+        // 5. Solicitar XP por compra confirmada. El listener lo aplica AFTER_COMMIT,
+        // así que si esta transacción hace rollback no se otorga XP, y si la
+        // concesión de XP falla no impacta este copago.
+        Long consumerId = copayment.getConsumer().getId();
+        eventPublisher.publishEvent(
+                new XpAwardRequestedEvent(this, consumerId, ActivityType.PURCHASE));
 
         // 6. Emitir tickets de rifa (transacción independiente — fallo no revierte el
         // pago)

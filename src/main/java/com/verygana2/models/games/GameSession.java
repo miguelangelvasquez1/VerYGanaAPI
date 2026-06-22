@@ -4,6 +4,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.userDetails.ConsumerDetails;
 

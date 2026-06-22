@@ -1,4 +1,4 @@
-package com.verygana2.models.games;
+package com.verygana2.models.branding;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
@@ -13,6 +13,9 @@ import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.TargetGender;
+import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameConfigDefinition;
+import com.verygana2.models.games.GameSession;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.CascadeType;

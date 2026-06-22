@@ -1,6 +1,7 @@
 package com.verygana2.controllers;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -139,6 +140,18 @@ public class GameDesignerController {
 
         Long userId = jwt.getClaim("userId");
         gameDesignerService.saveGameConfig(id, userId, dto);
+        return ResponseEntity.ok().build();
+    }
+
+    @PatchMapping("/me/branding-requests/{id}/draft")
+    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    public ResponseEntity<Void> saveDraftFormData(
+            @PathVariable Long id,
+            @RequestBody Map<String, Object> formData,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        gameDesignerService.saveDraftFormData(id, userId, formData);
         return ResponseEntity.ok().build();
     }
 

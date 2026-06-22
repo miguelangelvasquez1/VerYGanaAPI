@@ -28,8 +28,9 @@ public abstract class ConsumerDetailsMapper {
     @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys", qualifiedByName = "centsToKeys")
     @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys", qualifiedByName = "centsToKeys")
     @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
     public abstract ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO(ConsumerDetails consumer);
-    
+
     @Mapping(target = "id", source = "user.id")
     @Mapping(target = "email", source = "consumer.user.email")
     @Mapping(target = "phoneNumber", source = "consumer.user.phoneNumber")
@@ -66,5 +67,5 @@ public abstract class ConsumerDetailsMapper {
     @Mapping(target = "lastDailyLoginDate", ignore = true)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
-    
+
 }

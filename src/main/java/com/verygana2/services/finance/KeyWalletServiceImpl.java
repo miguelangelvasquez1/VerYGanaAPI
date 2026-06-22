@@ -6,6 +6,12 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 
+import com.verygana2.dtos.keys.KeyBalanceResponseDTO;
+import com.verygana2.dtos.keys.SpendKeysRequestDTO;
+import com.verygana2.dtos.keys.SpendKeysResponseDTO;
+import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.repositories.finance.KeyTransactionRepository;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -28,7 +34,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
 
     private final Clock clock;
-
+    private final KeyTransactionRepository keyTransactionRepository;
     private final KeyWalletRepository keyWalletRepository;
     private final ConsumerDetailsService consumerDetailsService;
 
@@ -82,10 +88,35 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     public ZonedDateTime calculateConnectivityExpiry() {
         ZonedDateTime nowColombia = ZonedDateTime.now(clock).withZoneSameInstant(COLOMBIA_ZONE);
         return nowColombia.plusDays(1).withZoneSameInstant(ZoneOffset.UTC);
-    } 
+    }
 
     public record RewardSplit(
-        long purchaseKeysReward,
-        long connectivityKeysReward
+            long purchaseKeysReward,
+            long connectivityKeysReward
     ) {}
+
+    @Override
+    @Transactional(readOnly = true)
+    public KeyBalanceResponseDTO getBalance(Long consumerId) {
+        KeyWallet wallet = getByConsumerId(consumerId);
+        return new KeyBalanceResponseDTO(wallet.getAvailableKeys(), "keys");
+    }
+
+    @Override
+    @Transactional
+    public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
+        KeyWallet wallet = getByConsumerId(consumerId);
+
+        if (!wallet.hasSufficientPurchaseKeys(request.amount())) {
+            return SpendKeysResponseDTO.fail("Saldo insuficiente");
+        }
+
+        wallet.expirePurchaseKeys(request.amount());
+        keyWalletRepository.save(wallet);
+
+        keyTransactionRepository.save(
+                KeyTransaction.forPetGame(wallet, request.amount(), request.itemName()));
+
+        return SpendKeysResponseDTO.ok(wallet.getAvailableKeys());
+    }
 }

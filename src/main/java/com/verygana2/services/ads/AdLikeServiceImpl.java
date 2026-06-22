@@ -11,8 +11,12 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import com.verygana2.event.XpAwardRequestedEvent;
+import com.verygana2.exceptions.BusinessException;
+import com.verygana2.models.enums.*;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -37,10 +41,6 @@ import com.verygana2.models.ads.AdLikeId;
 import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
-import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.AdWatchSessionStatus;
-import com.verygana2.models.enums.Gender;
-import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
 import com.verygana2.repositories.AdRepository;
@@ -94,19 +94,20 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdScorer adScorer;
     private final AdMapper adMapper;
     private final R2Service r2Service;
-    
+    private final ApplicationEventPublisher eventPublisher;
+
     @Override
     @Transactional(noRollbackFor = {ValidationException.class, LimitReachedException.class})
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
 
         log.info("Processing like for ad {} from consumer {} at IP {}", adId, consumerId, ipAddress);
-        
+
         // Verificar que el consumidor existe
         ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
-        
+
         // Verificar que el anuncio existe
         Ad ad = adService.getAdEntityById(adId);
-        
+
         // 1. Verificar la sesión de visualización
         AdWatchSession session = validateSession(sessionId, consumerId, ad);
 
@@ -114,7 +115,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         if (hasConsumerLikedAd(adId, consumerId)) {
             throw new DuplicateLikeException("Ya has dado like a este anuncio");
         }
-        
+
         // 3. Verificar que el anuncio puede recibir likes
         if (!ad.canReceiveLike()) {
             throw new InvalidAdStateException("Este anuncio no está disponible para recibir likes");
@@ -134,15 +135,15 @@ public class AdLikeServiceImpl implements AdLikeService {
         }
 
         Long rewardKeysCents = ad.getRewardPerLike();
-        
+
         // 4. Crear el like
         AdLike adLike = AdLike.builder()
-            .id(new AdLikeId(consumerId, adId))
-            .consumer(consumer)
-            .ad(ad)
-            .rewardAmount(rewardKeysCents)
-            .createdAt(ZonedDateTime.now(clock))
-            .build();
+                .id(new AdLikeId(consumerId, adId))
+                .consumer(consumer)
+                .ad(ad)
+                .rewardAmount(rewardKeysCents)
+                .createdAt(ZonedDateTime.now(clock))
+                .build();
 
         try {
             adLikeRepository.save(Objects.requireNonNull(adLike));
@@ -171,10 +172,39 @@ public class AdLikeServiceImpl implements AdLikeService {
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
-        
+
         log.info("Like processed successfully. User rewarded with: {}", rewardKeysCents);
-        
+
         return new AdLikedResponse(true, rewardKeysCents / keyValueCents);
+    }
+
+
+    @Override
+    public void markWatchSessionCompleted(UUID sessionId, Long adId, Long consumerId) {
+        log.info("Marking watch session {} as completed for consumer {} on ad {}",
+                sessionId, consumerId, adId);
+
+        // Pre-check de idempotencia para no romper en validateSession() cuando
+        // la sesión ya pasó por WATCHED o LIKED en una llamada previa.
+        AdWatchSession preCheck = adWatchSessionRepository
+                .findByIdAndConsumerIdAndAdId(sessionId, consumerId, adId)
+                .orElseThrow(() -> new BusinessException("Sesión de visualización inválida"));
+
+        if (preCheck.getStatus() == AdWatchSessionStatus.WATCHED
+                || preCheck.getStatus() == AdWatchSessionStatus.LIKED) {
+            log.info("Session {} already marked as {} — skipping XP award",
+                    sessionId, preCheck.getStatus());
+            return;
+        }
+
+        Ad ad = adService.getAdEntityById(adId);
+        AdWatchSession session = validateSession(sessionId, consumerId, ad);
+
+        session.setStatus(AdWatchSessionStatus.WATCHED);
+        adWatchSessionRepository.save(session);
+
+        eventPublisher.publishEvent(
+                new XpAwardRequestedEvent(this, consumerId, ActivityType.VIDEO_WATCHED));
     }
 
     @Override
@@ -285,24 +315,24 @@ public class AdLikeServiceImpl implements AdLikeService {
     public PagedResponse<AdLikeResponseDTO> getAdLikes(Long adId, Long commercialId, Pageable pageable) {
         // Verificar que el anuncio pertenece al comercial
         adRepository.findByIdAndCommercialId(adId, commercialId)
-            .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+                .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
         Page<AdLikeResponseDTO> adLikes = adLikeRepository
-            .findByAdIdOrderByCreatedAtDesc(adId, pageable)
-            .map(like -> AdLikeResponseDTO.builder()
-                .userId(like.getConsumer().getId())
-                .userName(like.getConsumer().getName() + " " + like.getConsumer().getLastName())
-                .likedAt(like.getCreatedAt())
-                .build()
-            );
-        return PagedResponse.from(adLikes); 
+                .findByAdIdOrderByCreatedAtDesc(adId, pageable)
+                .map(like -> AdLikeResponseDTO.builder()
+                        .userId(like.getConsumer().getId())
+                        .userName(like.getConsumer().getName() + " " + like.getConsumer().getLastName())
+                        .likedAt(like.getCreatedAt())
+                        .build()
+                );
+        return PagedResponse.from(adLikes);
     }
 
     private AdWatchSession validateSession(UUID sessionId, Long consumerId, Ad ad) {
 
         AdWatchSession session = adWatchSessionRepository
-            .findByIdAndConsumerIdAndAdId(sessionId, consumerId, ad.getId())
-            .orElseThrow(() -> new ValidationException("Sesión de visualización inválida"));
+                .findByIdAndConsumerIdAndAdId(sessionId, consumerId, ad.getId())
+                .orElseThrow(() -> new ValidationException("Sesión de visualización inválida"));
 
         ZonedDateTime now = ZonedDateTime.now(clock);
 
@@ -312,7 +342,9 @@ public class AdLikeServiceImpl implements AdLikeService {
             throw new ValidationException("El anuncio ya no está activo");
         }
 
-        if (session.getStatus() != AdWatchSessionStatus.ACTIVE) {
+        // ACTIVE: mirando / WATCHED: completado, aún puede dar like.
+        if (session.getStatus() != AdWatchSessionStatus.ACTIVE
+                && session.getStatus() != AdWatchSessionStatus.WATCHED) {
             throw new ValidationException("La sesión no está activa");
         }
 
@@ -326,12 +358,12 @@ public class AdLikeServiceImpl implements AdLikeService {
 
         // 3. Validar tiempo mínimo visto (ad.duration manda)
         long requiredSeconds = Math.round(
-            ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0
+                ad.getAsset().getDurationSeconds() != null ? ad.getAsset().getDurationSeconds() : 0
         );
 
-        Duration watched = Duration.between(session.getStartedAt(), now);
+        double watchedSeconds = Duration.between(session.getStartedAt(), now).toMillis() / 1000.0;
 
-        if (watched.getSeconds() < requiredSeconds * 0.95) {
+        if (watchedSeconds < requiredSeconds * 0.95) {
             throw new ValidationException("Anuncio no visto completamente");
         }
 
@@ -347,9 +379,9 @@ public class AdLikeServiceImpl implements AdLikeService {
 
         String reason = "Interacción con anuncio #" + adId;
         keyTransactionRepository.save(Objects.requireNonNull(
-            KeyTransaction.forInteractionPurchaseKeys(keyWallet, rewardSplit.purchaseKeysReward(), reason, sessionId, purchaseExpiry)));
+                KeyTransaction.forInteractionPurchaseKeys(keyWallet, rewardSplit.purchaseKeysReward(), reason, sessionId, purchaseExpiry)));
         keyTransactionRepository.save(Objects.requireNonNull(
-            KeyTransaction.forInteractionConnectivityKeys(keyWallet, rewardSplit.connectivityKeysReward(), reason, sessionId, connectivityExpiry)));
+                KeyTransaction.forInteractionConnectivityKeys(keyWallet, rewardSplit.connectivityKeysReward(), reason, sessionId, connectivityExpiry)));
 
         keyWallet.creditKeys(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);

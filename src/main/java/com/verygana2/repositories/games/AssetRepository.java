@@ -9,8 +9,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.verygana2.models.branding.Asset;
 import com.verygana2.models.enums.AssetStatus;
-import com.verygana2.models.games.Asset;
 
 @Repository
 public interface AssetRepository extends JpaRepository<Asset, Long> {

@@ -11,4 +11,5 @@ public class ConsumerInitialDataResponseDTO {
     private Long connectivityKeys;
     private Long blockedPurchaseKeys;
     private Long blockedConnectivityKeys;
+    private String avatarUrl;
 }
