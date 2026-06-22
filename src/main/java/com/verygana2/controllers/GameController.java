@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -45,7 +44,6 @@ import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
-import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.services.interfaces.GameService;
 
@@ -80,7 +78,7 @@ public class GameController {
     }
 
     // Método para que el juego obtenga los assets
-    @GetMapping("/assets")
+    @PostMapping("/assets")
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
@@ -170,9 +168,4 @@ public class GameController {
     //GetMetrics by sessionId
 
     //GetSession details
-
-    @GetMapping("/rewards")
-    public ResponseEntity<List<RewardCardResponseDTO>> getGameRewards (@RequestParam(name = "gameSessionToken", required = true) String gameSessionToken){
-        return ResponseEntity.ok(gameService.getGameRewards(gameSessionToken));
-    }
 }

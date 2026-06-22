@@ -1,0 +1,100 @@
+{
+  "meta": {
+    "brand_id": "",
+    "campaign_id": ""
+  },
+  "branding": {
+    "main_logo_url": "",
+    "watermark_logo_url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/Watermark.png"
+  },
+  "game_config": {},
+  "game": {
+    "card_images": [
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/1.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/2.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/3.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/4.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/5.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/6.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/7.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/8.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/9.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/10.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/11.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/12.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/13.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/14.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/15.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/16.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/17.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/18.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/19.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/20.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/21.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/22.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/23.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/24.jpeg" },
+    { "url": "https://games.verygana.com/builds/build-bogota/memory-match-19/memory-match-assets/25.jpeg" }
+    ]
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "victory_messages": [
+      "¡Felicidades! Bancolombia te saluda¡"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 1,
+    "keys_on_completion": 1
+  },
+  "reward_popup": {
+  "popup_title": "Recompensas desbloqueadas",
+  "products": [
+    {
+      "id": "prod_001",
+      "name": "Combo doble con papas",
+      "image_url": "https://justudios.co/test-verygana/assets/images/Hamburguesa.png",
+      "image_message": "SUPER DESCUENTO",
+      "commercial": "BurgerMax",
+      "regular_price": 32000,
+      "keys_message": "Con [[1.600]] llaves pagas [[SOLO 16.000 COP]]",
+      "rating": 4.3,
+      "max_keys_allowed": 1600,
+      "min_cash_cents": 160000,
+      "stock": 10,
+      "category_name": "Food"
+    },
+    {
+      "id": "prod_002",
+      "name": "Delux Truffle Combo",
+      "image_url": "https://justudios.co/test-verygana/assets/images/Hamburguesa.png",
+      "image_message": "SUPER DESCUENTO",
+      "commercial": "BurgerMax",
+      "regular_price": 45000,
+      "keys_message": "Con [[2.250]] llaves pagas [[SOLO 22.500 COP]]",
+      "rating": 4.3,
+      "max_keys_allowed": 1600,
+      "min_cash_cents": 160000,
+      "stock": 10,
+      "category_name": "Food"
+    },
+    {
+      "id": "prod_003",
+      "name": "Combo doble con papas",
+      "image_url": "https://justudios.co/test-verygana/assets/images/Hamburguesa.png",
+      "image_message": "SUPER DESCUENTO",
+      "commercial": "BurgerMax",
+      "regular_price": 38000,
+      "keys_message": "Con [[1.900]] llaves pagas [[SOLO 19.000 COP]]",
+      "rating": 4.3,
+      "max_keys_allowed": 1600,
+      "min_cash_cents": 160000,
+      "stock": 10,
+      "category_name": "Food"
+    }
+  ]
+}
+}

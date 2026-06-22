@@ -88,5 +88,6 @@ public interface UserMapper {
     @Mapping(target = "designerCode", ignore = true)
     @Mapping(target = "campaignsDesigned", ignore = true)
     @Mapping(target = "joinedAt", ignore = true)
+    @Mapping(target = "active", expression = "java(true)")
     GameDesignerDetails toGameDesignerDetails(GameDesignerRegisterDTO dto);
 }

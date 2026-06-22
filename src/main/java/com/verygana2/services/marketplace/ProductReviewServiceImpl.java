@@ -10,6 +10,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.product.requests.CreateProductReviewRequestDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
+import com.verygana2.exceptions.InvalidContentException;
 import com.verygana2.exceptions.UnauthorizedActionException;
 import com.verygana2.mappers.marketplace.ProductReviewMapper;
 import com.verygana2.models.marketplace.Product;
@@ -21,6 +22,7 @@ import com.verygana2.repositories.marketplace.ProductReviewRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductReviewService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
+import com.verygana2.utils.ProfanityFilterService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -34,6 +36,7 @@ public class ProductReviewServiceImpl implements ProductReviewService {
     private final ConsumerDetailsService consumerDetailsService;
     private final ProductRepository productRepository;
     private final PurchaseItemService purchaseItemService;
+    private final ProfanityFilterService profanityFilterService;
 
     @Transactional(readOnly = true)
     @Override
@@ -70,6 +73,10 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         if (alreadyReviewed) {
             throw new UnauthorizedActionException("You already reviewed this product");
         }
+
+        if (profanityFilterService.containsProfanity(request.getComment())) {
+        throw new InvalidContentException("Review contains not allowed lenguage. Por favor revísalo.");
+    }
 
         ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
         Product product = purchaseItem.getProduct();
