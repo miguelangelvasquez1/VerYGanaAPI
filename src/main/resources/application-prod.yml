@@ -158,6 +158,7 @@ games:
   session-expiration-minutes: 30
 
 app:
+  base-url: ${APP_BASE_URL}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
   claim-code:

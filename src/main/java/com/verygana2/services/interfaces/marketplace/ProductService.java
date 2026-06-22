@@ -1,5 +1,6 @@
 package com.verygana2.services.interfaces.marketplace;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 
 import org.springframework.data.domain.Pageable;
@@ -69,4 +70,6 @@ public interface ProductService {
     Long countFavoriteProductsByConsumerId(Long consumerId);
 
     void pickGameReward (Long commercialId, Long productId);
+
+    void streamPrivateProductImage(Long productId, jakarta.servlet.http.HttpServletResponse response) throws IOException;
 }

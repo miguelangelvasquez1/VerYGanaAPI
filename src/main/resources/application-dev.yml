@@ -196,6 +196,7 @@ payment:
 # SECURITY MONITORING CONFIG
 # ============================================
 app:
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   security:

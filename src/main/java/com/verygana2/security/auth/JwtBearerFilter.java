@@ -84,10 +84,11 @@ public class JwtBearerFilter extends OncePerRequestFilter {
             if (StringUtils.hasText(token))
                 return token;
         }
-        if (request.getRequestURI().endsWith(SSE_ENDPOINT)) {
+        String uri = request.getRequestURI();
+        if (uri.endsWith(SSE_ENDPOINT) || uri.endsWith("/private-image")) {
             String queryToken = request.getParameter("token");
             if (StringUtils.hasText(queryToken)) {
-                logger.debug("JWT extracted from query param for SSE connection");
+                logger.debug("JWT extracted from query param for: {}", uri);
                 return queryToken;
             }
         }

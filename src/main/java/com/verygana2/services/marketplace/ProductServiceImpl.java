@@ -1,5 +1,6 @@
 package com.verygana2.services.marketplace;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -9,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -100,6 +102,9 @@ public class ProductServiceImpl implements ProductService {
 
     @Value("${marketplace.min-product-price-cents:100000}")
     private long minProductPriceCents; // default $1.000 COP
+
+    @Value("${app.base-url}")
+    private String appBaseUrl;
 
     private static final Set<SupportedMimeType> allowedImageMimeTypes = Set.of(SupportedMimeType.IMAGE_JPEG,
             SupportedMimeType.IMAGE_PNG,
@@ -633,15 +638,35 @@ public class ProductServiceImpl implements ProductService {
 
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public void streamPrivateProductImage(Long productId, HttpServletResponse response) throws IOException {
+        Product product = getById(productId);
+        if (product.getImageAsset() == null) {
+            throw new EntityNotFoundException("Product has no image asset: " + productId);
+        }
+        String objectKey = product.getImageAsset().getObjectKey();
+        log.info("Streaming private image: productId={}, objectKey=private/{}", productId, objectKey);
+
+        try (var stream = r2Service.getPrivateObjectStream(objectKey)) {
+            String contentType = stream.response().contentType();
+            response.setContentType(contentType != null ? contentType : "image/jpeg");
+            Long contentLength = stream.response().contentLength();
+            if (contentLength != null && contentLength > 0) {
+                response.setContentLengthLong(contentLength);
+            }
+            response.setHeader("Cache-Control", "private, max-age=300");
+            stream.transferTo(response.getOutputStream());
+        }
+    }
+
     private String resolveImageUrl(Product product) {
         if (product.getImageAsset() == null) {
             return null;
         }
 
-        String objectKey = product.getImageAsset().getObjectKey();
-
         if (product.getStatus() == ProductStatus.PENDING || product.getStatus() == ProductStatus.REJECTED) {
-            return r2Service.getPrivateObject(objectKey, 600);
+            return appBaseUrl + "/products/" + product.getId() + "/private-image";
         }
 
         return product.getImageUrl();

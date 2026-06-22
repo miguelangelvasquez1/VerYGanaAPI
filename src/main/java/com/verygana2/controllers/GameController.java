@@ -79,7 +79,7 @@ public class GameController {
 
     // Método para que el juego obtenga los assets
     @PostMapping("/assets")
-    public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
+    public ResponseEntity<Map<String,Object>> getGameAssets(@RequestBody GameEventDTO<Void> req) {
         
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
         //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
@@ -104,30 +104,31 @@ public class GameController {
             
         // ==================== NUEVOS JUEGOS (11 al 20) ====================
         
-         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-            return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-            return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
-            return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
-            return ResponseEntity.ok(StackTowerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
-            return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
-            return ResponseEntity.ok(WordSearchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
-            return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
-            return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
-            return ResponseEntity.ok(TicTacToeAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
-            return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
-        }
+        //  if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+        //     return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+        //     return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
+        //     return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
+        //     return ResponseEntity.ok(StackTowerAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
+        //     return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
+        //     return ResponseEntity.ok(WordSearchAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
+        //     return ResponseEntity.ok(DashRunnerAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
+        //     return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
+        //     return ResponseEntity.ok(TicTacToeAssets.ASSETS);
+        // } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
+        //     return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
+        // }
 
         // Si no coincide ningún campaign_id
-        return ResponseEntity.badRequest().body(null);
+        
+        return ResponseEntity.ok(gameService.getGameAssets(req));
     }
 
     @PostMapping("/metrics")
