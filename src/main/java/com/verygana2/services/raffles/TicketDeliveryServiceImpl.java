@@ -13,8 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketEarningResult;
+import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
+import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.Raffle;
@@ -27,6 +29,7 @@ import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
+import org.springframework.context.ApplicationEventPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +45,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     private final RaffleService raffleService;
     private final NotificationService notificationService;
     private final ConsumerDetailsRepository consumerDetailsRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -459,7 +463,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         List<Raffle> activeRaffles = getActiveRafflesOrderedByDrawDate();
 
         if (activeRaffles.isEmpty()) {
-            log.info("No active raffles. No referral tickets issued.");
+            log.info("No active raffles for referral. Awarding double XP to referrer {}.", referrerId);
+            eventPublisher.publishEvent(new XpAwardRequestedEvent(this, referrerId, ActivityType.REFERRAL_ACTIVE));
             return;
         }
 
@@ -512,6 +517,17 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
         if (!issued.isEmpty()) {
             sendNotification(referrerId, raffle, issued.size(), RaffleTicketSource.REFERRAL);
+
+            // Por cada ticket adicional más allá del primero, el nivel del referidor
+            // recibe un evento REFERRAL_ACTIVE extra (el primero ya fue otorgado en applyReferredBy).
+            int bonusXpEvents = issued.size() - 1;
+            for (int i = 0; i < bonusXpEvents; i++) {
+                eventPublisher.publishEvent(new XpAwardRequestedEvent(this, referrerId, ActivityType.REFERRAL_ACTIVE));
+            }
+            if (bonusXpEvents > 0) {
+                log.info("Awarded {} bonus XP event(s) to referrer {} for {} tickets issued",
+                        bonusXpEvents, referrerId, issued.size());
+            }
         }
 
         return true;

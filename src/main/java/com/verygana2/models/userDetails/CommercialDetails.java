@@ -3,6 +3,8 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.enums.AnnualRevenueRange;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.Plan;
@@ -11,6 +13,8 @@ import com.verygana2.models.finance.plans.Subscription;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -31,6 +35,28 @@ public class CommercialDetails extends UserDetails {
 
     @Column(nullable = false, unique = true, length = 20)
     private String nit;
+
+    // ==================== KYC / SAGRILAFT ====================
+
+    @Column(name = "codigo_ciiu", nullable = false, length = 10)
+    private String codigoCIIU;
+
+    @Column(name = "matricula_mercantil", length = 20)
+    private String matriculaMercantil;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "representante_doc_type", nullable = false, length = 5)
+    private DocumentType representanteDocType;
+
+    @Column(name = "representante_doc_numero", nullable = false, length = 20)
+    private String representanteDocNumero;
+
+    @Column(name = "es_pep", nullable = false)
+    private boolean esPEP = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ingresos_anuales_rango", length = 30)
+    private AnnualRevenueRange ingresosAnualesRango;
 
     // ===== MÉTODOS DE PAGO =====
 

@@ -8,7 +8,9 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Category;
 import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.Gender;
+import com.verygana2.models.enums.IncomeRange;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
 import jakarta.persistence.*;
@@ -102,5 +104,24 @@ public class ConsumerDetails extends UserDetails {
 
     @OneToMany(mappedBy = "referredBy")
     private List<ConsumerDetails> referrals = new ArrayList<>();
+
+    // ==================== KYC / SAGRILAFT ====================
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false, length = 5)
+    private DocumentType documentType;
+
+    @Column(name = "document_number", nullable = false, length = 20)
+    private String documentNumber;
+
+    @Column(name = "ocupacion", length = 100)
+    private String ocupacion;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "ingresos_mensuales_rango", length = 30)
+    private IncomeRange ingresosMensualesRango;
+
+    @Column(name = "es_pep", nullable = false)
+    private boolean esPEP = false;
 
 }

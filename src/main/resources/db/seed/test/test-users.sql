@@ -77,12 +77,20 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO commercial_details (
     user_id,
     company_name,
-    nit
+    nit,
+    codigo_ciiu,
+    representante_doc_type,
+    representante_doc_numero,
+    es_pep
 )
 SELECT
     id,
     'Empresa Demo S.A.S',
-    '900123456-1'
+    '900123456-1',
+    '6201',
+    'CC',
+    '12345678',
+    false
 FROM users
 WHERE email = 'comercial@verygana.com'
 ON DUPLICATE KEY UPDATE company_name = company_name;
@@ -135,7 +143,10 @@ INSERT INTO consumer_details (
     ads_watched,
     total_withdraws,
     daily_ad_count,
-    referral_code
+    referral_code,
+    document_type,
+    document_number,
+    es_pep
 )
 SELECT
     u.id,
@@ -153,7 +164,10 @@ SELECT
     0,
     0,
     0,
-    'REF-TEST-0001'
+    'REF-TEST-0001',
+    'CC',
+    '12345678',
+    false
 FROM users u
 WHERE u.email = 'consumer@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;

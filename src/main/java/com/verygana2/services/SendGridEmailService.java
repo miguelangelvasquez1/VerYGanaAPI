@@ -1,3 +1,5 @@
+
+
 package com.verygana2.services;
 
 import java.io.IOException;
@@ -292,8 +294,64 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     public boolean verifyEmail(String email, String code) {
-        // Not used in the prize claim flow — email ownership is guaranteed by JWT auth
         return false;
+    }
+
+    @Override
+    @Async
+    public void sendAccountVerificationEmail(String toEmail, String verificationUrl) {
+        log.info("Sending account verification email to: {}", toEmail);
+        try {
+            String subject = "✉️ Confirma tu cuenta en VeryGana";
+            String html = buildAccountVerificationHtml(verificationUrl);
+            boolean sent = sendEmail(toEmail, subject, html);
+            if (sent) {
+                log.info("Account verification email sent to: {}", toEmail);
+            } else {
+                log.error("Failed to send account verification email to: {}", toEmail);
+            }
+        } catch (Exception e) {
+            log.error("Error sending account verification email to: {}", toEmail, e);
+        }
+    }
+
+    private String buildAccountVerificationHtml(String verificationUrl) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'>");
+        html.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+        html.append("<style>");
+        html.append("* { margin:0; padding:0; box-sizing:border-box; }");
+        html.append("body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; line-height:1.6; color:#333; background:#f4f4f4; }");
+        html.append(".container { max-width:600px; margin:20px auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.1); }");
+        html.append(".header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:40px 20px; text-align:center; }");
+        html.append(".header h1 { font-size:26px; margin-bottom:8px; }");
+        html.append(".header p { font-size:15px; opacity:0.9; }");
+        html.append(".content { padding:36px 30px; text-align:center; }");
+        html.append(".content p { font-size:15px; color:#555; margin-bottom:16px; }");
+        html.append(".btn { display:inline-block; margin:24px 0; padding:16px 40px; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; text-decoration:none; border-radius:8px; font-size:16px; font-weight:bold; letter-spacing:0.5px; }");
+        html.append(".url-fallback { background:#f4f4f4; border-radius:6px; padding:12px 16px; font-family:'Courier New',monospace; font-size:12px; color:#555; word-break:break-all; margin-top:8px; }");
+        html.append(".warning { background:#fff3cd; border-left:4px solid #ffc107; padding:14px; border-radius:4px; margin-top:24px; font-size:13px; text-align:left; }");
+        html.append(".footer { background:#f9f9f9; padding:20px; text-align:center; border-top:1px solid #e0e0e0; font-size:13px; color:#666; }");
+        html.append(".footer a { color:#667eea; text-decoration:none; }");
+        html.append("</style></head><body><div class='container'>");
+
+        html.append("<div class='header'><h1>¡Bienvenido/a a VeryGana! 🎉</h1>");
+        html.append("<p>Un paso más para activar tu cuenta</p></div>");
+
+        html.append("<div class='content'>");
+        html.append("<p>Gracias por registrarte. Para comenzar a usar la plataforma, confirma tu dirección de correo electrónico haciendo clic en el botón de abajo.</p>");
+        html.append("<a class='btn' href='").append(escapeHtml(verificationUrl)).append("'>Confirmar mi cuenta</a>");
+        html.append("<p style='font-size:13px;color:#888;'>Si el botón no funciona, copia y pega este enlace en tu navegador:</p>");
+        html.append("<div class='url-fallback'>").append(escapeHtml(verificationUrl)).append("</div>");
+        html.append("<div class='warning'>⚠️ <strong>Este enlace expira en 24 horas.</strong> Si no creaste una cuenta en VeryGana, puedes ignorar este correo.</div>");
+        html.append("</div>");
+
+        html.append("<div class='footer'>");
+        html.append("<p>¿Necesitas ayuda? <a href='mailto:").append(supportEmail).append("'>").append(supportEmail).append("</a></p>");
+        html.append("<p style='margin-top:10px;font-size:11px;color:#999;'>© 2025 VeryGana. Todos los derechos reservados.</p>");
+        html.append("</div></div></body></html>");
+
+        return html.toString();
     }
 
     @Override

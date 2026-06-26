@@ -4,5 +4,6 @@ public enum Role {
     CONSUMER,
     COMMERCIAL,
     ADMIN,
-    GAME_DESIGNER;
+    GAME_DESIGNER,
+    COMPLIANCE_OFFICER;
 }
