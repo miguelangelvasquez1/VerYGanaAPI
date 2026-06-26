@@ -69,6 +69,9 @@ public interface UserMapper {
     @Mapping(target = "wallet", ignore = true)
     @Mapping(target = "currentPlan", ignore = true)
     @Mapping(target = "subscriptions", ignore = true)
+    @Mapping(target = "municipality", ignore = true)
+    @Mapping(target = "municipalityName", ignore = true)
+    @Mapping(target = "departmentName", ignore = true)
     CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")

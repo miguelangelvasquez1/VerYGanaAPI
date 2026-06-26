@@ -104,6 +104,14 @@ public class UserServiceImpl implements UserService {
 
         CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
+
+        if (dto.getMunicipalityCode() != null) {
+            Municipality municipality = locationService.getMunicipalityEntityByCode(dto.getMunicipalityCode());
+            details.setMunicipality(municipality);
+            details.setMunicipalityName(municipality.getName());
+            details.setDepartmentName(municipality.getDepartment().getName());
+        }
+
         user.setUserDetails(details);
 
         User savedUser = userRepository.save(user);

@@ -46,4 +46,7 @@ public class CommercialRegisterDTO {
 
     private AnnualRevenueRange ingresosAnualesRango;
 
+    @Size(max = 5, message = "Municipality code must be a 5-digit DANE code")
+    private String municipalityCode;
+
 }

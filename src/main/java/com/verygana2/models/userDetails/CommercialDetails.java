@@ -3,6 +3,7 @@ package com.verygana2.models.userDetails;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.AnnualRevenueRange;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
@@ -57,6 +58,18 @@ public class CommercialDetails extends UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "ingresos_anuales_rango", length = 30)
     private AnnualRevenueRange ingresosAnualesRango;
+
+    // ===== UBICACIÓN =====
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "municipality_code")
+    private Municipality municipality;
+
+    @Column(name = "municipality_name", length = 100)
+    private String municipalityName;
+
+    @Column(name = "department_name", length = 100)
+    private String departmentName;
 
     // ===== MÉTODOS DE PAGO =====
 
