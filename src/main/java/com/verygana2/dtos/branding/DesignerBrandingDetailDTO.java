@@ -62,6 +62,9 @@ public class DesignerBrandingDetailDTO {
     private GameSchemaResponse gameSchema;
     private Map<String, Object> gameConfig;
 
+    // Borrador del formData RJSF con los valores que el diseñador ha ido guardando
+    private Map<String, Object> draftFormData;
+
     // ===== Auditoría =====
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;

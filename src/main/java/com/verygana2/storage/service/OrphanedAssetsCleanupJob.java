@@ -11,8 +11,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.ads.AdAsset;
+import com.verygana2.models.branding.Asset;
 import com.verygana2.models.enums.AssetStatus;
-import com.verygana2.models.games.Asset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;

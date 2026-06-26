@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces;
 
 import java.util.List;
+import java.util.Map;
 
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
@@ -34,6 +35,7 @@ public interface GameDesignerService {
 
     // ===== Flujo de branding =====
     void saveGameConfig(Long requestId, Long userId, SubmitGameConfigDTO dto);
+    void saveDraftFormData(Long requestId, Long userId, Map<String, Object> formData);
     void updateDesignerNotes(Long requestId, Long userId, UpdateDesignerNotesDTO dto);
     void submitDesignForReview(Long requestId, Long userId);
 }

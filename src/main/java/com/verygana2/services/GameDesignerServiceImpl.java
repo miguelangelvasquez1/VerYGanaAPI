@@ -2,6 +2,7 @@ package com.verygana2.services;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -27,12 +28,12 @@ import com.verygana2.dtos.user.gamedesigner.UpdateGameDesignerProfileDTO;
 import com.verygana2.mappers.BrandingMapper;
 import com.verygana2.mappers.GameDesignerMapper;
 import com.verygana2.models.User;
+import com.verygana2.models.branding.Asset;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
-import com.verygana2.models.games.Asset;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.userDetails.GameDesignerDetails;
@@ -218,6 +219,17 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     }
 
     @Override
+    public void saveDraftFormData(Long requestId, Long userId, Map<String, Object> formData) {
+        BrandingRequest request = findAssignedRequest(requestId, userId);
+        if (!request.canBeUpdatedByDesigner()) {
+            throw new IllegalStateException("Draft form data cannot be saved from status: " + request.getStatus());
+        }
+        request.setDraftFormData(formData);
+        brandingRequestRepository.save(request);
+        log.info("Draft form data saved for BrandingRequest {} by designer user {}", requestId, userId);
+    }
+
+    @Override
     public void updateDesignerNotes(Long requestId, Long userId, UpdateDesignerNotesDTO dto) {
         BrandingRequest request = findAssignedRequest(requestId, userId);
         if (!request.canBeUpdatedByDesigner()) {
@@ -236,10 +248,11 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             throw new IllegalStateException("Design cannot be submitted for review from status: " + request.getStatus());
         }
 
-        if (request.getGameConfig() == null || request.getGameConfig().isEmpty()) {
-            throw new IllegalStateException("Game config must be saved before submitting for review");
+        if (request.getDraftFormData() == null || request.getDraftFormData().isEmpty()) {
+            throw new IllegalStateException("The form must have saved data before submitting for review");
         }
 
+        request.setGameConfig(request.getDraftFormData());
         request.setStatus(BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL);
         log.info("BrandingRequest {} submitted for advertiser review by designer user {}", requestId, userId);
     }
@@ -270,6 +283,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             .collect(Collectors.toList()));
 
         dto.setGameSchema(buildGameSchema(request.getGame()));
+        dto.setDraftFormData(request.getDraftFormData());
         return dto;
     }
 

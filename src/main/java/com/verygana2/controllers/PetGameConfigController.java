@@ -4,7 +4,6 @@ package com.verygana2.controllers;
 
 import com.verygana2.dtos.pet.*;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
-import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.pet.PetCatalogService;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
 import com.verygana2.services.interfaces.pet.PetSceneService;

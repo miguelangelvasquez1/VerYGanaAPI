@@ -19,7 +19,6 @@ import com.verygana2.dtos.ad.requests.AdLikeRequest;
 import com.verygana2.dtos.ad.responses.AdForConsumerDTO;
 import com.verygana2.dtos.ad.responses.AdLikeResponseDTO;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
-import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.services.interfaces.AdLikeService;
 

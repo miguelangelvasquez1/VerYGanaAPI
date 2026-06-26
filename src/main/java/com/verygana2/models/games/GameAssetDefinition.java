@@ -19,7 +19,7 @@ import lombok.*;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class GameAssetDefinition {
+public class GameAssetDefinition { //borrar?
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

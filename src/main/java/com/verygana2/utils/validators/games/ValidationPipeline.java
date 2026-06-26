@@ -6,7 +6,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import com.verygana2.models.games.Campaign;
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
 
