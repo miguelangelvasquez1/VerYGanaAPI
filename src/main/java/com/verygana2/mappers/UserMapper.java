@@ -108,6 +108,7 @@ public interface UserMapper {
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "passwordConfigured", ignore = true)
     User toUser(ComplianceOfficerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)

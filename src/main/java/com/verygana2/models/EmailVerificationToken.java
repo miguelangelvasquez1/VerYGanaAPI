@@ -38,5 +38,6 @@ public class EmailVerificationToken {
     private LocalDateTime expiresAt;
 
     @Column(nullable = false)
+    @Builder.Default
     private boolean used = false;
 }
