@@ -291,6 +291,87 @@ public class SendGridEmailService implements EmailService {
     }
 
     @Override
+    @Async
+    public void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode) {
+        log.info("Sending password setup email to designer: {}", toEmail);
+        try {
+            String subject = "Configura tu contraseña - VerYGana";
+            String html = buildPasswordSetupHtml(designerName, setupLink, designerCode);
+            boolean sent = sendEmail(toEmail, subject, html);
+            if (!sent) {
+                log.error("Failed to send password setup email to: {}", toEmail);
+            }
+        } catch (Exception e) {
+            log.error("Error sending password setup email to: {}", toEmail, e);
+        }
+    }
+
+    private String buildPasswordSetupHtml(String designerName, String setupLink, String designerCode) {
+        StringBuilder html = new StringBuilder();
+        html.append("<!DOCTYPE html><html lang='es'><head><meta charset='UTF-8'>");
+        html.append("<meta name='viewport' content='width=device-width, initial-scale=1.0'>");
+        html.append("<style>");
+        html.append("* { margin:0; padding:0; box-sizing:border-box; }");
+        html.append("body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif; line-height:1.6; color:#333; background:#f4f4f4; }");
+        html.append(".container { max-width:600px; margin:20px auto; background:white; border-radius:10px; overflow:hidden; box-shadow:0 4px 6px rgba(0,0,0,0.1); }");
+        html.append(".header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:40px 20px; text-align:center; }");
+        html.append(".header h1 { font-size:26px; margin-bottom:8px; }");
+        html.append(".header p { font-size:15px; opacity:0.9; }");
+        html.append(".content { padding:32px; }");
+        html.append(".greeting { font-size:18px; font-weight:bold; margin-bottom:16px; color:#333; }");
+        html.append(".text { font-size:15px; color:#555; margin-bottom:16px; }");
+        html.append(".btn-wrapper { text-align:center; margin:32px 0; }");
+        html.append(".btn { display:inline-block; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; text-decoration:none; padding:14px 36px; border-radius:8px; font-size:16px; font-weight:bold; letter-spacing:0.5px; }");
+        html.append(".fallback { background:#f9f9f9; border:1px solid #e0e0e0; border-radius:6px; padding:14px; margin-top:16px; font-size:13px; color:#666; word-break:break-all; }");
+        html.append(".fallback strong { display:block; margin-bottom:6px; color:#333; }");
+        html.append(".code-box { background:#f0f4ff; border:2px dashed #667eea; border-radius:8px; padding:16px; text-align:center; margin:24px 0; }");
+        html.append(".code-box p { font-size:13px; color:#555; margin-bottom:8px; }");
+        html.append(".code-box span { font-size:22px; font-weight:bold; letter-spacing:3px; color:#764ba2; font-family:monospace; }");
+        html.append(".warning { background:#fff3cd; border-left:4px solid #ffc107; padding:14px; border-radius:4px; margin-top:24px; font-size:13px; }");
+        html.append(".footer { background:#f9f9f9; padding:20px; text-align:center; border-top:1px solid #e0e0e0; font-size:13px; color:#666; }");
+        html.append(".footer a { color:#667eea; text-decoration:none; }");
+        html.append("</style></head><body><div class='container'>");
+
+        html.append("<div class='header'>");
+        html.append("<h1>Bienvenido/a a VerYGana</h1>");
+        html.append("<p>Configura tu contraseña para empezar</p>");
+        html.append("</div>");
+
+        html.append("<div class='content'>");
+        html.append("<p class='greeting'>Hola, ").append(escapeHtml(designerName)).append("</p>");
+        html.append("<p class='text'>Tu cuenta de Game Designer ha sido creada en la plataforma VerYGana.</p>");
+        html.append("<p class='text'>Para activar tu cuenta y comenzar a trabajar, necesitas crear una contraseña segura haciendo clic en el botón a continuación:</p>");
+
+        html.append("<div class='code-box'>");
+        html.append("<p>Tu código de diseñador (guárdalo, lo necesitarás para recuperar tu contraseña):</p>");
+        html.append("<span>").append(escapeHtml(designerCode)).append("</span>");
+        html.append("</div>");
+
+        html.append("<div class='btn-wrapper'>");
+        html.append("<a href='").append(setupLink).append("' class='btn'>Crear mi contraseña</a>");
+        html.append("</div>");
+
+        html.append("<div class='fallback'>");
+        html.append("<strong>¿El botón no funciona? Copia y pega este enlace en tu navegador:</strong>");
+        html.append(escapeHtml(setupLink));
+        html.append("</div>");
+
+        html.append("<div class='warning'>");
+        html.append("⚠️ <strong>Importante:</strong> Este enlace es de un solo uso y expira en <strong>24 horas</strong>. ");
+        html.append("Si no solicitaste esta cuenta, puedes ignorar este correo.");
+        html.append("</div>");
+        html.append("</div>");
+
+        html.append("<div class='footer'>");
+        html.append("<p><strong>¿Necesitas ayuda?</strong></p>");
+        html.append(String.format("<p>Contáctanos en <a href='mailto:%s'>%s</a></p>", supportEmail, supportEmail));
+        html.append("<p style='margin-top:12px;font-size:11px;color:#999;'>© 2025 VeryGana. Todos los derechos reservados.</p>");
+        html.append("</div></div></body></html>");
+
+        return html.toString();
+    }
+
+    @Override
     public boolean verifyEmail(String email, String code) {
         // Not used in the prize claim flow — email ownership is guaranteed by JWT auth
         return false;

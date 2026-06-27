@@ -25,6 +25,7 @@ public class GameDesignerAdminController {
     @PostMapping
     public ResponseEntity<String> registerGameDesigner(@Valid @RequestBody GameDesignerRegisterDTO dto) {
         userService.registerGameDesigner(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Game designer registered successfully");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Game designer registered. A password setup link has been sent to " + dto.getEmail());
     }
 }

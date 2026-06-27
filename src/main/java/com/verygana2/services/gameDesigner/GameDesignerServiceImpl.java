@@ -1,6 +1,7 @@
-package com.verygana2.services;
+package com.verygana2.services.gameDesigner;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -16,7 +17,6 @@ import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
-import com.verygana2.dtos.branding.SubmitGameConfigDTO;
 import com.verygana2.dtos.branding.UpdateDesignerNotesDTO;
 import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
@@ -42,6 +42,7 @@ import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.services.interfaces.GameDesignerService;
+import com.verygana2.services.interfaces.GameService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 
@@ -65,6 +66,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     private final GameDesignerMapper gameDesignerMapper;
     private final AssetOrphanedService assetOrphanedService;
     private final R2Service r2Service;
+    private final GameService gameService;
 
     // ===== PERFIL =====
 
@@ -77,8 +79,6 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     @Override
     public void updateProfile(Long userId, UpdateGameDesignerProfileDTO dto) {
         GameDesignerDetails details = findDetailsByUserId(userId);
-        if (dto.getName() != null && !dto.getName().isBlank()) details.setName(dto.getName());
-        if (dto.getLastName() != null && !dto.getLastName().isBlank()) details.setLastName(dto.getLastName());
         if (dto.getBio() != null) details.setBio(dto.getBio());
         designerDetailsRepository.save(details);
         log.info("Profile updated for game designer user {}", userId);
@@ -140,25 +140,32 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         String objectKey = String.format("campaigns/designer-%s/%s/%s",
             userId, assetType.getValue(), UUID.randomUUID());
 
-        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(true, objectKey, request.getContentType());
-        String temporalUrl = r2Service.getPrivateObject(objectKey, 2000);
+        FileUploadPermissionDTO permission = r2Service.generateUploadUrl(false, objectKey, request.getContentType());
+        String publicUrl = r2Service.buildPublicUrl(objectKey);
 
-        Asset asset = Asset.builder()
+        Asset.AssetBuilder assetBuilder = Asset.builder()
             .objectKey(objectKey)
             .mediaType(assetType)
             .mimeType(SupportedMimeType.fromValue(request.getContentType()))
             .sizeBytes(request.getSizeBytes())
             .status(AssetStatus.PENDING)
-            .uploadedBy(userId)
-            .build();
+            .uploadedBy(userId);
 
-        asset = assetRepository.save(asset);
+        if (request.getBrandingRequestId() != null) {
+            BrandingRequest brandingRequest = brandingRequestRepository
+                .findByIdAndAssignedDesigner_User_Id(request.getBrandingRequestId(), userId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                    "Branding request not found or not assigned to this designer"));
+            assetBuilder.brandingRequest(brandingRequest);
+        }
+
+        Asset asset = assetRepository.save(assetBuilder.build());
         log.info("Asset record {} created in PENDING for designer user {}", asset.getId(), userId);
 
         return AssetUploadPermissionDTO.builder()
             .assetId(asset.getId())
-            .temporalUrl(temporalUrl)
-            .publicUrl("https://cdn.verygana.com/public/" + objectKey)
+            .publicUrl(publicUrl)
+            .temporalUrl(publicUrl)
             .permission(permission)
             .build();
     }
@@ -179,7 +186,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             Set<SupportedMimeType> allowedTypes = SupportedMimeType.getSupportedMimeTypesForMediaType(asset.getMediaType());
 
             SupportedMimeType realMime = r2Service.validateUploadedObject(
-                true, asset.getObjectKey(), asset.getSizeBytes(), maxSizeBytes, allowedTypes);
+                false, asset.getObjectKey(), asset.getSizeBytes(), maxSizeBytes, allowedTypes);
 
             if (realMime == null) {
                 throw new IllegalStateException("Asset upload verification failed");
@@ -195,34 +202,63 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             assetOrphanedService.markAsOrphaned(request.getAssetId());
             throw e;
         }
+
+        if (request.getPreviousAssetId() != null) {
+            assetRepository.findById(request.getPreviousAssetId()).ifPresent(previous -> {
+                try {
+                    r2Service.deletePublicObject(previous.getObjectKey());
+                } catch (Exception e) {
+                    log.warn("Failed to delete previous asset {} from R2: {}", previous.getId(), e.getMessage());
+                }
+                previous.setStatus(AssetStatus.DELETED);
+                assetRepository.save(previous);
+                log.info("Previous asset {} replaced and marked DELETED", previous.getId());
+            });
+        }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getPreviewUrl(Long requestId, Long userId) {
+        BrandingRequest request = findAssignedRequest(requestId, userId);
+        return gameService.generatePreviewUrl(request);
+    }
+
+    @Override
+    public void deleteAsset(Long assetId, Long userId) {
+        Asset asset = assetRepository.findById(assetId)
+            .orElseThrow(() -> new EntityNotFoundException("Asset not found: " + assetId));
+
+        if (!userId.equals(asset.getUploadedBy())) {
+            throw new SecurityException("Asset does not belong to this designer");
+        }
+
+        if (asset.getStatus() == AssetStatus.DELETED) {
+            throw new IllegalStateException("Asset is already deleted");
+        }
+
+        try {
+            r2Service.deletePublicObject(asset.getObjectKey());
+        } catch (Exception e) {
+            log.warn("Failed to delete asset {} from R2: {}", assetId, e.getMessage());
+        }
+
+        asset.setStatus(AssetStatus.DELETED);
+        assetRepository.save(asset);
+        log.info("Asset {} deleted by designer user {}", assetId, userId);
     }
 
     // ===== FLUJO DE BRANDING =====
-
-    @Override
-    public void saveGameConfig(Long requestId, Long userId, SubmitGameConfigDTO dto) {
-        BrandingRequest request = findAssignedRequest(requestId, userId);
-
-        if (!request.canBeUpdatedByDesigner()) {
-            throw new IllegalStateException("Game config cannot be saved from status: " + request.getStatus());
-        }
-
-        // Auto-transición al iniciar el trabajo
-        if (request.getStatus() == BrandingRequestStatus.APPROVED) {
-            request.setStatus(BrandingRequestStatus.DESIGN_IN_PROGRESS);
-            log.info("BrandingRequest {} transitioned to DESIGN_IN_PROGRESS by designer user {}", requestId, userId);
-        }
-
-        request.setGameConfig(dto.getConfig());
-        brandingRequestRepository.save(request);
-        log.info("Game config saved for BrandingRequest {} by designer user {}", requestId, userId);
-    }
 
     @Override
     public void saveDraftFormData(Long requestId, Long userId, Map<String, Object> formData) {
         BrandingRequest request = findAssignedRequest(requestId, userId);
         if (!request.canBeUpdatedByDesigner()) {
             throw new IllegalStateException("Draft form data cannot be saved from status: " + request.getStatus());
+        }
+        if (request.getStatus() == BrandingRequestStatus.APPROVED) {
+            request.setStatus(BrandingRequestStatus.DESIGN_IN_PROGRESS);
+            log.info("BrandingRequest {} transitioned to DESIGN_IN_PROGRESS by designer user {}", requestId, userId);
         }
         request.setDraftFormData(formData);
         brandingRequestRepository.save(request);
@@ -252,12 +288,35 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             throw new IllegalStateException("The form must have saved data before submitting for review");
         }
 
-        request.setGameConfig(request.getDraftFormData());
+        request.setGameConfig(stripAssetMetadata(request.getDraftFormData()));
         request.setStatus(BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL);
         log.info("BrandingRequest {} submitted for advertiser review by designer user {}", requestId, userId);
     }
 
     // ===== HELPERS =====
+
+    private Map<String, Object> stripAssetMetadata(Map<String, Object> formData) {
+        Map<String, Object> cleaned = new LinkedHashMap<>();
+        formData.forEach((k, v) -> cleaned.put(k, stripValue(v)));
+        return cleaned;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object stripValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> m = (Map<String, Object>) map;
+            if (m.containsKey("assetId") && m.containsKey("url")) {
+                return m.get("url");
+            }
+            Map<String, Object> cleaned = new LinkedHashMap<>();
+            m.forEach((k, v) -> cleaned.put(k, stripValue(v)));
+            return cleaned;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::stripValue).toList();
+        }
+        return value;
+    }
 
     private BrandingRequest findAssignedRequest(Long requestId, Long userId) {
         return brandingRequestRepository.findByIdAndAssignedDesigner_User_Id(requestId, userId)
@@ -284,6 +343,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
 
         dto.setGameSchema(buildGameSchema(request.getGame()));
         dto.setDraftFormData(request.getDraftFormData());
+
         return dto;
     }
 

@@ -15,8 +15,6 @@ public interface GameDesignerMapper {
 
     @Mapping(target = "email",        source = "user.email")
     @Mapping(target = "phoneNumber",  source = "user.phoneNumber")
-    @Mapping(target = "role",         source = "user.role")
-    @Mapping(target = "userState",    source = "user.userState")
     @Mapping(target = "gamesCreated", expression = "java(0)")
     GameDesignerProfileResponseDTO toProfileDTO(GameDesignerDetails details);
 

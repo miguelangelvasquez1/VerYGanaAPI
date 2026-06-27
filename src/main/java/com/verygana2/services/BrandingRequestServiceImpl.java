@@ -46,6 +46,7 @@ import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.BrandingRequestService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.services.interfaces.GameService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
 
@@ -77,6 +78,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final TargetingValidator targetingValidator;
     private final R2Service r2Service;
     private final BrandingMapper brandingMapper;
+    private final GameService gameService;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -363,6 +365,18 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         request.setStatus(BrandingRequestStatus.CHANGES_REQUESTED);
         request.setDesignerNotes(dto.getDesignerNotes());
         log.info("BrandingRequest {} design changes requested by commercial user {} → CHANGES_REQUESTED", requestId, userId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public String getPreviewUrl(Long requestId, Long userId) {
+        BrandingRequest request = findOwnedRequest(requestId, userId);
+
+        if (request.getGameConfig() == null || request.getGameConfig().isEmpty()) {
+            throw new IllegalStateException("Design has not been submitted yet — no preview available");
+        }
+
+        return gameService.generatePreviewUrl(request);
     }
 
     // ===== RECURSOS CORPORATIVOS =====

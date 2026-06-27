@@ -4,6 +4,7 @@ import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.levels.LevelService;
+import com.verygana2.services.interfaces.PasswordSetupService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
+
+import jakarta.validation.ValidationException;
 
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -44,13 +47,15 @@ public class UserServiceImpl implements UserService {
     private final OutboxService outboxService;
     private final LocationService locationService;
     private final LevelService levelService;
+    private final PasswordSetupService passwordSetupService;
 
     @Override
     public User registerGameDesigner(GameDesignerRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID() + UUID.randomUUID().toString()));
+        user.setPasswordConfigured(false);
 
         GameDesignerDetails details = userMapper.toGameDesignerDetails(dto);
         details.setDesignerCode("GD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
@@ -58,7 +63,10 @@ public class UserServiceImpl implements UserService {
         details.setUser(user);
         user.setUserDetails(details);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        passwordSetupService.initiatePasswordSetup(savedUser, dto.getName(), details.getDesignerCode());
+
+        return savedUser;
     }
 
     public User registerCommercial(CommercialRegisterDTO dto) {
@@ -132,11 +140,11 @@ public class UserServiceImpl implements UserService {
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalStateException("Email already registered");
+            throw new ValidationException("Email already registered");
         }
 
         if (userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new IllegalStateException("Phone number already registered");
+            throw new ValidationException("Phone number already registered");
         }
     }
 

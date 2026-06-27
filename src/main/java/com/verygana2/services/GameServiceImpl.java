@@ -34,6 +34,8 @@ import com.verygana2.models.games.GameSession;
 import com.verygana2.models.games.GameSessionMetric;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.branding.BrandingRequest;
+import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
@@ -68,6 +70,7 @@ public class GameServiceImpl implements GameService {
     private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
+    private final BrandingRequestRepository brandingRequestRepository;
     private final GameSessionRepository gameSessionRepository;
     private final GameMetricDefinitionRepository metricDefinitionRepository;
     private final MetricValidator metricValidator;
@@ -219,6 +222,48 @@ public class GameServiceImpl implements GameService {
     public PagedResponse<GameDTO> getAvailableGamesPage(Pageable pageable) {
         Page<GameDTO> page = gameRepository.findAvailableGames(pageable);
         return PagedResponse.from(page);
+    }
+
+    // ===== PREVIEW =====
+
+    @Override
+    public String generatePreviewUrl(BrandingRequest brandingRequest) {
+        String baseUrl = generateGameUrl(brandingRequest.getGame());
+        return String.format(
+            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl, "preview", "preview", "true", brandingRequest.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPreviewAssets(Long brandingRequestId) {
+        BrandingRequest request = brandingRequestRepository.findById(brandingRequestId)
+            .orElseThrow(() -> new EntityNotFoundException("Preview not found for id: " + brandingRequestId));
+
+        Map<String, Object> config = (request.getGameConfig() != null && !request.getGameConfig().isEmpty())
+            ? request.getGameConfig()
+            : request.getDraftFormData();
+
+        if (config == null) return Map.of();
+
+        return stripPreviewMap(config);
+    }
+
+    private Map<String, Object> stripPreviewMap(Map<String, Object> map) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        map.forEach((k, v) -> result.put(k, stripPreviewValue(v)));
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object stripPreviewValue(Object value) {
+        if (value instanceof Map<?, ?> m) {
+            Map<String, Object> map = (Map<String, Object>) m;
+            if (map.containsKey("assetId") && map.containsKey("url")) return map.get("url");
+            return stripPreviewMap(map);
+        }
+        if (value instanceof List<?> list) return list.stream().map(this::stripPreviewValue).toList();
+        return value;
     }
 
     // Métodos privados auxiliares

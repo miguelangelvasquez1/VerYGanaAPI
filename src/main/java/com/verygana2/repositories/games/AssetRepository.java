@@ -31,5 +31,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
 
     List<Asset> findByCampaignId(Long campaignId);
 
+    List<Asset> findByBrandingRequest_Id(Long brandingRequestId);
+
     List<Asset> findByObjectKeyIn(Set<String> urls);
 }

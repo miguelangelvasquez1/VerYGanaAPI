@@ -161,11 +161,12 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-encoding gzip `
   --content-type application/wasm
 
--ver que las urls no estan bien, ver el json final en tiempo real, ver que se haga bien el flujo.
-anadir politica de planes?, ver todo despues de haber preguntado a nestor, seguir con el panel de designer. hacer que al subir un archivo se guarde de una vez en el json. logout con backend, zip no sirve
-- ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero), hacer gestion de solicitudes admin, hacer gestion de solicitudes designer(panel, etc)
 
-- hacer panel para solicitar juego, crear nuevo rol, trasladar panel de creacion de juegos, etc.
+- notas, notificaciones, diseño
+- definir ful el flujo para las notas y commercial, revision.
+anadir politica de planes?, ver todo despues de haber preguntado a nestor,
+- ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero).
+
 - probar subir video a ads
 - probar max_ads, max_surveys, flujo de sesiones y recompena bien revisar.
 

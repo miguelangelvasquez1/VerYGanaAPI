@@ -11,6 +11,7 @@ import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.TransactionSystemException;
@@ -88,6 +89,15 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex, WebRequest request) {
         log.warn("Bad credentials: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, "Invalid credentials", request);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ErrorResponse> handleDisabledException(
+            DisabledException ex, WebRequest request) {
+        log.warn("Login attempt on non-activated account: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN,
+                "Your account is pending activation. Please check your email for the password setup link.",
+                request);
     }
 
     // ==================== RECURSOS NO ENCONTRADOS (404) ====================

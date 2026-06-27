@@ -28,4 +28,6 @@ public class FileUploadRequestDTO {
     @Min(value = 5, message = "Image display duration must be at least 5 seconds")
     @Max(value = 60, message = "Image display duration cannot exceed 60 seconds")
     private Integer imageDurationSeconds;
+
+    private Long brandingRequestId;
 }

@@ -23,6 +23,7 @@ public interface UserMapper {
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "passwordConfigured", ignore = true)
     User toUser(ConsumerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -57,6 +58,7 @@ public interface UserMapper {
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "passwordConfigured", ignore = true)
     User toUser(CommercialRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -80,6 +82,8 @@ public interface UserMapper {
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
+    @Mapping(target = "password", ignore = true)
+    @Mapping(target = "passwordConfigured", ignore = true)
     User toUser(GameDesignerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
