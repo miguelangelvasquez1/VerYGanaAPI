@@ -338,9 +338,9 @@ public class ProductController {
 
     @PatchMapping("{productId}/gameReward")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Void> pickGameReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
+    public ResponseEntity<Void> markProductAsReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long commercialId = jwt.getClaim("userId");
-        productService.pickGameReward(commercialId, productId);
+        productService.markProductAsReward(commercialId, productId);
         return ResponseEntity.noContent().build();
     }
 

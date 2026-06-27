@@ -27,6 +27,7 @@ import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
+import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
@@ -411,8 +412,10 @@ public class ProductServiceImpl implements ProductService {
         int indexPage = (page != null && page >= 0) ? page : 0;
         Pageable pageable = PageRequest.of(indexPage, 20, sort);
 
+        Long maxPriceCents = maxPrice != null ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue() : null;
+
         PagedResponse<Product> productPage = PagedResponse
-                .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
+                .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
                         pageable));
 
         return productPage.map(product -> {
@@ -673,7 +676,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void pickGameReward(Long commercialId, Long productId) {
+    public void markProductAsReward(Long commercialId, Long productId) {
         Product product = getById(productId);
 
         if (!commercialId.equals(product.getCommercial().getId())) {
@@ -697,4 +700,12 @@ public class ProductServiceImpl implements ProductService {
         product.setIsGameReward(true);
         productRepository.save(product);
     }
+
+    @Override
+    public CommercialProfileResponseDTO getCommercialProfile(Long productId) {
+        CommercialDetails commercial = getById(productId).getCommercial();
+        CommercialProfileResponseDTO dto = CommercialProfileResponseDTO.builder().commercialName(commercial.getCompanyName()).country().city()
+        .signInDate(commercial.getUser().getRegisteredDate()).averageRate().reviewCount().totalActiveProducs().productCategories().products().build();
+    }
+
 }

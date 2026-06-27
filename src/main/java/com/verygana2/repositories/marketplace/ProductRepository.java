@@ -1,6 +1,5 @@
 package com.verygana2.repositories.marketplace;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,11 +56,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         String searchQuery,
                         Long productCategoryId,
                         Double minRating,
-                        BigDecimal maxPrice,
+                        Long maxPriceCents,
                         Pageable pageable) {
-                Long maxPriceCents = maxPrice != null
-                                ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue()
-                                : null;
                 return searchProductsInternal(searchQuery, productCategoryId, minRating, maxPriceCents, pageable);
         }
 

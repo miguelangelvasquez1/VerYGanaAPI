@@ -12,7 +12,7 @@ import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
-
+import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
@@ -40,6 +40,8 @@ public interface ProductService {
         Long newAssetId);
 
     PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page);
+
+    CommercialProfileResponseDTO getCommercialProfile (Long productId);
 
     PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin (ProductStatus status, Pageable pageable);
 
@@ -69,7 +71,9 @@ public interface ProductService {
 
     Long countFavoriteProductsByConsumerId(Long consumerId);
 
-    void pickGameReward (Long commercialId, Long productId);
+    void markProductAsReward (Long commercialId, Long productId);
 
     void streamPrivateProductImage(Long productId, jakarta.servlet.http.HttpServletResponse response) throws IOException;
+
+    
 }

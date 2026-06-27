@@ -172,6 +172,19 @@ twilio:
   phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
+# KUSHKI CONFIG
+# ============================================
+kushki:
+  private-key: ${KUSHKI_PRIVATE_KEY}
+  public-key: ${KUSHKI_PUBLIC_KEY}
+  api-base-url: https://api-uat.kushkipagos.com  # sandbox
+  # api-base-url: https://api.kushkipagos.com    # producción
+  payout:
+    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
+    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    min-balance-alert-cents: 5000000  # alerta si Kushki balance < $50.000 COP
+
+# ============================================
 # WOMPI CONFIG
 # ============================================
 # Configuración de Wompi (Produccion)

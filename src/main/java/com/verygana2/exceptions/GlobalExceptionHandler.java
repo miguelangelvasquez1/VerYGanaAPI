@@ -260,6 +260,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(GameRewardException.class)
+    public ResponseEntity<ErrorResponse> handleGameRewardException(
+            GameRewardException ex, WebRequest request) {
+        log.warn("Game reward error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     // ==================== PAYOUT METHODS ====================
 
     @ExceptionHandler(PayoutMethodNotFoundException.class)

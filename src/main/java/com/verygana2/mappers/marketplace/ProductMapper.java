@@ -129,6 +129,7 @@ public interface ProductMapper {
     @Mapping(target = "minCashCents", expression = "java(favoriteProduct.getProduct().getMinCashCents())")
     @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
+    @Mapping(target = "isGameReward", ignore = true)
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping
