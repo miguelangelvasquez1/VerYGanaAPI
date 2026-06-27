@@ -31,20 +31,21 @@ public class AuditCleanupJob {
         try {
             int totalDeleted = 0;
             
-            // Limpiar por cada nivel según su política de retención
+            // Limpiar por cada nivel según su política de retención.
+            // CRITICAL queda excluido: contiene eventos financieros y de cumplimiento
+            // que deben conservarse indefinidamente por SAGRILAFT.
             for (AuditLevel level : AuditLevel.values()) {
-                if (level == AuditLevel.DEBUG) {
-                    // DEBUG no se persiste en producción, skip
+                if (level == AuditLevel.DEBUG || level == AuditLevel.CRITICAL) {
                     continue;
                 }
-                
+
                 LocalDateTime cutoffDate = LocalDateTime.now()
                     .minusDays(level.getRetentionDays());
-                
+
                 int deleted = auditLogRepository.deleteOldLogsByLevel(cutoffDate, level);
                 totalDeleted += deleted;
-                
-                log.info("Limpieza nivel {}: {} registros eliminados (retención: {} días)", 
+
+                log.info("Limpieza nivel {}: {} registros eliminados (retención: {} días)",
                     level, deleted, level.getRetentionDays());
             }
             

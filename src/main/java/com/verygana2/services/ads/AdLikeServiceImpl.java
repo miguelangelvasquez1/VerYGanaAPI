@@ -110,6 +110,7 @@ public class AdLikeServiceImpl implements AdLikeService {
 
         // 1. Verificar la sesión de visualización
         AdWatchSession session = validateSession(sessionId, consumerId, ad);
+        AdWatchSessionStatus statusBeforeLike = session.getStatus();
 
         // 2. Verificar que el consumidor no haya dado like antes
         if (hasConsumerLikedAd(adId, consumerId)) {
@@ -172,6 +173,13 @@ public class AdLikeServiceImpl implements AdLikeService {
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
         adWatchSessionRepository.save(session);
+
+        // Si markWatchSessionCompleted no fue llamado antes (sesión aún ACTIVE),
+        // el XP de VIDEO_WATCHED nunca fue otorgado — publicarlo aquí.
+        if (statusBeforeLike != AdWatchSessionStatus.WATCHED) {
+            eventPublisher.publishEvent(
+                    new XpAwardRequestedEvent(this, consumerId, ActivityType.VIDEO_WATCHED));
+        }
 
         log.info("Like processed successfully. User rewarded with: {}", rewardKeysCents);
 

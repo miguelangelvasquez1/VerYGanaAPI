@@ -12,6 +12,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
+<<<<<<< HEAD
+=======
+import org.springframework.security.authentication.LockedException;
+>>>>>>> 646e6eca78bf177337131e715bd2daa7764e36c8
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.TransactionSystemException;
@@ -94,9 +98,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DisabledException.class)
     public ResponseEntity<ErrorResponse> handleDisabledException(
             DisabledException ex, WebRequest request) {
+<<<<<<< HEAD
         log.warn("Login attempt on non-activated account: {}", ex.getMessage());
         return buildError(HttpStatus.FORBIDDEN,
                 "Your account is pending activation. Please check your email for the password setup link.",
+=======
+        log.warn("Login blocked — account disabled: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED,
+                "Tu cuenta no está activa. Verifica tu correo electrónico o espera la revisión del equipo de cumplimiento.",
+                request);
+    }
+
+    @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ErrorResponse> handleLockedException(
+            LockedException ex, WebRequest request) {
+        log.warn("Login blocked — account locked: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED,
+                "Tu cuenta ha sido bloqueada. Contacta al soporte para más información.",
+>>>>>>> 646e6eca78bf177337131e715bd2daa7764e36c8
                 request);
     }
 

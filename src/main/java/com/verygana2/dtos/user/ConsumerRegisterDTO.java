@@ -4,7 +4,9 @@ import java.time.LocalDate;
 import java.util.List;
 
 import com.verygana2.models.Category;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.Gender;
+import com.verygana2.models.enums.IncomeRange;
 
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -54,5 +56,21 @@ public class ConsumerRegisterDTO {
 
     @NotNull(message = "Gender is required")
     private Gender gender;
+
+    // ==================== KYC / SAGRILAFT ====================
+
+    @NotNull(message = "Document type is required")
+    private DocumentType documentType;
+
+    @NotBlank(message = "Document number is required")
+    @Size(max = 20, message = "Document number must not exceed 20 characters")
+    private String documentNumber;
+
+    private String ocupacion;
+
+    private IncomeRange ingresosMensualesRango;
+
+    @NotNull(message = "PEP declaration is required")
+    private Boolean esPEP;
 
 }
