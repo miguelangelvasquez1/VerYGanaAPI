@@ -55,4 +55,5 @@ public interface BrandingRequestService {
     // Revisión del anunciante sobre el diseño
     void approveDesign(Long requestId, Long userId);
     void requestDesignChanges(Long requestId, Long userId, RequestDesignChangesDTO dto);
+    String getPreviewUrl(Long requestId, Long userId);
 }

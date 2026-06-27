@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,7 +21,6 @@ import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
-import com.verygana2.dtos.branding.SubmitGameConfigDTO;
 import com.verygana2.dtos.branding.UpdateDesignerNotesDTO;
 import com.verygana2.dtos.user.gamedesigner.ChangePasswordDTO;
 import com.verygana2.dtos.user.gamedesigner.GameDesignerProfileResponseDTO;
@@ -131,16 +131,24 @@ public class GameDesignerController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/me/branding-requests/{id}/config")
+    @GetMapping("/me/branding-requests/{id}/preview-url")
     @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
-    public ResponseEntity<Void> saveGameConfig(
+    public ResponseEntity<Map<String, String>> getPreviewUrl(
             @PathVariable Long id,
-            @Valid @RequestBody SubmitGameConfigDTO dto,
             @AuthenticationPrincipal Jwt jwt) {
-
         Long userId = jwt.getClaim("userId");
-        gameDesignerService.saveGameConfig(id, userId, dto);
-        return ResponseEntity.ok().build();
+        String url = gameDesignerService.getPreviewUrl(id, userId);
+        return ResponseEntity.ok(Map.of("url", url));
+    }
+
+    @DeleteMapping("/me/assets/{assetId}")
+    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    public ResponseEntity<Void> deleteAsset(
+            @PathVariable Long assetId,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        gameDesignerService.deleteAsset(assetId, userId);
+        return ResponseEntity.noContent().build();
     }
 
     @PatchMapping("/me/branding-requests/{id}/draft")

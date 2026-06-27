@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(mvn test *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(grep -E \"\\\\.java$\")"
     ]
   }
 }

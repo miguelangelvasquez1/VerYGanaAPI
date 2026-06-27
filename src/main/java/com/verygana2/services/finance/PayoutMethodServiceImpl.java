@@ -20,6 +20,7 @@ import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.services.interfaces.TwilioSmsService;
+import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.PayoutMethodService;
 
@@ -35,6 +36,7 @@ public class PayoutMethodServiceImpl implements PayoutMethodService {
     private final PayoutMethodRepository payoutMethodRepository;
     private final PayoutMethodMapper payoutMethodMapper;
     private final TwilioSmsService twilioSmsService;
+    private final ScreeningService screeningService;
 
     // ===== COMMERCIAL =====
 
@@ -147,6 +149,18 @@ public class PayoutMethodServiceImpl implements PayoutMethodService {
             throw new InvalidPayoutMethodStateException(
                 "Solo se pueden verificar métodos en estado UNDER_REVIEW. Estado actual: "
                 + method.getVerificationStatus());
+        }
+
+        Long commercialUserId = method.getCommercial().getUser().getId();
+        try {
+            screeningService.screenOrThrow(
+                    commercialUserId,
+                    method.getAccountHolderName(),
+                    method.getAccountHolderDoc());
+        } catch (com.verygana2.exceptions.compliance.ScreeningHitException e) {
+            method.reject("Rechazado automáticamente por screening: " + e.getMessage());
+            payoutMethodRepository.save(method);
+            throw new IllegalStateException("Método de pago rechazado: el titular aparece en listas restrictivas.");
         }
 
         method.markVerified();

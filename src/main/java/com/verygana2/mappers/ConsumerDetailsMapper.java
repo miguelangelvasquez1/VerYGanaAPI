@@ -65,7 +65,10 @@ public abstract class ConsumerDetailsMapper {
     @Mapping(target = "keyWallet", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
     @Mapping(target = "lastDailyLoginDate", ignore = true)
+    @Mapping(target = "documentType", ignore = true)
+    @Mapping(target = "documentNumber", ignore = true)
+    @Mapping(target = "ocupacion", ignore = true)
+    @Mapping(target = "ingresosMensualesRango", ignore = true)
+    @Mapping(target = "esPEP", ignore = true)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
-
-
 }

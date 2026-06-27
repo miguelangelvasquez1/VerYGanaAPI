@@ -57,6 +57,9 @@ public class User{
 
     private ZonedDateTime registeredDate;
 
+    @Column(name = "password_configured", nullable = false, columnDefinition = "TINYINT(1) NOT NULL DEFAULT 1")
+    private boolean passwordConfigured = true;
+
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;
 

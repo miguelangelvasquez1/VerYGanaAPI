@@ -7,5 +7,7 @@ public interface EmailService {
     void sendPurchaseConfirmation(Purchase purchase, String consumerEmail);
     void sendCommercialSaleNotification(Purchase purchase);
     void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode);
+    void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode);
     boolean verifyEmail(String email, String code);
+    void sendAccountVerificationEmail(String toEmail, String verificationUrl);
 }

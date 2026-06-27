@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.verygana2.controllers.gameAssetsBorrar.DashRunnerAssets;
 import com.verygana2.controllers.gameAssetsBorrar.EndlessRunnerAssets;
@@ -59,6 +60,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GameController {
 
     private final GameService gameService;
+    private final ObjectMapper objectMapper;
     
     // Devuelve la url del juego armada con los parametros necesarios
     @PostMapping("/init")
@@ -126,9 +128,17 @@ public class GameController {
         //     return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
         // }
 
-        // Si no coincide ningún campaign_id
-        
-        return ResponseEntity.ok(gameService.getGameAssets(req));
+        // Fallback: branding request en modo preview
+        // if (req.getCampaignId() != null) {
+        //     try {
+        //         ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
+        //         return ResponseEntity.ok(node);
+        //     } catch (Exception e) {
+        //         log.warn("Preview assets not found for id {}: {}", req.getCampaignId(), e.getMessage());
+        //     }
+        // }
+
+        return ResponseEntity.badRequest().body(null);
     }
 
     @PostMapping("/metrics")

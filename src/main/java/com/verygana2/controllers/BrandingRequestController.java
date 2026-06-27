@@ -1,6 +1,7 @@
 package com.verygana2.controllers;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -173,6 +174,20 @@ public class BrandingRequestController {
         Long userId = jwt.getClaim("userId");
         brandingRequestService.approveDesign(id, userId);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * GET /branding-requests/{id}/preview-url
+     * El anunciante obtiene la URL para previsualizar el juego diseñado.
+     * Solo disponible cuando el diseñador ya entregó (gameConfig no vacío).
+     */
+    @GetMapping("/{id}/preview-url")
+    public ResponseEntity<Map<String, String>> getPreviewUrl(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        String url = brandingRequestService.getPreviewUrl(id, userId);
+        return ResponseEntity.ok(Map.of("url", url));
     }
 
     /**

@@ -9,7 +9,7 @@ spring:
   # ============================================
   datasource:
     # Para Docker usa host.docker.internal
-    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana2?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
 
@@ -91,6 +91,7 @@ logging:
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.security: DEBUG
+    org.springframework.security.authentication: WARN
     org.springframework.security.authorization.method: WARN
 
 # ============================================
@@ -213,6 +214,9 @@ payment:
 # SECURITY MONITORING CONFIG
 # ============================================
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  password-setup-token:
+    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
@@ -295,3 +299,14 @@ randomOrg:
   api-url: https://api.random.org/json-rpc/4/invoke
   api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
   timeout: 30000 # 30 segundos
+
+# ============================================
+# SCREENING / SAGRILAFT CONFIG
+# ============================================
+screening:
+  # 'noop' en desarrollo — reemplazar por 'truora' en producción
+  provider: noop
+  truora:
+    api-key: ${TRUORA_API_KEY:}
+    base-url: https://api.truora.com/v1
+    timeout-seconds: 5

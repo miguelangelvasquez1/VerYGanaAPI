@@ -245,6 +245,13 @@ public class R2Service {
     }
 
     /**
+     * Elimina un objeto del prefijo público
+     */
+    public void deletePublicObject(String objectKey) {
+        deleteObject(PUBLIC_PREFIX + objectKey);
+    }
+
+    /**
      * Elimina múltiples objetos (batch delete)
      */
     public void deleteObjects(List<String> objectKeys) {
