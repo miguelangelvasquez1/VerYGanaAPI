@@ -202,6 +202,7 @@ payment:
 # ============================================
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
     expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
   claim-code:

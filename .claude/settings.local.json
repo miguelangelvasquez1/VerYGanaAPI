@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(mvn test *)",
-      "Bash(grep -E \"\\\\.java$\")"
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(mvnw.cmd compile *)"
     ]
   }
 }

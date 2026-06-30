@@ -82,7 +82,19 @@ public class GameController {
     // Método para que el juego obtenga los assets
     @PostMapping("/assets")
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
-        
+
+        // Preview mode: session_token=preview siempre identifica un BrandingRequest, nunca una campaña real
+        if ("preview".equals(req.getSessionToken())) {
+            if (req.getCampaignId() == null) return ResponseEntity.badRequest().body(null);
+            try {
+                ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
+                return ResponseEntity.ok(node);
+            } catch (Exception e) {
+                log.warn("Preview assets not found for brandingRequestId {}: {}", req.getCampaignId(), e.getMessage());
+                return ResponseEntity.badRequest().body(null);
+            }
+        }
+
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
         //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
         // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
@@ -126,16 +138,6 @@ public class GameController {
             return ResponseEntity.ok(TicTacToeAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
             return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
-        }
-
-        // Fallback: branding request en modo preview
-        if (req.getCampaignId() != null) {
-            try {
-                ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
-                return ResponseEntity.ok(node);
-            } catch (Exception e) {
-                log.warn("Preview assets not found for id {}: {}", req.getCampaignId(), e.getMessage());
-            }
         }
 
         return ResponseEntity.badRequest().body(null);

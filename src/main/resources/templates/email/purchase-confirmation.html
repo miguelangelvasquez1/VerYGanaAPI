@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background: #f4f4f4; }
+.container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; text-align: center; }
+.header h1 { font-size: 28px; margin-bottom: 10px; }
+.header p { font-size: 16px; opacity: 0.9; }
+.content { padding: 30px; }
+.order-info { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
+.order-info p { margin: 8px 0; font-size: 14px; }
+.order-info strong { color: #667eea; }
+.products-title { font-size: 20px; font-weight: bold; margin: 30px 0 20px; color: #333; }
+.product-item { background: white; border: 2px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 15px; }
+.product-name { font-size: 18px; font-weight: bold; color: #667eea; margin-bottom: 10px; }
+.product-price { font-size: 16px; color: #666; margin-bottom: 15px; }
+.code-section { background: linear-gradient(135deg, #e8f4f8 0%, #f0e8f8 100%); padding: 15px; border-radius: 6px; margin: 10px 0; }
+.code-label { font-size: 12px; font-weight: bold; color: #667eea; text-transform: uppercase; margin-bottom: 5px; }
+.code-value { font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; color: #333; word-break: break-all; }
+.divider { height: 1px; background: #e0e0e0; margin: 20px 0; }
+.warning-box { background: #fff3cd; padding: 15px; border-radius: 6px; border-left: 4px solid #ffc107; }
+.footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-size: 13px; color: #666; }
+.footer a { color: #667eea; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>¡Gracias por tu compra!</h1>
+    <p>Orden #{{orderId}}</p>
+  </div>
+  <div class="content">
+    <div class="order-info">
+      <p><strong>Fecha:</strong> {{date}}</p>
+      <p><strong>Total Pagado:</strong> ${{total}} COP</p>
+    </div>
+    <h2 class="products-title">Tus Productos Digitales</h2>
+    {{itemsHtml}}
+    <div class="divider"></div>
+    <div class="warning-box">
+      <p><strong>⚠️ Importante:</strong> Guarda este email en un lugar seguro. Contiene información importante para acceder a tus productos digitales.</p>
+    </div>
+  </div>
+  <div class="footer">
+    <p><strong>¿Necesitas ayuda?</strong></p>
+    <p>Contáctanos en <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
+    <p style="margin-top:15px;font-size:11px;color:#999;">© 2025 VeryGana. Todos los derechos reservados.</p>
+  </div>
+</div>
+</body>
+</html>

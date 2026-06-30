@@ -162,8 +162,7 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
-- notas, notificaciones, diseño
-- definir ful el flujo para las notas y commercial, revision.
+- definir ful el flujo para la revision y todo lo que el commercial puede crear
 anadir politica de planes?, ver todo despues de haber preguntado a nestor,
 - ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero).
 
