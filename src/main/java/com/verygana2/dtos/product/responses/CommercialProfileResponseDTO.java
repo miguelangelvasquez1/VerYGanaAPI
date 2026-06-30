@@ -11,13 +11,13 @@ import lombok.Data;
 @Builder
 public class CommercialProfileResponseDTO {
     
-    private String commercialName;
-    private String country;
-    private String city;
+    private String companyName;
+    private String departmentName;
+    private String municipalityName;
     private String registeredDate;
-    private double averageRate;
     private Integer reviewCount;
-    private Integer totalActiveProducs;
+    private double averageRate;
+    private Integer totalActiveProducts;
     private List<ProductCategoryResponseDTO> productCategories;
-    private PagedResponse<ProductSummaryResponseDTO> products;
+    private PagedResponse<ProductSummaryResponseDTO> activeProducts;
 }

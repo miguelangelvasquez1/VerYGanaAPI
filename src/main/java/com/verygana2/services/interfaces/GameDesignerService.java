@@ -4,9 +4,10 @@ import java.util.List;
 import java.util.Map;
 
 import com.verygana2.dtos.FileUploadRequestDTO;
+import com.verygana2.dtos.branding.AddCommentDTO;
+import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
-import com.verygana2.dtos.branding.UpdateDesignerNotesDTO;
 import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.user.gamedesigner.ChangePasswordDTO;
@@ -36,6 +37,9 @@ public interface GameDesignerService {
 
     // ===== Flujo de branding =====
     void saveDraftFormData(Long requestId, Long userId, Map<String, Object> formData);
-    void updateDesignerNotes(Long requestId, Long userId, UpdateDesignerNotesDTO dto);
     void submitDesignForReview(Long requestId, Long userId);
+
+    // ===== Comentarios =====
+    List<BrandingRequestCommentDTO> getComments(Long requestId, Long userId);
+    BrandingRequestCommentDTO addCommentAsDesigner(Long requestId, Long userId, AddCommentDTO dto);
 }

@@ -21,6 +21,7 @@ public class ProductSummaryResponseDTO {
     private String categoryName;
     private Integer stock;
     private ProductStatus status;
+    private Long commercialId;
     private String companyName;
-    private boolean isGameReward;
+    private Boolean isGameReward;
 }

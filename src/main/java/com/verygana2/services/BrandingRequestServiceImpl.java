@@ -1,11 +1,13 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -13,7 +15,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
+import com.verygana2.dtos.branding.AddCommentDTO;
 import com.verygana2.dtos.branding.ApproveBrandingRequestDTO;
+import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
 import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.BrandingGameDTO;
 import com.verygana2.dtos.branding.BrandingRequestDetailDTO;
@@ -24,7 +28,6 @@ import com.verygana2.dtos.branding.CorporateResourceUploadPermissionDTO;
 import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
-import com.verygana2.dtos.branding.RequestDesignChangesDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
 import com.verygana2.mappers.BrandingMapper;
 import com.verygana2.models.Category;
@@ -35,9 +38,12 @@ import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.branding.BrandingRequestComment;
+import com.verygana2.models.enums.CommentAuthorRole;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
+import com.verygana2.repositories.branding.BrandingRequestCommentRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.branding.CorporateResourceRepository;
 import com.verygana2.repositories.details.AdminDetailsRepository;
@@ -46,11 +52,14 @@ import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.BrandingRequestService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.GameService;
+import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,7 +77,11 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         SupportedMimeType.IMAGE_WEBP
     );
 
+    @Value("${app.admin-notification-email:admin@verygana.com}")
+    private String adminNotificationEmail;
+
     private final BrandingRequestRepository brandingRequestRepository;
+    private final BrandingRequestCommentRepository commentRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final GameRepository gameRepository;
     private final AdminDetailsRepository adminDetailsRepository;
@@ -79,6 +92,8 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final R2Service r2Service;
     private final BrandingMapper brandingMapper;
     private final GameService gameService;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -164,11 +179,11 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
-    public void submitForReview(Long requestId, Long userId) {
+    public void submitForReview(Long requestId, Long userId, String notes) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
         if (!request.canBeSubmitted()) {
-            throw new IllegalStateException("Request cannot be submitted from status: " + request.getStatus());
+            throw new ValidationException("Request cannot be submitted from status: " + request.getStatus());
         }
 
         long validatedResources = request.getCorporateResources().stream()
@@ -181,8 +196,20 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
 
         request.setStatus(BrandingRequestStatus.PENDING_REVIEW);
         log.info("BrandingRequest {} submitted for review by commercial user {}", requestId, userId);
+
+        if (notes != null && !notes.isBlank()) {
+            commentRepository.save(BrandingRequestComment.builder()
+                    .brandingRequest(request)
+                    .content(notes)
+                    .authorUserId(userId)
+                    .authorName(request.getCommercial().getCompanyName())
+                    .authorRole(CommentAuthorRole.COMMERCIAL)
+                    .relatedStatus(BrandingRequestStatus.PENDING_REVIEW)
+                    .build());
+        }
     }
 
+    // segundo paso o update
     // Reglas de editabilidad por status:
     // Status	¿Editable?	Secciones editables
     // DRAFT	✅	Todo: marca, recursos corporativos, config
@@ -199,7 +226,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = findOwnedRequest(requestId, commercialId);
 
         if (!request.canBeUpdatedByCommercial()) {
-            throw new IllegalStateException("Config cannot be updated from status: " + request.getStatus());
+            throw new ValidationException("Config cannot be updated from status: " + request.getStatus());
         }
 
         if (dto.getCategoryIds() != null) {
@@ -217,7 +244,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         if (dto.getTargetGender() != null) request.setTargetGender(dto.getTargetGender());
 
         if (dto.getMinAge() != null && dto.getMaxAge() != null && dto.getMinAge() > dto.getMaxAge()) {
-            throw new IllegalArgumentException("minAge cannot be greater than maxAge");
+            throw new ValidationException("minAge cannot be greater than maxAge");
         }
 
         if (dto.getCampaignGoal() != null) request.setCampaignGoal(dto.getCampaignGoal());
@@ -312,6 +339,18 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
 
         log.info("BrandingRequest {} approved by admin {} and assigned to designer user {}",
             requestId, adminUserId, dto.getDesignerUserId());
+
+        emailService.sendBrandingDesignerAssignedEmail(
+            designer.getUser().getEmail(),
+            designer.getName(),
+            request.getBrandName(),
+            request.getGame().getTitle(),
+            dto.getAdminNotes());
+        notificationService.createInternalNotification(
+            designer.getUser().getId(),
+            "Nuevo proyecto asignado",
+            "Se te asignó el diseño para la marca \"" + request.getBrandName() + "\"",
+            Instant.now());
     }
 
     @Override
@@ -331,6 +370,17 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         request.setAdminNotes(dto.getAdminNotes());
 
         log.info("BrandingRequest {} rejected by admin {} with notes: {}", requestId, adminUserId, dto.getAdminNotes());
+
+        emailService.sendBrandingRejectedEmail(
+            request.getCommercial().getUser().getEmail(),
+            request.getCommercial().getCompanyName(),
+            request.getBrandName(),
+            dto.getAdminNotes());
+        notificationService.createInternalNotification(
+            request.getCommercial().getUser().getId(),
+            "Solicitud de branding no aprobada",
+            "Tu solicitud para la marca \"" + request.getBrandName() + "\" no fue aprobada",
+            Instant.now());
     }
 
     @Override
@@ -352,10 +402,22 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
 
         request.setStatus(BrandingRequestStatus.READY_TO_LAUNCH);
         log.info("BrandingRequest {} design approved by commercial user {} → READY_TO_LAUNCH", requestId, userId);
+
+        emailService.sendBrandingReadyToLaunchEmail(
+            adminNotificationEmail,
+            request.getBrandName(),
+            request.getGame().getTitle());
+        if (request.getReviewedByAdmin() != null) {
+            notificationService.createInternalNotification(
+                request.getReviewedByAdmin().getUser().getId(),
+                "Campaña lista para lanzar",
+                "\"" + request.getBrandName() + "\" fue aprobada por el anunciante y está lista para lanzar",
+                Instant.now());
+        }
     }
 
     @Override
-    public void requestDesignChanges(Long requestId, Long userId, RequestDesignChangesDTO dto) {
+    public void requestDesignChanges(Long requestId, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
         if (!request.canBeReviewedByAdvertiser()) {
@@ -363,8 +425,18 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         }
 
         request.setStatus(BrandingRequestStatus.CHANGES_REQUESTED);
-        request.setDesignerNotes(dto.getDesignerNotes());
-        log.info("BrandingRequest {} design changes requested by commercial user {} → CHANGES_REQUESTED", requestId, userId);
+        log.info("BrandingRequest {} → CHANGES_REQUESTED by commercial user {}", requestId, userId);
+
+        emailService.sendBrandingChangesRequestedEmail(
+            request.getAssignedDesigner().getUser().getEmail(),
+            request.getAssignedDesigner().getName(),
+            request.getBrandName(),
+            null);
+        notificationService.createInternalNotification(
+            request.getAssignedDesigner().getUser().getId(),
+            "Cambios solicitados en el diseño",
+            "El anunciante pidió cambios en el diseño de \"" + request.getBrandName() + "\"",
+            Instant.now());
     }
 
     @Override
@@ -450,6 +522,56 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             log.error("CorporateResource {} orphaned: {}", resource.getId(), e.getMessage());
             throw e;
         }
+    }
+
+    // ===== COMENTARIOS =====
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BrandingRequestCommentDTO> getComments(Long requestId, Long userId) {
+        findOwnedRequest(requestId, userId);
+        return commentRepository.findByBrandingRequest_IdOrderByCreatedAtAsc(requestId)
+                .stream()
+                .map(this::toCommentDTO)
+                .toList();
+    }
+
+    @Override
+    public BrandingRequestCommentDTO addCommentAsCommercial(Long requestId, Long userId, AddCommentDTO dto) {
+        BrandingRequest request = findOwnedRequest(requestId, userId);
+        String authorName = request.getCommercial().getCompanyName();
+
+        BrandingRequestComment comment = BrandingRequestComment.builder()
+                .brandingRequest(request)
+                .content(dto.getContent())
+                .authorUserId(userId)
+                .authorName(authorName)
+                .authorRole(CommentAuthorRole.COMMERCIAL)
+                .relatedStatus(request.getStatus())
+                .build();
+
+        BrandingRequestComment saved = commentRepository.save(comment);
+
+        if (request.getAssignedDesigner() != null) {
+            notificationService.createInternalNotification(
+                    request.getAssignedDesigner().getUser().getId(),
+                    "Nuevo mensaje en " + request.getBrandName(),
+                    authorName + " comentó en tu proyecto",
+                    Instant.now());
+        }
+
+        return toCommentDTO(saved);
+    }
+
+    private BrandingRequestCommentDTO toCommentDTO(BrandingRequestComment c) {
+        return BrandingRequestCommentDTO.builder()
+                .id(c.getId())
+                .content(c.getContent())
+                .authorName(c.getAuthorName())
+                .authorRole(c.getAuthorRole())
+                .relatedStatus(c.getRelatedStatus())
+                .createdAt(c.getCreatedAt())
+                .build();
     }
 
     // ===== HELPERS =====

@@ -1,5 +1,6 @@
 package com.verygana2.services.gameDesigner;
 
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,7 +18,6 @@ import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
-import com.verygana2.dtos.branding.UpdateDesignerNotesDTO;
 import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
@@ -41,8 +41,15 @@ import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.games.AssetRepository;
+import com.verygana2.dtos.branding.AddCommentDTO;
+import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
+import com.verygana2.models.branding.BrandingRequestComment;
+import com.verygana2.models.enums.CommentAuthorRole;
+import com.verygana2.repositories.branding.BrandingRequestCommentRepository;
+import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.GameDesignerService;
 import com.verygana2.services.interfaces.GameService;
+import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 
@@ -59,6 +66,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
 
     private final GameDesignerDetailsRepository designerDetailsRepository;
     private final BrandingRequestRepository brandingRequestRepository;
+    private final BrandingRequestCommentRepository commentRepository;
     private final AssetRepository assetRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -67,6 +75,8 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     private final AssetOrphanedService assetOrphanedService;
     private final R2Service r2Service;
     private final GameService gameService;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     // ===== PERFIL =====
 
@@ -265,16 +275,6 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         log.info("Draft form data saved for BrandingRequest {} by designer user {}", requestId, userId);
     }
 
-    @Override
-    public void updateDesignerNotes(Long requestId, Long userId, UpdateDesignerNotesDTO dto) {
-        BrandingRequest request = findAssignedRequest(requestId, userId);
-        if (!request.canBeUpdatedByDesigner()) {
-            throw new IllegalStateException("Notes cannot be updated from status: " + request.getStatus());
-        }
-        request.setDesignerNotes(dto.getNotes());
-        brandingRequestRepository.save(request);
-        log.info("Designer notes updated for BrandingRequest {} by user {}", requestId, userId);
-    }
 
     @Override
     public void submitDesignForReview(Long requestId, Long userId) {
@@ -291,6 +291,17 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         request.setGameConfig(stripAssetMetadata(request.getDraftFormData()));
         request.setStatus(BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL);
         log.info("BrandingRequest {} submitted for advertiser review by designer user {}", requestId, userId);
+
+        emailService.sendBrandingDesignSubmittedEmail(
+            request.getCommercial().getUser().getEmail(),
+            request.getCommercial().getCompanyName(),
+            request.getBrandName(),
+            request.getGame().getTitle());
+        notificationService.createInternalNotification(
+            request.getCommercial().getUser().getId(),
+            "Diseño listo para revisar",
+            "El diseñador entregó el juego para \"" + request.getBrandName() + "\" — entra a revisarlo",
+            Instant.now());
     }
 
     // ===== HELPERS =====
@@ -317,6 +328,57 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         }
         return value;
     }
+
+    // ===== COMENTARIOS =====
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<BrandingRequestCommentDTO> getComments(Long requestId, Long userId) {
+        findAssignedRequest(requestId, userId);
+        return commentRepository.findByBrandingRequest_IdOrderByCreatedAtAsc(requestId)
+                .stream()
+                .map(this::toCommentDTO)
+                .toList();
+    }
+
+    @Override
+    public BrandingRequestCommentDTO addCommentAsDesigner(Long requestId, Long userId, AddCommentDTO dto) {
+        BrandingRequest request = findAssignedRequest(requestId, userId);
+        GameDesignerDetails designer = findDetailsByUserId(userId);
+        String authorName = designer.getName() + " " + designer.getLastName();
+
+        BrandingRequestComment comment = BrandingRequestComment.builder()
+                .brandingRequest(request)
+                .content(dto.getContent())
+                .authorUserId(userId)
+                .authorName(authorName)
+                .authorRole(CommentAuthorRole.DESIGNER)
+                .relatedStatus(request.getStatus())
+                .build();
+
+        BrandingRequestComment saved = commentRepository.save(comment);
+
+        notificationService.createInternalNotification(
+                request.getCommercial().getUser().getId(),
+                "Nuevo mensaje en " + request.getBrandName(),
+                "El diseñador comentó en tu solicitud",
+                Instant.now());
+
+        return toCommentDTO(saved);
+    }
+
+    private BrandingRequestCommentDTO toCommentDTO(BrandingRequestComment c) {
+        return BrandingRequestCommentDTO.builder()
+                .id(c.getId())
+                .content(c.getContent())
+                .authorName(c.getAuthorName())
+                .authorRole(c.getAuthorRole())
+                .relatedStatus(c.getRelatedStatus())
+                .createdAt(c.getCreatedAt())
+                .build();
+    }
+
+    // ===== HELPERS =====
 
     private BrandingRequest findAssignedRequest(Long requestId, Long userId) {
         return brandingRequestRepository.findByIdAndAssignedDesigner_User_Id(requestId, userId)

@@ -240,13 +240,10 @@ public class GameServiceImpl implements GameService {
         BrandingRequest request = brandingRequestRepository.findById(brandingRequestId)
             .orElseThrow(() -> new EntityNotFoundException("Preview not found for id: " + brandingRequestId));
 
-        Map<String, Object> config = (request.getGameConfig() != null && !request.getGameConfig().isEmpty())
-            ? request.getGameConfig()
-            : request.getDraftFormData();
+        Map<String, Object> draft = request.getDraftFormData();
+        if (draft == null || draft.isEmpty()) return Map.of();
 
-        if (config == null) return Map.of();
-
-        return stripPreviewMap(config);
+        return stripPreviewMap(draft);
     }
 
     private Map<String, Object> stripPreviewMap(Map<String, Object> map) {

@@ -11,7 +11,7 @@ import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
-import com.verygana2.mappers.ConsumerDetailsMapper;
+import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
 
     private final ConsumerDetailsRepository consumerDetailsRepository;
-    private final ConsumerDetailsMapper consumerDetailsMapper;
+    private final UserMapper consumerDetailsMapper;
 
     @Override
     @Transactional(readOnly = true)

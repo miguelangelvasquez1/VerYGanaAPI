@@ -27,7 +27,6 @@ import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
-import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
@@ -53,9 +52,9 @@ import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
-import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
@@ -86,7 +85,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductMapper productMapper;
 
-    private final CommercialDetailsService commercialDetailsService;
+    private final CommercialDetailsRepository commercialDetailsRepository;
 
     private final ConsumerDetailsService consumerDetailsService;
 
@@ -120,7 +119,7 @@ public class ProductServiceImpl implements ProductService {
         log.info("📋 Preparing product creation for commercial: {}", commercialId);
 
         // 1. Validar que el commercial existe
-        if (!commercialDetailsService.existsCommercialById(commercialId)) {
+        if (!commercialDetailsRepository.existsByUser_Id(commercialId)) {
             throw new EntityNotFoundException("Commercial not found: " + commercialId);
         }
 
@@ -155,7 +154,8 @@ public class ProductServiceImpl implements ProductService {
         ProductImageAsset asset = null;
 
         try {
-            CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+            CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialId)
+                    .orElseThrow(() -> new EntityNotFoundException("Commercial not found: " + commercialId));
 
             asset = productImageAssetRepository
                     .findById(Objects.requireNonNull(request.getProductAssetId()))
@@ -451,7 +451,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page) {
 
-        if (!commercialDetailsService.existsCommercialById(commercialId)) {
+        if (!commercialDetailsRepository.existsByUser_Id(commercialId)) {
             throw new ObjectNotFoundException("Commercial with id:" + commercialId + " not found ",
                     CommercialDetails.class);
         }
@@ -468,7 +468,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public Long getTotalCommercialProducts(Long commercialId, ProductStatus status) {
+    public Integer getTotalCommercialProducts(Long commercialId, ProductStatus status) {
         return productRepository.countCommercialProducts(commercialId, status);
     }
 
@@ -551,7 +551,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
-                .from(productRepository.getAllProductsForAdmin(status, pageable));
+                .from(productRepository.findAllProductsForAdmin(status, pageable));
         return products.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));
@@ -701,11 +701,6 @@ public class ProductServiceImpl implements ProductService {
         productRepository.save(product);
     }
 
-    @Override
-    public CommercialProfileResponseDTO getCommercialProfile(Long productId) {
-        CommercialDetails commercial = getById(productId).getCommercial();
-        CommercialProfileResponseDTO dto = CommercialProfileResponseDTO.builder().commercialName(commercial.getCompanyName()).country().city()
-        .signInDate(commercial.getUser().getRegisteredDate()).averageRate().reviewCount().totalActiveProducs().productCategories().products().build();
-    }
+    
 
 }

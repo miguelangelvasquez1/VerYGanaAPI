@@ -23,7 +23,6 @@ public class BrandingRequestSummaryDTO {
     private Long budgetCents;
     private Long estimatedSessions;
     private String adminNotes;
-    private String designerNotes;
     private String assignedDesignerName;
     private int corporateResourceCount;
     private ZonedDateTime createdAt;

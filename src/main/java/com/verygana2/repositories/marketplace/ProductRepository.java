@@ -69,6 +69,13 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         Page<Product> findByCommercialId(@Param("commercialId") Long commercialId, Pageable pageable);
 
         @Query("""
+                        SELECT p FROM Product p
+                        JOIN FETCH p.productCategory c
+                        WHERE p.commercial.id = :commercialId AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        """)
+        List<Product> findByCommercialId(@Param("commercialId") Long commercialId);
+
+        @Query("""
                 SELECT p FROM Product p
                 WHERE p.commercial.id = :commercialId
                 AND p.isGameReward = TRUE
@@ -87,7 +94,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         Integer countGameRewards(@Param("commercialId") Long commercialId);
 
         @Query("SELECT COUNT(p) FROM Product p WHERE p.status = :status AND p.commercial.id = :commercialId")
-        Long countCommercialProducts(@Param("commercialId") Long commercialId, @Param("status") ProductStatus status);
+        Integer countCommercialProducts(@Param("commercialId") Long commercialId, @Param("status") ProductStatus status);
 
         @Query("""
                         SELECT p FROM Product p
@@ -96,7 +103,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         WHERE p.status = :status
                         ORDER BY p.createdAt DESC
                                 """)
-        Page<Product> getAllProductsForAdmin(@Param("status") ProductStatus status, Pageable pageable);
+        Page<Product> findAllProductsForAdmin(@Param("status") ProductStatus status, Pageable pageable);
 
 
 }

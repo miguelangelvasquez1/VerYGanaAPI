@@ -3,7 +3,8 @@
     "allow": [
       "Bash(mvn test *)",
       "WebSearch",
-      "Bash(grep -E \"\\\\.java$\")"
+      "Bash(grep -E \"\\\\.java$\")",
+      "Bash(mvnw.cmd compile *)"
     ]
   }
 }

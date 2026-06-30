@@ -114,6 +114,7 @@ public interface ProductMapper {
     @Mapping(target = "price", source = "priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
+    @Mapping(target = "commercialId", source = "commercial.id")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     @Mapping(target = "id", source = "product.id")
@@ -130,6 +131,7 @@ public interface ProductMapper {
     @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "isGameReward", ignore = true)
+    @Mapping(target = "commercialId", source = "product.commercial.id")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping

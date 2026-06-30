@@ -62,6 +62,18 @@ public class ProductReviewServiceImpl implements ProductReviewService {
         return (avg != null) ? avg : 0.0;
     }
 
+    @Transactional(readOnly = true)
+    @Override
+    public Integer getCommercialReviewCount(Long commercialId) {
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
+        }
+
+        Integer count = productReviewRepository.commercialReviewCount(commercialId);
+
+        return (count != null) ? count : 0;
+    }
+
     @Override
     public EntityCreatedResponseDTO createProductReview(Long consumerId, CreateProductReviewRequestDTO request) {
 

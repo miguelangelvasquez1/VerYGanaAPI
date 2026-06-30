@@ -280,7 +280,7 @@ public class ProductController {
      */
     @GetMapping("/total-products")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Long> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt, @RequestParam("status") ProductStatus status) {
+    public ResponseEntity<Integer> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt, @RequestParam("status") ProductStatus status) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.getTotalCommercialProducts(commercialId, status));
     }

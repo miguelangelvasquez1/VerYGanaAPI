@@ -173,9 +173,6 @@ public class BrandingRequest {
     @Column(name = "admin_notes", length = 1000)
     private String adminNotes;
 
-    @Column(name = "designer_notes", length = 1000)
-    private String designerNotes;
-
     // ===== RECURSOS CORPORATIVOS =====
 
     @OneToMany(mappedBy = "brandingRequest", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)

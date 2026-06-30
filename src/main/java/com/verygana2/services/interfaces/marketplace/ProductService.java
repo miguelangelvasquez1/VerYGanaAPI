@@ -12,7 +12,6 @@ import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
-import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
@@ -41,8 +40,6 @@ public interface ProductService {
 
     PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page);
 
-    CommercialProfileResponseDTO getCommercialProfile (Long productId);
-
     PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin (ProductStatus status, Pageable pageable);
 
     ProductResponseDTO approveProductForAdmin (Long adminId, Long productId);
@@ -51,7 +48,7 @@ public interface ProductService {
 
     PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page);
     
-    Long getTotalCommercialProducts (Long commercialId, ProductStatus status);
+    Integer getTotalCommercialProducts (Long commercialId, ProductStatus status);
 
     PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery,
             Long categoryId,

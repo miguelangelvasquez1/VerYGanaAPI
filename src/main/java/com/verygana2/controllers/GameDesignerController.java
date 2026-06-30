@@ -17,11 +17,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.FileUploadRequestDTO;
+import com.verygana2.dtos.branding.AddCommentDTO;
+import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.game.campaign.AssetConfirmRequest;
 import com.verygana2.dtos.game.campaign.AssetUploadPermissionDTO;
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
-import com.verygana2.dtos.branding.UpdateDesignerNotesDTO;
 import com.verygana2.dtos.user.gamedesigner.ChangePasswordDTO;
 import com.verygana2.dtos.user.gamedesigner.GameDesignerProfileResponseDTO;
 import com.verygana2.dtos.user.gamedesigner.ResetPasswordByEmailDTO;
@@ -30,6 +31,7 @@ import com.verygana2.services.interfaces.GameDesignerService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import lombok.extern.slf4j.Slf4j;
 
 @RestController
@@ -163,17 +165,6 @@ public class GameDesignerController {
         return ResponseEntity.ok().build();
     }
 
-    @PatchMapping("/me/branding-requests/{id}/notes")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
-    public ResponseEntity<Void> updateDesignerNotes(
-            @PathVariable Long id,
-            @Valid @RequestBody UpdateDesignerNotesDTO dto,
-            @AuthenticationPrincipal Jwt jwt) {
-
-        Long userId = jwt.getClaim("userId");
-        gameDesignerService.updateDesignerNotes(id, userId, dto);
-        return ResponseEntity.ok().build();
-    }
 
     @PostMapping("/me/branding-requests/{id}/submit-design")
     @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
@@ -184,5 +175,25 @@ public class GameDesignerController {
         Long userId = jwt.getClaim("userId");
         gameDesignerService.submitDesignForReview(id, userId);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/me/branding-requests/{id}/comments")
+    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    public ResponseEntity<List<BrandingRequestCommentDTO>> getComments(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(gameDesignerService.getComments(id, userId));
+    }
+
+    @PostMapping("/me/branding-requests/{id}/comments")
+    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    public ResponseEntity<BrandingRequestCommentDTO> addComment(
+            @PathVariable Long id,
+            @Valid @RequestBody AddCommentDTO dto,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(gameDesignerService.addCommentAsDesigner(id, userId, dto));
     }
 }

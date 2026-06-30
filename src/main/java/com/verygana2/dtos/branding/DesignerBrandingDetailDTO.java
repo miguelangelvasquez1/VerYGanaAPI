@@ -55,9 +55,6 @@ public class DesignerBrandingDetailDTO {
     // ===== Comunicación con el admin =====
     private String adminNotes;
 
-    // ===== Notas del diseñador =====
-    private String designerNotes;
-
     // ===== Configuración del juego (schema + config guardada) =====
     private GameSchemaResponse gameSchema;
     private Map<String, Object> gameConfig;

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background: #f4f4f4; }
+.container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+.header { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 40px 20px; text-align: center; }
+.header h1 { font-size: 28px; margin-bottom: 10px; }
+.header p { font-size: 15px; opacity: 0.9; }
+.content { padding: 30px; }
+.prize-box { background: #fff9e6; border: 2px solid #ffc107; border-radius: 8px; padding: 20px; margin-bottom: 24px; text-align: center; }
+.prize-name { font-size: 22px; font-weight: bold; color: #333; margin-bottom: 6px; }
+.prize-value { font-size: 16px; color: #666; }
+.code-box { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; padding: 24px; text-align: center; margin: 24px 0; }
+.code-label { font-size: 13px; font-weight: bold; color: rgba(255,255,255,0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.code-value { font-family: 'Courier New', monospace; font-size: 26px; font-weight: bold; color: white; letter-spacing: 4px; word-break: break-all; }
+.instructions { background: #e8f5e9; border-left: 4px solid #4caf50; padding: 16px; border-radius: 4px; margin: 16px 0; font-size: 14px; }
+.warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 14px; border-radius: 4px; margin-top: 16px; font-size: 13px; }
+.footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-size: 13px; color: #666; }
+.footer a { color: #667eea; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>¡Felicitaciones, ganador/a!</h1>
+    <p>Tu código de reclamación está listo</p>
+  </div>
+  <div class="content">
+    <div class="prize-box">
+      <div class="prize-name">{{prizeTitle}}</div>
+      {{prizeValueSection}}
+    </div>
+    <div class="code-box">
+      <div class="code-label">Tu código de reclamación</div>
+      <div class="code-value">{{claimCode}}</div>
+    </div>
+    {{claimInstructionsSection}}
+    <div class="warning">⚠️ <strong>Importante:</strong> Guarda este correo en un lugar seguro. Este código es de uso único y personal. No lo compartas con nadie.</div>
+  </div>
+  <div class="footer">
+    <p><strong>¿Necesitas ayuda?</strong></p>
+    <p>Contáctanos en <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
+    <p style="margin-top:12px;font-size:11px;color:#999;">© 2025 VeryGana. Todos los derechos reservados.</p>
+  </div>
+</div>
+</body>
+</html>

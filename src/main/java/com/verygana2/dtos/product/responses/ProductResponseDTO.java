@@ -20,5 +20,5 @@ public class ProductResponseDTO {
     private Integer stock;
     private Integer reviewCount;
     private List<ProductReviewResponseDTO> reviews;
-    private boolean isGameReward;
+    private Boolean isGameReward;
 }

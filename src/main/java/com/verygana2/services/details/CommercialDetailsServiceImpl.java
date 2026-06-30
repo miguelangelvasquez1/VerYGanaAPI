@@ -3,16 +3,22 @@ package com.verygana2.services.details;
 import java.math.BigDecimal;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.MonthlyReportResponseDTO;
 import com.verygana2.mappers.UserMapper;
+import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.PayoutService;
+import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
+import com.verygana2.services.interfaces.marketplace.ProductReviewService;
+import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,11 +27,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Transactional
 public class CommercialDetailsServiceImpl implements CommercialDetailsService {
-    
+
     private final CommercialDetailsRepository commercialDetailsRepository;
-    private final UserMapper commercialDetailsMapper;
+    private final UserMapper userMapper;
     private final PurchaseItemService purchaseItemService;
+    private final ProductReviewService productReviewService;
+    private final ProductCategoryService productCategoryService;
     private final PayoutService payoutService;
+
+    // @Lazy rompe el ciclo: CommercialDetailsService ↔ ProductService
+    @Lazy
+    private final ProductService productService;
 
     @Override
     @Transactional(readOnly = true)
@@ -35,7 +47,7 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
         }
         CommercialDetails commercialDetails = commercialDetailsRepository.findById(commercialId)
             .orElseThrow(() -> new ObjectNotFoundException("Commercial with id:" + commercialId + " not found", CommercialDetails.class));
-        CommercialInitialDataResponseDTO initialData = commercialDetailsMapper.toCommercialInitialDataResponseDTO(commercialDetails);
+        CommercialInitialDataResponseDTO initialData = userMapper.toCommercialInitialDataResponseDTO(commercialDetails);
         return initialData;
     }
 
@@ -56,11 +68,6 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
     }
 
     @Override
-    public void getCommercialStats(Long commercialId) {
-        throw new UnsupportedOperationException("Unimplemented method 'getCommercialStats'");
-    }
-
-    @Override
     public boolean existsCommercialById(Long commercialId) {
         if (commercialId == null || commercialId <= 0) {
             return false;
@@ -77,5 +84,21 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
 
         return MonthlyReportResponseDTO.builder().commercialId(commercialId).month(month).totalSalesAmount(monthlySalesAmount).earnings(monthlyEarningsAmount)
         .totalPlatformCommissionsAmount(monthlyCommissionsAmount).year(year).build();
+    }
+
+    @Override
+    public CommercialProfileResponseDTO getCommercialProfile(Long commercialId) {
+
+        CommercialDetails commercial = getCommercialById(commercialId);
+        CommercialProfileResponseDTO commercialProfile = userMapper.toCommercialProfileResponseDTO(commercial);
+        commercialProfile.setAverageRate(productReviewService.getCommercialAvgRating(commercialId));
+        commercialProfile.setReviewCount(productReviewService.getCommercialReviewCount(commercialId));
+        commercialProfile.setProductCategories(productCategoryService.getCommercialProductCategories(commercialId));
+        commercialProfile.setTotalActiveProducts(productService.getTotalCommercialProducts(commercialId, ProductStatus.ACTIVE));
+        commercialProfile.setActiveProducts(productService.getCommercialProducts(commercialId, 0));
+        
+        return commercialProfile;
+
+        
     }
 }

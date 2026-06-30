@@ -19,4 +19,5 @@ public interface ProductCategoryService {
     void recover (Long productCategoryId);
     List<ProductCategoryResponseDTO> getActiveProductCategories();
     List<ProductCategoryResponseDTO> getInactiveProductCategories();
+    List<ProductCategoryResponseDTO> getCommercialProductCategories(Long commercialId);
 }

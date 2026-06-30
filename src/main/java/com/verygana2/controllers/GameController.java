@@ -81,8 +81,20 @@ public class GameController {
 
     // Método para que el juego obtenga los assets
     @PostMapping("/assets")
-    public ResponseEntity<Map<String,Object>> getGameAssets(@RequestBody GameEventDTO<Void> req) {
-        
+    public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
+
+        // Preview mode: session_token=preview siempre identifica un BrandingRequest, nunca una campaña real
+        if ("preview".equals(req.getSessionToken())) {
+            if (req.getCampaignId() == null) return ResponseEntity.badRequest().body(null);
+            try {
+                ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
+                return ResponseEntity.ok(node);
+            } catch (Exception e) {
+                log.warn("Preview assets not found for brandingRequestId {}: {}", req.getCampaignId(), e.getMessage());
+                return ResponseEntity.badRequest().body(null);
+            }
+        }
+
         // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
         //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
         // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
@@ -106,37 +118,27 @@ public class GameController {
             
         // ==================== NUEVOS JUEGOS (11 al 20) ====================
         
-        //  if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-        //     return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-        //     return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
-        //     return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
-        //     return ResponseEntity.ok(StackTowerAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
-        //     return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
-        //     return ResponseEntity.ok(WordSearchAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
-        //     return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
-        //     return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
-        //     return ResponseEntity.ok(TicTacToeAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
-        //     return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
-        // }
-
-        // Fallback: branding request en modo preview
-        // if (req.getCampaignId() != null) {
-        //     try {
-        //         ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
-        //         return ResponseEntity.ok(node);
-        //     } catch (Exception e) {
-        //         log.warn("Preview assets not found for id {}: {}", req.getCampaignId(), e.getMessage());
-        //     }
-        // }
+         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+            return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+            return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
+            return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
+            return ResponseEntity.ok(StackTowerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
+            return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
+            return ResponseEntity.ok(WordSearchAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
+            return ResponseEntity.ok(DashRunnerAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
+            return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
+            return ResponseEntity.ok(TicTacToeAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
+            return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
+        }
 
         return ResponseEntity.badRequest().body(null);
     }
