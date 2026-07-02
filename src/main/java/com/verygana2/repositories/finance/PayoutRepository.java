@@ -3,7 +3,11 @@ package com.verygana2.repositories.finance;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -44,4 +48,21 @@ public interface PayoutRepository extends JpaRepository<Payout, UUID> {
             @Param("status") PayoutStatus status,
             @Param("start") ZonedDateTime start,
             @Param("end") ZonedDateTime end);
+
+    /** Busca el Payout vinculado a una KushkiTransaction — usado por el webhook handler. */
+    Optional<Payout> findByKushkiTransactionId(UUID kushkiTransactionId);
+
+    /** Historial paginado de payouts de un comercial filtrado por período — panel de facturación. */
+    @Query("""
+            SELECT p FROM Payout p
+            WHERE p.commercial.id = :commercialId
+            AND p.scheduledAt >= :from
+            AND p.scheduledAt < :to
+            ORDER BY p.scheduledAt DESC
+            """)
+    Page<Payout> findByCommercialIdAndPeriod(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to,
+            Pageable pageable);
 }

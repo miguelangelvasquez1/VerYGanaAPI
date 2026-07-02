@@ -234,4 +234,11 @@ public class LevelServiceImpl implements LevelService {
                 .multiplierApplied(multiplier)
                 .build());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UserLevel getUserLevel(Long consumerId) {
+       UserLevelProfile profile = profileRepository.findByConsumerId(consumerId).orElseThrow(() -> new EntityNotFoundException("User profile not found for: " + consumerId));
+       return profile.getCurrentLevel();
+    }
 }

@@ -12,15 +12,14 @@ import lombok.NoArgsConstructor;
 public class RewardCardResponseDTO {
     private Long id;
     private String name;
-    private String imageUrl;
-    private String imageMessage;
+    private String image_url;
+    private String image_message;
     private String commercial;
-    private Long regularPrice;
-    private String keysMessage;
+    private Long regular_price;
+    private String keys_message;
     private Double rating; 
-    private String cartUrl;
-    // private Long maxKeysAllowed;
-    // private Long minCashCents;
-    // private Integer stock;
-    // private String categoryName;
+    private Long max_keys_allowed;
+    private Long min_cash_cents;
+    private Integer stock;
+    private String category_name;
 }

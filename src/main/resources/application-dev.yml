@@ -102,6 +102,7 @@ sendgrid:
   from-email: notificaciones@verygana.com
   from-name: VerYGana
   support-email: soporte@verygana.com
+  logo-url: ${EMAIL_LOGO_URL:https://cdn.verygana.com/public/logoDorado.png}
 
 # ============================================
 # GAMES CONFIG
@@ -173,6 +174,19 @@ twilio:
   phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
+# KUSHKI CONFIG
+# ============================================
+kushki:
+  private-key: ${KUSHKI_PRIVATE_KEY}
+  public-key: ${KUSHKI_PUBLIC_KEY}
+  api-base-url: https://api-uat.kushkipagos.com  # sandbox
+  # api-base-url: https://api.kushkipagos.com    # producción
+  payout:
+    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
+    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    min-balance-alert-cents: 5000000  # alerta si Kushki balance < $50.000 COP
+
+# ============================================
 # WOMPI CONFIG
 # ============================================
 # Configuración de Wompi (Produccion)
@@ -205,6 +219,7 @@ app:
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
     expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   security:

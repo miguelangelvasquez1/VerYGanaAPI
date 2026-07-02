@@ -7,24 +7,39 @@ import java.time.ZonedDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.kushki.KushkiTokenRequestDTO;
+import com.verygana2.dtos.kushki.KushkiTokenResponseDTO;
+import com.verygana2.dtos.kushki.KushkiTransferRequestDTO;
+import com.verygana2.dtos.kushki.KushkiTransferRequestDTO.KushkiAmountDTO;
+import com.verygana2.dtos.kushki.KushkiTransferResponseDTO;
+import com.verygana2.dtos.kushki.KushkiWebhookEvent;
 import com.verygana2.dtos.payout.PayoutResponseDTO;
 import com.verygana2.models.enums.finance.CopaymentStatus;
+import com.verygana2.models.enums.finance.KushkiTransactionStatus;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.finance.Copayment;
+import com.verygana2.models.finance.KushkiTransaction;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.finance.PayoutItem;
+import com.verygana2.models.finance.PayoutMethod;
+import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
+import com.verygana2.repositories.finance.KushkiTransactionRepository;
 import com.verygana2.repositories.finance.PayoutItemRepository;
+import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
 import com.verygana2.services.interfaces.finance.PayoutService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.kushki.KushkiPayoutClient;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +52,9 @@ public class PayoutServiceImpl implements PayoutService {
     private final PayoutItemRepository payoutItemRepository;
     private final CopaymentRepository copaymentRepository;
     private final TreasuryService treasuryService;
+    private final KushkiPayoutClient kushkiPayoutClient;
+    private final KushkiTransactionRepository kushkiTransactionRepository;
+    private final PayoutMethodRepository payoutMethodRepository;
 
     @Override
     public BigDecimal getCommercialEarningsForPeriod(Long commercialId, Integer year, Integer month) {
@@ -135,15 +153,7 @@ public class PayoutServiceImpl implements PayoutService {
         }
     }
 
-    /**
-     * Fase 2 del job diario: ejecuta las transferencias Wompi para todos los
-     * payouts en estado SCHEDULED.
-     *
-     * NOTA: La integración con Wompi Transfer API está pendiente de implementación.
-     * Por ahora marca el payout como PAID directamente para completar el flujo.
-     * Al integrar Wompi: crear WompiTransaction, pasar el payout a PROCESSING,
-     * y dejar que el webhook de Wompi lo marque como PAID.
-     */
+    /** Fase 2 del job diario: ejecuta las transferencias Kushki para todos los payouts SCHEDULED. */
     @Override
     @Transactional
     public void processScheduledPayouts() {
@@ -216,33 +226,125 @@ public class PayoutServiceImpl implements PayoutService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public void handleKushkiWebhook(KushkiWebhookEvent event, Map<String, Object> metadata) {
+        String reference = event.getMerchantTransferReference();
+
+        KushkiTransaction tx = kushkiTransactionRepository.findByInternalReference(reference)
+                .orElseGet(() -> kushkiTransactionRepository.findByKushkiTransferId(event.getTransferId())
+                        .orElse(null));
+
+        if (tx == null) {
+            log.warn("[KUSHKI WEBHOOK] KushkiTransaction no encontrada: reference={}, transferId={}",
+                    reference, event.getTransferId());
+            return;
+        }
+
+        // Idempotencia: ignorar si ya está en estado terminal
+        if (tx.isTerminal()) {
+            log.info("[KUSHKI WEBHOOK] Evento duplicado ignorado: reference={}, status={}",
+                    reference, tx.getStatus());
+            return;
+        }
+
+        KushkiTransactionStatus newStatus = event.isApproved()
+                ? KushkiTransactionStatus.APPROVED
+                : ("DECLINED".equalsIgnoreCase(event.getStatus())
+                        ? KushkiTransactionStatus.DECLINED
+                        : KushkiTransactionStatus.FAILED);
+
+        tx.setStatus(newStatus);
+        tx.setMetadata(metadata);
+        if (!event.isApproved()) tx.setFailureReason(event.getMessage());
+        tx.setUpdatedAt(ZonedDateTime.now(ZoneOffset.UTC));
+        kushkiTransactionRepository.save(tx);
+
+        Payout payout = payoutRepository.findByKushkiTransactionId(tx.getId())
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "Payout no encontrado para kushkiTransactionId=" + tx.getId()));
+
+        if (event.isApproved()) {
+            treasuryService.registerPayoutSent(payout.getNetAmountCents(), payout.getId());
+            payout.setStatus(PayoutStatus.PAID);
+            payout.setPaidAt(ZonedDateTime.now(ZoneOffset.UTC));
+            log.info("[KUSHKI WEBHOOK] Payout PAID: id={}, commercial={}, net={}",
+                    payout.getId(), payout.getCommercial().getCompanyName(), payout.getNetAmountCents());
+        } else {
+            payout.setStatus(PayoutStatus.FAILED);
+            payout.setFailureReason(event.getMessage());
+            log.warn("[KUSHKI WEBHOOK] Payout FAILED: id={}, reason={}",
+                    payout.getId(), event.getMessage());
+        }
+
+        payoutRepository.save(payout);
+    }
+
     // ─── Privados ─────────────────────────────────────────────────────────────
 
     private void processOnePayout(Payout payout) {
         CommercialDetails commercial = payout.getCommercial();
 
-        if (!commercial.canReceivePayouts()) {
-            throw new IllegalStateException(
-                    "Empresario " + commercial.getId() + " no tiene método de pago verificado.");
-        }
+        PayoutMethod method = payoutMethodRepository
+                .findFirstByCommercialIdAndVerificationStatusAndActiveTrue(
+                        commercial.getId(), VerificationStatus.VERIFIED)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Empresario " + commercial.getId() + " no tiene método de pago verificado."));
 
-        // TODO: Integrar Wompi Transfer API cuando esté disponible.
-        // Flujo futuro:
-        //   WompiTransaction tx = wompiService.initiateTransfer(payout);
-        //   payout.setWompiTransaction(tx);
-        //   payout.setStatus(PayoutStatus.PROCESSING);
-        // El webhook de Wompi completará el payout.
-        //
-        // Por ahora: marcar como PAID directamente y registrar el movimiento.
+        String internalReference = "VG-PAYOUT-" + payout.getId();
 
-        treasuryService.registerPayoutSent(payout.getNetAmountCents(), payout.getId());
+        // Paso 1 — tokenizar cuenta destino
+        KushkiTokenRequestDTO tokenRequest = buildTokenRequest(method);
+        KushkiTokenResponseDTO tokenResponse = kushkiPayoutClient.tokenizeAccount(tokenRequest);
 
-        payout.setStatus(PayoutStatus.PAID);
-        payout.setPaidAt(ZonedDateTime.now(ZoneOffset.UTC));
+        // Paso 2 — iniciar transferencia
+        double amountCop = payout.getNetAmountCents() / 100.0;
+        KushkiTransferRequestDTO transferRequest = KushkiTransferRequestDTO.builder()
+                .token(tokenResponse.getToken())
+                .merchantTransferReference(internalReference)
+                .amount(KushkiAmountDTO.builder()
+                        .subtotalIva0(amountCop)
+                        .build())
+                .build();
+
+        KushkiTransferResponseDTO transferResponse = kushkiPayoutClient.initiateTransfer(transferRequest);
+
+        // Paso 3 — persistir KushkiTransaction y vincular al Payout
+        KushkiTransactionStatus initialStatus = transferResponse.isSuccess()
+                ? KushkiTransactionStatus.PENDING
+                : KushkiTransactionStatus.FAILED;
+
+        KushkiTransaction tx = KushkiTransaction.builder()
+                .kushkiTransferId(transferResponse.getTransferId())
+                .internalReference(internalReference)
+                .amountCents(payout.getNetAmountCents())
+                .status(initialStatus)
+                .failureReason(transferResponse.isSuccess() ? null : transferResponse.getMessage())
+                .build();
+
+        tx = kushkiTransactionRepository.save(tx);
+
+        payout.setKushkiTransaction(tx);
+        payout.setStatus(transferResponse.isSuccess() ? PayoutStatus.PROCESSING : PayoutStatus.FAILED);
+        if (!transferResponse.isSuccess()) payout.setFailureReason(transferResponse.getMessage());
         payoutRepository.save(payout);
 
-        log.info("[PAYOUT-SCHEDULER] Payout PAID: id={}, commercial={}, net={}",
-                payout.getId(), commercial.getCompanyName(), payout.getNetAmountCents());
+        log.info("[PAYOUT-SCHEDULER] Payout → {}: id={}, commercial={}, transferId={}",
+                payout.getStatus(), payout.getId(),
+                commercial.getCompanyName(), transferResponse.getTransferId());
+    }
+
+    private KushkiTokenRequestDTO buildTokenRequest(PayoutMethod method) {
+        return KushkiTokenRequestDTO.builder()
+                .documentType(method.getAccountHolderDocType().name())
+                .documentNumber(method.getAccountHolderDoc())
+                .name(method.getAccountHolderName())
+                .bankCode(method.getBankCode())
+                .bankAccountType(method.getBankAccountType() != null
+                        ? method.getBankAccountType().name()
+                        : null)
+                .bankAccountNumber(method.getAccountNumber())
+                .build();
     }
 
     private PayoutResponseDTO toResponseDTO(Payout payout) {

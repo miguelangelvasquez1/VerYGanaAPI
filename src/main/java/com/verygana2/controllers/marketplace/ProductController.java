@@ -1,5 +1,6 @@
 package com.verygana2.controllers.marketplace;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import org.springframework.data.domain.PageRequest;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +22,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletResponse;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
@@ -276,7 +280,7 @@ public class ProductController {
      */
     @GetMapping("/total-products")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Long> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt, @RequestParam("status") ProductStatus status) {
+    public ResponseEntity<Integer> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt, @RequestParam("status") ProductStatus status) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.getTotalCommercialProducts(commercialId, status));
     }
@@ -334,9 +338,36 @@ public class ProductController {
 
     @PatchMapping("{productId}/gameReward")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Void> pickGameReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
+    public ResponseEntity<Void> markProductAsReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long commercialId = jwt.getClaim("userId");
-        productService.pickGameReward(commercialId, productId);
+        productService.markProductAsReward(commercialId, productId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Proxy de imagen privada (PENDING/REJECTED): hace streaming directo desde R2
+     * sin redirigir al cliente, evitando problemas de CORS con R2.
+     * Accesible por admins o por el comerciante dueño del producto.
+     * Soporta JWT vía header Authorization o query param ?token= (para img tags).
+     */
+    @GetMapping("/{productId}/private-image")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_COMMERCIAL')")
+    public void getPrivateProductImage(
+            @PathVariable Long productId,
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletResponse response) throws IOException {
+
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (!isAdmin) {
+            Long commercialId = jwt.getClaim("userId");
+            productService.getByIdAndCommercialId(productId, commercialId);
+        }
+
+        productService.streamPrivateProductImage(productId, response);
     }
 }

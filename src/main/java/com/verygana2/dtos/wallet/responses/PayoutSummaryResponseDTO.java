@@ -5,7 +5,7 @@ import java.util.UUID;
 
 import com.verygana2.models.enums.finance.PayoutStatus;
 
-public record PayoutSummaryResponse(
+public record PayoutSummaryResponseDTO (
         UUID id,
         Long grossAmountCents,
         Long commissionCents,

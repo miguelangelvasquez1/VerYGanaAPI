@@ -161,14 +161,14 @@ public class GameServiceImpl implements GameService {
         
         Map<String, Object> assets = new java.util.HashMap<>(campaign.getConfigData());
 
-        List<RewardCardResponseDTO> rewards = getGameRewards(req.getSessionToken());
+        List<RewardCardResponseDTO> rewards = getGameRewards(campaign);
 
         Map<String, Object> rewardPopup = Map.of(
                 "popup_title", "Recompensas desbloqueadas",
                 "products", rewards
         );
         assets.put("reward_popup", rewardPopup);
-
+    
         return assets;
     }
 
@@ -340,13 +340,10 @@ public class GameServiceImpl implements GameService {
                 : objectMapper.valueToTree(value);
     }
 
-    private List<RewardCardResponseDTO> getGameRewards(String gameSessionToken) {
-        GameSession session = gameSessionRepository.findBySessionToken(gameSessionToken)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Game session with token: " + gameSessionToken + " not found"));
+    private List<RewardCardResponseDTO> getGameRewards(Campaign campaign) {
 
         List<Product> gameRewards = productRepository
-                .findGameRewardsProducts(session.getCampaign().getCommercial().getId());
+                .findGameRewardsProducts(campaign.getCommercial().getId());
 
         if (gameRewards.isEmpty()) {
             return List.of();
@@ -356,18 +353,17 @@ public class GameServiceImpl implements GameService {
                 .map(p -> RewardCardResponseDTO.builder()
                         .id(p.getId())
                         .name(p.getName())
-                        .imageUrl(p.getImageUrl())
-                        .imageMessage(p.getMaxKeysPct() + "% Descuento")
-                        .regularPrice(p.getPriceCents() / 100)
-                        .keysMessage("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
+                        .image_url(p.getImageUrl())
+                        .image_message(p.getMaxKeysPct() + "% Descuento")
+                        .regular_price(p.getPriceCents() / 100)
+                        .keys_message("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
                                 + formatNumber(p.getMinCashCents() / 100) + " COP]]")
                         .commercial(p.getCommercial().getCompanyName())
                         .rating(p.getAverageRate())
-                        .cartUrl("cart")
-                        // .maxKeysAllowed(p.getMaxKeysAllowed())
-                        // .minCashCents(p.getMinCashCents())
-                        // .stock(p.getAvailableStock())
-                        // .categoryName(p.getProductCategory().getName())
+                        .max_keys_allowed(p.getMaxKeysAllowed())
+                        .min_cash_cents(p.getMinCashCents())
+                        .stock(p.getAvailableStock())
+                        .category_name(p.getProductCategory().getName())
                         .build())
                 .toList();
     }

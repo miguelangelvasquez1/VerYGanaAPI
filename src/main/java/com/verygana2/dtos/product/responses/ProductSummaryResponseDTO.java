@@ -4,8 +4,10 @@ import java.math.BigDecimal;
 
 import com.verygana2.models.enums.marketplace.ProductStatus;
 
+import lombok.Builder;
 import lombok.Data;
 @Data
+@Builder
 public class ProductSummaryResponseDTO {
     private Long id;
     private String name;
@@ -19,5 +21,7 @@ public class ProductSummaryResponseDTO {
     private String categoryName;
     private Integer stock;
     private ProductStatus status;
+    private Long commercialId;
     private String companyName;
+    private Boolean isGameReward;
 }

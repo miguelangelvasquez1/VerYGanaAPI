@@ -438,6 +438,25 @@ public class R2Service {
     }
 
     /**
+     * Stream directo de un objeto privado (sin redirigir al cliente a R2)
+     */
+    public ResponseInputStream<GetObjectResponse> getPrivateObjectStream(String objectKey) {
+        try {
+            return r2Client.getObject(
+                GetObjectRequest.builder()
+                    .bucket(r2Config.getBucketName())
+                    .key(PRIVATE_PREFIX + objectKey)
+                    .build()
+            );
+        } catch (NoSuchKeyException e) {
+            throw new StorageException("Private object not found: " + objectKey);
+        } catch (Exception e) {
+            log.error("Error streaming private object {}: {}", objectKey, e.getMessage());
+            throw new StorageException("Error streaming private object", e);
+        }
+    }
+
+    /**
      * Genera URL pre-firmada para hacer GET de un objeto
      */
     public String getPrivateObject(String objectKey, int expiresInSeconds) {
