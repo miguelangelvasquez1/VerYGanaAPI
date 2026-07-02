@@ -183,6 +183,12 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(CodeEncryptionException.class)
+    public ResponseEntity<ErrorResponse> handleCodeEncryptionException(CodeEncryptionException ex, WebRequest request) {
+        log.warn("Code encryption/decryption error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_REQUEST, "Invalid or corrupted code", request);
+    }
+
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(ValidationException ex, WebRequest request) {
         log.warn("Validation error: {}", ex.getMessage());

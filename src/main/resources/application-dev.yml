@@ -102,6 +102,7 @@ sendgrid:
   from-email: notificaciones@verygana.com
   from-name: VerYGana
   support-email: soporte@verygana.com
+  logo-url: ${EMAIL_LOGO_URL:https://cdn.verygana.com/public/logoDorado.png}
 
 # ============================================
 # GAMES CONFIG

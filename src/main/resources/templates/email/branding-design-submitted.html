@@ -1,61 +1,21 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background: #f4f4f4; }
-.container { max-width: 600px; margin: 20px auto; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-.header { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 40px 20px; text-align: center; }
-.header h1 { font-size: 26px; margin-bottom: 8px; }
-.header p { font-size: 15px; opacity: 0.9; }
-.content { padding: 32px; }
-.greeting { font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #333; }
-.text { font-size: 15px; color: #555; margin-bottom: 16px; }
-.project-card { background: #f0fdf8; border: 1px solid #a7f3d0; border-radius: 8px; padding: 20px; margin: 24px 0; }
-.project-card h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #059669; margin-bottom: 12px; }
-.project-card .row { display: flex; margin-bottom: 8px; font-size: 14px; }
-.project-card .label { font-weight: bold; color: #555; min-width: 90px; }
-.project-card .value { color: #333; }
-.action-box { background: #fff9e6; border-left: 4px solid #fbbf24; border-radius: 0 6px 6px 0; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #444; }
-.btn-wrapper { text-align: center; margin: 28px 0; }
-.btn { display: inline-block; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; text-decoration: none; padding: 14px 36px; border-radius: 8px; font-size: 15px; font-weight: bold; }
-.footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-size: 13px; color: #666; }
-.footer a { color: #11998e; text-decoration: none; }
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="header">
-    <h1>¡Tu diseño está listo!</h1>
-    <p>El equipo de diseño entregó tu juego</p>
+<h1>¡Tu diseño está listo!</h1>
+<p class="subtitle">El equipo de diseño entregó tu juego</p>
+<p class="greeting">Hola, {{commercialName}}</p>
+<p class="text">Buenas noticias: el equipo de diseño terminó el branding de tu juego y está esperando tu revisión y aprobación.</p>
+<div class="project-card success">
+  <h3>Proyecto entregado</h3>
+  <div class="row">
+    <span class="label">Marca:</span>
+    <span class="value">{{brandName}}</span>
   </div>
-  <div class="content">
-    <p class="greeting">Hola, {{commercialName}}</p>
-    <p class="text">Buenas noticias: el equipo de diseño terminó el branding de tu juego y está esperando tu revisión y aprobación.</p>
-    <div class="project-card">
-      <h3>Proyecto entregado</h3>
-      <div class="row">
-        <span class="label">Marca:</span>
-        <span class="value">{{brandName}}</span>
-      </div>
-      <div class="row">
-        <span class="label">Juego:</span>
-        <span class="value">{{gameName}}</span>
-      </div>
-    </div>
-    <div class="action-box">
-      Entra a la plataforma para <strong>ver el diseño en el juego</strong>, aprobarlo o solicitar ajustes.
-    </div>
-    <div class="btn-wrapper">
-      <a href="{{platformUrl}}" class="btn">Revisar diseño</a>
-    </div>
-  </div>
-  <div class="footer">
-    <p>¿Necesitas ayuda? <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
-    <p style="margin-top:10px;font-size:11px;color:#999;">© 2025 VeryGana. Todos los derechos reservados.</p>
+  <div class="row">
+    <span class="label">Juego:</span>
+    <span class="value">{{gameName}}</span>
   </div>
 </div>
-</body>
-</html>
+<div class="action-box">
+  Entra a la plataforma para <strong>ver el diseño en el juego</strong>, aprobarlo o solicitar ajustes.
+</div>
+<div class="btn-wrapper">
+  <a href="{{platformUrl}}" class="btn">Revisar diseño</a>
+</div>

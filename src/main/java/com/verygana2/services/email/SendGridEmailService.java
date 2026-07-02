@@ -286,15 +286,21 @@ public class SendGridEmailService implements EmailService {
     private String buildItemsHtml(Purchase purchase) {
         StringBuilder sb = new StringBuilder();
         for (PurchaseItem item : purchase.getItems()) {
+            String imageUrl = item.getProduct().getImageUrl();
             sb.append("<div class='product-item'>");
             sb.append("<div class='product-name'>").append(escapeHtml(item.getProduct().getName())).append("</div>");
             sb.append("<div class='product-price'>Precio: $")
                     .append(String.format("%,.0f", moneyMapper.fromCents(item.getProduct().getPriceCents())))
                     .append(" COP</div>");
             if (item.getDeliveredCode() != null) {
+                sb.append("<div class='code-row'>");
+                if (imageUrl != null) {
+                    sb.append("<img class='product-thumb' src='").append(imageUrl).append("' alt=''>");
+                }
                 sb.append("<div class='code-section'>");
                 sb.append("<div class='code-label'>Tu Código</div>");
                 sb.append("<div class='code-value'>").append(escapeHtml(item.getDeliveredCode())).append("</div>");
+                sb.append("</div>");
                 sb.append("</div>");
             }
             sb.append("</div>");

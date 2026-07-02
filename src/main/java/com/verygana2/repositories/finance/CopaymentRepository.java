@@ -20,7 +20,8 @@ public interface CopaymentRepository extends JpaRepository<Copayment, UUID> {
             SELECT DISTINCT c FROM Copayment c
             JOIN FETCH c.purchase p
             LEFT JOIN FETCH p.items items
-            LEFT JOIN FETCH items.product
+            LEFT JOIN FETCH items.product prod
+            LEFT JOIN FETCH prod.imageAsset
             LEFT JOIN FETCH items.assignedProductStock
             JOIN FETCH c.consumer
             WHERE p.referenceId = :referenceId

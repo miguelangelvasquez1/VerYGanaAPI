@@ -8,6 +8,5 @@ public record LevelConfigResponse(
         String xpMax,          // "∞" para Diamante
         double multiplier,
         int referralKeys,
-        int referralTickets,
-        int raffleTickets
+        int referralTickets
 ) {}
