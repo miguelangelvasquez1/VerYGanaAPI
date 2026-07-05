@@ -64,8 +64,8 @@ public class PeriodicRescreeningJob {
             screeningService.screenOrThrow(user.getId(), d.getCompanyName(), d.getNit());
             screeningService.screenOrThrow(
                     user.getId(),
-                    d.getRepresentanteDocNumero(),
-                    d.getRepresentanteDocNumero());
+                    d.getLegalRepDocNumber(),
+                    d.getLegalRepDocNumber());
         }
     }
 }

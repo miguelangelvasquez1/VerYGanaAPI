@@ -7,11 +7,11 @@ import com.verygana2.models.compliance.ScreeningResult;
 public interface ScreeningService {
 
     /**
-     * Corre screening contra todas las listas. Persiste los resultados en TX independiente.
-     * Lanza ScreeningHitException si algún resultado es HIT.
-     * Los resultados FUZZY_HIT se persisten pero no bloquean la operación.
+     * Runs screening against all lists. Persists results in an independent TX.
+     * Throws ScreeningHitException if any result is HIT.
+     * FUZZY_HIT results are persisted but do not block the operation.
      */
-    void screenOrThrow(Long userId, String nombre, String documentoConsultado);
+    void screenOrThrow(Long userId, String name, String queriedDocument);
 
     List<ScreeningResult> getResultsByUserId(Long userId);
 

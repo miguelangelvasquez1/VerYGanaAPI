@@ -39,27 +39,27 @@ public class CommercialDetails extends UserDetails {
 
     // ==================== KYC / SAGRILAFT ====================
 
-    @Column(name = "codigo_ciiu", nullable = false, length = 10)
-    private String codigoCIIU;
+    @Column(name = "ciiu_code", nullable = false, length = 10)
+    private String ciiuCode;
 
-    @Column(name = "matricula_mercantil", length = 20)
-    private String matriculaMercantil;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "representante_doc_type", nullable = false, length = 5)
-    private DocumentType representanteDocType;
-
-    @Column(name = "representante_doc_numero", nullable = false, length = 20)
-    private String representanteDocNumero;
-
-    @Column(name = "es_pep", nullable = false)
-    private boolean esPEP = false;
+    @Column(name = "mercantile_registration", length = 20)
+    private String mercantileRegistration;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ingresos_anuales_rango", length = 30)
-    private AnnualRevenueRange ingresosAnualesRango;
+    @Column(name = "legal_rep_doc_type", nullable = false, length = 5)
+    private DocumentType legalRepDocType;
 
-    // ===== UBICACIÓN =====
+    @Column(name = "legal_rep_doc_number", nullable = false, length = 20)
+    private String legalRepDocNumber;
+
+    @Column(name = "is_pep", nullable = false)
+    private boolean pep = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "annual_income_range", length = 30)
+    private AnnualRevenueRange annualIncomeRange;
+
+    // ===== LOCATION =====
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "municipality_code")
@@ -71,7 +71,7 @@ public class CommercialDetails extends UserDetails {
     @Column(name = "department_name", length = 100)
     private String departmentName;
 
-    // ===== MÉTODOS DE PAGO =====
+    // ===== PAYOUT METHODS =====
 
     @OneToMany(mappedBy = "commercial", cascade = CascadeType.ALL,
                fetch = FetchType.LAZY, orphanRemoval = true)
@@ -96,7 +96,7 @@ public class CommercialDetails extends UserDetails {
     @JoinColumn(name = "current_plan_id")
     private Plan currentPlan;
 
-    // ===== MÉTODOS DE NEGOCIO =====
+    // ===== BUSINESS METHODS =====
 
     public boolean canReceivePayouts() {
         return defaultPayoutMethod != null
@@ -104,43 +104,43 @@ public class CommercialDetails extends UserDetails {
     }
 
     /**
- * Verifica si el empresario tiene acceso activo a la plataforma.
- *
- * BASIC    → necesita Subscription vigente
- * STANDARD/PREMIUM → necesita Wallet operacional (ACTIVE o LOW_BALANCE)
- */
-public boolean hasActiveAccess() {
-    if (currentPlan == null) return false;
- 
-    if (currentPlan.isMonthlySubscription()) {
-        // Plan básico: acceso por suscripción mensual
-        return subscriptions.stream()
-                .anyMatch(Subscription::isCurrentlyActive);
+     * Checks whether the business user has active access to the platform.
+     *
+     * BASIC    → requires an active Subscription
+     * STANDARD/PREMIUM → requires an operational Wallet (ACTIVE or LOW_BALANCE)
+     */
+    public boolean hasActiveAccess() {
+        if (currentPlan == null) return false;
+
+        if (currentPlan.isMonthlySubscription()) {
+            // Basic plan: access via monthly subscription
+            return subscriptions.stream()
+                    .anyMatch(Subscription::isCurrentlyActive);
+        }
+
+        // Standard/premium plans: access via available balance
+        return wallet != null && wallet.isOperational();
     }
- 
-    // Planes estándar/premium: acceso por saldo disponible
-    return wallet != null && wallet.isOperational();
-}
- 
-/**
- * Verifica si puede activar nuevas interacciones (anuncios, juegos, etc.).
- * Distinto de hasActiveAccess() — aquí también se verifica que tenga
- * saldo suficiente para el costo mínimo de activación.
- *
- * @param minActivationCents costo mínimo de la interacción a activar
- */
-public boolean canActivateInteraction(long minActivationCents) {
-    if (!hasActiveAccess()) return false;
-    if (currentPlan.isMonthlySubscription()) return true; // básico no tiene wallet
-    return wallet != null && wallet.hasFundsFor(minActivationCents);
-}
- 
-/**
- * Retorna el plan actual como texto legible.
- * Útil para logs y notificaciones.
- */
-public String getCurrentPlanName() {
-    return currentPlan != null ? currentPlan.getName() : "Sin plan";
-}
- 
+
+    /**
+     * Checks whether new interactions (ads, games, etc.) can be activated.
+     * Distinct from hasActiveAccess() — also verifies sufficient balance
+     * for the minimum activation cost.
+     *
+     * @param minActivationCents minimum cost of the interaction to activate
+     */
+    public boolean canActivateInteraction(long minActivationCents) {
+        if (!hasActiveAccess()) return false;
+        if (currentPlan.isMonthlySubscription()) return true; // basic plan has no wallet
+        return wallet != null && wallet.hasFundsFor(minActivationCents);
+    }
+
+    /**
+     * Returns the current plan as a human-readable string.
+     * Useful for logs and notifications.
+     */
+    public String getCurrentPlanName() {
+        return currentPlan != null ? currentPlan.getName() : "No plan";
+    }
+
 }

@@ -34,18 +34,18 @@ public class ComplianceKycController {
             String phoneNumber,
             Role role,
             ZonedDateTime registeredDate,
-            // campos KYC — presentes dependiendo del rol
+            // KYC fields — present depending on role
             String name,
             String lastName,
             String documentType,
             String documentNumber,
-            Boolean esPEP,
-            // solo comerciales
+            Boolean isPep,
+            // commercial only
             String companyName,
             String nit,
-            String codigoCIIU,
-            String representanteDocType,
-            String representanteDocNumero
+            String ciiuCode,
+            String legalRepDocType,
+            String legalRepDocNumber
     ) {}
 
     @GetMapping("/pending")
@@ -54,7 +54,7 @@ public class ComplianceKycController {
 
         List<KycPendingDTO> dtos = users.stream().map(u -> {
             String name = null, lastName = null, docType = null, docNumber = null;
-            Boolean esPEP = null;
+            Boolean isPep = null;
             String companyName = null, nit = null, ciiu = null, repDocType = null, repDocNum = null;
 
             if (u.getUserDetails() instanceof com.verygana2.models.userDetails.ConsumerDetails d) {
@@ -62,19 +62,19 @@ public class ComplianceKycController {
                 lastName = d.getLastName();
                 docType = d.getDocumentType() != null ? d.getDocumentType().name() : null;
                 docNumber = d.getDocumentNumber();
-                esPEP = d.isEsPEP();
+                isPep = d.isPep();
             } else if (u.getUserDetails() instanceof com.verygana2.models.userDetails.CommercialDetails d) {
                 companyName = d.getCompanyName();
                 nit = d.getNit();
-                ciiu = d.getCodigoCIIU();
-                repDocType = d.getRepresentanteDocType() != null ? d.getRepresentanteDocType().name() : null;
-                repDocNum = d.getRepresentanteDocNumero();
-                esPEP = d.isEsPEP();
+                ciiu = d.getCiiuCode();
+                repDocType = d.getLegalRepDocType() != null ? d.getLegalRepDocType().name() : null;
+                repDocNum = d.getLegalRepDocNumber();
+                isPep = d.isPep();
             }
 
             return new KycPendingDTO(
                     u.getId(), u.getEmail(), u.getPhoneNumber(), u.getRole(), u.getRegisteredDate(),
-                    name, lastName, docType, docNumber, esPEP,
+                    name, lastName, docType, docNumber, isPep,
                     companyName, nit, ciiu, repDocType, repDocNum
             );
         }).toList();
@@ -99,7 +99,7 @@ public class ComplianceKycController {
     @PostMapping("/{userId}/reject")
     public ResponseEntity<Void> rejectKyc(
             @PathVariable Long userId,
-            @RequestParam(required = false, defaultValue = "KYC rechazado por el oficial de cumplimiento") String reason) {
+            @RequestParam(required = false, defaultValue = "KYC rejected by compliance officer") String reason) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 

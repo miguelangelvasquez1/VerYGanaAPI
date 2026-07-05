@@ -3,6 +3,7 @@ package com.verygana2.services.compliance;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.verygana2.services.interfaces.compliance.ScreeningPort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,42 +27,42 @@ public class ScreeningServiceImpl implements ScreeningService {
     private final ScreeningResultRepository screeningResultRepository;
 
     @Override
-    public void screenOrThrow(Long userId, String nombre, String documentoConsultado) {
+    public void screenOrThrow(Long userId, String name, String queriedDocument) {
         List<ScreeningOutcome> outcomes;
         try {
-            outcomes = screeningPort.screen(nombre, documentoConsultado);
+            outcomes = screeningPort.screen(name, queriedDocument);
         } catch (Exception e) {
-            // Si el proveedor falla, registramos pero no bloqueamos el registro (fail open)
-            log.error("Screening provider falló para userId={} nombre='{}': {}", userId, nombre, e.getMessage());
+            // If the provider fails, we log but do not block registration (fail open)
+            log.error("Screening provider failed for userId={} name='{}': {}", userId, name, e.getMessage());
             return;
         }
 
         List<ScreeningResult> results = outcomes.stream()
                 .map(o -> ScreeningResult.builder()
                         .userId(userId)
-                        .nombreConsultado(nombre)
-                        .documentoConsultado(documentoConsultado)
-                        .lista(o.lista())
+                        .queriedName(name)
+                        .queriedDocument(queriedDocument)
+                        .restrictiveList(o.restrictiveList())
                         .status(o.status())
                         .referenceId(o.referenceId())
                         .rawResponse(o.rawResponse())
                         .build())
                 .toList();
 
-        // Persistir en TX independiente para que los registros sobrevivan si la TX externa hace rollback
+        // Persist in an independent TX so records survive if the outer TX rolls back
         persistResults(results);
 
         results.stream()
                 .filter(r -> r.getStatus() == ScreeningStatus.HIT)
                 .findFirst()
                 .ifPresent(hit -> {
-                    log.warn("Screening HIT para userId={} nombre='{}' lista={}", userId, nombre, hit.getLista());
-                    throw new ScreeningHitException(hit.getLista(), hit.getStatus(), nombre);
+                    log.warn("Screening HIT for userId={} name='{}' list={}", userId, name, hit.getRestrictiveList());
+                    throw new ScreeningHitException(hit.getRestrictiveList(), hit.getStatus(), name);
                 });
 
         results.stream()
                 .filter(r -> r.getStatus() == ScreeningStatus.FUZZY_HIT)
-                .forEach(r -> log.warn("Screening FUZZY_HIT para userId={} nombre='{}' lista={}", userId, nombre, r.getLista()));
+                .forEach(r -> log.warn("Screening FUZZY_HIT for userId={} name='{}' list={}", userId, name, r.getRestrictiveList()));
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -91,6 +92,6 @@ public class ScreeningServiceImpl implements ScreeningService {
         result.setOfficerNotes(notes);
         result.setReviewedAt(LocalDateTime.now());
         screeningResultRepository.save(result);
-        log.info("Screening result {} revisado por officer {}", resultId, officerId);
+        log.info("Screening result {} reviewed by officer {}", resultId, officerId);
     }
 }

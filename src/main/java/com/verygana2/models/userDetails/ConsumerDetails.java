@@ -35,8 +35,7 @@ public class ConsumerDetails extends UserDetails {
     @Column(nullable = false, length = 20)
     private String userName;
 
-    // ConsumerDetails — DESPUÉS (correcto)
-    @NotNull(message = "Avatar is required") // ← NotNull para objetos/entidades
+    @NotNull(message = "Avatar is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "avatar_id")
     private Avatar avatar;
@@ -67,7 +66,7 @@ public class ConsumerDetails extends UserDetails {
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
     private String municipalityName;
-    
+
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)
@@ -114,14 +113,14 @@ public class ConsumerDetails extends UserDetails {
     @Column(name = "document_number", nullable = false, length = 20)
     private String documentNumber;
 
-    @Column(name = "ocupacion", length = 100)
-    private String ocupacion;
+    @Column(name = "occupation", length = 100)
+    private String occupation;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "ingresos_mensuales_rango", length = 30)
-    private IncomeRange ingresosMensualesRango;
+    @Column(name = "monthly_income_range", length = 30)
+    private IncomeRange monthlyIncomeRange;
 
-    @Column(name = "es_pep", nullable = false)
-    private boolean esPEP = false;
+    @Column(name = "is_pep", nullable = false)
+    private boolean pep = false;
 
 }

@@ -36,19 +36,19 @@ public class ScreeningResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // No FK intencional — puede referir a un userId de un registro que fue bloqueado y nunca persistido
+    // Intentional non-FK — may reference a userId for a record that was blocked and never persisted
     @Column(name = "user_id")
     private Long userId;
 
-    @Column(name = "nombre_consultado", nullable = false, length = 300)
-    private String nombreConsultado;
+    @Column(name = "queried_name", nullable = false, length = 300)
+    private String queriedName;
 
-    @Column(name = "documento_consultado", length = 30)
-    private String documentoConsultado;
+    @Column(name = "queried_document", length = 30)
+    private String queriedDocument;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "lista", nullable = false, length = 30)
-    private ScreeningList lista;
+    @Column(name = "restrictive_list", nullable = false, length = 30)
+    private ScreeningList restrictiveList;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)

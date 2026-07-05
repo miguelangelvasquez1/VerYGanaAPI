@@ -4,7 +4,7 @@ import com.verygana2.models.enums.ScreeningList;
 import com.verygana2.models.enums.ScreeningStatus;
 
 public record ScreeningOutcome(
-        ScreeningList lista,
+        ScreeningList restrictiveList,
         ScreeningStatus status,
         String referenceId,
         String rawResponse

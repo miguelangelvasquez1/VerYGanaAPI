@@ -20,7 +20,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000001', 'bronce_test',
        'Usuario', 'Bronce', 'QUINDÍO', 'ARMENIA', '63001',
@@ -57,7 +57,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000002', 'plata_test',
        'Usuario', 'Plata', 'QUINDÍO', 'ARMENIA', '63001',
@@ -94,7 +94,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000003', 'oro_test',
        'Usuario', 'Oro', 'QUINDÍO', 'ARMENIA', '63001',
@@ -132,7 +132,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'rubi_test',
        'Usuario', 'Rubi', 'QUINDÍO', 'ARMENIA', '63001',
@@ -170,7 +170,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000005', 'esmeralda_test',
        'Usuario', 'Esmeralda', 'QUINDÍO', 'ARMENIA', '63001',
@@ -208,7 +208,7 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
-    daily_ad_count, referral_code, document_type, document_number, es_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000006', 'diamante_test',
        'Usuario', 'Diamante', 'QUINDÍO', 'ARMENIA', '63001',

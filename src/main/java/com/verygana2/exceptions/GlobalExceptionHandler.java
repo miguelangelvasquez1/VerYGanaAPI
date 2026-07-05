@@ -44,6 +44,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -373,6 +375,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         log.warn("Unauthorized: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoHandlerFound(NoHandlerFoundException ex, WebRequest request) {
+        String msg = String.format("Ruta no encontrada: [%s] %s", ex.getHttpMethod(), ex.getRequestURL());
+        log.warn(msg);
+        return buildError(HttpStatus.NOT_FOUND, msg, request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        String msg = String.format("Método [%s] no permitido en esta ruta. Métodos aceptados: %s",
+                ex.getMethod(), ex.getSupportedHttpMethods());
+        log.warn(msg);
+        return buildError(HttpStatus.METHOD_NOT_ALLOWED, msg, request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

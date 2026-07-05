@@ -78,10 +78,10 @@ INSERT INTO commercial_details (
     user_id,
     company_name,
     nit,
-    codigo_ciiu,
-    representante_doc_type,
-    representante_doc_numero,
-    es_pep
+    ciiu_code,
+    legal_rep_doc_type,
+    legal_rep_doc_number,
+    is_pep
 )
 SELECT
     id,
@@ -110,6 +110,7 @@ INSERT INTO users (
     registered_date,
     public_id
 )
+
 VALUES (
     'consumer@verygana.com',
     '3001000003',
@@ -146,7 +147,7 @@ INSERT INTO consumer_details (
     referral_code,
     document_type,
     document_number,
-    es_pep
+    is_pep
 )
 SELECT
     u.id,
@@ -240,3 +241,58 @@ FROM commercial_details cd
 JOIN users u ON u.id = cd.user_id
 WHERE u.email = 'comercial@verygana.com'
 ON DUPLICATE KEY UPDATE commercial_id = commercial_id;
+
+
+
+-- ============================================================
+-- 6. GAME DESIGNER USER
+-- ============================================================
+
+INSERT INTO users (
+    email,
+    phone_number,
+    password,
+    role,
+    user_state,
+    registered_date,
+    public_id
+)
+VALUES (
+    'designer@verygana.com',
+    '3001000004',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'GAME_DESIGNER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('dddddddd-0000-0000-0000-000000000001')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'designer@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO game_designer_details (
+    user_id,
+    name,
+    last_name,
+    designer_code,
+    bio,
+    campaigns_designed,
+    can_publish_directly,
+    active,
+    joined_at
+)
+SELECT
+    id,
+    'Game',
+    'Designer',
+    'GD-TEST-001',
+    'Diseñador de prueba para el entorno de desarrollo',
+    0,
+    true,
+    true,
+    CURDATE()
+FROM users
+WHERE email = 'designer@verygana.com'
+ON DUPLICATE KEY UPDATE designer_code = designer_code;

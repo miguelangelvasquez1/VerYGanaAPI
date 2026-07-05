@@ -3,6 +3,7 @@ package com.verygana2.services.compliance;
 import java.util.Arrays;
 import java.util.List;
 
+import com.verygana2.services.interfaces.compliance.ScreeningPort;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -12,8 +13,8 @@ import com.verygana2.models.enums.ScreeningStatus;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Implementación no-op activa cuando screening.provider=noop (entornos de desarrollo).
- * En producción reemplazar con TruoraScreeningProvider u otro adaptador.
+ * No-op implementation active when screening.provider=noop (development environments).
+ * In production, replace with TruoraScreeningProvider or another adapter.
  */
 @Component
 @ConditionalOnProperty(name = "screening.provider", havingValue = "noop", matchIfMissing = true)
@@ -21,10 +22,10 @@ import lombok.extern.slf4j.Slf4j;
 public class NoOpScreeningProvider implements ScreeningPort {
 
     @Override
-    public List<ScreeningOutcome> screen(String nombre, String documentoConsultado) {
-        log.debug("NoOp screening para '{}' — retorna NO_HIT en todas las listas", nombre);
+    public List<ScreeningOutcome> screen(String name, String queriedDocument) {
+        log.debug("NoOp screening for '{}' — returning NO_HIT on all lists", name);
         return Arrays.stream(ScreeningList.values())
-                .map(lista -> new ScreeningOutcome(lista, ScreeningStatus.NO_HIT, null, null))
+                .map(list -> new ScreeningOutcome(list, ScreeningStatus.NO_HIT, null, null))
                 .toList();
     }
 }
