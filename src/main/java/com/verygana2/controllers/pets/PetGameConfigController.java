@@ -1,4 +1,4 @@
-package com.verygana2.controllers;
+package com.verygana2.controllers.pets;
 
 
 
@@ -8,6 +8,7 @@ import com.verygana2.services.interfaces.pet.PetCatalogService;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
 import com.verygana2.services.interfaces.pet.PetSceneService;
 import com.verygana2.services.interfaces.pet.PetSessionService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -77,7 +78,7 @@ public class PetGameConfigController {
     private Long getConsumerId(Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         return consumerDetailsRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("Consumer not found"))
+                .orElseThrow(() -> new EntityNotFoundException("Consumer not found for userId=" + userId))
                 .getId();
     }
 }
