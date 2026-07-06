@@ -3,6 +3,7 @@ package com.verygana2.services.marketplace;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -22,6 +23,7 @@ import com.verygana2.mappers.marketplace.ProductCategoryMapper;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.userDetails.AdminDetails;
@@ -145,7 +147,8 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
         } catch (Exception e) {
             if (asset != null) {
-                log.error("[PRODUCT CATEGORY SERVICE] product category creation error, marking asset as orphan: {}", asset.getId());
+                log.error("[PRODUCT CATEGORY SERVICE] product category creation error, marking asset as orphan: {}",
+                        asset.getId());
                 assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
@@ -195,7 +198,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
         ProductCategory category = getById(productCategoryId);
         if (!category.isActive()) {
-            throw new InvalidRequestException ("Only active product categories can be deleted");
+            throw new InvalidRequestException("Only active product categories can be deleted");
         }
 
         if (productRepository.existsByProductCategoryId(productCategoryId)) {
@@ -209,18 +212,18 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
 
     @Override
     @Transactional
-    public void recover (Long productCategoryId){
+    public void recover(Long productCategoryId) {
 
         log.info("[PRODUCT CATEGORY SERVICE] Recovering product category...");
-       
+
         ProductCategory category = getById(productCategoryId);
         if (category.isActive()) {
-            throw new InvalidRequestException ("Only inactive product categories can be recovered");
+            throw new InvalidRequestException("Only inactive product categories can be recovered");
         }
         category.setActive(true);
         productCategoryRepository.save(category);
 
-         log.info("[PRODUCT CATEGORY SERVICE] Product category recovered succesfully");
+        log.info("[PRODUCT CATEGORY SERVICE] Product category recovered succesfully");
     }
 
     @Override
@@ -241,6 +244,17 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
     public List<ProductCategoryResponseDTO> getInactiveProductCategories() {
         return productCategoryRepository.findInactiveProductCategories().stream()
                 .map(productCategoryMapper::toProductCategoryResponseDTO).toList();
+    }
+
+    @Override
+    public List<ProductCategoryResponseDTO> getCommercialProductCategories(Long commercialId) {
+        List<Product> commercialProducts = productRepository.findByCommercialId(commercialId);
+        Set<ProductCategory> commercialProductCategories = new HashSet<>();
+        commercialProducts.forEach(p -> {
+            commercialProductCategories.add(p.getProductCategory());
+        });
+
+        return commercialProductCategories.stream().map(productCategoryMapper::toProductCategoryResponseDTO).toList();
     }
 
 }

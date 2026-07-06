@@ -13,6 +13,7 @@ public class CustomUserDetails implements UserDetails {
     private final Long id;
     private final String email;
     private final String password;
+    private final boolean passwordConfigured;
     private final UserState userState;
     private final Collection<? extends GrantedAuthority> authorities;
 
@@ -20,6 +21,7 @@ public class CustomUserDetails implements UserDetails {
         this.id = user.getId();
         this.email = user.getEmail();
         this.password = user.getPassword();
+        this.passwordConfigured = user.isPasswordConfigured();
         this.userState = user.getUserState();
         this.authorities = authorities;
     }
@@ -54,6 +56,8 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return userState != UserState.PENDING_EMAIL && userState != UserState.PENDING_KYC_REVIEW;
+        return userState != UserState.PENDING_EMAIL 
+        && userState != UserState.PENDING_KYC_REVIEW
+        && passwordConfigured;
     }
 }

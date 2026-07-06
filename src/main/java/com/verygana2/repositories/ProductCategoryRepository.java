@@ -16,4 +16,5 @@ public interface ProductCategoryRepository extends JpaRepository<ProductCategory
 
     @Query("SELECT p FROM ProductCategory p WHERE p.isActive = false")
     List<ProductCategory> findInactiveProductCategories();
+
 }

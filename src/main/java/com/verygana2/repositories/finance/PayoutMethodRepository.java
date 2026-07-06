@@ -20,4 +20,8 @@ public interface PayoutMethodRepository extends JpaRepository<PayoutMethod, Long
 
     /** Para que el admin liste los métodos BANK_TRANSFER pendientes de revisión. */
     Page<PayoutMethod> findByVerificationStatus(VerificationStatus status, Pageable pageable);
+
+    /** Primer método VERIFIED y activo del comercial — el que usa el job de payouts. */
+    Optional<PayoutMethod> findFirstByCommercialIdAndVerificationStatusAndActiveTrue(
+            Long commercialId, VerificationStatus verificationStatus);
 }

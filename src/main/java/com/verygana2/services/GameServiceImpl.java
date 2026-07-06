@@ -34,6 +34,8 @@ import com.verygana2.models.games.GameSession;
 import com.verygana2.models.games.GameSessionMetric;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
+import com.verygana2.models.branding.BrandingRequest;
+import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
@@ -68,6 +70,7 @@ public class GameServiceImpl implements GameService {
     private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
+    private final BrandingRequestRepository brandingRequestRepository;
     private final GameSessionRepository gameSessionRepository;
     private final GameMetricDefinitionRepository metricDefinitionRepository;
     private final MetricValidator metricValidator;
@@ -158,14 +161,14 @@ public class GameServiceImpl implements GameService {
         
         Map<String, Object> assets = new java.util.HashMap<>(campaign.getConfigData());
 
-        List<RewardCardResponseDTO> rewards = getGameRewards(req.getSessionToken());
+        List<RewardCardResponseDTO> rewards = getGameRewards(campaign);
 
         Map<String, Object> rewardPopup = Map.of(
                 "popup_title", "Recompensas desbloqueadas",
                 "products", rewards
         );
         assets.put("reward_popup", rewardPopup);
-
+    
         return assets;
     }
 
@@ -219,6 +222,45 @@ public class GameServiceImpl implements GameService {
     public PagedResponse<GameDTO> getAvailableGamesPage(Pageable pageable) {
         Page<GameDTO> page = gameRepository.findAvailableGames(pageable);
         return PagedResponse.from(page);
+    }
+
+    // ===== PREVIEW =====
+
+    @Override
+    public String generatePreviewUrl(BrandingRequest brandingRequest) {
+        String baseUrl = generateGameUrl(brandingRequest.getGame());
+        return String.format(
+            "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
+            baseUrl, "preview", "preview", "true", brandingRequest.getId());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getPreviewAssets(Long brandingRequestId) {
+        BrandingRequest request = brandingRequestRepository.findById(brandingRequestId)
+            .orElseThrow(() -> new EntityNotFoundException("Preview not found for id: " + brandingRequestId));
+
+        Map<String, Object> draft = request.getDraftFormData();
+        if (draft == null || draft.isEmpty()) return Map.of();
+
+        return stripPreviewMap(draft);
+    }
+
+    private Map<String, Object> stripPreviewMap(Map<String, Object> map) {
+        Map<String, Object> result = new java.util.LinkedHashMap<>();
+        map.forEach((k, v) -> result.put(k, stripPreviewValue(v)));
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object stripPreviewValue(Object value) {
+        if (value instanceof Map<?, ?> m) {
+            Map<String, Object> map = (Map<String, Object>) m;
+            if (map.containsKey("assetId") && map.containsKey("url")) return map.get("url");
+            return stripPreviewMap(map);
+        }
+        if (value instanceof List<?> list) return list.stream().map(this::stripPreviewValue).toList();
+        return value;
     }
 
     // Métodos privados auxiliares
@@ -298,13 +340,10 @@ public class GameServiceImpl implements GameService {
                 : objectMapper.valueToTree(value);
     }
 
-    private List<RewardCardResponseDTO> getGameRewards(String gameSessionToken) {
-        GameSession session = gameSessionRepository.findBySessionToken(gameSessionToken)
-                .orElseThrow(() -> new EntityNotFoundException(
-                        "Game session with token: " + gameSessionToken + " not found"));
+    private List<RewardCardResponseDTO> getGameRewards(Campaign campaign) {
 
         List<Product> gameRewards = productRepository
-                .findGameRewardsProducts(session.getCampaign().getCommercial().getId());
+                .findGameRewardsProducts(campaign.getCommercial().getId());
 
         if (gameRewards.isEmpty()) {
             return List.of();
@@ -314,18 +353,17 @@ public class GameServiceImpl implements GameService {
                 .map(p -> RewardCardResponseDTO.builder()
                         .id(p.getId())
                         .name(p.getName())
-                        .imageUrl(p.getImageUrl())
-                        .imageMessage(p.getMaxKeysPct() + "% Descuento")
-                        .regularPrice(p.getPriceCents() / 100)
-                        .keysMessage("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
+                        .image_url(p.getImageUrl())
+                        .image_message(p.getMaxKeysPct() + "% Descuento")
+                        .regular_price(p.getPriceCents() / 100)
+                        .keys_message("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
                                 + formatNumber(p.getMinCashCents() / 100) + " COP]]")
                         .commercial(p.getCommercial().getCompanyName())
                         .rating(p.getAverageRate())
-                        .cartUrl("cart")
-                        // .maxKeysAllowed(p.getMaxKeysAllowed())
-                        // .minCashCents(p.getMinCashCents())
-                        // .stock(p.getAvailableStock())
-                        // .categoryName(p.getProductCategory().getName())
+                        .max_keys_allowed(p.getMaxKeysAllowed())
+                        .min_cash_cents(p.getMinCashCents())
+                        .stock(p.getAvailableStock())
+                        .category_name(p.getProductCategory().getName())
                         .build())
                 .toList();
     }

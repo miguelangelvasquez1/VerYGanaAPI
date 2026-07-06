@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="color-scheme" content="light">
+<meta name="supported-color-schemes" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Days+One&display=swap" rel="stylesheet">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; background: #f4f4f4; }
+.content h1, .products-title, .prize-name, .campaign-card .brand { font-family: 'Days One', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; font-weight: 400; }
+.container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+
+.header { background: linear-gradient(135deg, #0b1440 0%, #03548C 100%); padding: 32px 20px; text-align: center; }
+.header img { max-width: 150px; height: auto; }
+
+.content { padding: 32px; }
+.content h1 { font-size: 24px; color: #0b1440; margin-bottom: 8px; }
+.subtitle { font-size: 15px; color: #666; margin-bottom: 20px; }
+.greeting { font-size: 18px; font-weight: bold; margin-bottom: 16px; color: #333; }
+.text, .content p { font-size: 15px; color: #555; margin-bottom: 16px; }
+
+.btn-wrapper { text-align: center; margin: 28px 0; }
+.btn { display: inline-block; background: #FFD700; color: #0b1440; text-decoration: none; padding: 14px 36px; border-radius: 30px; font-size: 15px; font-weight: bold; letter-spacing: 0.3px; }
+
+.url-fallback, .fallback { background: #f9f9f9; border: 1px solid #e0e0e0; border-radius: 6px; padding: 14px 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #555; word-break: break-all; margin-top: 8px; }
+.fallback strong { display: block; margin-bottom: 6px; color: #333; font-family: inherit; }
+
+.warning-box, .warning { background: #fff8e1; border-left: 4px solid #FFD700; padding: 14px; border-radius: 4px; margin-top: 20px; font-size: 13px; text-align: left; color: #444; }
+
+.notes-box, .contact-box { background: #eaf6ff; border-left: 4px solid #03548C; border-radius: 0 6px 6px 0; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #444; text-align: left; }
+.notes-box strong, .contact-box strong { display: block; margin-bottom: 6px; color: #03548C; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.order-info { background: #f4f8fb; padding: 20px; border-radius: 8px; margin-bottom: 20px; text-align: left; }
+.order-info p { margin: 8px 0; font-size: 14px; }
+.order-info strong { color: #03548C; }
+
+.order-badge { display: inline-block; background: #eaf6ff; border: 2px solid #03548C; border-radius: 8px; padding: 12px 24px; font-size: 20px; font-weight: bold; color: #03548C; margin: 16px 0; }
+
+.products-title { font-size: 20px; font-weight: bold; margin: 30px 0 20px; color: #0b1440; text-align: left; }
+.product-item { background: #ffffff; border: 2px solid #e0e0e0; border-radius: 8px; padding: 20px; margin-bottom: 15px; text-align: left; }
+.product-name { font-size: 18px; font-weight: bold; color: #03548C; margin-bottom: 10px; }
+.product-price { font-size: 16px; color: #666; margin-bottom: 15px; }
+
+.code-row { display: flex; align-items: stretch; margin: 10px 0; }
+.product-thumb { width: 60px; height: auto; align-self: stretch; object-fit: cover; border-radius: 6px; border: 1px solid #e0e0e0; flex-shrink: 0; margin-right: 18px; }
+.code-section { flex: 1; background: #0b1440; padding: 15px; border-radius: 6px; margin: 0; }
+.code-label { display: block; width: 100%; font-size: 12px; font-weight: bold; color: #ffffff; text-transform: uppercase; margin-bottom: 5px; }
+.code-value { display: block; width: 100%; font-family: 'Courier New', monospace; font-size: 16px; font-weight: bold; color: #ffffff; word-break: break-all; }
+
+.divider { height: 1px; background: #e0e0e0; margin: 20px 0; }
+
+.code-box { background: #0b1440; border-radius: 10px; padding: 24px; text-align: center; margin: 24px 0; }
+.code-box .code-label { color: #ffffff; }
+.code-box .code-value { color: #ffffff; font-size: 26px; letter-spacing: 4px; }
+
+.code-box-outline { background: #0b1440; border: 2px dashed #00a4ff; border-radius: 8px; padding: 16px; text-align: center; margin: 24px 0; }
+.code-box-outline p { font-size: 13px; color: #ffffff; margin-bottom: 8px; }
+.code-box-outline span { font-size: 22px; font-weight: bold; letter-spacing: 3px; color: #ffffff; font-family: monospace; }
+
+.project-card { background: #eaf6ff; border: 1px solid #b8dfff; border-radius: 8px; padding: 20px; margin: 24px 0; text-align: left; }
+.project-card h3 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; color: #03548C; margin-bottom: 12px; }
+.project-card .row { display: flex; margin-bottom: 8px; font-size: 14px; }
+.project-card .label { font-weight: bold; color: #555; min-width: 90px; }
+.project-card .value { color: #333; }
+.project-card.success { background: #e6f9f2; border-color: #a7f3d0; }
+.project-card.success h3 { color: #11998e; }
+
+.action-box { background: #fff8e1; border-left: 4px solid #FFD700; border-radius: 0 6px 6px 0; padding: 14px 16px; margin: 20px 0; font-size: 14px; color: #444; text-align: left; }
+
+.campaign-card { background: #eaf6ff; border: 1px solid #b8dfff; border-radius: 8px; padding: 20px; margin: 24px 0; text-align: center; }
+.campaign-card .brand { font-size: 22px; font-weight: bold; color: #0b1440; margin-bottom: 6px; }
+.campaign-card .game { font-size: 14px; color: #03548C; }
+
+.status-badge { display: inline-block; border-radius: 20px; padding: 6px 18px; font-size: 13px; font-weight: bold; margin-top: 12px; }
+.status-badge.success { background: #11998e; color: #ffffff; }
+
+.project-badge { display: inline-block; border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: bold; margin-bottom: 20px; }
+.project-badge.warning { background: #fff8e1; border: 1px solid #FFD700; color: #856404; }
+.project-badge.danger { background: #fdecea; border: 1px solid #f5b7b1; color: #991b1b; }
+
+.changes-box { background: #fff8e1; border: 1px solid #FFD700; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
+.changes-box h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #856404; margin-bottom: 10px; }
+.changes-box p { font-size: 15px; color: #333; white-space: pre-wrap; margin-bottom: 0; }
+
+.reason-box { background: #fdecea; border: 1px solid #f5b7b1; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
+.reason-box h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 1px; color: #c0392b; margin-bottom: 10px; }
+.reason-box p { font-size: 15px; color: #333; margin-bottom: 0; }
+
+.prize-box { background: #fff8e1; border: 2px solid #FFD700; border-radius: 8px; padding: 20px; margin-bottom: 24px; text-align: center; }
+.prize-name { font-size: 22px; font-weight: bold; color: #0b1440; margin-bottom: 6px; }
+.prize-value { font-size: 16px; color: #666; }
+
+.instructions { background: #eaf6ff; border-left: 4px solid #03548C; padding: 16px; border-radius: 4px; margin: 16px 0; font-size: 14px; text-align: left; }
+
+.footer { background: #f9f9f9; padding: 20px; text-align: center; border-top: 1px solid #e0e0e0; font-size: 13px; color: #666; }
+.footer a { color: #03548C; text-decoration: none; }
+.copyright { margin-top: 10px; font-size: 11px; color: #999; }
+
+/*
+  Gmail/Apple Mail/Outlook apps auto-invert colors in device dark mode, which breaks
+  contrast on light-background cards (e.g. white code box + navy text becomes
+  unreadable). Repeating every color/background here inside prefers-color-scheme:dark,
+  with !important, signals clients that support this query to keep our exact palette
+  instead of auto-inverting, so the email looks identical in light and dark mode.
+*/
+@media (prefers-color-scheme: dark) {
+  body { color: #333 !important; background: #f4f4f4 !important; }
+  .container { background: #ffffff !important; }
+  .header { background: linear-gradient(135deg, #0b1440 0%, #03548C 100%) !important; }
+  .content h1 { color: #0b1440 !important; }
+  .subtitle { color: #666 !important; }
+  .greeting { color: #333 !important; }
+  .text, .content p { color: #555 !important; }
+  .btn { background: #FFD700 !important; color: #0b1440 !important; }
+  .url-fallback, .fallback { background: #f9f9f9 !important; color: #555 !important; border-color: #e0e0e0 !important; }
+  .fallback strong { color: #333 !important; }
+  .warning-box, .warning { background: #fff8e1 !important; color: #444 !important; border-color: #FFD700 !important; }
+  .notes-box, .contact-box { background: #eaf6ff !important; color: #444 !important; border-color: #03548C !important; }
+  .notes-box strong, .contact-box strong { color: #03548C !important; }
+  .order-info { background: #f4f8fb !important; }
+  .order-info p { color: #333 !important; }
+  .order-info strong { color: #03548C !important; }
+  .order-badge { background: #eaf6ff !important; color: #03548C !important; border-color: #03548C !important; }
+  .products-title { color: #0b1440 !important; }
+  .product-item { background: #ffffff !important; border-color: #e0e0e0 !important; }
+  .product-name { color: #03548C !important; }
+  .product-price { color: #666 !important; }
+  .code-section { background: #0b1440 !important; }
+  .code-label { color: #ffffff !important; }
+  .code-value { color: #ffffff !important; }
+  .divider { background: #e0e0e0 !important; }
+  .code-box { background: #0b1440 !important; }
+  .code-box .code-label { color: #ffffff !important; }
+  .code-box .code-value { color: #ffffff !important; }
+  .code-box-outline { background: #0b1440 !important; border-color: #00a4ff !important; }
+  .code-box-outline p { color: #ffffff !important; }
+  .code-box-outline span { color: #ffffff !important; }
+  .project-card { background: #eaf6ff !important; border-color: #b8dfff !important; }
+  .project-card h3 { color: #03548C !important; }
+  .project-card .label { color: #555 !important; }
+  .project-card .value { color: #333 !important; }
+  .project-card.success { background: #e6f9f2 !important; border-color: #a7f3d0 !important; }
+  .project-card.success h3 { color: #11998e !important; }
+  .action-box { background: #fff8e1 !important; color: #444 !important; border-color: #FFD700 !important; }
+  .campaign-card { background: #eaf6ff !important; border-color: #b8dfff !important; }
+  .campaign-card .brand { color: #0b1440 !important; }
+  .campaign-card .game { color: #03548C !important; }
+  .status-badge.success { background: #11998e !important; color: #ffffff !important; }
+  .project-badge.warning { background: #fff8e1 !important; border-color: #FFD700 !important; color: #856404 !important; }
+  .project-badge.danger { background: #fdecea !important; border-color: #f5b7b1 !important; color: #991b1b !important; }
+  .changes-box { background: #fff8e1 !important; border-color: #FFD700 !important; }
+  .changes-box h3 { color: #856404 !important; }
+  .changes-box p { color: #333 !important; }
+  .reason-box { background: #fdecea !important; border-color: #f5b7b1 !important; }
+  .reason-box h3 { color: #c0392b !important; }
+  .reason-box p { color: #333 !important; }
+  .prize-box { background: #fff8e1 !important; border-color: #FFD700 !important; }
+  .prize-name { color: #0b1440 !important; }
+  .prize-value { color: #666 !important; }
+  .instructions { background: #eaf6ff !important; color: #444 !important; border-color: #03548C !important; }
+  .footer { background: #f9f9f9 !important; color: #666 !important; border-color: #e0e0e0 !important; }
+  .footer a { color: #03548C !important; }
+  .copyright { color: #999 !important; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <img src="{{logoUrl}}" alt="VerYGana">
+  </div>
+  <div class="content">
+    {{content}}
+  </div>
+  <div class="footer">
+    <p>¿Necesitas ayuda? <a href="mailto:{{supportEmail}}">{{supportEmail}}</a></p>
+    <p class="copyright">© {{year}} VerYGana. Todos los derechos reservados.</p>
+  </div>
+</div>
+</body>
+</html>

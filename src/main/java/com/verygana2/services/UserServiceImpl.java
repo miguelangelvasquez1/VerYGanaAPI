@@ -5,10 +5,10 @@ import com.verygana2.models.EmailVerificationToken;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.UserState;
 import com.verygana2.repositories.EmailVerificationTokenRepository;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
+import com.verygana2.services.interfaces.PasswordSetupService;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -28,6 +28,8 @@ import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
+
+import jakarta.validation.ValidationException;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -51,9 +53,9 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final UserMapper userMapper;
     private final OutboxService outboxService;
-    private final MunicipalityRepository municipalityRepository;
     private final LocationService locationService;
     private final LevelService levelService;
+    private final PasswordSetupService passwordSetupService;
     private final EmailService emailService;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final ScreeningService screeningService;
@@ -66,7 +68,8 @@ public class UserServiceImpl implements UserService {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
-        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID() + UUID.randomUUID().toString()));
+        user.setPasswordConfigured(false);
 
         GameDesignerDetails details = userMapper.toGameDesignerDetails(dto);
         details.setDesignerCode("GD-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase());
@@ -74,7 +77,10 @@ public class UserServiceImpl implements UserService {
         details.setUser(user);
         user.setUserDetails(details);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        passwordSetupService.initiatePasswordSetup(savedUser, dto.getName(), details.getDesignerCode());
+
+        return savedUser;
     }
 
     @Override
@@ -252,11 +258,11 @@ public class UserServiceImpl implements UserService {
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {
 
         if (userRepository.existsByEmail(email)) {
-            throw new IllegalStateException("Email already registered");
+            throw new ValidationException("Email already registered");
         }
 
         if (userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new IllegalStateException("Phone number already registered");
+            throw new ValidationException("Phone number already registered");
         }
     }
 

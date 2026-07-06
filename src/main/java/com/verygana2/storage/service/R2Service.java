@@ -245,6 +245,13 @@ public class R2Service {
     }
 
     /**
+     * Elimina un objeto del prefijo público
+     */
+    public void deletePublicObject(String objectKey) {
+        deleteObject(PUBLIC_PREFIX + objectKey);
+    }
+
+    /**
      * Elimina múltiples objetos (batch delete)
      */
     public void deleteObjects(List<String> objectKeys) {
@@ -427,6 +434,25 @@ public class R2Service {
         } catch (Exception e) {
             log.error("Error copiando objeto: {}", e.getMessage());
             throw new StorageException("Error copiando objeto", e);
+        }
+    }
+
+    /**
+     * Stream directo de un objeto privado (sin redirigir al cliente a R2)
+     */
+    public ResponseInputStream<GetObjectResponse> getPrivateObjectStream(String objectKey) {
+        try {
+            return r2Client.getObject(
+                GetObjectRequest.builder()
+                    .bucket(r2Config.getBucketName())
+                    .key(PRIVATE_PREFIX + objectKey)
+                    .build()
+            );
+        } catch (NoSuchKeyException e) {
+            throw new StorageException("Private object not found: " + objectKey);
+        } catch (Exception e) {
+            log.error("Error streaming private object {}: {}", objectKey, e.getMessage());
+            throw new StorageException("Error streaming private object", e);
         }
     }
 

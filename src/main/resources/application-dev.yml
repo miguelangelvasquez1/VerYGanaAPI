@@ -9,7 +9,7 @@ spring:
   # ============================================
   datasource:
     # Para Docker usa host.docker.internal
-    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana2?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
 
@@ -91,6 +91,7 @@ logging:
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
     org.springframework.security: DEBUG
+    org.springframework.security.authentication: WARN
     org.springframework.security.authorization.method: WARN
 
 # ============================================
@@ -101,6 +102,7 @@ sendgrid:
   from-email: notificaciones@verygana.com
   from-name: VerYGana
   support-email: soporte@verygana.com
+  logo-url: ${EMAIL_LOGO_URL:https://cdn.verygana.com/public/logoDorado.png}
 
 # ============================================
 # GAMES CONFIG
@@ -172,6 +174,19 @@ twilio:
   phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
+# KUSHKI CONFIG
+# ============================================
+kushki:
+  private-key: ${KUSHKI_PRIVATE_KEY}
+  public-key: ${KUSHKI_PUBLIC_KEY}
+  api-base-url: https://api-uat.kushkipagos.com  # sandbox
+  # api-base-url: https://api.kushkipagos.com    # producción
+  payout:
+    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
+    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    min-balance-alert-cents: 5000000  # alerta si Kushki balance < $50.000 COP
+
+# ============================================
 # WOMPI CONFIG
 # ============================================
 # Configuración de Wompi (Produccion)
@@ -200,6 +215,11 @@ payment:
 # SECURITY MONITORING CONFIG
 # ============================================
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
+  password-setup-token:
+    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
+  base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   security:

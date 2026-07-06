@@ -13,6 +13,8 @@ import javax.crypto.spec.SecretKeySpec;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.verygana2.exceptions.CodeEncryptionException;
+
 @Component
 public class ClaimCodeEncryptor {
 
@@ -42,7 +44,7 @@ public class ClaimCodeEncryptor {
             System.arraycopy(ciphertext, 0, combined, IV_BYTES, ciphertext.length);
             return Base64.getEncoder().encodeToString(combined);
         } catch (Exception e) {
-            throw new IllegalStateException("Claim code encryption failed", e);
+            throw new CodeEncryptionException("Code encryption failed", e);
         }
     }
 
@@ -55,7 +57,7 @@ public class ClaimCodeEncryptor {
             cipher.init(Cipher.DECRYPT_MODE, keySpec, new GCMParameterSpec(TAG_BITS, iv));
             return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception e) {
-            throw new IllegalStateException("Claim code decryption failed", e);
+            throw new CodeEncryptionException("Code decryption failed", e);
         }
     }
 }

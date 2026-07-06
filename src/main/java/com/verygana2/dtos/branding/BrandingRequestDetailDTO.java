@@ -67,7 +67,6 @@ public class BrandingRequestDetailDTO {
     private String reviewedByAdminName;
 
     // ===== Diseñador =====
-    private String designerNotes;
     private String assignedDesignerName;
     private String assignedDesignerCode;
 

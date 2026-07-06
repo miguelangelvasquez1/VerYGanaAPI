@@ -6,9 +6,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.FileUploadRequestDTO;
+import com.verygana2.dtos.branding.AddCommentDTO;
 import com.verygana2.dtos.branding.ApproveBrandingRequestDTO;
 import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.BrandingGameDTO;
+import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
 import com.verygana2.dtos.branding.BrandingRequestDetailDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.ConfirmCorporateResourceDTO;
@@ -16,7 +18,6 @@ import com.verygana2.dtos.branding.CorporateResourceUploadPermissionDTO;
 import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
-import com.verygana2.dtos.branding.RequestDesignChangesDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
 
 public interface BrandingRequestService {
@@ -33,7 +34,7 @@ public interface BrandingRequestService {
 
     void confirmCorporateResource(Long requestId, ConfirmCorporateResourceDTO dto, Long userId);
 
-    void submitForReview(Long requestId, Long userId);
+    void submitForReview(Long requestId, Long userId, String notes);
 
     void updateConfig(Long requestId, UpdateBrandingRequestConfigDTO dto, Long userId);
 
@@ -54,5 +55,10 @@ public interface BrandingRequestService {
 
     // Revisión del anunciante sobre el diseño
     void approveDesign(Long requestId, Long userId);
-    void requestDesignChanges(Long requestId, Long userId, RequestDesignChangesDTO dto);
+    void requestDesignChanges(Long requestId, Long userId);
+    String getPreviewUrl(Long requestId, Long userId);
+
+    // Comentarios
+    List<BrandingRequestCommentDTO> getComments(Long requestId, Long userId);
+    BrandingRequestCommentDTO addCommentAsCommercial(Long requestId, Long userId, AddCommentDTO dto);
 }

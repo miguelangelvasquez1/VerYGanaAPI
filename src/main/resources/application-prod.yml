@@ -133,6 +133,7 @@ sendgrid:
   from-email: notificaciones@verygana.com
   from-name: VerYGana
   support-email: soporte@verygana.com
+  logo-url: ${EMAIL_LOGO_URL:https://verygana.com/assets/logo-email.png}
 # ============================================
 # TAXES
 # ============================================      
@@ -164,6 +165,7 @@ pets:
 
 
 app:
+  base-url: ${APP_BASE_URL}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
   claim-code:

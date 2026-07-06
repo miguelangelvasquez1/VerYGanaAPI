@@ -22,12 +22,14 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
 import com.verygana2.dtos.auth.RefreshRequest;
+import com.verygana2.dtos.auth.SetupPasswordDTO;
 import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ComplianceOfficerRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.security.CustomUserDetails;
+import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
@@ -48,6 +50,7 @@ public class AuthController {
     private final AuthenticationManager authManager;
     private final UserService userService;
     private final TicketDeliveryService ticketDeliveryService;
+    private final PasswordSetupService passwordSetupService;
 
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
@@ -55,11 +58,12 @@ public class AuthController {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
-    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService) {
+    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService) {
         this.tokenService = tokenService;
         this.authManager = authManager;
         this.userService = userService;
         this.ticketDeliveryService = ticketDeliveryService;
+        this.passwordSetupService = passwordSetupService;
     }
 
     /**
@@ -258,5 +262,11 @@ public class AuthController {
     public ResponseEntity<?> registerComplianceOfficer(@Valid @RequestBody ComplianceOfficerRegisterDTO dto) {
         userService.registerComplianceOfficer(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body("Oficial de cumplimiento registrado exitosamente.");
+    }
+
+    @PostMapping("/setup-password")
+    public ResponseEntity<String> setupPassword(@Valid @RequestBody SetupPasswordDTO dto) {
+        passwordSetupService.completePasswordSetup(dto.getToken(), dto.getPassword());
+        return ResponseEntity.ok("Password configured successfully. You can now log in.");
     }
 }
