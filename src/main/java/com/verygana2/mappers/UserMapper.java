@@ -112,9 +112,9 @@ public abstract class UserMapper {
     @Mapping(target = "lastDailyLoginDate", ignore = true)
     @Mapping(target = "documentType", ignore = true)
     @Mapping(target = "documentNumber", ignore = true)
-    @Mapping(target = "ocupacion", ignore = true)
-    @Mapping(target = "ingresosMensualesRango", ignore = true)
-    @Mapping(target = "esPEP", ignore = true)
+    @Mapping(target = "occupation", ignore = true)
+    @Mapping(target = "monthlyIncomeRange", ignore = true)
+    @Mapping(target = "pep", ignore = true)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     // ---- COMMERCIAL ----
