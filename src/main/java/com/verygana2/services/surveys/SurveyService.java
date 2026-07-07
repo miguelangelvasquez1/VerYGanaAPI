@@ -36,6 +36,7 @@ import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.mappers.SurveyMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.PricingConfig;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
@@ -97,7 +98,6 @@ public class SurveyService {
         attachQuestions(request, survey);
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(request.getCategoryIds());
-        survey.setCategories(selectedCategories);
 
         List<Municipality> municipalities = Collections.emptyList();
         if (request.getMunicipalityCodes() != null && !request.getMunicipalityCodes().isEmpty()) {
@@ -113,7 +113,14 @@ public class SurveyService {
         wallet.consume(totalBudgetCents);
         walletRepository.save(wallet);
 
-        survey.setTargetMunicipalities(municipalities);
+        TargetAudience targetAudience = TargetAudience.builder()
+                .categories(selectedCategories)
+                .targetMunicipalities(municipalities)
+                .minAge(request.getMinAge())
+                .maxAge(request.getMaxAge())
+                .targetGender(request.getTargetGender())
+                .build();
+        survey.setTargetAudience(targetAudience);
         survey.setStatus(Survey.SurveyStatus.DRAFT);
         survey.setRewardAmountPerQuestionCents(pricePerQuestionCents);
         survey.setCreator(commercialDetailsRepository.findByUser_Id(commercialId)
@@ -135,15 +142,21 @@ public class SurveyService {
 
         if (request.getTitle() != null)       survey.setTitle(request.getTitle());
         if (request.getDescription() != null)  survey.setDescription(request.getDescription());
-        if (request.getMinAge() != null)        survey.setMinAge(request.getMinAge());
-        if (request.getMaxAge() != null)        survey.setMaxAge(request.getMaxAge());
-        if (request.getTargetGender() != null)  survey.setTargetGender(request.getTargetGender());
+
+        TargetAudience ta = survey.getTargetAudience();
+        if (ta == null) {
+            ta = new TargetAudience();
+            survey.setTargetAudience(ta);
+        }
+        if (request.getMinAge() != null)       ta.setMinAge(request.getMinAge());
+        if (request.getMaxAge() != null)       ta.setMaxAge(request.getMaxAge());
+        if (request.getTargetGender() != null) ta.setTargetGender(request.getTargetGender());
 
         if (request.getCategoryIds() != null && !request.getCategoryIds().isEmpty()) {
-            survey.setCategories(categoryService.getValidatedCategories(request.getCategoryIds()));
+            ta.setCategories(categoryService.getValidatedCategories(request.getCategoryIds()));
         }
         if (request.getMunicipalityCodes() != null) {
-            survey.setTargetMunicipalities(request.getMunicipalityCodes().isEmpty()
+            ta.setTargetMunicipalities(request.getMunicipalityCodes().isEmpty()
                     ? Collections.emptyList()
                     : targetingValidator.getValidatedMunicipalities(request.getMunicipalityCodes()));
         }

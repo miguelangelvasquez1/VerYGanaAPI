@@ -25,7 +25,11 @@ public interface GameDesignerMapper {
     @Mapping(target = "gameId",               source = "game.id")
     @Mapping(target = "gameName",             source = "game.title")
     @Mapping(target = "gameFrontPageUrl",     source = "game.frontPageUrl")
-    @Mapping(target = "targetMunicipalities", source = "targetMunicipalities")
+    @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
+    @Mapping(target = "categories", source = "targetAudience.categories")
+    @Mapping(target = "minAge", source = "targetAudience.minAge")
+    @Mapping(target = "maxAge", source = "targetAudience.maxAge")
+    @Mapping(target = "targetGender", source = "targetAudience.targetGender")
     @Mapping(target = "corporateResources",   ignore = true)
     @Mapping(target = "gameSchema",           ignore = true)
     DesignerBrandingDetailDTO toDesignerDetailDTO(BrandingRequest request);

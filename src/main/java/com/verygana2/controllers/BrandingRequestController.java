@@ -168,7 +168,7 @@ public class BrandingRequestController {
 
     /**
      * POST /branding-requests/{id}/approve-design
-     * El anunciante aprueba el diseño entregado por el diseñador → READY_TO_LAUNCH.
+     * El anunciante aprueba el diseño → Campaign creada como ACTIVE, BrandingRequest → LAUNCHED.
      */
     @PostMapping("/{id}/approve-design")
     public ResponseEntity<Void> approveDesign(

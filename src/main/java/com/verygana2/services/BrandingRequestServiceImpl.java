@@ -1,7 +1,9 @@
 package com.verygana2.services;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -30,12 +32,13 @@ import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
 import com.verygana2.mappers.BrandingMapper;
-import com.verygana2.models.Category;
-import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.branding.BrandingRequest;
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.branding.CorporateResource;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
+import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.branding.BrandingRequestComment;
@@ -49,6 +52,8 @@ import com.verygana2.repositories.branding.CorporateResourceRepository;
 import com.verygana2.repositories.details.AdminDetailsRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
+import com.verygana2.repositories.games.CampaignRepository;
+import com.verygana2.repositories.games.GameConfigDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.BrandingRequestService;
 import com.verygana2.services.interfaces.CategoryService;
@@ -84,6 +89,8 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final BrandingRequestCommentRepository commentRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final GameRepository gameRepository;
+    private final CampaignRepository campaignRepository;
+    private final GameConfigDefinitionRepository gameConfigDefinitionRepository;
     private final AdminDetailsRepository adminDetailsRepository;
     private final GameDesignerDetailsRepository gameDesignerDetailsRepository;
     private final CorporateResourceRepository corporateResourceRepository;
@@ -107,10 +114,27 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
 
     @Override
     @Transactional(readOnly = true)
+    public List<BrandingRequestSummaryDTO> getMyBrandingRequests(Long commercialUserId) {
+        return brandingRequestRepository.findByCommercial_User_Id(commercialUserId)
+            .stream().map(request -> {
+                int count = (int) request.getCorporateResources().stream()
+                    .filter(r -> r.getStatus() == AssetStatus.VALIDATED)
+                    .count();
+                BrandingRequestSummaryDTO dto = brandingMapper.toSummaryDTO(request);
+                dto.setCorporateResourceCount(count);
+                return dto;
+            }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public BrandingRequestDetailDTO getBrandingRequestDetail(Long requestId, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
+        boolean completeTargeting = request.hasCompleteTargeting();
+
         BrandingRequestDetailDTO detail = brandingMapper.toDetailDTO(request);
+        detail.setHasCompleteTargeting(completeTargeting);
 
         List<CorporateResourceDTO> resources = request.getCorporateResources().stream()
             .map(resource -> {
@@ -186,14 +210,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new ValidationException("Request cannot be submitted from status: " + request.getStatus());
         }
 
-        long validatedResources = request.getCorporateResources().stream()
-            .filter(r -> r.getStatus() == AssetStatus.VALIDATED)
-            .count();
-
-        if (validatedResources == 0) {
-            throw new IllegalStateException("At least one corporate resource must be uploaded and confirmed before submitting");
-        }
-
         request.setStatus(BrandingRequestStatus.PENDING_REVIEW);
         log.info("BrandingRequest {} submitted for review by commercial user {}", requestId, userId);
 
@@ -219,7 +235,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     // DESIGN_IN_PROGRESS	Parcial	Solo PATCH /{id}/config
     // CHANGES_REQUESTED	Parcial	Solo PATCH /{id}/config
     // PENDING_ADVERTISER_APPROVAL	❌	Solo botones de aprobar/rechazar diseño
-    // READY_TO_LAUNCH	❌	Solo lectura
     // LAUNCHED	❌	Solo lectura
     @Override
     public void updateConfig(Long requestId, UpdateBrandingRequestConfigDTO dto, Long commercialId) {
@@ -229,19 +244,25 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new ValidationException("Config cannot be updated from status: " + request.getStatus());
         }
 
+        TargetAudience ta = request.getTargetAudience();
+        if (ta == null) {
+            ta = new TargetAudience();
+            request.setTargetAudience(ta);
+        }
+
         if (dto.getCategoryIds() != null) {
-            List<Category> categories = categoryService.getValidatedCategories(dto.getCategoryIds());
-            request.setCategories(categories);
+            ta.setCategories(categoryService.getValidatedCategories(dto.getCategoryIds()));
         }
 
-        if (dto.getMunicipalityCodes() != null && !dto.getMunicipalityCodes().isEmpty()) {
-            List<Municipality> municipalities = targetingValidator.getValidatedMunicipalities(dto.getMunicipalityCodes());
-            request.setTargetMunicipalities(municipalities);
+        if (dto.getMunicipalityCodes() != null) {
+            ta.setTargetMunicipalities(dto.getMunicipalityCodes().isEmpty()
+                    ? Collections.emptyList()
+                    : targetingValidator.getValidatedMunicipalities(dto.getMunicipalityCodes()));
         }
 
-        if (dto.getMinAge() != null) request.setMinAge(dto.getMinAge());
-        if (dto.getMaxAge() != null) request.setMaxAge(dto.getMaxAge());
-        if (dto.getTargetGender() != null) request.setTargetGender(dto.getTargetGender());
+        if (dto.getMinAge() != null) ta.setMinAge(dto.getMinAge());
+        if (dto.getMaxAge() != null) ta.setMaxAge(dto.getMaxAge());
+        if (dto.getTargetGender() != null) ta.setTargetGender(dto.getTargetGender());
 
         if (dto.getMinAge() != null && dto.getMaxAge() != null && dto.getMinAge() > dto.getMaxAge()) {
             throw new ValidationException("minAge cannot be greater than maxAge");
@@ -254,13 +275,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         log.info("BrandingRequest {} config updated by commercial user {}", requestId, commercialId);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<BrandingRequestSummaryDTO> getMyBrandingRequests(Long commercialUserId) {
-        return brandingRequestRepository.findByCommercial_User_Id(commercialUserId)
-            .stream().map(brandingMapper::toSummaryDTO).collect(Collectors.toList());
-    }
-
     // ===== ADMIN =====
 
     @Override
@@ -269,7 +283,9 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = brandingRequestRepository.findById(requestId)
             .orElseThrow(() -> new EntityNotFoundException("BrandingRequest not found: " + requestId));
 
+        boolean completeTargeting = request.hasCompleteTargeting();
         BrandingRequestDetailDTO detail = brandingMapper.toDetailDTO(request);
+        detail.setHasCompleteTargeting(completeTargeting);
 
         List<CorporateResourceDTO> resources = request.getCorporateResources().stream()
             .map(resource -> {
@@ -310,7 +326,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             .orElseThrow(() -> new EntityNotFoundException("Game designer not found for user: " + dto.getDesignerUserId()));
 
         if (!Boolean.TRUE.equals(designer.getActive())) {
-            throw new IllegalStateException("Designer is not active");
+            throw new ValidationException("Designer is not active");
         }
 
         request.setAssignedDesigner(designer);
@@ -323,7 +339,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             .orElseThrow(() -> new EntityNotFoundException("BrandingRequest not found: " + requestId));
 
         if (request.getStatus() != BrandingRequestStatus.PENDING_REVIEW) {
-            throw new IllegalStateException("Only PENDING_REVIEW requests can be approved");
+            throw new ValidationException("Only PENDING_REVIEW requests can be approved");
         }
 
         AdminDetails admin = adminDetailsRepository.findById(adminUserId)
@@ -359,7 +375,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             .orElseThrow(() -> new EntityNotFoundException("BrandingRequest not found: " + requestId));
 
         if (request.getStatus() != BrandingRequestStatus.PENDING_REVIEW) {
-            throw new IllegalStateException("Only PENDING_REVIEW requests can be rejected");
+            throw new ValidationException("Only PENDING_REVIEW requests can be rejected");
         }
 
         AdminDetails admin = adminDetailsRepository.findById(adminUserId)
@@ -397,21 +413,85 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
         if (!request.canBeReviewedByAdvertiser()) {
-            throw new IllegalStateException("Design cannot be approved from status: " + request.getStatus());
+            throw new ValidationException("Design cannot be approved from status: " + request.getStatus());
         }
 
-        request.setStatus(BrandingRequestStatus.READY_TO_LAUNCH);
-        log.info("BrandingRequest {} design approved by commercial user {} → READY_TO_LAUNCH", requestId, userId);
+        if (request.getGameConfig() == null || request.getGameConfig().isEmpty()) {
+            throw new IllegalStateException("La configuración del juego no está completa");
+        }
+
+        if (request.getScoreRewardFactor() == null || request.getScoreRewardFactor().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalStateException("El valor de moneda (coinValue) no está configurado");
+        }
+
+        var configDefinition = gameConfigDefinitionRepository
+            .findFirstByGameIdOrderByVersionDesc(request.getGame().getId())
+            .orElseThrow(() -> new IllegalStateException("No hay configuración de juego disponible"));
+
+        BigDecimal coinValue = request.getScoreRewardFactor();
+        BigDecimal centavosPerCoin = coinValue.multiply(BigDecimal.valueOf(100));
+
+        int budgetCoins = BigDecimal.valueOf(request.getBudgetCents())
+            .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
+
+        if (budgetCoins <= 0) {
+            throw new IllegalStateException("El presupuesto es insuficiente para generar coins");
+        }
+
+        int completionCoins = 0;
+        if (request.getCompletionRewardCents() != null && request.getCompletionRewardCents() > 0) {
+            completionCoins = BigDecimal.valueOf(request.getCompletionRewardCents())
+                .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
+        }
+
+        int maxCoinsPerSession = 1;
+        if (request.getMaxRewardPerSessionCents() != null && request.getMaxRewardPerSessionCents() > 0) {
+            maxCoinsPerSession = BigDecimal.valueOf(request.getMaxRewardPerSessionCents())
+                .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
+        }
+        maxCoinsPerSession = Math.max(maxCoinsPerSession, Math.max(completionCoins, 1));
+
+        Campaign campaign = Campaign.builder()
+            .game(request.getGame())
+            .configDefinition(configDefinition)
+            .configData(request.getGameConfig())
+            .commercial(request.getCommercial())
+            .status(CampaignStatus.ACTIVE)
+            .coinValue(coinValue)
+            .completionCoins(completionCoins)
+            .budgetCoins(budgetCoins)
+            .maxCoinsPerSession(maxCoinsPerSession)
+            .maxSessionsPerUserPerDay(request.getMaxSessionsPerUserPerDay())
+            .targetUrl(request.getTargetUrl())
+            .startDate(request.getStartDate())
+            .endDate(request.getEndDate())
+            .targetAudience(request.getTargetAudience())
+            .build();
+
+        campaign = campaignRepository.save(campaign);
+
+        request.setStatus(BrandingRequestStatus.LAUNCHED);
+        request.setCampaign(campaign);
+
+        log.info("BrandingRequest {} aprobada → Campaign {} creada y activa, commercial user {}",
+            requestId, campaign.getId(), userId);
 
         emailService.sendBrandingReadyToLaunchEmail(
             adminNotificationEmail,
             request.getBrandName(),
             request.getGame().getTitle());
+
+        notificationService.createInternalNotification(
+            userId,
+            "¡Campaña lanzada!",
+            "La campaña para \"" + request.getBrandName() + "\" ya está activa",
+            Instant.now());
+
         if (request.getReviewedByAdmin() != null) {
             notificationService.createInternalNotification(
                 request.getReviewedByAdmin().getUser().getId(),
-                "Campaña lista para lanzar",
-                "\"" + request.getBrandName() + "\" fue aprobada por el anunciante y está lista para lanzar",
+                "Campaña lanzada",
+                "\"" + request.getBrandName() + "\" fue lanzada por el anunciante",
                 Instant.now());
         }
     }
@@ -421,7 +501,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
         if (!request.canBeReviewedByAdvertiser()) {
-            throw new IllegalStateException("Design changes cannot be requested from status: " + request.getStatus());
+            throw new ValidationException("Design changes cannot be requested from status: " + request.getStatus());
         }
 
         request.setStatus(BrandingRequestStatus.CHANGES_REQUESTED);
@@ -445,7 +525,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
         if (request.getGameConfig() == null || request.getGameConfig().isEmpty()) {
-            throw new IllegalStateException("Design has not been submitted yet — no preview available");
+            throw new ValidationException("Design has not been submitted yet — no preview available");
         }
 
         return gameService.generatePreviewUrl(request);
@@ -457,8 +537,10 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     public CorporateResourceUploadPermissionDTO generateResourceUploadUrl(Long requestId, FileUploadRequestDTO dto, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
-        if (request.getStatus() != BrandingRequestStatus.DRAFT) {
-            throw new IllegalStateException("Corporate resources can only be uploaded in DRAFT status");
+        if (Set.of(BrandingRequestStatus.LAUNCHED,
+                   BrandingRequestStatus.REJECTED, BrandingRequestStatus.CANCELLED)
+                .contains(request.getStatus())) {
+            throw new ValidationException("Corporate resources cannot be uploaded in status: " + request.getStatus());
         }
 
         String ext = extractExtension(dto.getOriginalFileName());
@@ -496,7 +578,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             .orElseThrow(() -> new EntityNotFoundException("Corporate resource not found: " + dto.getResourceId()));
 
         if (resource.getStatus() != AssetStatus.PENDING) {
-            throw new IllegalStateException("Resource is not in PENDING status");
+            throw new ValidationException("Resource is not in PENDING status");
         }
 
         try {
@@ -509,7 +591,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             );
 
             if (realMime == null) {
-                throw new IllegalStateException("Resource upload verification failed — file not found in storage");
+                throw new ValidationException("Resource upload verification failed — file not found in storage");
             }
 
             resource.markAsValidated();

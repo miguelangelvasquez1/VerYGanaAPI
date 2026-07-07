@@ -50,8 +50,8 @@ public class AdScorer {
      * Score ∈ [0, cfg.categoryMatch].
      */
     static final ScoringFactor CATEGORY_MATCH = (ad, ctx, cfg) -> {
-        if (ad.getCategories() == null || ad.getCategories().isEmpty()) return 0.0;
-        Set<Long> adCatIds = ad.getCategories().stream()
+        if (ad.getTargetAudience() == null || ad.getTargetAudience().getCategories() == null || ad.getTargetAudience().getCategories().isEmpty()) return 0.0;
+        Set<Long> adCatIds = ad.getTargetAudience().getCategories().stream()
                 .map(c -> c.getId())
                 .collect(Collectors.toSet());
         Set<Long> intersection = new HashSet<>(adCatIds);
@@ -70,8 +70,8 @@ public class AdScorer {
     static final ScoringFactor AGE_MATCH = (ad, ctx, cfg) -> {
         Integer age = ctx.consumerAge();
         if (age == null) return cfg.getAgeMatch();
-        boolean minOk = ad.getMinAge() == null || ad.getMinAge() <= age;
-        boolean maxOk = ad.getMaxAge() == null || ad.getMaxAge() >= age;
+        boolean minOk = ad.getTargetAudience() == null || ad.getTargetAudience().getMinAge() == null || ad.getTargetAudience().getMinAge() <= age;
+        boolean maxOk = ad.getTargetAudience() == null || ad.getTargetAudience().getMaxAge() == null || ad.getTargetAudience().getMaxAge() >= age;
         return (minOk && maxOk) ? cfg.getAgeMatch() : 0.0;
     };
 
@@ -82,7 +82,7 @@ public class AdScorer {
      * Score ∈ {0, cfg.genderMatch/2, cfg.genderMatch}.
      */
     static final ScoringFactor GENDER_MATCH = (ad, ctx, cfg) -> {
-        TargetGender adGender = ad.getTargetGender();
+        TargetGender adGender = ad.getTargetAudience() != null ? ad.getTargetAudience().getTargetGender() : null;
         if (adGender == null || adGender == TargetGender.ALL) return cfg.getGenderMatch();
         TargetGender consumer = ctx.consumerGender();
         if (consumer == null) return cfg.getGenderMatch() / 2.0;

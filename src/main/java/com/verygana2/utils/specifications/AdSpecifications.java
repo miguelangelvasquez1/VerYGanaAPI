@@ -48,7 +48,7 @@ public class AdSpecifications {
             if (query != null) {
                 query.distinct(true);
             }
-            return root.join("categories").get("id").in(categoryIds);
+            return root.join("targetAudience").join("categories").get("id").in(categoryIds);
         };
     }
 }
