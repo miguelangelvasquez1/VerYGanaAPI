@@ -37,6 +37,8 @@ import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.PricingConfig;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdAsset;
@@ -49,7 +51,6 @@ import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.AdRepository;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.PricingConfigService;
@@ -83,7 +84,6 @@ public class AdServiceImpl implements AdService {
     private final WalletRepository walletRepository;
     private final AdMapper adMapper;
     private final CategoryService categoryService;
-    private final MunicipalityRepository municipalityRepository;
     private final TargetingValidator targetingValidator;
     private final Clock clock;
     private final R2Service r2Service;
@@ -341,8 +341,15 @@ public class AdServiceImpl implements AdService {
  
             Ad ad = adMapper.toEntity(request, commercialDetails);
             ad.setRewardPerLike(pricePerLike);
-            ad.setCategories(categories);
-            ad.setTargetMunicipalities(municipalities);
+
+            TargetAudience targetAudience = TargetAudience.builder()
+                    .categories(categories)
+                    .targetMunicipalities(municipalities)
+                    .minAge(request.getMinAge())
+                    .maxAge(request.getMaxAge())
+                    .targetGender(request.getTargetGender() != null ? TargetGender.valueOf(request.getTargetGender()) : null)
+                    .build();
+            ad.setTargetAudience(targetAudience);
  
             Ad savedAd = adRepository.save(ad);
  
@@ -379,16 +386,23 @@ public class AdServiceImpl implements AdService {
         }
 
         List<Category> selectedCategories = categoryService.getValidatedCategories(updateDto.getCategoryIds());
-        ad.setCategories(selectedCategories);
 
+        TargetAudience ta = ad.getTargetAudience();
+        if (ta == null) {
+            ta = new TargetAudience();
+            ad.setTargetAudience(ta);
+        }
+        ta.setCategories(selectedCategories);
 
         if (updateDto.getTargetMunicipalitiesCodes() != null) {
-            List<Municipality> targetMunicipalities = new ArrayList<>();
-            if (!updateDto.getTargetMunicipalitiesCodes().isEmpty()) {
-                targetMunicipalities = municipalityRepository.findAllById(Objects.requireNonNull(updateDto.getTargetMunicipalitiesCodes()));
-            }
-            ad.setTargetMunicipalities(targetMunicipalities);
+            ta.setTargetMunicipalities(updateDto.getTargetMunicipalitiesCodes().isEmpty()
+                    ? new ArrayList<>()
+                    : targetingValidator.getValidatedMunicipalities(updateDto.getTargetMunicipalitiesCodes()));
         }
+
+        if (updateDto.getMinAge() != null) ta.setMinAge(updateDto.getMinAge());
+        if (updateDto.getMaxAge() != null) ta.setMaxAge(updateDto.getMaxAge());
+        if (updateDto.getTargetGender() != null) ta.setTargetGender(TargetGender.valueOf(updateDto.getTargetGender()));
 
         adMapper.updateEntityFromDto(updateDto, ad);
 

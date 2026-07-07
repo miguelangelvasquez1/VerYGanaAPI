@@ -11,21 +11,27 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
 import com.verygana2.dtos.auth.RefreshRequest;
+import com.verygana2.dtos.auth.SetupPasswordDTO;
 import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
+import com.verygana2.dtos.user.ComplianceOfficerRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.security.CustomUserDetails;
+import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.UserService;
+import org.springframework.security.access.prepost.PreAuthorize;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 import com.verygana2.utils.audit.AuditLevel;
 import com.verygana2.utils.audit.Auditable;
@@ -44,6 +50,7 @@ public class AuthController {
     private final AuthenticationManager authManager;
     private final UserService userService;
     private final TicketDeliveryService ticketDeliveryService;
+    private final PasswordSetupService passwordSetupService;
 
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
@@ -51,11 +58,12 @@ public class AuthController {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
-    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService) {
+    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService) {
         this.tokenService = tokenService;
         this.authManager = authManager;
         this.userService = userService;
         this.ticketDeliveryService = ticketDeliveryService;
+        this.passwordSetupService = passwordSetupService;
     }
 
     /**
@@ -215,15 +223,50 @@ public class AuthController {
         response.addHeader(HttpHeaders.SET_COOKIE, clearCookie);
     }
 
-    @PostMapping("/register/consumer") //Devolver UserResponse o ConsumerRespone
+    @PostMapping("/register/consumer")
     public ResponseEntity<?> registerConsumer(@Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
         userService.registerConsumer(consumerRegisterRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Consumer registered successfully");
+        String message = Boolean.TRUE.equals(consumerRegisterRequest.getEsPEP())
+                ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
+                : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
+        return ResponseEntity.status(HttpStatus.CREATED).body(message);
     }
 
-    @PostMapping("/register/commercial") //Devolver UserResponse o ConsumerRespone
-    public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO consumerRegisterRequest) {
-        userService.registerCommercial(consumerRegisterRequest);
-        return ResponseEntity.status(HttpStatus.CREATED).body("Commercial registered successfully");
+    @PostMapping("/register/commercial")
+    public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
+        userService.registerCommercial(dto);
+        String message = Boolean.TRUE.equals(dto.getEsPEP())
+                ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
+                : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
+        return ResponseEntity.status(HttpStatus.CREATED).body(message);
+    }
+
+    @GetMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
+        userService.verifyEmail(token);
+        return ResponseEntity.ok("Cuenta activada correctamente. Ya puedes iniciar sesión.");
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<?> resendVerification(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body("El campo 'email' es requerido");
+        }
+        userService.resendVerificationEmail(email);
+        return ResponseEntity.ok("Correo de verificación reenviado.");
+    }
+
+    @PostMapping("/register/compliance-officer")
+    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    public ResponseEntity<?> registerComplianceOfficer(@Valid @RequestBody ComplianceOfficerRegisterDTO dto) {
+        userService.registerComplianceOfficer(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body("Oficial de cumplimiento registrado exitosamente.");
+    }
+
+    @PostMapping("/setup-password")
+    public ResponseEntity<String> setupPassword(@Valid @RequestBody SetupPasswordDTO dto) {
+        passwordSetupService.completePasswordSetup(dto.getToken(), dto.getPassword());
+        return ResponseEntity.ok("Password configured successfully. You can now log in.");
     }
 }

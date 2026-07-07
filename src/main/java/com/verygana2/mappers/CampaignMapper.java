@@ -29,11 +29,11 @@ public interface CampaignMapper {
     // De entidad a DTO
     @Mapping(target = "gameId", source = "game.id")
     @Mapping(target = "gameTitle", source = "game.title")
-    @Mapping(target = "categories", source = "categories")
-    @Mapping(target = "targetGender", source = "targetGender")
-    @Mapping(target = "minAge", source = "minAge")
-    @Mapping(target = "maxAge", source = "maxAge")
-    @Mapping(target = "targetMunicipalities", source = "targetMunicipalities")
+    @Mapping(target = "categories", source = "targetAudience.categories")
+    @Mapping(target = "targetGender", source = "targetAudience.targetGender")
+    @Mapping(target = "minAge", source = "targetAudience.minAge")
+    @Mapping(target = "maxAge", source = "targetAudience.maxAge")
+    @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
     CampaignDTO toDto(Campaign entity);
 
     // ---- Sub-mappers ----
@@ -70,9 +70,8 @@ public interface CampaignMapper {
     @Mapping(target = "maxSessionsPerUserPerDay", source = "request.maxSessionsPerUserPerDay")
     // Map config fields from request
     @Mapping(target = "configData", source = "request.configData")
-    // Targeting relacional (se setea luego en el service)
-    @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "targetMunicipalities", ignore = true)
+    // Targeting (se setea luego en el service via TargetAudience)
+    @Mapping(target = "targetAudience", ignore = true)
     // Auditoría
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
@@ -81,9 +80,6 @@ public interface CampaignMapper {
     @Mapping(target = "spentCoins", ignore = true)
     @Mapping(target = "budget", ignore = true)
     @Mapping(target = "configDefinition", ignore = true)
-    @Mapping(target = "minAge", ignore = true)
-    @Mapping(target = "maxAge", ignore = true)
-    @Mapping(target = "targetGender", ignore = true)
     Campaign toEntity(CreateCampaignRequestDTO request, Game game, CommercialDetails commercial);
 
     // Helper to convert JsonNode to Map<String,Object> for MapStruct

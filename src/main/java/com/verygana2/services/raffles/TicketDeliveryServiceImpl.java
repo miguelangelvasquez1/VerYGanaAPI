@@ -13,9 +13,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketEarningResult;
+import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
+import com.verygana2.models.enums.ActivityType;
+import com.verygana2.models.enums.UserLevel;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
+import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleRule;
@@ -24,9 +28,11 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
+import org.springframework.context.ApplicationEventPublisher;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +48,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     private final RaffleService raffleService;
     private final NotificationService notificationService;
     private final ConsumerDetailsRepository consumerDetailsRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final LevelService levelService;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -154,7 +162,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 purchaseRule.getTicketEarningRule().getMinPurchaseAmountCents(),
                 purchaseRule.getTicketEarningRule().getTicketsToAward());
 
-        // 2. Verificar elegibilidad del usuario para el tipo de rifa (sin lanzar excepción)
+        // 2. Verificar elegibilidad del usuario para el tipo de rifa (sin lanzar
+        // excepción)
         if (!raffleTicketService.canUserReceiveTickets(consumerId, raffle.getRaffleType())) {
             log.debug("User {} is not eligible for {} raffle {}. Skipping.",
                     consumerId, raffle.getRaffleType(), raffle.getId());
@@ -188,7 +197,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         }
 
         // 6. Emitir tickets
-        log.info("Calling raffleTicketService.issueTickets() with: consumerId={}, raffleId={}, quantity={}, source=PURCHASE, sourceId={}",
+        log.info(
+                "Calling raffleTicketService.issueTickets() with: consumerId={}, raffleId={}, quantity={}, source=PURCHASE, sourceId={}",
                 consumerId, raffle.getId(), ticketsToAward, purchaseId);
         List<RaffleTicketResponseDTO> issuedTickets = raffleTicketService.issueTickets(
                 consumerId,
@@ -402,8 +412,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     }
 
     private boolean processDailyLoginRaffle(Raffle raffle, Long consumerId) {
-        RaffleRule dailyLoginRule = raffle.getRaffleRules() == null ? null :
-                raffle.getRaffleRules().stream()
+        RaffleRule dailyLoginRule = raffle.getRaffleRules() == null ? null
+                : raffle.getRaffleRules().stream()
                         .filter(r -> r.getTicketEarningRule() != null
                                 && r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.DAILY_LOGIN
                                 && r.isActive())
@@ -416,7 +426,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         }
 
         int ticketsToAward = dailyLoginRule.getTicketEarningRule().getTicketsToAward();
-        if (ticketsToAward <= 0) return false;
+        if (ticketsToAward <= 0)
+            return false;
 
         long todayId = Long.parseLong(LocalDate.now(ZoneOffset.UTC).format(DateTimeFormatter.BASIC_ISO_DATE));
         List<RaffleTicketResponseDTO> issued = raffleTicketService.issueTickets(
@@ -424,10 +435,10 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 raffle.getId(),
                 ticketsToAward,
                 RaffleTicketSource.DAILY_LOGIN,
-                todayId
-        );
+                todayId);
 
-        log.info("Issued {} daily login ticket(s) to consumer {} in raffle {}", issued.size(), consumerId, raffle.getId());
+        log.info("Issued {} daily login ticket(s) to consumer {} in raffle {}", issued.size(), consumerId,
+                raffle.getId());
 
         if (!issued.isEmpty()) {
             sendNotification(consumerId, raffle, issued.size(), RaffleTicketSource.DAILY_LOGIN);
@@ -459,7 +470,8 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         List<Raffle> activeRaffles = getActiveRafflesOrderedByDrawDate();
 
         if (activeRaffles.isEmpty()) {
-            log.info("No active raffles. No referral tickets issued.");
+            log.info("No active raffles for referral. Awarding double XP to referrer {}.", referrerId);
+            eventPublisher.publishEvent(new XpAwardRequestedEvent(this, referrerId, ActivityType.REFERRAL_ACTIVE));
             return;
         }
 
@@ -482,8 +494,18 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
     private boolean processReferralRaffle(Raffle raffle, Long referrerId, Long referralId) {
 
-        RaffleRule referralRule = raffle.getRaffleRules() == null ? null :
-                raffle.getRaffleRules().stream()
+        UserLevel userLevel = levelService.getUserLevel(referrerId);
+
+        // BRONCE, PLATA y ORO solo participan en rifas STANDARD
+        boolean canAccessPremium = userLevel.ordinal() >= UserLevel.RUBI.ordinal();
+        if (!canAccessPremium && raffle.getRaffleType() == RaffleType.PREMIUM) {
+            log.debug("User {} (level {}) is not eligible for PREMIUM raffle {}. Skipping.",
+                    referrerId, userLevel, raffle.getId());
+            return false;
+        }
+
+        RaffleRule referralRule = raffle.getRaffleRules() == null ? null
+                : raffle.getRaffleRules().stream()
                         .filter(r -> r.getTicketEarningRule() != null
                                 && r.getTicketEarningRule().getRuleType() == TicketEarningRuleType.REFERRAL
                                 && r.isActive())
@@ -495,7 +517,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
             return false;
         }
 
-        int ticketsToAward = referralRule.getTicketEarningRule().getTicketsToAward();
+        int ticketsToAward = userLevel.getReferralTickets();
 
         if (ticketsToAward <= 0) return false;
 
@@ -504,14 +526,24 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
                 raffle.getId(),
                 ticketsToAward,
                 RaffleTicketSource.REFERRAL,
-                referralId
-        );
+                referralId);
 
-        log.info("Issued {} referral ticket(s) to referrer {} in raffle {}",
-                issued.size(), referrerId, raffle.getId());
+        log.info("Issued {} referral ticket(s) to referrer {} (level {}) in raffle {}",
+                issued.size(), referrerId, userLevel, raffle.getId());
 
         if (!issued.isEmpty()) {
             sendNotification(referrerId, raffle, issued.size(), RaffleTicketSource.REFERRAL);
+
+            // Por cada ticket adicional más allá del primero, el nivel del referidor
+            // recibe un evento REFERRAL_ACTIVE extra (el primero ya fue otorgado en applyReferredBy).
+            int bonusXpEvents = issued.size() - 1;
+            for (int i = 0; i < bonusXpEvents; i++) {
+                eventPublisher.publishEvent(new XpAwardRequestedEvent(this, referrerId, ActivityType.REFERRAL_ACTIVE));
+            }
+            if (bonusXpEvents > 0) {
+                log.info("Awarded {} bonus XP event(s) to referrer {} for {} tickets issued",
+                        bonusXpEvents, referrerId, issued.size());
+            }
         }
 
         return true;

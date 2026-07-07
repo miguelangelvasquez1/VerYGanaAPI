@@ -127,8 +127,8 @@ public class Payout {
      * Nullable: se vincula solo cuando el job pasa el payout a PROCESSING.
      */
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "wompi_transaction_id")
-    private WompiTransaction wompiTransaction;
+    @JoinColumn(name = "kushki_transaction_id")
+    private KushkiTransaction kushkiTransaction;
 
     @Column(name = "scheduled_at", nullable = false)
     @NotNull

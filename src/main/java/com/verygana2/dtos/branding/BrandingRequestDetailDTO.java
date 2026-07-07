@@ -67,15 +67,13 @@ public class BrandingRequestDetailDTO {
     private String reviewedByAdminName;
 
     // ===== Diseñador =====
-    private String designerNotes;
     private String assignedDesignerName;
     private String assignedDesignerCode;
 
     // ===== Recursos corporativos =====
     private List<CorporateResourceDTO> corporateResources;
 
-    // ===== Flags de completitud (para guiar el formulario en el frontend) =====
-    private boolean hasCompleteRewardConfig;
+    // ===== Flag de completitud de targeting (para guiar el formulario en el frontend) =====
     private boolean hasCompleteTargeting;
 
     // ===== Auditoría =====

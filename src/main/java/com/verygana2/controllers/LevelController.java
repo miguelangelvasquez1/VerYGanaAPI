@@ -55,8 +55,7 @@ public class LevelController {
                         l.getXpMax() == Long.MAX_VALUE ? "∞" : String.valueOf(l.getXpMax()),
                         l.getMultiplier(),
                         l.getReferralKeys(),
-                        l.getReferralTickets(),
-                        l.getRaffleTickets()
+                        l.getReferralTickets()
                 ))
                 .toList();
         return ResponseEntity.ok(config);

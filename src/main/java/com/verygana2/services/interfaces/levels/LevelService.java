@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import com.verygana2.dtos.levels.LevelProfileResponse;
 import com.verygana2.dtos.levels.TransactionLogResponse;
 import com.verygana2.models.enums.ActivityType;
+import com.verygana2.models.enums.UserLevel;
 import com.verygana2.models.levels.UserLevelProfile;
 
 public interface LevelService {
@@ -50,4 +51,6 @@ public interface LevelService {
      * Historial paginado de transacciones XP.
      */
     Page<TransactionLogResponse> getTransactionHistory(Long consumerId, Pageable pageable);
+
+    UserLevel getUserLevel (Long consumerId);
 }

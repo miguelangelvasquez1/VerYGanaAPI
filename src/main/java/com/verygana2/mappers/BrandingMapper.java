@@ -14,7 +14,6 @@ import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.branding.CorporateResource;
-import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.games.Game;
 
 import jakarta.validation.ValidationException;
@@ -50,25 +49,9 @@ public abstract class BrandingMapper {
 
     @Mapping(target = "gameName", source = "game.title")
     @Mapping(target = "commercialName", source = "commercial.companyName")
-    @Mapping(target = "assignedDesignerName", ignore = true)
+    @Mapping(target = "assignedDesignerName", expression = "java(request.getAssignedDesigner() != null ? request.getAssignedDesigner().getName() + \" \" + request.getAssignedDesigner().getLastName() : null)")
     @Mapping(target = "corporateResourceCount", ignore = true)
     public abstract BrandingRequestSummaryDTO toSummaryDTO(BrandingRequest request);
-
-    @AfterMapping
-    protected void setSummaryComputedFields(@MappingTarget BrandingRequestSummaryDTO dto, BrandingRequest request) {
-        if (request.getAssignedDesigner() != null) {
-            dto.setAssignedDesignerName(
-                request.getAssignedDesigner().getName() + " " + request.getAssignedDesigner().getLastName()
-            );
-        }
-        if (request.getCorporateResources() != null) {
-            dto.setCorporateResourceCount(
-                (int) request.getCorporateResources().stream()
-                    .filter(r -> r.getStatus() == AssetStatus.VALIDATED)
-                    .count()
-            );
-        }
-    }
 
     // ===== BrandingRequest → BrandingRequestDetailDTO =====
 
@@ -76,12 +59,15 @@ public abstract class BrandingMapper {
     @Mapping(target = "gameName", source = "game.title")
     @Mapping(target = "gameFrontPageUrl", source = "game.frontPageUrl")
     @Mapping(target = "commercialName", source = "commercial.companyName")
-    @Mapping(target = "targetMunicipalities", source = "targetMunicipalities")
+    @Mapping(target = "categories", source = "targetAudience.categories")
+    @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
+    @Mapping(target = "minAge", source = "targetAudience.minAge")
+    @Mapping(target = "maxAge", source = "targetAudience.maxAge")
+    @Mapping(target = "targetGender", source = "targetAudience.targetGender")
     @Mapping(target = "assignedDesignerName", ignore = true)
     @Mapping(target = "assignedDesignerCode", ignore = true)
     @Mapping(target = "reviewedByAdminName", ignore = true)
     @Mapping(target = "corporateResources", ignore = true)
-    @Mapping(target = "hasCompleteRewardConfig", ignore = true)
     @Mapping(target = "hasCompleteTargeting", ignore = true)
     public abstract BrandingRequestDetailDTO toDetailDTO(BrandingRequest request);
 
@@ -96,12 +82,9 @@ public abstract class BrandingMapper {
         if (request.getReviewedByAdmin() != null) {
             dto.setReviewedByAdminName("Admin #" + request.getReviewedByAdmin().getId());
         }
-        dto.setHasCompleteRewardConfig(request.hasCompleteRewardConfig());
-        dto.setHasCompleteTargeting(request.hasCompleteTargeting());
     }
 
     // ===== CorporateResource → CorporateResourceDTO =====
-    // temporalUrl se inyecta en el servicio (requiere r2Service)
 
     @Mapping(target = "temporalUrl", ignore = true)
     public abstract CorporateResourceDTO toCorporateResourceDTO(CorporateResource resource);

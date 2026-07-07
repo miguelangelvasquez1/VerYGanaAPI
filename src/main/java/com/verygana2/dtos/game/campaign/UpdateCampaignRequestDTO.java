@@ -43,8 +43,8 @@ public class UpdateCampaignRequestDTO {
     @AllArgsConstructor
     public class TargetAudienceDTO {
 
-        private int minAge;
-        private int maxAge;
+        private Integer minAge;
+        private Integer maxAge;
         private TargetGender gender;
         private List<String> municipalityCodes;
     }

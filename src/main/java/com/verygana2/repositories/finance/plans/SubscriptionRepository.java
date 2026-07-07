@@ -49,7 +49,18 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
      * Historial completo de un comercial.
      */
     List<Subscription> findByCommercialOrderByCreatedAtDesc(CommercialDetails commercial);
- 
+
+    /**
+     * Historial filtrado por rango de fechas para el panel de facturación.
+     */
+    @Query("SELECT s FROM Subscription s WHERE s.commercial.id = :commercialId " +
+           "AND s.createdAt >= :from AND s.createdAt < :to " +
+           "ORDER BY s.createdAt DESC")
+    List<Subscription> findByCommercialIdAndPeriod(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
     /**
      * Limpieza de pagos abandonados — checkouts generados hace más de X horas
      * que nunca fueron completados.

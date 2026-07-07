@@ -28,15 +28,13 @@ public interface AdMapper {
     @Mapping(target = "status", expression = "java(com.verygana2.models.enums.AdStatus.PENDING)")
     @Mapping(target = "createdAt", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "commercial", source = "commercial")
-    @Mapping(target = "targetGender", expression = "java(com.verygana2.models.enums.TargetGender.valueOf(request.getTargetGender()))")
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "likes", ignore = true)
-    @Mapping(target = "categories", ignore = true)
-    @Mapping(target = "targetMunicipalities", ignore = true)
+    @Mapping(target = "targetAudience", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
-    @Mapping(target = "rewardPerLike", ignore = true) // Se setea manualmente en el servicio para incluir validación de plan
+    @Mapping(target = "rewardPerLike", ignore = true)
     @Mapping(target = "endDate", ignore = true)
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
@@ -46,7 +44,13 @@ public interface AdMapper {
     @Mapping(target = "completionPercentage", source = "completionPercentage")
     @Mapping(target = "mediaType", expression = "java(entity.getAsset() != null ? entity.getAsset().getMediaType() : null)")
     @Mapping(target = "contentUrl", ignore = true)
+    @Mapping(target = "categories", source = "targetAudience.categories")
+    @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
+    @Mapping(target = "minAge", source = "targetAudience.minAge")
+    @Mapping(target = "maxAge", source = "targetAudience.maxAge")
+    @Mapping(target = "targetGender", expression = "java(entity.getTargetAudience() != null && entity.getTargetAudience().getTargetGender() != null ? entity.getTargetAudience().getTargetGender().name() : null)")
     AdResponseDTO toDto(Ad entity);
+
     @Mapping(target = "departmentName", source = "department.name")
     MunicipalityResponseDTO municipalityToDto(Municipality municipality);
 
@@ -59,11 +63,16 @@ public interface AdMapper {
     @Mapping(target = "durationSeconds", expression = "java(ad.getAsset() != null ? ad.getAsset().getDurationSeconds() : null)")
     AdForConsumerDTO toConsumerDto(Ad ad);
 
-    // Mapear entidad a DTO para administrador
+    // 🔹 Mapear entidad a DTO para administrador
     @Mapping(target = "commercialName", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getCompanyName() : null)")
     @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true)
+    @Mapping(target = "categories", source = "targetAudience.categories")
+    @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
+    @Mapping(target = "minAge", source = "targetAudience.minAge")
+    @Mapping(target = "maxAge", source = "targetAudience.maxAge")
+    @Mapping(target = "targetGender", expression = "java(ad.getTargetAudience() != null && ad.getTargetAudience().getTargetGender() != null ? ad.getTargetAudience().getTargetGender().name() : null)")
     AdForAdminDTO toAdminDto(Ad ad);
 
     // 🔹 Actualizar entidad existente desde un DTO
@@ -77,17 +86,17 @@ public interface AdMapper {
     @Mapping(target = "spentBudget", ignore = true)
     @Mapping(target = "currentLikes", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
-    @Mapping(target = "categories", ignore = true)
+    @Mapping(target = "targetAudience", ignore = true)
+    @Mapping(target = "targetMunicipalities", ignore = true)
     @Mapping(target = "totalBudget", ignore = true)
-    @Mapping(target = "targetMunicipalities", ignore = true) // Mapeo manual en el servicio
     @Mapping(target = "version", ignore = true)
     @Mapping(target = "asset", ignore = true)
     @Mapping(target = "rewardPerLike", ignore = true)
     @Mapping(target = "endDate", ignore = true)
     @Mapping(target = "maxLikesPerUserPerDay", ignore = true)
     @Mapping(target = "maxLikes", ignore = true)
-    void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity); //Permite campos opcionales
+    void updateEntityFromDto(AdUpdateDTO dto, @MappingTarget Ad entity);
 
-    // 🔹 Listado (opcional)
+    // 🔹 Listado
     List<AdResponseDTO> toDtoList(List<Ad> entities);
 }

@@ -21,6 +21,9 @@ public interface ProductReviewRepository extends JpaRepository<ProductReview, Lo
     @Query("SELECT avg(pr.rating) FROM ProductReview pr WHERE pr.product.commercial.id = :commercialId")
     Double commercialAvgRating (@Param("commercialId") Long commercialId);
 
+    @Query("SELECT count(pr) FROM ProductReview pr WHERE pr.product.commercial.id = :commercialId")
+    Integer commercialReviewCount (@Param("commercialId") Long commercialId);
+
     @Query("SELECT pr FROM ProductReview pr WHERE pr.product.id = :productId")
     Page<ProductReview> getProductReviewByProductId (@Param ("productId") Long productId, Pageable pageable);
 

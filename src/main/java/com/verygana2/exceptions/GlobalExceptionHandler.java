@@ -11,6 +11,8 @@ import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.TransactionSystemException;
@@ -42,6 +44,8 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -88,6 +92,24 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex, WebRequest request) {
         log.warn("Bad credentials: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, "Invalid credentials", request);
+    }
+
+    @ExceptionHandler(DisabledException.class)
+    public ResponseEntity<ErrorResponse> handleDisabledException(
+            DisabledException ex, WebRequest request) {
+        log.warn("Login attempt on non-activated account: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN,
+                "Your account is pending activation. Please check your email for the password setup link.",
+                request);
+    }
+
+        @ExceptionHandler(LockedException.class)
+    public ResponseEntity<ErrorResponse> handleLockedException(
+            LockedException ex, WebRequest request) {
+        log.warn("Login blocked — account locked: {}", ex.getMessage());
+        return buildError(HttpStatus.UNAUTHORIZED,
+                "Tu cuenta ha sido bloqueada. Contacta al soporte para más información.",
+                request);
     }
 
     // ==================== RECURSOS NO ENCONTRADOS (404) ====================
@@ -161,6 +183,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
         log.warn("Claim prize error: {}", ex.getMessage());
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(CodeEncryptionException.class)
+    public ResponseEntity<ErrorResponse> handleCodeEncryptionException(CodeEncryptionException ex, WebRequest request) {
+        log.warn("Code encryption/decryption error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_REQUEST, "Invalid or corrupted code", request);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -250,6 +278,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidOperationException(
             InvalidOperationException ex, WebRequest request) {
         log.warn("Invalid operation error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidContentException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidContentException(
+            InvalidContentException ex, WebRequest request) {
+        log.warn("Invalid content error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(GameRewardException.class)
+    public ResponseEntity<ErrorResponse> handleGameRewardException(
+            GameRewardException ex, WebRequest request) {
+        log.warn("Game reward error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
@@ -353,6 +395,22 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         log.warn("Unauthorized: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+
+    @ExceptionHandler(NoHandlerFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoHandlerFound(NoHandlerFoundException ex, WebRequest request) {
+        String msg = String.format("Ruta no encontrada: [%s] %s", ex.getHttpMethod(), ex.getRequestURL());
+        log.warn(msg);
+        return buildError(HttpStatus.NOT_FOUND, msg, request);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex, WebRequest request) {
+        String msg = String.format("Método [%s] no permitido en esta ruta. Métodos aceptados: %s",
+                ex.getMethod(), ex.getSupportedHttpMethods());
+        log.warn(msg);
+        return buildError(HttpStatus.METHOD_NOT_ALLOWED, msg, request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

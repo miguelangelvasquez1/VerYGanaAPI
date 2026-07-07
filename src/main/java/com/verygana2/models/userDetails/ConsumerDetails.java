@@ -8,7 +8,9 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Category;
 import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.Gender;
+import com.verygana2.models.enums.IncomeRange;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.raffles.RaffleTicket;
 import jakarta.persistence.*;
@@ -33,8 +35,7 @@ public class ConsumerDetails extends UserDetails {
     @Column(nullable = false, length = 20)
     private String userName;
 
-    // ConsumerDetails — DESPUÉS (correcto)
-    @NotNull(message = "Avatar is required") // ← NotNull para objetos/entidades
+    @NotNull(message = "Avatar is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "avatar_id")
     private Avatar avatar;
@@ -65,7 +66,7 @@ public class ConsumerDetails extends UserDetails {
     @NotBlank(message = "Municipality is required")
     @Size(max = 50)
     private String municipalityName;
-    
+
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)
@@ -102,5 +103,24 @@ public class ConsumerDetails extends UserDetails {
 
     @OneToMany(mappedBy = "referredBy")
     private List<ConsumerDetails> referrals = new ArrayList<>();
+
+    // ==================== KYC / SAGRILAFT ====================
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "document_type", nullable = false, length = 5)
+    private DocumentType documentType;
+
+    @Column(name = "document_number", nullable = false, length = 20)
+    private String documentNumber;
+
+    @Column(name = "occupation", length = 100)
+    private String occupation;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "monthly_income_range", length = 30)
+    private IncomeRange monthlyIncomeRange;
+
+    @Column(name = "is_pep", nullable = false)
+    private boolean pep = false;
 
 }

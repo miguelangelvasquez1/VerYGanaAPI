@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface PetCatalogService {
     List<PetCatalogItemResponseDTO> getAllCatalogItems();
+    List<PetCatalogItemResponseDTO> getAllCatalogItemsAdmin();
     PetCatalogItemResponseDTO createCatalogItem(PetCatalogItemRequestDTO dto);
     PetCatalogItemResponseDTO updateCatalogItem(Long id, PetCatalogItemRequestDTO dto);
     void deleteCatalogItem(Long id);

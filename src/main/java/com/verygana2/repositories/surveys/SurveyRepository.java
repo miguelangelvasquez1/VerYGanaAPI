@@ -46,11 +46,12 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
         SELECT s.*,
             (
                 SELECT COUNT(*)
-                FROM survey_categories sc
-                JOIN consumer_preferences ucp ON ucp.category_id = sc.category_id
-                WHERE sc.survey_id = s.id AND ucp.user_id = ?1
+                FROM target_audience_categories tac
+                JOIN consumer_preferences ucp ON ucp.category_id = tac.category_id
+                WHERE tac.target_audience_id = s.target_audience_id AND ucp.user_id = ?1
             ) AS match_score
         FROM surveys s
+        LEFT JOIN target_audiences ta ON ta.id = s.target_audience_id
         WHERE s.status = 'ACTIVE'
         AND (s.starts_at IS NULL OR s.starts_at <= ?4)
         AND (s.ends_at   IS NULL OR s.ends_at   >= ?4)
@@ -62,15 +63,15 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
                   AND ss.expires_at > CURRENT_TIMESTAMP
             )
         ) < s.max_responses)
-        AND (?2 IS NULL OR s.min_age IS NULL OR ?2 >= s.min_age)
-        AND (?2 IS NULL OR s.max_age IS NULL OR ?2 <= s.max_age)
-        AND (s.target_gender IS NULL OR ?3 IS NULL OR s.target_gender = ?3)
+        AND (?2 IS NULL OR ta.min_age IS NULL OR ?2 >= ta.min_age)
+        AND (?2 IS NULL OR ta.max_age IS NULL OR ?2 <= ta.max_age)
+        AND (ta.target_gender IS NULL OR ?3 IS NULL OR ta.target_gender = ?3)
         AND (
-            NOT EXISTS (SELECT 1 FROM survey_municipalities sm WHERE sm.survey_id = s.id)
+            NOT EXISTS (SELECT 1 FROM target_audience_municipalities tam WHERE tam.target_audience_id = s.target_audience_id)
             OR EXISTS (
-                SELECT 1 FROM survey_municipalities sm
-                JOIN consumer_details cd ON cd.municipality_code = sm.municipality_code
-                WHERE sm.survey_id = s.id AND cd.user_id = ?1
+                SELECT 1 FROM target_audience_municipalities tam
+                JOIN consumer_details cd ON cd.municipality_code = tam.municipality_code
+                WHERE tam.target_audience_id = s.target_audience_id AND cd.user_id = ?1
             )
         )
         AND NOT EXISTS (
@@ -83,6 +84,7 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
         """,
             countQuery = """
         SELECT COUNT(*) FROM surveys s
+        LEFT JOIN target_audiences ta ON ta.id = s.target_audience_id
         WHERE s.status = 'ACTIVE'
         AND (s.starts_at IS NULL OR s.starts_at <= ?4)
         AND (s.ends_at   IS NULL OR s.ends_at   >= ?4)
@@ -94,15 +96,15 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
                   AND ss.expires_at > CURRENT_TIMESTAMP
             )
         ) < s.max_responses)
-        AND (?2 IS NULL OR s.min_age IS NULL OR ?2 >= s.min_age)
-        AND (?2 IS NULL OR s.max_age IS NULL OR ?2 <= s.max_age)
-        AND (s.target_gender IS NULL OR ?3 IS NULL OR s.target_gender = ?3)
+        AND (?2 IS NULL OR ta.min_age IS NULL OR ?2 >= ta.min_age)
+        AND (?2 IS NULL OR ta.max_age IS NULL OR ?2 <= ta.max_age)
+        AND (ta.target_gender IS NULL OR ?3 IS NULL OR ta.target_gender = ?3)
         AND (
-            NOT EXISTS (SELECT 1 FROM survey_municipalities sm WHERE sm.survey_id = s.id)
+            NOT EXISTS (SELECT 1 FROM target_audience_municipalities tam WHERE tam.target_audience_id = s.target_audience_id)
             OR EXISTS (
-                SELECT 1 FROM survey_municipalities sm
-                JOIN consumer_details cd ON cd.municipality_code = sm.municipality_code
-                WHERE sm.survey_id = s.id AND cd.user_id = ?1
+                SELECT 1 FROM target_audience_municipalities tam
+                JOIN consumer_details cd ON cd.municipality_code = tam.municipality_code
+                WHERE tam.target_audience_id = s.target_audience_id AND cd.user_id = ?1
             )
         )
         AND NOT EXISTS (

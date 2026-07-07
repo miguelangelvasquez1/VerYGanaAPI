@@ -101,7 +101,7 @@ class AdSelectionTest {
         ad.setStatus(AdStatus.ACTIVE);
         ad.setMaxLikes(100);
         ad.setCurrentLikes(0);
-        ad.setCategories(List.of());
+        ad.getTargetAudience().setCategories(List.of());
         ad.setAsset(asset);
         return ad;
     }

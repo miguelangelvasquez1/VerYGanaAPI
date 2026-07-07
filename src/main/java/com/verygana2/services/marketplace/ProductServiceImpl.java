@@ -1,5 +1,6 @@
 package com.verygana2.services.marketplace;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -9,6 +10,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -50,9 +52,9 @@ import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
-import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
@@ -83,7 +85,7 @@ public class ProductServiceImpl implements ProductService {
 
     private final ProductMapper productMapper;
 
-    private final CommercialDetailsService commercialDetailsService;
+    private final CommercialDetailsRepository commercialDetailsRepository;
 
     private final ConsumerDetailsService consumerDetailsService;
 
@@ -101,6 +103,9 @@ public class ProductServiceImpl implements ProductService {
     @Value("${marketplace.min-product-price-cents:100000}")
     private long minProductPriceCents; // default $1.000 COP
 
+    @Value("${app.base-url}")
+    private String appBaseUrl;
+
     private static final Set<SupportedMimeType> allowedImageMimeTypes = Set.of(SupportedMimeType.IMAGE_JPEG,
             SupportedMimeType.IMAGE_PNG,
             SupportedMimeType.IMAGE_WEBP);
@@ -114,7 +119,7 @@ public class ProductServiceImpl implements ProductService {
         log.info("📋 Preparing product creation for commercial: {}", commercialId);
 
         // 1. Validar que el commercial existe
-        if (!commercialDetailsService.existsCommercialById(commercialId)) {
+        if (!commercialDetailsRepository.existsByUser_Id(commercialId)) {
             throw new EntityNotFoundException("Commercial not found: " + commercialId);
         }
 
@@ -149,7 +154,8 @@ public class ProductServiceImpl implements ProductService {
         ProductImageAsset asset = null;
 
         try {
-            CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+            CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialId)
+                    .orElseThrow(() -> new EntityNotFoundException("Commercial not found: " + commercialId));
 
             asset = productImageAssetRepository
                     .findById(Objects.requireNonNull(request.getProductAssetId()))
@@ -385,7 +391,11 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page) {
         Pageable pageable = PageRequest.of(page, 20, Direction.DESC, "createdAt");
         PagedResponse<Product> activeProducts = PagedResponse.from(productRepository.findAllActiveProducts(pageable));
-        return activeProducts.map(productMapper::toProductSummaryResponseDTO);
+        return activeProducts.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
@@ -402,11 +412,17 @@ public class ProductServiceImpl implements ProductService {
         int indexPage = (page != null && page >= 0) ? page : 0;
         Pageable pageable = PageRequest.of(indexPage, 20, sort);
 
+        Long maxPriceCents = maxPrice != null ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue() : null;
+
         PagedResponse<Product> productPage = PagedResponse
-                .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPrice,
+                .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
                         pageable));
 
-        return productPage.map(productMapper::toProductSummaryResponseDTO);
+        return productPage.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
 
     }
 
@@ -427,6 +443,7 @@ public class ProductServiceImpl implements ProductService {
     public ProductResponseDTO detailProduct(Long productId) {
         Product product = getById(productId);
         ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
         return response;
     }
 
@@ -434,7 +451,7 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page) {
 
-        if (!commercialDetailsService.existsCommercialById(commercialId)) {
+        if (!commercialDetailsRepository.existsByUser_Id(commercialId)) {
             throw new ObjectNotFoundException("Commercial with id:" + commercialId + " not found ",
                     CommercialDetails.class);
         }
@@ -443,11 +460,15 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findByCommercialId(commercialId, pageable));
-        return products.map(productMapper::toProductSummaryResponseDTO);
+        return products.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
-    public Long getTotalCommercialProducts(Long commercialId, ProductStatus status) {
+    public Integer getTotalCommercialProducts(Long commercialId, ProductStatus status) {
         return productRepository.countCommercialProducts(commercialId, status);
     }
 
@@ -508,6 +529,7 @@ public class ProductServiceImpl implements ProductService {
         Product product = getByIdAndCommercialId(productId, commercialId);
 
         ProductEditInfoResponseDTO dto = productMapper.toProductEditInfoDTO(product);
+        dto.setImageUrl(resolveImageUrl(product));
 
         // Agregar información de stock
         dto.setTotalStockItems(product.getStockItems() != null ? product.getStockItems().size() : 0);
@@ -529,8 +551,12 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
-                .from(productRepository.getAllProductsForAdmin(status, pageable));
-        return products.map(productMapper::toProductSummaryResponseDTO);
+                .from(productRepository.findAllProductsForAdmin(status, pageable));
+        return products.map(product -> {
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            dto.setImageUrl(resolveImageUrl(product));
+            return dto;
+        });
     }
 
     @Override
@@ -616,7 +642,41 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public void pickGameReward(Long commercialId, Long productId) {
+    @Transactional(readOnly = true)
+    public void streamPrivateProductImage(Long productId, HttpServletResponse response) throws IOException {
+        Product product = getById(productId);
+        if (product.getImageAsset() == null) {
+            throw new EntityNotFoundException("Product has no image asset: " + productId);
+        }
+        String objectKey = product.getImageAsset().getObjectKey();
+        log.info("Streaming private image: productId={}, objectKey=private/{}", productId, objectKey);
+
+        try (var stream = r2Service.getPrivateObjectStream(objectKey)) {
+            String contentType = stream.response().contentType();
+            response.setContentType(contentType != null ? contentType : "image/jpeg");
+            Long contentLength = stream.response().contentLength();
+            if (contentLength != null && contentLength > 0) {
+                response.setContentLengthLong(contentLength);
+            }
+            response.setHeader("Cache-Control", "private, max-age=300");
+            stream.transferTo(response.getOutputStream());
+        }
+    }
+
+    private String resolveImageUrl(Product product) {
+        if (product.getImageAsset() == null) {
+            return null;
+        }
+
+        if (product.getStatus() == ProductStatus.PENDING || product.getStatus() == ProductStatus.REJECTED) {
+            return appBaseUrl + "/products/" + product.getId() + "/private-image";
+        }
+
+        return product.getImageUrl();
+    }
+
+    @Override
+    public void markProductAsReward(Long commercialId, Long productId) {
         Product product = getById(productId);
 
         if (!commercialId.equals(product.getCommercial().getId())) {
@@ -640,4 +700,7 @@ public class ProductServiceImpl implements ProductService {
         product.setIsGameReward(true);
         productRepository.save(product);
     }
+
+    
+
 }

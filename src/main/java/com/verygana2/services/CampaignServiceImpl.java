@@ -10,19 +10,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.GameConfigDefinitionDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
-import com.verygana2.dtos.game.campaign.CreateAssetRequestDTO;
 import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
@@ -32,6 +27,7 @@ import com.verygana2.mappers.CampaignMapper;
 import com.verygana2.mappers.GameMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.branding.Asset;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.AssetStatus;
@@ -48,7 +44,6 @@ import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.CampaignService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.utils.validators.TargetingValidator;
-import com.verygana2.utils.validators.games.ValidationPipeline;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -61,7 +56,6 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @RequiredArgsConstructor
 @Transactional
-@SuppressWarnings("unused")
 public class CampaignServiceImpl implements CampaignService {
     
     @PersistenceContext
@@ -74,7 +68,6 @@ public class CampaignServiceImpl implements CampaignService {
     private final GameRepository gameRepository;
     private final GameAssetDefinitionRepository assetDefinitionRepository;
     private final GameConfigDefinitionRepository gameConfigDefinitionRepository;
-    private final ValidationPipeline validationPipeline;
     private final AssetRepository assetRepository;
     private final GameMapper gameMapper;
     private final Clock clock;
@@ -95,19 +88,6 @@ public class CampaignServiceImpl implements CampaignService {
         GameConfigDefinition configDefinition = gameConfigDefinitionRepository
             .findFirstByGameIdOrderByVersionDesc(request.getGameId())
             .orElseThrow(() -> new IllegalArgumentException("No config definition found for game: " + game.getTitle()));
-        
-        // Validate config data
-        ValidationPipeline.ValidationResult validationResult = validationPipeline.validate(
-            request.getConfigData(),
-            configDefinition,
-            game,
-            null // new campaign
-        );
-        
-        // if (!validationResult.isValid()) {
-        //     log.warn("Campaign validation failed with {} errors for game {}", validationResult.getErrors().size(), game.getTitle());
-        //     throw new ValidationException("Campaign validation failed");
-        // }
 
         List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
 
@@ -140,24 +120,23 @@ public class CampaignServiceImpl implements CampaignService {
             .endDate(request.getEndDate())
 
             // Audiencia
-            .categories(categories)
-            .targetMunicipalities(municipalities)
-            .targetGender(request.getTargetAudience().getGender())
-            .minAge(request.getTargetAudience().getMinAge())
-            .maxAge(request.getTargetAudience().getMaxAge())
+            .targetAudience(TargetAudience.builder()
+                .categories(categories)
+                .targetMunicipalities(municipalities)
+                .targetGender(request.getTargetAudience().getGender())
+                .minAge(request.getTargetAudience().getMinAge())
+                .maxAge(request.getTargetAudience().getMaxAge())
+                .build())
 
             // Relación con commercial
             .commercial(entityManager.getReference(CommercialDetails.class, userId))
             .build();
         
         campaign = campaignRepository.save(campaign);
-        
-        // Attach assets to campaign
+
         attachAssetsToCampaign(request.getConfigData(), campaign);
-        
+
         log.info("Campaign created successfully with ID: {}", campaign.getId());
-        
-        // return mapToCampaignResponse(campaign);
     }
 
     @Override
@@ -203,10 +182,9 @@ public class CampaignServiceImpl implements CampaignService {
         }
 
         // 2. Restricciones por estado
-        if (campaign.getStatus() == CampaignStatus.CANCELLED || 
-            campaign.getStatus() == CampaignStatus.COMPLETED || 
-            campaign.getStatus() == CampaignStatus.ACTIVE) {
-            throw new ValidationException("No se puede editar la campaña en el estado actual");
+        if (campaign.getStatus() == CampaignStatus.CANCELLED ||
+            campaign.getStatus() == CampaignStatus.COMPLETED) {
+            throw new ValidationException("No se puede editar una campaña cancelada o completada");
         }
 
         // 3. Presupuesto
@@ -219,12 +197,8 @@ public class CampaignServiceImpl implements CampaignService {
         // 4. Target URL
         campaign.setTargetUrl(request.getTargetUrl());
 
-        // 5. Categorías
-        List<Category> categories = categoryService.getValidatedCategories(request.getCategoryIds());
-        campaign.setCategories(categories);
-
-        // 6. Target audience
-        applyTargetAudience(campaign, request.getTargetAudience());
+        // 5. Audiencia
+        applyTargetAudience(campaign, request);
 
         campaignRepository.save(campaign);
     }
@@ -319,99 +293,6 @@ public class CampaignServiceImpl implements CampaignService {
                (url.startsWith("https://") || url.startsWith("http://"));
     }
 
-    /**
-     * Validar que los assets cumplen las reglas del juego
-     */
-    private void validateAssetStructure(Game game, List<CreateAssetRequestDTO> assetRequests) {
-        List<GameAssetDefinition> definitions = assetDefinitionRepository.findByGameId(game.getId());
-        
-        // Verificar assets requeridos
-        for (GameAssetDefinition def : definitions) {
-            if (def.isRequired()) {
-                boolean found = assetRequests.stream()
-                    .anyMatch(req -> req.getAssetDefinitionId().equals(def.getId()));
-                
-                if (!found) {
-                    throw new ValidationException(
-                        String.format("Asset requerido faltante: %s (%s)",
-                            def.getAssetType(),
-                            def.getDescription())
-                    );
-                }
-            }
-        }
-        
-        // Verificar múltiples no permitidos
-        Map<Long, Long> counts = assetRequests.stream()
-            .collect(Collectors.groupingBy(
-                CreateAssetRequestDTO::getAssetDefinitionId,
-                Collectors.counting()
-            ));
-        
-        for (Map.Entry<Long, Long> entry : counts.entrySet()) {
-            GameAssetDefinition def = definitions.stream()
-                .filter(d -> d.getId().equals(entry.getKey()))
-                .findFirst()
-                .orElseThrow(() -> new ValidationException(
-                    "Asset definition inválida: " + entry.getKey()
-                ));
-            
-            if (!def.isMultiple() && entry.getValue() > 1) {
-                throw new ValidationException(
-                    "No se permiten múltiples assets para: " + def.getAssetType()
-                );
-            }
-        }
-    }
-
-     /**
-     * Valida que los assets de la campaña cumplan los requerimientos de la definición
-     */
-    private void validateCampaignAssets(Game game, List<Asset> assets) {
-        List<GameAssetDefinition> definitions = assetDefinitionRepository.findByGameId(game.getId());
-
-        // Verificar que todos los assets requeridos estén presentes
-        for (GameAssetDefinition def : definitions) {
-            if (def.isRequired()) {
-                boolean found = assets.stream()
-                    .anyMatch(asset -> asset.getAssetDefinition().getId().equals(def.getId()));
-
-                if (!found) {
-                    throw new ValidationException("Campaña incompleta: falta asset " + def.getAssetType());
-                }
-            }
-        }
-    }
-
-    /**
-     * Validar metadata del archivo
-     */
-    private void validateFileMetadata(GameAssetDefinition definition, FileUploadRequestDTO metadata) {
-        
-        if (metadata == null) {
-            throw new ValidationException("Metadata de archivo requerida");
-        }
-        
-        // Validar contra AssetDefinition
-        definition.validateMimeType(metadata.getContentType());
-
-        if (metadata.getSizeBytes() > definition.getMaxSizeBytes()) {
-            throw new ValidationException(
-                String.format(
-                    "Archivo %s demasiado grande. Máximo: %.2f MB.",
-                    metadata.getOriginalFileName(),
-                    definition.getMaxSizeBytes() / (1024.0 * 1024.0)
-                )
-            );
-        }
-
-        // Validar nombre de archivo
-        if (metadata.getOriginalFileName() == null || 
-            metadata.getOriginalFileName().trim().isEmpty()) {
-            throw new ValidationException("Nombre de archivo requerido");
-        }
-    }
-
     private void validateStatusTransition(Campaign campaign, CampaignStatus from, CampaignStatus to) {
 
         if (from == to) {
@@ -487,20 +368,29 @@ public class CampaignServiceImpl implements CampaignService {
         }
     }
 
-    private void applyTargetAudience(Campaign campaign, TargetAudienceDTO targetAudience) {
+    private void applyTargetAudience(Campaign campaign, UpdateCampaignRequestDTO request) {
+        TargetAudienceDTO dto = request.getTargetAudience();
 
-        if (targetAudience == null) return;
-
-        if (targetAudience.getMinAge() > targetAudience.getMaxAge()) {
-            throw new ValidationException("Rango de edad inválido");
+        TargetAudience ta = campaign.getTargetAudience();
+        if (ta == null) {
+            ta = new TargetAudience();
+            campaign.setTargetAudience(ta);
         }
 
-        campaign.setMinAge(targetAudience.getMinAge());
-        campaign.setMaxAge(targetAudience.getMaxAge());
-        campaign.setTargetGender(targetAudience.getGender());
+        if (request.getCategoryIds() != null) {
+            ta.setCategories(categoryService.getValidatedCategories(request.getCategoryIds()));
+        }
 
-        List<Municipality> municipalities = targetingValidator.getValidatedMunicipalities(targetAudience.getMunicipalityCodes());
-
-        campaign.setTargetMunicipalities(municipalities);
+        if (dto != null) {
+            if (dto.getMinAge() != null && dto.getMaxAge() != null && dto.getMinAge() > dto.getMaxAge()) {
+                throw new ValidationException("Rango de edad inválido");
+            }
+            if (dto.getMinAge() != null) ta.setMinAge(dto.getMinAge());
+            if (dto.getMaxAge() != null) ta.setMaxAge(dto.getMaxAge());
+            if (dto.getGender() != null) ta.setTargetGender(dto.getGender());
+            if (dto.getMunicipalityCodes() != null) {
+                ta.setTargetMunicipalities(targetingValidator.getValidatedMunicipalities(dto.getMunicipalityCodes()));
+            }
+        }
     }
 }

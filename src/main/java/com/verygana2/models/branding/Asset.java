@@ -61,6 +61,10 @@ public class Asset {
     @JoinColumn(name = "campaign_id", nullable = true)
     private Campaign campaign;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "branding_request_id", nullable = true)
+    private BrandingRequest brandingRequest;
+
     @Column(name = "uploaded_by", length = 100)
     private Long uploadedBy;
 

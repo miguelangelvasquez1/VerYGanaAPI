@@ -6,13 +6,16 @@ import com.verygana2.mappers.pet.PetNotificationMapper;
 import com.verygana2.models.pets.PetNotification;
 import com.verygana2.repositories.pet.PetNotificationRepository;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class PetNotificationServiceImpl implements PetNotificationService {
 
     private final PetNotificationRepository notificationRepository;
@@ -21,6 +24,12 @@ public class PetNotificationServiceImpl implements PetNotificationService {
     @Override
     public List<PetNotificationResponseDTO> getAllNotifications() {
         return notificationRepository.findAllByActiveTrueAndReadFalse()
+                .stream().map(notificationMapper::toResponseDTO).toList();
+    }
+
+    @Override
+    public List<PetNotificationResponseDTO> getAllNotificationsAdmin() {
+        return notificationRepository.findAll()
                 .stream().map(notificationMapper::toResponseDTO).toList();
     }
 
@@ -34,18 +43,24 @@ public class PetNotificationServiceImpl implements PetNotificationService {
     @Override
     public PetNotificationResponseDTO updateNotification(Long id, PetNotificationRequestDTO dto) {
         PetNotification notif = notificationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
+                .orElseThrow(() -> new EntityNotFoundException("Notification not found: " + id));
         notificationMapper.updateFromDto(dto, notif);
         return notificationMapper.toResponseDTO(notificationRepository.save(notif));
     }
 
     @Override
-    public void markNotificationAsRead(String externalId) {
-        PetNotification notif = notificationRepository.findByExternalId(externalId)
-                .orElseThrow(() -> new RuntimeException("Notification not found"));
-        notif.setRead(true);
+    public void deleteNotification(Long id) {
+        PetNotification notif = notificationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Notification not found: " + id));
+        notif.setActive(false);
         notificationRepository.save(notif);
     }
 
-
+    @Override
+    public void markNotificationAsRead(String externalId) {
+        PetNotification notif = notificationRepository.findByExternalId(externalId)
+                .orElseThrow(() -> new EntityNotFoundException("Notification not found: " + externalId));
+        notif.setRead(true);
+        notificationRepository.save(notif);
+    }
 }

@@ -73,7 +73,6 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
     }
 
     @Override
-    @SuppressWarnings("null")
     public EntityCreatedResponseDTO createTicketEarningRule(Long adminId, CreateTicketEarningRuleRequestDTO request) {
         // Validar que el nombre no existe
         if (ruleRepository.existsByRuleName(request.getRuleName())) {
@@ -190,20 +189,6 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
                 }
             }
 
-            case REFERRAL -> {
-                if (request instanceof CreateTicketEarningRuleRequestDTO create) {
-                    if (create.getReferralAddedQuantity() == null) {
-                        throw new InvalidRequestException(
-                                "Referral added quantity is required for REFERRAL rules");
-                    }
-                } else if (request instanceof UpdateTicketEarningRuleRequestDTO update) {
-                    if (update.getReferralAddedQuantity() == null) {
-                        throw new InvalidRequestException(
-                                "Referral added quantity is required for REFERRAL rules");
-                    }
-                }
-            }
-
         }
     }
     // ==================== CONSTRUCCIÓN DE ENTIDADES ====================
@@ -218,7 +203,6 @@ public class TicketEarningRuleServiceImpl implements TicketEarningRuleService {
         rule.setTicketsToAward(request.getTicketsToAward());
         rule.setMinPurchaseAmountCents(request.getMinPurchaseAmount() != null ? request.getMinPurchaseAmount() * 100 : null);
         rule.setDailyLogin(request.isDailyLogin());
-        rule.setReferralAddedQuantity(request.getReferralAddedQuantity());
         return rule;
     }
 
