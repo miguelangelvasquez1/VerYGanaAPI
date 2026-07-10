@@ -33,6 +33,7 @@ import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
@@ -189,6 +190,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCodeEncryptionException(CodeEncryptionException ex, WebRequest request) {
         log.warn("Code encryption/decryption error: {}", ex.getMessage(), ex);
         return buildError(HttpStatus.BAD_REQUEST, "Invalid or corrupted code", request);
+    }
+
+    @ExceptionHandler(EmailVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleEmailVerificationException(EmailVerificationException ex, WebRequest request) {
+        log.warn("Email verification error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -395,6 +402,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         log.warn("Unauthorized: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    // ── 403 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(PqrsAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handlePqrsAccessDenied(PqrsAccessDeniedException ex, WebRequest request) {
+        log.warn("PQRS access denied: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
 

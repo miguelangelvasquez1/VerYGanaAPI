@@ -56,11 +56,12 @@ import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.raffles.RaffleService;
-import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.storage.service.R2Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 @RequiredArgsConstructor
@@ -78,7 +79,8 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
-    private final ClaimCodeEncryptor claimCodeEncryptor;
+    @Qualifier("claimCodeEncryptor")
+    private final CodeEncryptor claimCodeEncryptor;
 
     private static final String domain = "https://cdn.verygana.com/public/";
 
@@ -559,6 +561,18 @@ public class RaffleServiceImpl implements RaffleService {
         }
 
         return raffleRepository.findById(raffleId).orElseThrow(
+                () -> new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ", Raffle.class));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Raffle getRaffleWithPrizesById(Long raffleId) {
+
+        if (raffleId == null || raffleId <= 0) {
+            throw new IllegalArgumentException("Raffle id must be positive");
+        }
+
+        return raffleRepository.findByIdWithPrizes(raffleId).orElseThrow(
                 () -> new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ", Raffle.class));
     }
 

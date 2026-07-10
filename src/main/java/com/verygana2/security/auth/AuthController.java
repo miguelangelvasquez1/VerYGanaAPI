@@ -11,12 +11,10 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.auth.AuthRequest;
@@ -241,9 +239,14 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
     }
 
-    @GetMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam String token) {
-        userService.verifyEmail(token);
+    @PostMapping("/verify-email")
+    public ResponseEntity<?> verifyEmail(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        if (email == null || email.isBlank() || code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body("Los campos 'email' y 'code' son requeridos");
+        }
+        userService.verifyEmailCode(email, code);
         return ResponseEntity.ok("Cuenta activada correctamente. Ya puedes iniciar sesión.");
     }
 

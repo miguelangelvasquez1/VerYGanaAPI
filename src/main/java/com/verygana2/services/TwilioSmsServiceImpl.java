@@ -87,7 +87,7 @@ public class TwilioSmsServiceImpl implements TwilioSmsService {
 
     private String buildPrizeClaimSms(Prize prize, String claimCode) {
         StringBuilder sb = new StringBuilder();
-        sb.append("🏆 VeryGana - ¡Felicitaciones!\n");
+        sb.append("Haz reclamado tu premio en VeryGana\n");
         sb.append("Premio: ").append(prize.getTitle()).append("\n");
         sb.append("Código de reclamación: ").append(claimCode).append("\n");
         if (prize.getClaimInstructions() != null && !prize.getClaimInstructions().isBlank()) {

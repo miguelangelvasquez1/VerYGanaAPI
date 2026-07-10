@@ -11,3 +11,13 @@ spring:
 
   config:
     import: optional:file:.env[.properties]
+
+# ============================================
+# PQRS - Plazos legales por tipo (días hábiles, Ley 1755 de 2015)
+# ============================================
+pqrs:
+  sla-days:
+    PETICION: 15
+    QUEJA: 15
+    RECLAMO: 15
+    SUGERENCIA: 10

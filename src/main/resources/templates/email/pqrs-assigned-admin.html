@@ -1,0 +1,23 @@
+<h1>Nuevo PQRS asignado</h1>
+<p class="subtitle">Te toca resolverlo por turno de rotación</p>
+<p class="greeting">Hola, {{adminName}}</p>
+<p class="text">Te fue asignado un nuevo PQRS. Aquí tienes el resumen:</p>
+<div class="project-card">
+  <h3>Detalles del PQRS</h3>
+  <div class="row">
+    <span class="label">Radicado:</span>
+    <span class="value">{{radicado}}</span>
+  </div>
+  <div class="row">
+    <span class="label">Asunto:</span>
+    <span class="value">{{subject}}</span>
+  </div>
+  <div class="row">
+    <span class="label">Fecha límite:</span>
+    <span class="value">{{dueDate}}</span>
+  </div>
+</div>
+<p class="text">Entra a la plataforma para revisar el detalle completo y responder dentro del plazo legal.</p>
+<div class="btn-wrapper">
+  <a href="{{platformUrl}}" class="btn">Ver PQRS</a>
+</div>

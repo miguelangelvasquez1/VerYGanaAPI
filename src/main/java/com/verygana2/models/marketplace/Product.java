@@ -196,23 +196,6 @@ public class Product {
                 .findFirst().orElseThrow(() -> new InsufficientStockException(this.name));
     }
 
-    public void updateAverageRating() {
-        List<ProductReview> visibleReviews = reviews.stream()
-                .filter(ProductReview::isVisible)
-                .toList();
-
-        this.reviewCount = visibleReviews.size();
-
-        if (reviewCount == 0) {
-            this.averageRate = 0.0;
-        } else {
-            this.averageRate = visibleReviews.stream()
-                    .mapToInt(ProductReview::getRating)
-                    .average()
-                    .orElse(0.0);
-        }
-    }
-
     /**
      * Calcula el máximo de llaves que se pueden usar para pagar este producto.
      * Útil en el frontend y en CopaymentService para validar el copago.

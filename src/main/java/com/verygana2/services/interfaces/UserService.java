@@ -18,6 +18,6 @@ public interface UserService {
     boolean phoneExists(String phoneNumber);
     void deleteById(Long id);
 
-    void verifyEmail(String token);
+    void verifyEmailCode(String email, String code);
     void resendVerificationEmail(String email);
 }
