@@ -8,6 +8,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
+import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
 import com.verygana2.dtos.raffle.websocket.DrawCompletedPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.DrawingStartedPayloadDTO;
 import com.verygana2.dtos.raffle.websocket.RaffleDrawEventDTO;
@@ -125,12 +126,13 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     @Override
-    public void publishWaitingRoomUpdate(Long raffleId, long viewerCount, long secondsUntilDraw, long totalTickets, long totalParticipants) {
+    public void publishWaitingRoomUpdate(Long raffleId, Integer viewerCount, long secondsUntilDraw, Integer totalTickets, Integer totalParticipants, List<PrizeResponseDTO> prizes) {
         WaitingRoomPayloadDTO payload = WaitingRoomPayloadDTO.builder()
                 .viewerCount(viewerCount)
                 .secondsUntilDraw(secondsUntilDraw)
                 .totalTickets(totalTickets)
                 .totalParticipants(totalParticipants)
+                .prizes(prizes)
                 .build();
 
         RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()

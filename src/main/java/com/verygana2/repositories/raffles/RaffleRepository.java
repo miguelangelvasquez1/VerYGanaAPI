@@ -2,6 +2,7 @@ package com.verygana2.repositories.raffles;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -259,5 +260,18 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
             AND r.raffleStatus = :status
                         """)
     long countMyRafflesByStatus(@Param("consumerId") Long consumerId, @Param("status") RaffleStatus status);
+
+    /**
+     * Trae la rifa junto con sus premios e imágenes ya inicializados en una sola
+     * consulta, evitando LazyInitializationException al usar la entidad fuera
+     * de un contexto transaccional (ej. desde un scheduler).
+     */
+    @Query("""
+            SELECT DISTINCT r FROM Raffle r
+            LEFT JOIN FETCH r.prizes p
+            LEFT JOIN FETCH p.imageAsset
+            WHERE r.id = :raffleId
+            """)
+    Optional<Raffle> findByIdWithPrizes(@Param("raffleId") Long raffleId);
 
 }

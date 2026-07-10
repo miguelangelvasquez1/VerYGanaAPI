@@ -34,6 +34,12 @@ public interface RaffleService {
     void cancelRaffle (Long raffleId);
     void deleteRaffle(Long raffleId);
     Raffle getRaffleById(Long raffleId);
+
+    /**
+     * Igual que getRaffleById pero con prizes (e imageAsset de cada prize) ya
+     * inicializados, pensado para usarse fuera de un contexto transaccional.
+     */
+    Raffle getRaffleWithPrizesById(Long raffleId);
     RaffleResponseDTO getRaffleResponseDTOById(Long raffleId);
     PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);

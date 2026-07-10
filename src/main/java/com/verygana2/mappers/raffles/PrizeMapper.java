@@ -4,6 +4,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.raffle.requests.CreatePrizeRequestDTO;
+import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
 import com.verygana2.models.raffles.Prize;
 
 @Mapper(componentModel = "spring")
@@ -18,4 +19,7 @@ public interface PrizeMapper {
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "imageAsset", ignore = true)
     Prize toPrize (CreatePrizeRequestDTO request);
+
+    @Mapping(target = "imageUrl", expression = "java(prize.getImageUrl())")
+    PrizeResponseDTO toPrizeResponseDTO (Prize prize);
 }

@@ -2,6 +2,7 @@ package com.verygana2.services.marketplace;
 
 import java.time.Instant;
 
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -100,10 +101,38 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
         ProductReview savedReview = productReviewRepository.save(productReview);
 
-        product.updateAverageRating();
-        productRepository.save(product);
+        syncProductRating(product);
 
         return new EntityCreatedResponseDTO(savedReview.getId(), "ProductReview created succesfully", Instant.now());
+    }
+
+    @Override
+    public void hideProductReview(Long reviewId) {
+        if (reviewId == null || reviewId <= 0) {
+            throw new IllegalArgumentException("Review id must be positive");
+        }
+
+        ProductReview review = productReviewRepository.findById(reviewId)
+                .orElseThrow(() -> new ObjectNotFoundException("ProductReview with id:" + reviewId + " not found", ProductReview.class));
+
+        review.hide();
+        productReviewRepository.save(review);
+
+        syncProductRating(review.getProduct());
+    }
+
+    /**
+     * Recalcula reviewCount/averageRate del producto contra product_reviews
+     * (fuente de verdad), en lugar de confiar en la colección en memoria.
+     * Debe invocarse tras cualquier alta, ocultamiento o borrado de una review.
+     */
+    private void syncProductRating(Product product) {
+        Integer count = productReviewRepository.productReviewCount(product.getId());
+        Double avg = productReviewRepository.productAvgRating(product.getId());
+
+        product.setReviewCount(count != null ? count : 0);
+        product.setAverageRate(avg != null ? avg : 0.0);
+        productRepository.save(product);
     }
 
     @Transactional(readOnly = true)

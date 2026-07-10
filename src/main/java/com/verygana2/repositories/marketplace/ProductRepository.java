@@ -26,25 +26,34 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         long countByCommercialIdAndIsActive(@Param("commercialId") Long commercialId);
 
         boolean existsByIdAndCommercialId(Long id, Long commercialId);
-        
-        boolean existsByProductCategoryId (Long productCategoryId);
+
+        boolean existsByProductCategoryId(Long productCategoryId);
 
         Optional<Product> findByIdAndCommercialId(Long productId, Long commercialId);
 
-        @Query("SELECT p FROM Product p " +
-                        "JOIN FETCH p.productCategory c " +
-                        "WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE")
+        @Query("""
+                        SELECT p FROM Product p
+                        JOIN FETCH p.productCategory c
+                        LEFT JOIN FETCH p.imageAsset ia
+                        WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                                """)
         Page<Product> findAllActiveProducts(Pageable pageable);
 
-        @Query("SELECT p FROM Product p " +
-                        "JOIN FETCH p.productCategory c " +
-                        "WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE " +
-                        "AND (:searchQuery IS NULL OR :searchQuery = '' OR " +
-                        "     LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR " +
-                        "     LOWER(p.description) LIKE LOWER(CONCAT('%', :searchQuery, '%'))) " +
-                        "AND (:productCategoryId IS NULL OR c.id = :productCategoryId) " +
-                        "AND (:minRating IS NULL OR p.averageRate >= :minRating) " +
-                        "AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)")
+        @Query("""
+                        SELECT p FROM Product p
+                        JOIN FETCH p.productCategory pc
+                        JOIN FETCH p.commercial c
+                        LEFT JOIN FETCH p.imageAsset ia
+                        WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        AND (:searchQuery IS NULL OR :searchQuery = '' OR
+                                LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
+                                LOWER(p.description) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
+                                LOWER(c.companyName) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
+                                LOWER(pc.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')))
+                        AND (:productCategoryId IS NULL OR pc.id = :productCategoryId)
+                        AND (:minRating IS NULL OR p.averageRate >= :minRating)
+                        AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)
+                                """)
         Page<Product> searchProductsInternal(
                         @Param("searchQuery") String searchQuery,
                         @Param("productCategoryId") Long productCategoryId,
@@ -76,25 +85,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         List<Product> findByCommercialId(@Param("commercialId") Long commercialId);
 
         @Query("""
-                SELECT p FROM Product p
-                WHERE p.commercial.id = :commercialId
-                AND p.isGameReward = TRUE
-                AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
-                ORDER BY p.name DESC
-                LIMIT 3
-                        """)
+                        SELECT p FROM Product p
+                        WHERE p.commercial.id = :commercialId
+                        AND p.isGameReward = TRUE
+                        AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        ORDER BY p.name DESC
+                        LIMIT 3
+                                """)
         List<Product> findGameRewardsProducts(@Param("commercialId") Long commercialId);
 
         @Query("""
-                SELECT COUNT(p) FROM Product p
-                WHERE p.commercial.id = :commercialId
-                AND p.isGameReward = TRUE
-                AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
-                        """)
+                        SELECT COUNT(p) FROM Product p
+                        WHERE p.commercial.id = :commercialId
+                        AND p.isGameReward = TRUE
+                        AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                                """)
         Integer countGameRewards(@Param("commercialId") Long commercialId);
 
         @Query("SELECT COUNT(p) FROM Product p WHERE p.status = :status AND p.commercial.id = :commercialId")
-        Integer countCommercialProducts(@Param("commercialId") Long commercialId, @Param("status") ProductStatus status);
+        Integer countCommercialProducts(@Param("commercialId") Long commercialId,
+                        @Param("status") ProductStatus status);
 
         @Query("""
                         SELECT p FROM Product p
@@ -104,6 +114,5 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         ORDER BY p.createdAt DESC
                                 """)
         Page<Product> findAllProductsForAdmin(@Param("status") ProductStatus status, Pageable pageable);
-
 
 }

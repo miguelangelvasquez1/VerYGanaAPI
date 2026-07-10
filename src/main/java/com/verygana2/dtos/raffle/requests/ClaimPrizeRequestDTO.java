@@ -14,6 +14,7 @@ public class ClaimPrizeRequestDTO {
     private ClaimPreferenceDeliveryMethod deliveryMethod;
     @Email
     private String newEmail;
+    private String emailOtpCode;
     private String newPhoneNumber;
     private String smsOtpCode;
 }

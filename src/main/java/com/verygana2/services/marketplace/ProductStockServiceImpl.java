@@ -1,10 +1,14 @@
 package com.verygana2.services.marketplace;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -19,6 +23,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.ProductStockService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,32 +37,22 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductStockRepository productStockRepository;
     private final ProductRepository productRepository;
     private final ProductStockMapper productStockMapper;
+    @Qualifier("productCodeEncryptor")
+    private final CodeEncryptor productCodeEncryptor;
 
     @Override
-    public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long commercialId, String search,
-            StockStatus status, Pageable pageable) {
+    public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long commercialId,
+            StockStatus status, LocalDate soldDate, Pageable pageable) {
 
         productRepository.findByIdAndCommercialId(productId, commercialId)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
-        PagedResponse<ProductStock> stockPage;
+        PagedResponse<ProductStock> stockPage = PagedResponse.from(
+                productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable));
 
-        if (search != null && !search.isEmpty() && status != null) {
-            stockPage = PagedResponse.from(productStockRepository.findByProductIdAndCodeContainingIgnoreCaseAndStatus(
-                    productId, search, status, pageable));
-        } else if (search != null && !search.isEmpty()) {
-            stockPage = PagedResponse.from(productStockRepository.findByProductIdAndCodeContainingIgnoreCase(
-                    productId, search, pageable));
-        } else if (status != null) {
-            stockPage = PagedResponse.from(productStockRepository.findByProductIdAndStatus(
-                    productId, status, pageable));
-        } else {
-            stockPage = PagedResponse.from(productStockRepository.findByProductId(productId, pageable));
-        }
-
-        return stockPage.map(productStockMapper::toProductStockResponseDTO);
+        return stockPage.map(this::toDecryptedResponseDTO);
     }
 
     @Override
@@ -67,8 +62,8 @@ public class ProductStockServiceImpl implements ProductStockService {
                         "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
-        // Verificar que el código no exista ya
-        if (productStockRepository.existsByProductIdAndCode(productId, request.getCode())) {
+        String codeHash = productCodeEncryptor.hash(request.getCode());
+        if (productStockRepository.existsByProductIdAndCodeHash(productId, codeHash)) {
             throw new DuplicateResourceException("Stock code already exists for this product");
         }
 
@@ -76,9 +71,13 @@ public class ProductStockServiceImpl implements ProductStockService {
         stock.setProduct(product);
         stock.setStatus(StockStatus.AVAILABLE);
         stock.setCreatedAt(ZonedDateTime.now());
+        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
+        stock.setCodeHash(codeHash);
 
         ProductStock saved = productStockRepository.save(stock);
-        return productStockMapper.toProductStockResponseDTO(saved);
+        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(saved);
+        response.setCode(request.getCode());
+        return response;
     }
 
     @Override
@@ -97,15 +96,21 @@ public class ProductStockServiceImpl implements ProductStockService {
             throw new IllegalStateException("Cannot edit a sold stock item");
         }
 
+        String newCodeHash = productCodeEncryptor.hash(request.getCode());
+
         // Verificar duplicados si se cambia el código
-        if (!stock.getCode().equals(request.getCode()) &&
-                productStockRepository.existsByProductIdAndCode(productId, request.getCode())) {
+        if (!stock.getCodeHash().equals(newCodeHash) &&
+                productStockRepository.existsByProductIdAndCodeHash(productId, newCodeHash)) {
             throw new DuplicateResourceException("Stock code already exists for this product");
         }
 
-        stock.setCode(request.getCode());
+        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
+        stock.setCodeHash(newCodeHash);
         ProductStock updated = productStockRepository.save(stock);
-        return productStockMapper.toProductStockResponseDTO(updated);
+
+        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(updated);
+        response.setCode(request.getCode());
+        return response;
     }
 
     @Override
@@ -114,8 +119,8 @@ public class ProductStockServiceImpl implements ProductStockService {
         ProductStock stock = productStockRepository
             .findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId)
             .orElseThrow(() -> new ObjectNotFoundException(
-                "Stock item with id: " + stockId + " for product: " + productId + 
-                " and commercial: " + commercialId + " not found", 
+                "Stock item with id: " + stockId + " for product: " + productId +
+                " and commercial: " + commercialId + " not found",
                 ProductStock.class
             ));
 
@@ -130,21 +135,41 @@ public class ProductStockServiceImpl implements ProductStockService {
     @Override
     public BulkStockResponseDTO addBulkStockItems(Long productId, Long commercialId,
             List<ProductStockRequestDTO> requests) {
-        
+
         Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
             .orElseThrow(() -> new ObjectNotFoundException(
-                "Product with id: " + productId + " and commercialId: " + commercialId + " not found", 
+                "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                 Product.class
             ));
+
+        // Un solo hash por request, calculado una vez y reutilizado tanto para
+        // el chequeo de duplicados dentro del lote como contra la BD.
+        List<String> hashes = requests.stream()
+                .map(r -> productCodeEncryptor.hash(r.getCode()))
+                .toList();
+
+        // Una sola query para saber qué hashes ya existen en BD para este producto,
+        // en vez de una consulta por cada uno de los códigos entrantes.
+        Set<String> existingInDb = new HashSet<>(
+                productStockRepository.findExistingCodeHashes(productId, hashes));
+        Set<String> seenInBatch = new HashSet<>();
 
         int successful = 0;
         int failed = 0;
         List<String> errors = new ArrayList<>();
 
-        for (ProductStockRequestDTO request : requests) {
+        for (int i = 0; i < requests.size(); i++) {
+            ProductStockRequestDTO request = requests.get(i);
+            String codeHash = hashes.get(i);
             try {
-                if (productStockRepository.existsByProductIdAndCode(productId, request.getCode())) {
+                if (existingInDb.contains(codeHash)) {
                     errors.add("Code '" + request.getCode() + "' already exists");
+                    failed++;
+                    continue;
+                }
+
+                if (!seenInBatch.add(codeHash)) {
+                    errors.add("Code '" + request.getCode() + "' is duplicated in this batch");
                     failed++;
                     continue;
                 }
@@ -153,6 +178,8 @@ public class ProductStockServiceImpl implements ProductStockService {
                 stock.setProduct(product);
                 stock.setStatus(StockStatus.AVAILABLE);
                 stock.setCreatedAt(ZonedDateTime.now());
+                stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
+                stock.setCodeHash(codeHash);
                 productStockRepository.save(stock);
                 successful++;
 
@@ -170,6 +197,10 @@ public class ProductStockServiceImpl implements ProductStockService {
             ZonedDateTime.now()
         );
     }
+
+    private ProductStockResponseDTO toDecryptedResponseDTO(ProductStock stock) {
+        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(stock);
+        response.setCode(productCodeEncryptor.decrypt(stock.getCode()));
+        return response;
+    }
 }
-
-
