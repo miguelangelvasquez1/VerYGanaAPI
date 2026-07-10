@@ -3,7 +3,6 @@ package com.verygana2.dtos.branding;
 import java.time.ZonedDateTime;
 import java.util.List;
 
-import com.verygana2.models.enums.CampaignGoal;
 import com.verygana2.models.enums.TargetGender;
 
 import jakarta.validation.constraints.Max;
@@ -12,9 +11,6 @@ import lombok.Data;
 
 @Data
 public class UpdateBrandingRequestConfigDTO {
-
-    // Objetivo de campaña
-    private CampaignGoal campaignGoal;
 
     // Segmentación de audiencia
     private List<Long> categoryIds;

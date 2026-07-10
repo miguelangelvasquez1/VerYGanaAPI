@@ -162,10 +162,8 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
-- cuando se devuelven las solicitudes tambien se devuelven las campañas (segun estado), aparecen nuevas tabs(ocultar las de diseño?), mensaje de lo que puede hacer, ahora si fecha de inicio y configurar si iniciar de una vez, config antes de publicar, etc.
-- ver nuevos cambios, flujo full, ver lo de startDate(estados, warnings, validaciones)
-anadir politica de planes?, ver todo despues de haber preguntado a nestor,
-- ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero).
+- si un commercial cambia a plan mas bajo que no se devuelva lo creado
+- ver todo despues de haber preguntado a nestor(contratos).
 
 - probar subir video a ads
 - probar max_ads, max_surveys, flujo de sesiones y recompena bien revisar.

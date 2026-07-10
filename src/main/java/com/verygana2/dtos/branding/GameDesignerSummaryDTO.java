@@ -15,5 +15,4 @@ public class GameDesignerSummaryDTO {
     private String lastName;
     private String designerCode;
     private int campaignsDesigned;
-    private boolean canPublishDirectly;
 }

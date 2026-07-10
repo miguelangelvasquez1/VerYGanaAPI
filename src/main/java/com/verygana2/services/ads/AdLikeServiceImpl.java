@@ -53,6 +53,7 @@ import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
+import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.OptimisticLockException;
@@ -290,7 +291,7 @@ public class AdLikeServiceImpl implements AdLikeService {
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (ZonedDateTime) row[1]));
 
-        AdScoringContext ctx = new AdScoringContext(
+        ScoringContext ctx = new ScoringContext(
                 consumer.getId(),
                 consumer.getAge(),
                 toTargetGender(consumer.getGender()),

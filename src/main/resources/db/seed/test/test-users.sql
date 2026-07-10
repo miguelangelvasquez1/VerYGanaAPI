@@ -279,7 +279,6 @@ INSERT INTO game_designer_details (
     designer_code,
     bio,
     campaigns_designed,
-    can_publish_directly,
     active,
     joined_at
 )
@@ -290,7 +289,6 @@ SELECT
     'GD-TEST-001',
     'Diseñador de prueba para el entorno de desarrollo',
     0,
-    true,
     true,
     CURDATE()
 FROM users

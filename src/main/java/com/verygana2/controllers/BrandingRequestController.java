@@ -98,7 +98,7 @@ public class BrandingRequestController {
     }
 
     /**
-     * Opcional (puede hacerse en cualquier momento antes de READY_TO_LAUNCH):
+     * Opcional:
      * Actualiza targeting (categorías, género, edad, municipios) y configuración de
      * recompensas (completionRewardCents, maxRewardPerSessionCents, etc.).
      * PATCH /branding-requests/{id}/config
@@ -168,7 +168,7 @@ public class BrandingRequestController {
 
     /**
      * POST /branding-requests/{id}/approve-design
-     * El anunciante aprueba el diseño → Campaign creada como ACTIVE, BrandingRequest → LAUNCHED.
+     * El anunciante aprueba el diseño → Campaign creada como ACTIVE, BrandingRequest → CAMPAIGN_CREATED.
      */
     @PostMapping("/{id}/approve-design")
     public ResponseEntity<Void> approveDesign(

@@ -74,16 +74,16 @@ public class AssetValidator {
             }
             
             // Check ownership (if campaign already exists)
-            if (campaign != null && campaign.getId() != null) {
-                if (asset.getCampaign() != null && 
-                    !asset.getCampaign().getId().equals(campaign.getId())) {
-                    errors.add(new ValidationError(
-                        "asset_url",
-                        "Asset belongs to different campaign: " + url,
-                        ErrorType.ASSET
-                    ));
-                }
-            }
+            // if (campaign != null && campaign.getId() != null) {
+            //     if (asset.getCampaign() != null && 
+            //         !asset.getCampaign().getId().equals(campaign.getId())) {
+            //         errors.add(new ValidationError(
+            //             "asset_url",
+            //             "Asset belongs to different campaign: " + url,
+            //             ErrorType.ASSET
+            //         ));
+            //     }
+            // }
         }
         
         // Validate asset types based on field names (heuristic)

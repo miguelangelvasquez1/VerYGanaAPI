@@ -13,6 +13,7 @@ import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.branding.BrandingRequest;
+import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.branding.CorporateResource;
 import com.verygana2.models.games.Game;
 
@@ -64,6 +65,7 @@ public abstract class BrandingMapper {
     @Mapping(target = "minAge", source = "targetAudience.minAge")
     @Mapping(target = "maxAge", source = "targetAudience.maxAge")
     @Mapping(target = "targetGender", source = "targetAudience.targetGender")
+    @Mapping(target = "campaignId", source = "campaign.id")
     @Mapping(target = "assignedDesignerName", ignore = true)
     @Mapping(target = "assignedDesignerCode", ignore = true)
     @Mapping(target = "reviewedByAdminName", ignore = true)
@@ -83,6 +85,24 @@ public abstract class BrandingMapper {
             dto.setReviewedByAdminName("Admin #" + request.getReviewedByAdmin().getId());
         }
     }
+
+    // ===== BrandingRequest → Campaign (al aprobar el diseño) =====
+
+    @Mapping(target = "configDefinition", source = "gameConfigDefinition")
+    @Mapping(target = "configData", source = "gameConfig")
+    @Mapping(target = "status", constant = "DRAFT")
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "brandingRequest", ignore = true)
+    @Mapping(target = "gameSessions", ignore = true)
+    @Mapping(target = "sessionsPlayed", ignore = true)
+    @Mapping(target = "completedSessions", ignore = true)
+    @Mapping(target = "totalPlayTimeSeconds", ignore = true)
+    @Mapping(target = "uniquePlayersCount", ignore = true)
+    @Mapping(target = "spentCents", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    public abstract Campaign toCampaign(BrandingRequest request);
 
     // ===== CorporateResource → CorporateResourceDTO =====
 

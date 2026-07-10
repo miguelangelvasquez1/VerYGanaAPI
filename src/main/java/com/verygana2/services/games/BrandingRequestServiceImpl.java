@@ -1,7 +1,5 @@
-package com.verygana2.services;
+package com.verygana2.services.games;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -38,14 +36,18 @@ import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.branding.CorporateResource;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
-import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.finance.Wallet;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
+import com.verygana2.models.finance.plans.RequirePlanCapability.Capability;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.branding.BrandingRequestComment;
 import com.verygana2.models.enums.CommentAuthorRole;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
+import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.branding.BrandingRequestCommentRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.branding.CorporateResourceRepository;
@@ -53,7 +55,6 @@ import com.verygana2.repositories.details.AdminDetailsRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.games.CampaignRepository;
-import com.verygana2.repositories.games.GameConfigDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.services.interfaces.BrandingRequestService;
 import com.verygana2.services.interfaces.CategoryService;
@@ -90,7 +91,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
-    private final GameConfigDefinitionRepository gameConfigDefinitionRepository;
     private final AdminDetailsRepository adminDetailsRepository;
     private final GameDesignerDetailsRepository gameDesignerDetailsRepository;
     private final CorporateResourceRepository corporateResourceRepository;
@@ -101,6 +101,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final GameService gameService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final WalletRepository walletRepository;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -151,49 +152,42 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES, Capability.MAX_BRANDED_GAMES}, commercialIdParam = "commercialUserId")
     public BrandingRequestSummaryDTO createBrandingRequest(CreateBrandingRequestDTO dto, Long commercialUserId) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialUserId)
             .orElseThrow(() -> new EntityNotFoundException("Commercial profile not found for user: " + commercialUserId));
 
+        if (dto.getBudgetCents() > commercial.getWallet().getBalanceCents()) {
+            throw new ValidationException("Insufficient funds in wallet.");
+        }
+
+        Wallet wallet = walletRepository.findByCommercialId(commercialUserId).orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+ 
+        wallet.consume(dto.getBudgetCents());
+        walletRepository.save(wallet);
+
         Game game = gameRepository.findById(dto.getGameId())
             .orElseThrow(() -> new EntityNotFoundException("Game not found: " + dto.getGameId()));
 
-        BigDecimal scoreRewardFactor = null;
-        Long averageRewardPerSessionCents = null;
-        Long estimatedSessions = null;
-        Long completionRewardCents = null;
-        Long maxRewardPerSessionCents = null;
-        if (game.getConfigDefinitions() != null) {
-            var latestConfig = game.getConfigDefinitions().stream()
+        GameConfigDefinition latestConfig = game.getConfigDefinitions() == null ? null
+            : game.getConfigDefinitions().stream()
                 .filter(c -> Boolean.TRUE.equals(c.getIsLatest()))
                 .findFirst()
                 .orElse(null);
 
-            if (latestConfig != null) {
-                if (latestConfig.getScoreRewardFactor() != null) {
-                    scoreRewardFactor = BigDecimal.valueOf(latestConfig.getScoreRewardFactor());
-                }
-                averageRewardPerSessionCents = latestConfig.getAverageRewardPerSessionCents();
-                if (averageRewardPerSessionCents != null && averageRewardPerSessionCents > 0) {
-                    estimatedSessions = dto.getBudgetCents() / averageRewardPerSessionCents;
-                }
-                completionRewardCents = latestConfig.getCompletionRewardCents();
-                maxRewardPerSessionCents = latestConfig.getMaxRewardPerSessionCents();
-            }
+        if (latestConfig == null) {
+            throw new ValidationException("Game has no active config definition: " + game.getId());
         }
 
         BrandingRequest request = BrandingRequest.builder()
             .commercial(commercial)
             .game(game)
+            .gameConfigDefinition(latestConfig)
             .brandName(dto.getBrandName())
             .brandDescription(dto.getBrandDescription())
             .targetUrl(dto.getTargetUrl())
             .budgetCents(dto.getBudgetCents())
-            .scoreRewardFactor(scoreRewardFactor)
-            .averageRewardPerSessionCents(averageRewardPerSessionCents)
-            .estimatedSessions(estimatedSessions)
-            .completionRewardCents(completionRewardCents)
-            .maxRewardPerSessionCents(maxRewardPerSessionCents)
+            .campaignGoal(dto.getCampaignGoal())
             .status(BrandingRequestStatus.DRAFT)
             .build();
 
@@ -203,6 +197,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public void submitForReview(Long requestId, Long userId, String notes) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
@@ -235,8 +230,9 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     // DESIGN_IN_PROGRESS	Parcial	Solo PATCH /{id}/config
     // CHANGES_REQUESTED	Parcial	Solo PATCH /{id}/config
     // PENDING_ADVERTISER_APPROVAL	❌	Solo botones de aprobar/rechazar diseño
-    // LAUNCHED	❌	Solo lectura
+    // CAMPAIGN_CREATED	❌	Solo lectura
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "commercialId")
     public void updateConfig(Long requestId, UpdateBrandingRequestConfigDTO dto, Long commercialId) {
         BrandingRequest request = findOwnedRequest(requestId, commercialId);
 
@@ -268,7 +264,6 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new ValidationException("minAge cannot be greater than maxAge");
         }
 
-        if (dto.getCampaignGoal() != null) request.setCampaignGoal(dto.getCampaignGoal());
         if (dto.getMaxSessionsPerUserPerDay() != null) request.setMaxSessionsPerUserPerDay(dto.getMaxSessionsPerUserPerDay());
         if (dto.getStartDate() != null) request.setStartDate(dto.getStartDate());
 
@@ -311,8 +306,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
                 d.getName(),
                 d.getLastName(),
                 d.getDesignerCode(),
-                d.getCampaignsDesigned(),
-                d.isCanPublishDirectly()
+                d.getCampaignsDesigned()
             ))
             .collect(Collectors.toList());
     }
@@ -409,6 +403,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     // ===== REVISIÓN DEL ANUNCIANTE =====
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public void approveDesign(Long requestId, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
@@ -420,83 +415,19 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new IllegalStateException("La configuración del juego no está completa");
         }
 
-        if (request.getScoreRewardFactor() == null || request.getScoreRewardFactor().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalStateException("El valor de moneda (coinValue) no está configurado");
-        }
+        Campaign campaign = campaignRepository.save(brandingMapper.toCampaign(request));
 
-        var configDefinition = gameConfigDefinitionRepository
-            .findFirstByGameIdOrderByVersionDesc(request.getGame().getId())
-            .orElseThrow(() -> new IllegalStateException("No hay configuración de juego disponible"));
-
-        BigDecimal coinValue = request.getScoreRewardFactor();
-        BigDecimal centavosPerCoin = coinValue.multiply(BigDecimal.valueOf(100));
-
-        int budgetCoins = BigDecimal.valueOf(request.getBudgetCents())
-            .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
-
-        if (budgetCoins <= 0) {
-            throw new IllegalStateException("El presupuesto es insuficiente para generar coins");
-        }
-
-        int completionCoins = 0;
-        if (request.getCompletionRewardCents() != null && request.getCompletionRewardCents() > 0) {
-            completionCoins = BigDecimal.valueOf(request.getCompletionRewardCents())
-                .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
-        }
-
-        int maxCoinsPerSession = 1;
-        if (request.getMaxRewardPerSessionCents() != null && request.getMaxRewardPerSessionCents() > 0) {
-            maxCoinsPerSession = BigDecimal.valueOf(request.getMaxRewardPerSessionCents())
-                .divide(centavosPerCoin, 0, RoundingMode.DOWN).intValue();
-        }
-        maxCoinsPerSession = Math.max(maxCoinsPerSession, Math.max(completionCoins, 1));
-
-        Campaign campaign = Campaign.builder()
-            .game(request.getGame())
-            .configDefinition(configDefinition)
-            .configData(request.getGameConfig())
-            .commercial(request.getCommercial())
-            .status(CampaignStatus.ACTIVE)
-            .coinValue(coinValue)
-            .completionCoins(completionCoins)
-            .budgetCoins(budgetCoins)
-            .maxCoinsPerSession(maxCoinsPerSession)
-            .maxSessionsPerUserPerDay(request.getMaxSessionsPerUserPerDay())
-            .targetUrl(request.getTargetUrl())
-            .startDate(request.getStartDate())
-            .endDate(request.getEndDate())
-            .targetAudience(request.getTargetAudience())
-            .build();
-
-        campaign = campaignRepository.save(campaign);
-
-        request.setStatus(BrandingRequestStatus.LAUNCHED);
+        request.setStatus(BrandingRequestStatus.CAMPAIGN_CREATED);
         request.setCampaign(campaign);
 
         log.info("BrandingRequest {} aprobada → Campaign {} creada y activa, commercial user {}",
             requestId, campaign.getId(), userId);
 
-        emailService.sendBrandingReadyToLaunchEmail(
-            adminNotificationEmail,
-            request.getBrandName(),
-            request.getGame().getTitle());
-
-        notificationService.createInternalNotification(
-            userId,
-            "¡Campaña lanzada!",
-            "La campaña para \"" + request.getBrandName() + "\" ya está activa",
-            Instant.now());
-
-        if (request.getReviewedByAdmin() != null) {
-            notificationService.createInternalNotification(
-                request.getReviewedByAdmin().getUser().getId(),
-                "Campaña lanzada",
-                "\"" + request.getBrandName() + "\" fue lanzada por el anunciante",
-                Instant.now());
-        }
+        notifyDesignApproved(request, userId);
     }
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public void requestDesignChanges(Long requestId, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
@@ -534,10 +465,11 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     // ===== RECURSOS CORPORATIVOS =====
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public CorporateResourceUploadPermissionDTO generateResourceUploadUrl(Long requestId, FileUploadRequestDTO dto, Long userId) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
 
-        if (Set.of(BrandingRequestStatus.LAUNCHED,
+        if (Set.of(BrandingRequestStatus.CAMPAIGN_CREATED,
                    BrandingRequestStatus.REJECTED, BrandingRequestStatus.CANCELLED)
                 .contains(request.getStatus())) {
             throw new ValidationException("Corporate resources cannot be uploaded in status: " + request.getStatus());
@@ -570,6 +502,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public void confirmCorporateResource(Long requestId, ConfirmCorporateResourceDTO dto, Long userId) {
         findOwnedRequest(requestId, userId);
 
@@ -619,6 +552,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
     public BrandingRequestCommentDTO addCommentAsCommercial(Long requestId, Long userId, AddCommentDTO dto) {
         BrandingRequest request = findOwnedRequest(requestId, userId);
         String authorName = request.getCommercial().getCompanyName();
@@ -666,5 +600,26 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private String extractExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) return "";
         return fileName.substring(fileName.lastIndexOf('.'));
+    }
+
+        private void notifyDesignApproved(BrandingRequest request, Long userId) {
+        emailService.sendBrandingReadyToLaunchEmail(
+            adminNotificationEmail,
+            request.getBrandName(),
+            request.getGame().getTitle());
+
+        notificationService.createInternalNotification(
+            userId,
+            "¡Diseño de campaña aprobado!",
+            "El diseño para \"" + request.getBrandName() + "\" fue aprobado por el anunciante",
+            Instant.now());
+
+        if (request.getReviewedByAdmin() != null) {
+            notificationService.createInternalNotification(
+                request.getReviewedByAdmin().getUser().getId(),
+                "Diseño de campaña aprobado",
+                "\"" + request.getBrandName() + "\" fue aprobado por el anunciante",
+                Instant.now());
+        }
     }
 }

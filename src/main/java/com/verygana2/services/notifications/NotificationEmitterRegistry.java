@@ -22,7 +22,10 @@ public class NotificationEmitterRegistry {
         SseEmitter emitter = new SseEmitter(5 * 60 * 1000L);
 
         emitter.onCompletion(() -> emitters.remove(userId));
-        emitter.onTimeout(() -> emitters.remove(userId));
+        emitter.onTimeout(() -> {
+            emitters.remove(userId);
+            emitter.complete();
+        });
         emitter.onError(e -> emitters.remove(userId));
 
         SseEmitter previous = emitters.put(userId, emitter);

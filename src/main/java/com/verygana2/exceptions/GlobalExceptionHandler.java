@@ -1,11 +1,13 @@
 package com.verygana2.exceptions;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
@@ -30,6 +32,7 @@ import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
@@ -53,10 +56,17 @@ public class GlobalExceptionHandler {
 
     // ==================== EXCEPCIONES GENÉRICAS ====================
 
+    // Async/SSE requests (e.g. /notifications/stream) are opened with Accept: text/event-stream.
+    // Writing a JSON ErrorResponse body here would fail content negotiation
+    // (HttpMediaTypeNotAcceptableException), so we set the status directly on the servlet
+    // response instead of returning a body that needs a message converter.
     @ExceptionHandler(AsyncRequestTimeoutException.class)
-    public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex, WebRequest request) {
-        log.debug("SSE connection timed out for {}", request.getDescription(false));
-        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "SSE connection timed out", request);
+    public void handleAsyncRequestTimeout(
+            AsyncRequestTimeoutException ex, WebRequest request, HttpServletResponse response) throws IOException {
+        log.debug("Async request timed out for {}", request.getDescription(false));
+        if (!response.isCommitted()) {
+            response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+        }
     }
 
     @ExceptionHandler(Exception.class)
@@ -161,6 +171,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleEmailAlreadyExistsException(
             EmailAlreadyExistsException ex, WebRequest request) {
         log.warn("Email already exists: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(TokenBlacklistedException.class)
+    public ResponseEntity<ErrorResponse> handleTokenBlacklistedException(
+            TokenBlacklistedException ex, WebRequest request) {
+        log.warn("Token is blacklisted: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 

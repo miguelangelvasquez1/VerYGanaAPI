@@ -23,6 +23,4 @@ public class GameDesignerRegisterDTO {
 
     @Size(max = 500, message = "Bio must not exceed 500 characters")
     private String bio;
-
-    private boolean canPublishDirectly = false;
 }

@@ -1,8 +1,6 @@
 package com.verygana2.controllers;
 
 import java.util.List;
-import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -10,17 +8,13 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
-import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
-import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
+import com.verygana2.dtos.game.campaign.CampaignSummaryDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignStatusRequest;
 import com.verygana2.services.interfaces.CampaignService;
@@ -39,10 +33,19 @@ public class CampaignController {
     private final CampaignService service;
 
     @GetMapping
-    public ResponseEntity<List<CampaignDTO>> getCommercialCampaigns(
+    public ResponseEntity<List<CampaignSummaryDTO>> getCommercialCampaigns(
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(service.getCommercialCampaigns(jwt.getClaim("userId")));
+    }
+
+    @GetMapping("/{campaignId}")
+    public ResponseEntity<CampaignDTO> getCampaignDetail(
+            @PathVariable Long campaignId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(service.getCampaignDetail(campaignId, userId));
     }
 
     @PatchMapping("/update-status/{campaignId}")
@@ -67,33 +70,5 @@ public class CampaignController {
         service.updateCampaign(campaignId, userId, request);
 
         return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping
-    public ResponseEntity<Void> createCampaign(
-        @Valid @RequestBody CreateCampaignRequestDTO request,
-        @AuthenticationPrincipal Jwt jwt
-    ) {
-        log.info("Creating campaign");
-        
-        Long userId = jwt.getClaim("userId");
-        service.createCampaign(request, userId);
-        
-        return ResponseEntity.status(HttpStatus.CREATED).build();
-    }
-
-    @GetMapping("/games")
-    public PagedResponse<GameDTO> getAvailableGames(
-            @AuthenticationPrincipal Jwt jwt,
-            Pageable pageable) {
-
-        Long userId = jwt.getClaim("userId");
-        return service.getAvailableGames(userId, pageable);
-    }
-    
-    @GetMapping("/{gameId}/asset-definitions")
-    public List<GameAssetDefinitionDTO> getAssetDefinitions(
-            @PathVariable Long gameId) {
-        return service.getAssetsByGame(gameId);
     }
 }

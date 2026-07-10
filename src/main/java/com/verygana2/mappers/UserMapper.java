@@ -66,6 +66,9 @@ public abstract class UserMapper {
     @Mapping(target = "departmentName", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "lastDailyLoginDate", ignore = true)
+    @Mapping(target = "monthlyIncomeRange", ignore = true)
+    @Mapping(target = "occupation", ignore = true)
+    @Mapping(target = "pep", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys", qualifiedByName = "centsToKeys")
@@ -139,6 +142,12 @@ public abstract class UserMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "ciiuCode", ignore = true)
+    @Mapping(target = "mercantileRegistration", ignore = true)
+    @Mapping(target = "legalRepDocType", ignore = true)
+    @Mapping(target = "legalRepDocNumber", ignore = true)
+    @Mapping(target = "pep", ignore = true)
+    @Mapping(target = "annualIncomeRange", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")

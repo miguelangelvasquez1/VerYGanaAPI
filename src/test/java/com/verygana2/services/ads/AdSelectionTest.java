@@ -1,6 +1,7 @@
-package com.verygana2.ads;
+package com.verygana2.services.ads;
 
 import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.ads.AdWatchSession;
@@ -11,9 +12,7 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
-import com.verygana2.services.ads.AdScorer;
-import com.verygana2.services.ads.AdScoringConfig;
-import com.verygana2.services.ads.AdScoringContext;
+import com.verygana2.services.scoring.ScoringContext;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -101,6 +100,7 @@ class AdSelectionTest {
         ad.setStatus(AdStatus.ACTIVE);
         ad.setMaxLikes(100);
         ad.setCurrentLikes(0);
+        ad.setTargetAudience(new TargetAudience());
         ad.getTargetAudience().setCategories(List.of());
         ad.setAsset(asset);
         return ad;
@@ -328,7 +328,7 @@ class AdSelectionTest {
 
             if (candidates.isEmpty()) return Optional.empty();
 
-            AdScoringContext ctx = new AdScoringContext(
+            ScoringContext ctx = new ScoringContext(
                     consumerId,
                     consumer.getAge(),
                     null,

@@ -2,6 +2,8 @@ package com.verygana2.dtos.branding;
 
 import org.hibernate.validator.constraints.URL;
 
+import com.verygana2.models.enums.CampaignGoal;
+
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -13,6 +15,9 @@ public class CreateBrandingRequestDTO {
 
     @NotNull(message = "Game ID is required")
     private Long gameId;
+
+    @NotNull(message = "Campaign goal is required")
+    private CampaignGoal campaignGoal;
 
     @NotBlank(message = "Brand name is required")
     @Size(max = 200, message = "Brand name must not exceed 200 characters")

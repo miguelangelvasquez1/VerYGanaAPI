@@ -26,4 +26,6 @@ public interface BrandingRequestRepository extends JpaRepository<BrandingRequest
     Optional<BrandingRequest> findByIdAndCommercialUserId(@Param("requestId") Long requestId, @Param("userId") Long userId);
 
     Optional<BrandingRequest> findByIdAndAssignedDesigner_User_Id(Long id, Long designerUserId);
+
+    long countByCommercial_User_IdAndStatusNotIn(Long userId, List<BrandingRequestStatus> excludedStatuses);
 }

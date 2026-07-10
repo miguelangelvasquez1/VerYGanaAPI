@@ -29,8 +29,6 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
         @Param("threshold") ZonedDateTime threshold
     );
 
-    List<Asset> findByCampaignId(Long campaignId);
-
     List<Asset> findByBrandingRequest_Id(Long brandingRequestId);
 
     List<Asset> findByObjectKeyIn(Set<String> urls);

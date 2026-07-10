@@ -13,12 +13,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
-import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
+import com.verygana2.dtos.game.campaign.CampaignSummaryDTO;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.CampaignStatus;
-import com.verygana2.models.games.Game;
-import com.verygana2.models.userDetails.CommercialDetails;
 
 @Mapper(
     componentModel = "spring",
@@ -29,6 +27,10 @@ public interface CampaignMapper {
     // De entidad a DTO
     @Mapping(target = "gameId", source = "game.id")
     @Mapping(target = "gameTitle", source = "game.title")
+    @Mapping(target = "brandingRequestId", source = "brandingRequest.id")
+    @Mapping(target = "brandName", source = "brandingRequest.brandName")
+    @Mapping(target = "campaignGoal", source = "brandingRequest.campaignGoal")
+    @Mapping(target = "costPerSessionCents", source = "averageRewardPerSessionCents")
     @Mapping(target = "categories", source = "targetAudience.categories")
     @Mapping(target = "targetGender", source = "targetAudience.targetGender")
     @Mapping(target = "minAge", source = "targetAudience.minAge")
@@ -36,51 +38,15 @@ public interface CampaignMapper {
     @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
     CampaignDTO toDto(Campaign entity);
 
+    @Mapping(target = "gameTitle", source = "game.title")
+    CampaignSummaryDTO toSummaryDto(Campaign entity);
+
     // ---- Sub-mappers ----
 
     @Mapping(target = "departmentName", source = "department.name")
     MunicipalityResponseDTO municipalityToDto(Municipality municipality);
 
     List<MunicipalityResponseDTO> municipalitiesToDto(List<Municipality> municipalities);
-
-    // De DTO a entidad
-    @Mapping(target = "id", ignore = true)
-    // Relaciones principales
-    @Mapping(target = "game", source = "game")
-    @Mapping(target = "commercial", source = "commercial")
-    // Assets y sesiones (se asocian después)
-    @Mapping(target = "assets", expression = "java(new ArrayList<>())")
-    @Mapping(target = "gameSessions", ignore = true)
-    // Métricas persistidas (backend-controlled)
-    @Mapping(target = "sessionsPlayed", constant = "0L")
-    @Mapping(target = "completedSessions", constant = "0L")
-    @Mapping(target = "totalPlayTimeSeconds", constant = "0L")
-    @Mapping(target = "spent", expression = "java(BigDecimal.ZERO)")
-    // Fechas (modelo activate/pause)
-    @Mapping(target = "startDate", ignore = true)
-    @Mapping(target = "endDate", ignore = true)
-    // Estado inicial
-    @Mapping(target = "status", expression = "java(CampaignStatus.DRAFT)")
-    // Datos editables del request
-    @Mapping(target = "coinValue", source = "request.coinValue")
-    @Mapping(target = "targetUrl", source = "request.targetUrl")
-    @Mapping(target = "completionCoins", source = "request.completionCoins")
-    @Mapping(target = "budgetCoins", source = "request.budgetCoins")
-    @Mapping(target = "maxCoinsPerSession", source = "request.maxCoinsPerSession")
-    @Mapping(target = "maxSessionsPerUserPerDay", source = "request.maxSessionsPerUserPerDay")
-    // Map config fields from request
-    @Mapping(target = "configData", source = "request.configData")
-    // Targeting (se setea luego en el service via TargetAudience)
-    @Mapping(target = "targetAudience", ignore = true)
-    // Auditoría
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "updatedAt", ignore = true)
-    // Additional unmapped properties
-    @Mapping(target = "version", ignore = true)
-    @Mapping(target = "spentCoins", ignore = true)
-    @Mapping(target = "budget", ignore = true)
-    @Mapping(target = "configDefinition", ignore = true)
-    Campaign toEntity(CreateCampaignRequestDTO request, Game game, CommercialDetails commercial);
 
     // Helper to convert JsonNode to Map<String,Object> for MapStruct
     default Map<String, Object> map(JsonNode value) {

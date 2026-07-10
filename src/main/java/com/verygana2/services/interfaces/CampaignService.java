@@ -2,27 +2,18 @@ package com.verygana2.services.interfaces;
 
 import java.util.List;
 
-import org.springframework.data.domain.Pageable;
-
-import com.verygana2.dtos.PagedResponse;
-import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
-import com.verygana2.dtos.game.campaign.CreateCampaignRequestDTO;
-import com.verygana2.dtos.game.campaign.GameAssetDefinitionDTO;
+import com.verygana2.dtos.game.campaign.CampaignSummaryDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 import com.verygana2.models.enums.CampaignStatus;
 
 public interface CampaignService {
 
-    void createCampaign(CreateCampaignRequestDTO request, Long userId);
+    List<CampaignSummaryDTO> getCommercialCampaigns(Long commercialId);
 
-    List<CampaignDTO> getCommercialCampaigns(Long commercialId);
+    CampaignDTO getCampaignDetail(Long campaignId, Long userId);
 
     void updateCampaignStatus(Long campaignId, Long userId, CampaignStatus newStatus);
 
     void updateCampaign(Long campaignId, Long userId, UpdateCampaignRequestDTO request);
-    
-    PagedResponse<GameDTO> getAvailableGames(Long commercialId, Pageable pageable);
-
-    List<GameAssetDefinitionDTO> getAssetsByGame(Long gameId);
 }

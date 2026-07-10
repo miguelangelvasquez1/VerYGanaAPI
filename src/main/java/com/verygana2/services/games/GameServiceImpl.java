@@ -1,14 +1,17 @@
-package com.verygana2.services;
+package com.verygana2.services.games;
 
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,8 +28,12 @@ import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.UnauthorizedException;
+import com.verygana2.models.Category;
 import com.verygana2.models.branding.Campaign;
+import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.DevicePlatform;
+import com.verygana2.models.enums.Gender;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameMetricDefinition;
@@ -43,6 +50,7 @@ import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.GameService;
+import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.utils.validators.MetricValidator;
 
 import jakarta.persistence.EntityManager;
@@ -76,6 +84,8 @@ public class GameServiceImpl implements GameService {
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
     private final ProductRepository productRepository;
+    private final CampaignScorer campaignScorer;
+    private final CampaignScoringConfig campaignScoringConfig;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -106,8 +116,8 @@ public class GameServiceImpl implements GameService {
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
                 .orElseThrow(() -> new ValidationException("Game not available"));
 
-        // 3. Seleccionar campaña válida para el juego
-        Campaign campaign = campaignRepository.findRandomActiveCampaignByGameId(gameId)
+        // 3. Seleccionar la campaña más adecuada para el juego y el consumidor
+        Campaign campaign = selectBestCampaign(gameId, consumer)
                 .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
 
         // 4. Crear sesión
@@ -296,6 +306,48 @@ public class GameServiceImpl implements GameService {
     private DevicePlatform resolvePlatform() {
         // ejemplo simple
         return DevicePlatform.MOBILE; // 1 = web, 2 = android, 3 = ios
+    }
+
+    /**
+     * Selecciona la campaña más adecuada para el juego y el consumidor dados, usando el mismo
+     * enfoque de dos etapas que el sistema de anuncios: hard filters en el repositorio
+     * (elegibilidad) + scoring ponderado en {@link CampaignScorer} (preferencia).
+     */
+    private Optional<Campaign> selectBestCampaign(Long gameId, ConsumerDetails consumer) {
+        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime todayStart = now.toLocalDate().atStartOfDay(now.getZone());
+
+        List<Campaign> candidates = campaignRepository.findEligibleCampaignsForConsumer(
+                gameId,
+                consumer.getId(),
+                CampaignStatus.ACTIVE,
+                consumer.getMunicipality(),
+                todayStart,
+                PageRequest.of(0, campaignScoringConfig.getCandidateLimit()));
+
+        if (candidates.isEmpty()) return Optional.empty();
+
+        Set<Long> candidateIds = candidates.stream().map(Campaign::getId).collect(Collectors.toSet());
+        Map<Long, ZonedDateTime> lastPlayedAt = gameSessionRepository
+                .findLastPlayedAtByCampaignIds(consumer.getId(), candidateIds)
+                .stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (ZonedDateTime) row[1]));
+
+        ScoringContext ctx = new ScoringContext(
+                consumer.getId(),
+                consumer.getAge(),
+                toTargetGender(consumer.getGender()),
+                consumer.getCategories().stream().map(Category::getId).collect(Collectors.toSet()),
+                lastPlayedAt,
+                now);
+
+        return campaignScorer.selectBest(candidates, ctx);
+    }
+
+    private TargetGender toTargetGender(Gender gender) {
+        if (gender == Gender.MALE) return TargetGender.MALE;
+        if (gender == Gender.FEMALE) return TargetGender.FEMALE;
+        return null;
     }
 
     private GameSession validateSessionOwnership(String sessionToken, String userHash) {

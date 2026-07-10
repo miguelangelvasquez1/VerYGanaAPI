@@ -68,21 +68,21 @@ public class GameConfigDefinition {
     @Column(name = "created_by", length = 100)
     private String createdBy;
 
-    // CONFIG DE RECOMPENSAS
+    // CONFIG DE RECOMPENSAS (se deben calcular juego a juego)
 
-    @Column(name = "average_reward_per_session_cents")
-    private Long averageRewardPerSessionCents;
-
-    @Column(name = "completion_reward_cents")
-    private Long completionRewardCents;
-
-    @Column(name = "max_reward_per_session_cents")
-    private Long maxRewardPerSessionCents;
-
-    @Column(name = "score_reward_factor")
+    @Column(name = "score_reward_factor", nullable = false)
     private Double scoreRewardFactor;
 
-    @Column(name = "average_duration_seconds")
+    @Column(name = "completion_reward_cents", nullable = false)
+    private Long completionRewardCents;
+
+    @Column(name = "max_reward_per_session_cents", nullable = false)
+    private Long maxRewardPerSessionCents;
+
+    @Column(name = "average_reward_per_session_cents", nullable = false)
+    private Long averageRewardPerSessionCents;
+
+    @Column(name = "average_duration_seconds", nullable = false)
     private Integer averageDurationSeconds;
 
     @PrePersist

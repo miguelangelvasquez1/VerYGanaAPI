@@ -1,6 +1,5 @@
 package com.verygana2.models.branding;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -11,6 +10,7 @@ import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.CampaignGoal;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
@@ -62,6 +62,10 @@ public class BrandingRequest {
     // ===== PARTES INVOLUCRADAS =====
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "game_config_definition_id", nullable = false)
+    private GameConfigDefinition gameConfigDefinition;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "commercial_id", nullable = false)
     private CommercialDetails commercial;
 
@@ -92,23 +96,6 @@ public class BrandingRequest {
 
     @Column(name = "budget_cents", nullable = false)
     private Long budgetCents;
-
-    // ===== ECONOMÍA CONGELADA =====
-
-    @Column(name = "score_reward_factor", precision = 10, scale = 4)
-    private BigDecimal scoreRewardFactor;
-
-    @Column(name = "average_reward_per_session_cents")
-    private Long averageRewardPerSessionCents;
-
-    @Column(name = "estimated_sessions")
-    private Long estimatedSessions;
-
-    @Column(name = "completion_reward_cents")
-    private Long completionRewardCents;
-
-    @Column(name = "max_reward_per_session_cents")
-    private Long maxRewardPerSessionCents;
 
     @Column(name = "max_sessions_per_user_per_day")
     private Integer maxSessionsPerUserPerDay;
@@ -229,5 +216,32 @@ public class BrandingRequest {
             && campaignGoal != null
             && maxSessionsPerUserPerDay != null
             && startDate != null;
+    }
+
+    // ===== ECONOMÍA (derivada de gameConfigDefinition) =====
+
+    public Double getScoreRewardFactor() {
+        Double factor = gameConfigDefinition.getScoreRewardFactor();
+        return factor != null ? factor : null;
+    }
+
+    public Long getAverageRewardPerSessionCents() {
+        return gameConfigDefinition.getAverageRewardPerSessionCents();
+    }
+
+    public Long getCompletionRewardCents() {
+        return gameConfigDefinition.getCompletionRewardCents();
+    }
+
+    public Long getMaxRewardPerSessionCents() {
+        return gameConfigDefinition.getMaxRewardPerSessionCents();
+    }
+
+    public Long getEstimatedSessions() {
+        Long averageRewardPerSessionCents = getAverageRewardPerSessionCents();
+        if (budgetCents == null || averageRewardPerSessionCents == null || averageRewardPerSessionCents <= 0) {
+            return null;
+        }
+        return budgetCents / averageRewardPerSessionCents;
     }
 }
