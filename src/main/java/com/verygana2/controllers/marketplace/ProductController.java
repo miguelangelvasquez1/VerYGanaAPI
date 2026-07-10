@@ -2,10 +2,10 @@ package com.verygana2.controllers.marketplace;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -148,17 +148,14 @@ public class ProductController {
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<PagedResponse<ProductStockResponseDTO>> getProductStock(
             @PathVariable Long productId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String search,
             @RequestParam(required = false) StockStatus status,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @RequestParam(required = false) LocalDate soldDate,
+            Pageable pageable,
             @AuthenticationPrincipal Jwt jwt) {
         Long commercialId = jwt.getClaim("userId");
 
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-
         return ResponseEntity
-                .ok(productStockService.getProductStock(productId, commercialId, search, status, pageable));
+                .ok(productStockService.getProductStock(productId, commercialId, status, soldDate, pageable));
     }
 
     /**
@@ -276,11 +273,13 @@ public class ProductController {
     }
 
     /**
-     * Obtener el numero de productos activos que tiene un vendedor (ACTIVOS O PENDIENTES)
+     * Obtener el numero de productos activos que tiene un vendedor (ACTIVOS O
+     * PENDIENTES)
      */
     @GetMapping("/total-products")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Integer> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt, @RequestParam("status") ProductStatus status) {
+    public ResponseEntity<Integer> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam("status") ProductStatus status) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.getTotalCommercialProducts(commercialId, status));
     }
@@ -333,12 +332,13 @@ public class ProductController {
     }
 
     /*
-    * Marcar un producto para que aparezca al final de los juegos de cada commercial
-    */
+     * Marcar un producto para que aparezca al final de los juegos de cada
+     * commercial
+     */
 
     @PatchMapping("{productId}/gameReward")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Void> markProductAsReward (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
+    public ResponseEntity<Void> markProductAsReward(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long commercialId = jwt.getClaim("userId");
         productService.markProductAsReward(commercialId, productId);
         return ResponseEntity.noContent().build();

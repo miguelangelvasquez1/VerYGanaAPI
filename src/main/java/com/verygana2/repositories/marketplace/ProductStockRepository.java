@@ -1,5 +1,7 @@
 package com.verygana2.repositories.marketplace;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -39,18 +41,19 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
             """, nativeQuery = true)
     Optional<ProductStock> findNextAvailableForProduct(@Param("productId") Long productId);
 
-    Page<ProductStock> findByProductId(Long productId, Pageable pageable);
-    
-    Page<ProductStock> findByProductIdAndCodeContainingIgnoreCase(
-        Long productId, String code, Pageable pageable
-    );
-    
-    Page<ProductStock> findByProductIdAndStatus(
-        Long productId, StockStatus status, Pageable pageable
-    );
-    
-    Page<ProductStock> findByProductIdAndCodeContainingIgnoreCaseAndStatus(
-        Long productId, String code, StockStatus status, Pageable pageable
+    // status y soldDate son opcionales: si vienen null, el predicado correspondiente
+    // se ignora. Evita mantener un método derivado por cada combinación de filtros.
+    @Query("""
+            SELECT ps FROM ProductStock ps
+            WHERE ps.product.id = :productId
+              AND (:status IS NULL OR ps.status = :status)
+              AND (:soldDate IS NULL OR FUNCTION('DATE', ps.soldAt) = :soldDate)
+            """)
+    Page<ProductStock> findByProductIdWithFilters(
+        @Param("productId") Long productId,
+        @Param("status") StockStatus status,
+        @Param("soldDate") LocalDate soldDate,
+        Pageable pageable
     );
 
     @Query("SELECT ps FROM ProductStock ps " +
@@ -58,9 +61,12 @@ public interface ProductStockRepository extends JpaRepository<ProductStock, Long
            "AND ps.product.id = :productId " +
            "AND ps.product.commercial.id = :commercialId")
     Optional<ProductStock> findByIdAndProductIdAndProductCommercialId(@Param("stockId") Long stockId, @Param("productId") Long productId, @Param("commercialId") Long commercialId);
-    
-    boolean existsByProductIdAndCode(Long productId, String code);
-    
+
+    boolean existsByProductIdAndCodeHash(Long productId, String codeHash);
+
+    @Query("SELECT ps.codeHash FROM ProductStock ps WHERE ps.product.id = :productId AND ps.codeHash IN :codeHashes")
+    List<String> findExistingCodeHashes(@Param("productId") Long productId, @Param("codeHashes") List<String> codeHashes);
+
     @Query("SELECT COUNT(ps) FROM ProductStock ps WHERE ps.product.id = :productId AND ps.status = :status")
     Integer countByProductIdAndStatus(@Param("productId") Long productId, @Param("status") StockStatus status);
 }

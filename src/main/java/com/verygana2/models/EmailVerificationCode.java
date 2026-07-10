@@ -7,8 +7,6 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -16,23 +14,22 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "email_verification_tokens")
+@Table(name = "email_verification_codes")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class EmailVerificationToken {
+public class EmailVerificationCode {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 64)
-    private String token;
+    @Column(nullable = false, length = 255)
+    private String email;
 
-    @OneToOne
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @Column(nullable = false, length = 100)
+    private String codeHash;
 
     @Column(nullable = false)
     private LocalDateTime expiresAt;
@@ -40,4 +37,8 @@ public class EmailVerificationToken {
     @Column(nullable = false)
     @Builder.Default
     private boolean used = false;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private int attempts = 0;
 }

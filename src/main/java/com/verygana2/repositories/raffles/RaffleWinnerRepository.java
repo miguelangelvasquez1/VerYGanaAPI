@@ -37,11 +37,11 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
                         JOIN FETCH w.winningTicket t
                         JOIN FETCH w.raffleResult r
                         WHERE w.winner.id = :consumerId
-                        AND (:isClaimed IS NULL OR w.prizeClaimed = :isClaimed)
+                        AND (:status IS NULL OR p.prizeStatus = :status)
                         ORDER BY r.drawnAt DESC
                                                              """)
         Page<RaffleWinner> findWonPrizesByConsumer(@Param("consumerId") Long consumerId,
-                        @Param("isClaimed") Boolean isClaimed, Pageable pageable);
+                        @Param("status") PrizeStatus status, Pageable pageable);
 
         /**
          * Encuentra ganador por ticket

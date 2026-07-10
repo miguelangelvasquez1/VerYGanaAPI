@@ -1,6 +1,7 @@
 package com.verygana2.services.email;
 
 import java.io.IOException;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
@@ -18,6 +19,7 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.verygana2.mappers.finance.MoneyMapper;
+import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.raffles.Prize;
@@ -101,6 +103,9 @@ public class SendGridEmailService implements EmailService {
     public void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode) {
         log.info("Sending prize claim confirmation to: {} for prize: {}", consumerEmail, prize.getId());
         try {
+            String prizeImageSection = (prize.getImageUrl() != null)
+                    ? "<img class='prize-image' src='" + prize.getImageUrl() + "' alt='" + escapeHtml(prize.getTitle()) + "'>"
+                    : "";
             String prizeValueSection = (prize.getValue() != null)
                     ? "<div class='prize-value'>Valor: $" + String.format("%,.0f", prize.getValue()) + " COP</div>"
                     : "";
@@ -111,6 +116,7 @@ public class SendGridEmailService implements EmailService {
 
             String html = templateLoader.render("prize-claim.html", Map.of(
                     "prizeTitle", escapeHtml(prize.getTitle()),
+                    "prizeImageSection", prizeImageSection,
                     "prizeValueSection", prizeValueSection,
                     "claimCode", escapeHtml(decryptedClaimCode),
                     "claimInstructionsSection", claimInstructionsSection,
@@ -126,15 +132,15 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
-    public void sendAccountVerificationEmail(String toEmail, String verificationUrl) {
-        log.info("Sending account verification email to: {}", toEmail);
+    public void sendVerificationCodeEmail(String toEmail, String code) {
+        log.info("Sending verification code email to: {}", toEmail);
         try {
-            String html = templateLoader.render("account-verification.html", Map.of(
-                    "verificationUrl", verificationUrl,
+            String html = templateLoader.render("verification-code.html", Map.of(
+                    "verificationCode", code,
                     "supportEmail", supportEmail));
-            sendEmail(toEmail, "✉️ Confirma tu cuenta en VeryGana", html);
+            sendEmail(toEmail, "✉️ Tu código de verificación - VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending account verification email to: {}", toEmail, e);
+            log.error("Error sending verification code email to: {}", toEmail, e);
         }
     }
 
@@ -152,11 +158,6 @@ public class SendGridEmailService implements EmailService {
         } catch (Exception e) {
             log.error("Error sending password setup email to: {}", toEmail, e);
         }
-    }
-
-    @Override
-    public boolean verifyEmail(String email, String code) {
-        return false;
     }
 
     // ===== BRANDING FLOW =====
@@ -251,6 +252,87 @@ public class SendGridEmailService implements EmailService {
         } catch (Exception e) {
             log.error("Error sending branding rejected email to: {}", toEmail, e);
         }
+    }
+
+    // ===== PQRS =====
+
+    @Override
+    @Async
+    public void sendPqrsReceivedConfirmation(String toEmail, String requesterName, String based, PqrsType type,
+            ZonedDateTime dueDate) {
+        log.info("Sending PQRS received confirmation to: {} for radicado: {}", toEmail, based);
+        try {
+            String html = templateLoader.render("pqrs-received-confirmation.html", Map.of(
+                    "requesterName", escapeHtml(requesterName),
+                    "based", based,
+                    "typeLabel", pqrsTypeLabel(type),
+                    "dueDate", dueDate.format(DATE_FORMATTER),
+                    "supportEmail", supportEmail));
+            sendEmail(toEmail, "Recibimos tu " + pqrsTypeLabel(type).toLowerCase() + " — Radicado " + based, html);
+        } catch (Exception e) {
+            log.error("Error sending PQRS received confirmation to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPqrsAssignedToAdmin(String adminEmail, String adminName, String based, String subject,
+            ZonedDateTime dueDate) {
+        log.info("Sending PQRS assigned notification to admin: {} for radicado: {}", adminEmail, based);
+        try {
+            String html = templateLoader.render("pqrs-assigned-admin.html", Map.of(
+                    "adminName", escapeHtml(adminName),
+                    "based", based,
+                    "subject", escapeHtml(subject),
+                    "dueDate", dueDate.format(DATE_FORMATTER),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail));
+            sendEmail(adminEmail, "Nuevo PQRS asignado — Radicado " + based, html);
+        } catch (Exception e) {
+            log.error("Error sending PQRS assigned notification to: {}", adminEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPqrsResolved(String toEmail, String requesterName, String based, String response) {
+        log.info("Sending PQRS resolved notification to: {} for radicado: {}", toEmail, based);
+        try {
+            String html = templateLoader.render("pqrs-resolved.html", Map.of(
+                    "requesterName", escapeHtml(requesterName),
+                    "based", based,
+                    "response", escapeHtml(response).replace("\n", "<br/>"),
+                    "supportEmail", supportEmail));
+            sendEmail(toEmail, "Tu PQRS fue resuelto — Radicado " + based, html);
+        } catch (Exception e) {
+            log.error("Error sending PQRS resolved notification to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPqrsSlaAlert(String adminEmail, String adminName, String based, ZonedDateTime dueDate) {
+        log.info("Sending PQRS SLA alert to admin: {} for radicado: {}", adminEmail, based);
+        try {
+            String html = templateLoader.render("pqrs-sla-alert.html", Map.of(
+                    "adminName", escapeHtml(adminName),
+                    "based", based,
+                    "dueDate", dueDate.format(DATE_FORMATTER),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail));
+            sendEmail(adminEmail, "⚠️ PQRS próximo a vencer — Radicado " + based, html);
+        } catch (Exception e) {
+            log.error("Error sending PQRS SLA alert to: {}", adminEmail, e);
+        }
+    }
+
+    private String pqrsTypeLabel(PqrsType type) {
+        return switch (type) {
+            case PETICION -> "Petición";
+            case QUEJA -> "Queja";
+            case RECLAMO -> "Reclamo";
+            case SUGERENCIA -> "Sugerencia";
+        };
     }
 
     // ===== HELPERS =====

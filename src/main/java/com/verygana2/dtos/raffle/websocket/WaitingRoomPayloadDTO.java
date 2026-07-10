@@ -1,5 +1,9 @@
 package com.verygana2.dtos.raffle.websocket;
 
+import java.util.List;
+
+import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
+
 import lombok.Builder;
 import lombok.Data;
 
@@ -7,8 +11,9 @@ import lombok.Data;
 @Builder
 public class WaitingRoomPayloadDTO {
 
-    private long viewerCount; // Usuarios conectados a esta sala
-    private long secondsUntilDraw; // Para el countdown del frontend
-    private long totalTickets; // totalTicketsIssued de la rifa
-    private Long totalParticipants;
+    private Integer viewerCount;
+    private long secondsUntilDraw; 
+    private Integer totalTickets; 
+    private List<PrizeResponseDTO> prizes;
+    private Integer totalParticipants;
 }
