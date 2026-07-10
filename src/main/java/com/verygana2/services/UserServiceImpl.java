@@ -8,7 +8,6 @@ import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.services.interfaces.PasswordSetupService;
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,7 +52,6 @@ public class UserServiceImpl implements UserService {
     private final LocationService locationService;
     private final LevelService levelService;
     private final PasswordSetupService passwordSetupService;
-    private final EmailService emailService;
     private final EmailVerificationService emailVerificationService;
     private final ScreeningService screeningService;
 
