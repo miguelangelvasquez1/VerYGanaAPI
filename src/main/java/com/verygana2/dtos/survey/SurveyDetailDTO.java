@@ -18,11 +18,13 @@ public class SurveyDetailDTO {
     private Long id;
     private String title;
     private String description;
-    private Long rewardAmountPerQuestionCents;
+    private Long totalRewardKeys;
     private Integer maxResponses;
+    private Integer responseCount;
     private Survey.SurveyStatus status;
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
     private List<String> categoryNames;
     private int totalQuestions;
+    private String companyName;
 }

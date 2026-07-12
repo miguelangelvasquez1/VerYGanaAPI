@@ -294,3 +294,279 @@ SELECT
 FROM users
 WHERE email = 'designer@verygana.com'
 ON DUPLICATE KEY UPDATE designer_code = designer_code;
+
+
+
+-- ============================================================
+-- 7. CONSUMER TEST USERS (consumer1..consumer5)
+-- ============================================================
+
+-- ---- consumer1@verygana.com ----
+
+INSERT INTO users (
+    email, phone_number, password, role, user_state, registered_date, public_id
+)
+VALUES (
+    'consumer1@verygana.com',
+    '3001000005',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'CONSUMER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440001')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'consumer1@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO consumer_details (
+    user_id, user_hash, user_name, name, last_name, department_name,
+    municipality_name, municipality_code, avatar_id, age, gender, has_pet,
+    ads_watched, total_withdraws, daily_ad_count, referral_code,
+    document_type, document_number, is_pep
+)
+SELECT
+    u.id, '550e8400-e29b-41d4-a716-446655440001', 'consumer_test1', 'Usuario', 'Prueba 1',
+    'QUINDÍO', 'ARMENIA', '63001',
+    (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
+    25, 'MALE', false, 0, 0, 0, 'REF-TEST-0002', 'CC', '12345679', false
+FROM users u
+WHERE u.email = 'consumer1@verygana.com'
+ON DUPLICATE KEY UPDATE user_name = user_name;
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email = 'consumer1@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO key_wallets (
+    id, consumer_id, purchase_keys, blocked_purchase_keys,
+    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+)
+SELECT
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440001'),
+    cd.user_id, 0, 0, 0, 0, NOW(), NOW()
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer1@verygana.com'
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
+
+-- ---- consumer2@verygana.com ----
+
+INSERT INTO users (
+    email, phone_number, password, role, user_state, registered_date, public_id
+)
+VALUES (
+    'consumer2@verygana.com',
+    '3001000006',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'CONSUMER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440002')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'consumer2@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO consumer_details (
+    user_id, user_hash, user_name, name, last_name, department_name,
+    municipality_name, municipality_code, avatar_id, age, gender, has_pet,
+    ads_watched, total_withdraws, daily_ad_count, referral_code,
+    document_type, document_number, is_pep
+)
+SELECT
+    u.id, '550e8400-e29b-41d4-a716-446655440002', 'consumer_test2', 'Usuario', 'Prueba 2',
+    'QUINDÍO', 'ARMENIA', '63001',
+    (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
+    25, 'MALE', false, 0, 0, 0, 'REF-TEST-0003', 'CC', '12345680', false
+FROM users u
+WHERE u.email = 'consumer2@verygana.com'
+ON DUPLICATE KEY UPDATE user_name = user_name;
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email = 'consumer2@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO key_wallets (
+    id, consumer_id, purchase_keys, blocked_purchase_keys,
+    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+)
+SELECT
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440002'),
+    cd.user_id, 0, 0, 0, 0, NOW(), NOW()
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer2@verygana.com'
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
+
+-- ---- consumer3@verygana.com ----
+
+INSERT INTO users (
+    email, phone_number, password, role, user_state, registered_date, public_id
+)
+VALUES (
+    'consumer3@verygana.com',
+    '3001000007',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'CONSUMER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440003')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'consumer3@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO consumer_details (
+    user_id, user_hash, user_name, name, last_name, department_name,
+    municipality_name, municipality_code, avatar_id, age, gender, has_pet,
+    ads_watched, total_withdraws, daily_ad_count, referral_code,
+    document_type, document_number, is_pep
+)
+SELECT
+    u.id, '550e8400-e29b-41d4-a716-446655440003', 'consumer_test3', 'Usuario', 'Prueba 3',
+    'QUINDÍO', 'ARMENIA', '63001',
+    (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
+    25, 'MALE', false, 0, 0, 0, 'REF-TEST-0004', 'CC', '12345681', false
+FROM users u
+WHERE u.email = 'consumer3@verygana.com'
+ON DUPLICATE KEY UPDATE user_name = user_name;
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email = 'consumer3@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO key_wallets (
+    id, consumer_id, purchase_keys, blocked_purchase_keys,
+    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+)
+SELECT
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440003'),
+    cd.user_id, 0, 0, 0, 0, NOW(), NOW()
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer3@verygana.com'
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
+
+-- ---- consumer4@verygana.com ----
+
+INSERT INTO users (
+    email, phone_number, password, role, user_state, registered_date, public_id
+)
+VALUES (
+    'consumer4@verygana.com',
+    '3001000008',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'CONSUMER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440004')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'consumer4@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO consumer_details (
+    user_id, user_hash, user_name, name, last_name, department_name,
+    municipality_name, municipality_code, avatar_id, age, gender, has_pet,
+    ads_watched, total_withdraws, daily_ad_count, referral_code,
+    document_type, document_number, is_pep
+)
+SELECT
+    u.id, '550e8400-e29b-41d4-a716-446655440004', 'consumer_test4', 'Usuario', 'Prueba 4',
+    'QUINDÍO', 'ARMENIA', '63001',
+    (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
+    25, 'MALE', false, 0, 0, 0, 'REF-TEST-0005', 'CC', '12345682', false
+FROM users u
+WHERE u.email = 'consumer4@verygana.com'
+ON DUPLICATE KEY UPDATE user_name = user_name;
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email = 'consumer4@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO key_wallets (
+    id, consumer_id, purchase_keys, blocked_purchase_keys,
+    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+)
+SELECT
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440004'),
+    cd.user_id, 0, 0, 0, 0, NOW(), NOW()
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer4@verygana.com'
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
+
+-- ---- consumer5@verygana.com ----
+
+INSERT INTO users (
+    email, phone_number, password, role, user_state, registered_date, public_id
+)
+VALUES (
+    'consumer5@verygana.com',
+    '3001000009',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'CONSUMER',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440005')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id FROM users WHERE email = 'consumer5@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO consumer_details (
+    user_id, user_hash, user_name, name, last_name, department_name,
+    municipality_name, municipality_code, avatar_id, age, gender, has_pet,
+    ads_watched, total_withdraws, daily_ad_count, referral_code,
+    document_type, document_number, is_pep
+)
+SELECT
+    u.id, '550e8400-e29b-41d4-a716-446655440005', 'consumer_test5', 'Usuario', 'Prueba 5',
+    'QUINDÍO', 'ARMENIA', '63001',
+    (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
+    25, 'MALE', false, 0, 0, 0, 'REF-TEST-0006', 'CC', '12345683', false
+FROM users u
+WHERE u.email = 'consumer5@verygana.com'
+ON DUPLICATE KEY UPDATE user_name = user_name;
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email = 'consumer5@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO key_wallets (
+    id, consumer_id, purchase_keys, blocked_purchase_keys,
+    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+)
+SELECT
+    UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440005'),
+    cd.user_id, 0, 0, 0, 0, NOW(), NOW()
+FROM consumer_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'consumer5@verygana.com'
+ON DUPLICATE KEY UPDATE consumer_id = consumer_id;

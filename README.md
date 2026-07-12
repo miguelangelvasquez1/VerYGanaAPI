@@ -162,11 +162,14 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
+- bug de carga y muchos llamados
+- panel admin encuestas(FILTROS FUNCIONALES). que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
+- flujo de jugar, metricas, casos de juego, etc. surveys consumer probar todo
 - si un commercial cambia a plan mas bajo que no se devuelva lo creado
 - ver todo despues de haber preguntado a nestor(contratos).
 
 - probar subir video a ads
-- probar max_ads, max_surveys, flujo de sesiones y recompena bien revisar.
+- probar max_ads, flujo de sesiones y recompena bien revisar.
 
 - star?date no se muestra bien?, fecha de iniico... para surveys tambien
 - ver que los asstes se borren del cdn.

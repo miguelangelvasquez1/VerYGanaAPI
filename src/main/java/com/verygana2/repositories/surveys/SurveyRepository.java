@@ -26,6 +26,9 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     long countByCreatorIdAndStatus(Long creatorId, Survey.SurveyStatus status);
 
+    /** Counts surveys still consuming a plan slot (everything except final states: CLOSED/"cancelled" and COMPLETED). */
+    long countByCreatorIdAndStatusNotIn(Long creatorId, List<Survey.SurveyStatus> statuses);
+
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM Survey s WHERE s.id = :id")
     Optional<Survey> findByIdForUpdate(@Param("id") Long id);
@@ -126,6 +129,24 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
     @Modifying
     @Query("UPDATE Survey s SET s.responseCount = s.responseCount + 1 WHERE s.id = :surveyId")
     void incrementResponseCount(@Param("surveyId") Long surveyId);
+
+    /**
+     * Atomically marks a survey COMPLETED once its response quota is reached.
+     * Operates directly in SQL (not via the loaded entity) so it can't race with
+     * {@link #incrementResponseCount} or overwrite it with a stale in-memory value.
+     */
+    @Modifying
+    @Query("""
+        UPDATE Survey s SET s.status = :completed
+        WHERE s.id = :surveyId
+          AND s.status IN :fromStatuses
+          AND s.maxResponses IS NOT NULL
+          AND s.responseCount >= s.maxResponses
+        """)
+    void completeIfQuotaReached(
+            @Param("surveyId")      Long surveyId,
+            @Param("completed")     Survey.SurveyStatus completed,
+            @Param("fromStatuses")  List<Survey.SurveyStatus> fromStatuses);
 
     @Query("SELECT s FROM Survey s WHERE s.status = :status")
     List<Survey> findByStatus(@Param("status") Survey.SurveyStatus status);

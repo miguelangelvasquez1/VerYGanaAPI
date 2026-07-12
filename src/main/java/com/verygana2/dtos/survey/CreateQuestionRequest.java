@@ -27,5 +27,6 @@ public class CreateQuestionRequest {
         @Builder.Default
         private Boolean required = true;
  
+        @Size(max = 8)
         private List<String> options; // only for SINGLE_CHOICE / MULTIPLE_CHOICE
     }

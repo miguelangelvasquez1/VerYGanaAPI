@@ -42,9 +42,6 @@ public class SurveyCommercialDetailDTO {
     // ─── Questions ────────────────────────────────────────────────────────────
     private List<QuestionResponse> questions;
 
-    // ─── Live progress ────────────────────────────────────────────────────────
-    private long completedSessions;
-
     // ─── Budget ───────────────────────────────────────────────────────────────
     /** null when maxResponses is open-ended */
     private Long totalBudgetCents;

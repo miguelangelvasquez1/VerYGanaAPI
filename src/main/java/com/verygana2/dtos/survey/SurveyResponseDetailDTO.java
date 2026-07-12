@@ -15,10 +15,8 @@ import lombok.NoArgsConstructor;
 public class SurveyResponseDetailDTO {
 
     private Long   id;
-    private Long   consumerId;
-    private String consumerName;
+    private String userHash;
     private String status;
-    private ZonedDateTime startedAt;
     private ZonedDateTime completedAt;
     private List<AnswerDetailDTO> answers;
 

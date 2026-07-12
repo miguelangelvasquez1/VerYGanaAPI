@@ -28,21 +28,23 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     boolean existsByCommercialIdAndGameId(Long commercialId, Long gameId);
 
     /**
-     * Retorna campañas candidatas del juego indicado que pasan todos los hard filters.
-     * La selección final de la mejor candidata se realiza en {@code CampaignScorer} mediante
-     * scoring ponderado (ver {@code AdRepository.findEligibleAdsForConsumer} para el análogo de anuncios).
+     * Retorna campañas candidatas (de cualquier juego) que pasan todos los hard filters.
+     * No se restringe a un juego en particular: el juego a jugar es una consecuencia de la
+     * campaña elegida, no un filtro de entrada — {@code CampaignScorer} decide, vía scoring
+     * ponderado, cuál se ajusta mejor al consumidor (ver {@code AdRepository.findEligibleAdsForConsumer}
+     * para el análogo de anuncios).
      *
      * <p>Hard filters aplicados:
      * <ul>
-     *   <li>game = :gameId, status = ACTIVE, presupuesto no agotado (spentCents &lt; budgetCents)</li>
+     *   <li>status = ACTIVE, juego activo, presupuesto no agotado (spentCents &lt; budgetCents)</li>
      *   <li>Municipio: si la campaña tiene municipios objetivo, el consumidor debe pertenecer a uno</li>
      *   <li>Límite diario: si maxSessionsPerUserPerDay está definido, el consumidor no puede haberlo superado hoy</li>
      * </ul>
      */
     @Query("""
            SELECT c FROM Campaign c
-           WHERE c.game.id = :gameId
-           AND c.status = :status
+           WHERE c.status = :status
+           AND c.game.active = true
            AND c.spentCents < c.budgetCents
 
            AND (:municipality IS NULL
@@ -58,7 +60,6 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
            ) < c.maxSessionsPerUserPerDay)
     """)
     List<Campaign> findEligibleCampaignsForConsumer(
-           @Param("gameId") Long gameId,
            @Param("consumerId") Long consumerId,
            @Param("status") CampaignStatus status,
            @Param("municipality") Municipality municipality,

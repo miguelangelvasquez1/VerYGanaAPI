@@ -51,4 +51,9 @@ public class CampaignScorer {
     public Optional<Campaign> selectBest(List<Campaign> candidates, ScoringContext ctx) {
         return scorer.selectBest(candidates, ctx, Campaign::getId, Campaign::getCreatedAt);
     }
+
+    /** Visibilidad de paquete para permitir pruebas unitarias directas. */
+    double computeScore(Campaign campaign, ScoringContext ctx) {
+        return scorer.computeScore(campaign, ctx);
+    }
 }

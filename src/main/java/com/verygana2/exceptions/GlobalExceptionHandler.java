@@ -41,6 +41,7 @@ import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
+import com.verygana2.exceptions.surveys.SurveySuspendedException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
@@ -281,6 +282,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleSurveyAlreadyCompletedException(
             SurveyAlreadyCompletedException ex, WebRequest request) {
         log.warn("Survey already completed: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(SurveySuspendedException.class)
+    public ResponseEntity<ErrorResponse> handleSurveySuspendedException(
+            SurveySuspendedException ex, WebRequest request) {
+        log.warn("Survey suspended: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 

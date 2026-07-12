@@ -110,15 +110,13 @@ public class GameServiceImpl implements GameService {
 
         ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
 
-        // 2. Validar juego
-        Long gameId = java.util.Objects.requireNonNull(request.getGameId(), "gameId must not be null");
+        // 2. Seleccionar la campaña (y por lo tanto el juego) que mejor se ajuste al consumidor.
+        // No se usa request.getGameId() aquí: en modo sponsored el juego es una consecuencia
+        // de la campaña elegida, no una elección del usuario.
+        Campaign campaign = selectBestCampaign(consumer)
+                .orElseThrow(() -> new ValidationException("No active campaigns available"));
 
-        Game game = gameRepository.findByIdAndActiveTrue(gameId)
-                .orElseThrow(() -> new ValidationException("Game not available"));
-
-        // 3. Seleccionar la campaña más adecuada para el juego y el consumidor
-        Campaign campaign = selectBestCampaign(gameId, consumer)
-                .orElseThrow(() -> new ValidationException("No active campaigns for this game"));
+        Game game = campaign.getGame();
 
         // 4. Crear sesión
         GameSession session = GameSession.start(consumer, game, resolvePlatform(), campaign);
@@ -313,12 +311,11 @@ public class GameServiceImpl implements GameService {
      * enfoque de dos etapas que el sistema de anuncios: hard filters en el repositorio
      * (elegibilidad) + scoring ponderado en {@link CampaignScorer} (preferencia).
      */
-    private Optional<Campaign> selectBestCampaign(Long gameId, ConsumerDetails consumer) {
+    private Optional<Campaign> selectBestCampaign(ConsumerDetails consumer) {
         ZonedDateTime now = ZonedDateTime.now();
         ZonedDateTime todayStart = now.toLocalDate().atStartOfDay(now.getZone());
 
         List<Campaign> candidates = campaignRepository.findEligibleCampaignsForConsumer(
-                gameId,
                 consumer.getId(),
                 CampaignStatus.ACTIVE,
                 consumer.getMunicipality(),

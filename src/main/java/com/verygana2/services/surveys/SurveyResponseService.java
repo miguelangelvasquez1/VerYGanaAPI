@@ -4,7 +4,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -50,21 +49,6 @@ public class SurveyResponseService {
         List<SurveySession> allSessions = sessionRepository.findBySurveyIdWithAnswers(surveyId);
 
         int total     = allSessions.size();
-        int completed = (int) allSessions.stream()
-                .filter(s -> s.getStatus() == SurveySession.SessionStatus.COMPLETED)
-                .count();
-
-        double completionRate = total == 0 ? 0.0
-                : Math.round((completed * 1000.0 / total)) / 10.0;
-
-        Double avgMinutes = allSessions.stream()
-                .filter(s -> s.getCompletedAt() != null && s.getStartedAt() != null)
-                .mapToLong(s -> Duration.between(s.getStartedAt(), s.getCompletedAt()).toMinutes())
-                .average()
-                .stream()
-                .boxed()
-                .findFirst()
-                .orElse(null);
 
         List<SurveyAnalyticsDTO.QuestionStatDTO> questionStats = survey.getQuestions()
                 .stream()
@@ -76,9 +60,6 @@ public class SurveyResponseService {
                 .surveyId(surveyId)
                 .surveyTitle(survey.getTitle())
                 .totalResponses(total)
-                .completedResponses(completed)
-                .completionRate(completionRate)
-                .averageCompletionMinutes(avgMinutes)
                 .questionStats(questionStats)
                 .build();
     }
@@ -99,9 +80,7 @@ public class SurveyResponseService {
         try (PrintWriter writer = new PrintWriter(
                 new OutputStreamWriter(out, StandardCharsets.UTF_8))) {
 
-            List<String> headers = new ArrayList<>(
-                    List.of("ID Sesión", "ID Consumidor", "Nombre", "Estado",
-                            "Iniciada", "Completada"));
+            List<String> headers = new ArrayList<>(List.of("User Hash", "Completada"));
             questions.forEach(q -> headers.add(q.getText()));
             writer.println(String.join(",", headers.stream()
                     .map(h -> "\"" + h.replace("\"", "\"\"") + "\"")
@@ -114,11 +93,7 @@ public class SurveyResponseService {
                                 a -> a));
 
                 List<String> row = new ArrayList<>();
-                row.add(String.valueOf(session.getId()));
-                row.add(String.valueOf(session.getConsumer().getId()));
-                row.add(csvCell(null));
-                row.add(session.getStatus().name());
-                row.add(session.getStartedAt() != null ? session.getStartedAt().toString() : "");
+                row.add(session.getConsumer().getUserHash());
                 row.add(session.getCompletedAt() != null ? session.getCompletedAt().toString() : "");
 
                 for (SurveyQuestion q : questions) {
@@ -155,9 +130,7 @@ public class SurveyResponseService {
             font.setBold(true);
             headerStyle.setFont(font);
 
-            List<String> headers = new ArrayList<>(
-                    List.of("ID Sesión", "ID Consumidor", "Nombre", "Estado",
-                            "Iniciada", "Completada"));
+            List<String> headers = new ArrayList<>(List.of("User Hash", "Completada"));
             questions.forEach(q -> headers.add(q.getText()));
 
             for (int i = 0; i < headers.size(); i++) {
@@ -174,18 +147,13 @@ public class SurveyResponseService {
                         .collect(Collectors.toMap(
                                 a -> a.getQuestion().getId(), a -> a));
 
-                row.createCell(0).setCellValue(session.getId());
-                row.createCell(1).setCellValue(session.getConsumer().getId());
-                row.createCell(2).setCellValue("");
-                row.createCell(3).setCellValue(session.getStatus().name());
-                row.createCell(4).setCellValue(
-                        session.getStartedAt() != null ? session.getStartedAt().toString() : "");
-                row.createCell(5).setCellValue(
+                row.createCell(0).setCellValue(session.getConsumer().getUserHash());
+                row.createCell(1).setCellValue(
                         session.getCompletedAt() != null ? session.getCompletedAt().toString() : "");
 
                 for (int i = 0; i < questions.size(); i++) {
                     SurveyAnswer ans = answerMap.get(questions.get(i).getId());
-                    row.createCell(6 + i).setCellValue(ans != null ? answerText(ans) : "");
+                    row.createCell(2 + i).setCellValue(ans != null ? answerText(ans) : "");
                 }
             }
 
@@ -210,10 +178,8 @@ public class SurveyResponseService {
 
         return SurveyResponseDetailDTO.builder()
                 .id(session.getId())
-                .consumerId(session.getConsumer().getId())
-                .consumerName(null)
+                .userHash(session.getConsumer().getUserHash())
                 .status(session.getStatus().name())
-                .startedAt(session.getStartedAt())
                 .completedAt(session.getCompletedAt())
                 .answers(answers)
                 .build();

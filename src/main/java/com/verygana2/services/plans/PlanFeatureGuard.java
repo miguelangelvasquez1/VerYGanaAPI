@@ -102,7 +102,9 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_SURVEYS -> {
-                long current = surveyRepository.countByCreatorIdAndStatus(commercialId, SurveyStatus.ACTIVE);
+                // Cuenta encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: CLOSED/"cancelada" y COMPLETED).
+                long current = surveyRepository.countByCreatorIdAndStatusNotIn(
+                    commercialId, List.of(SurveyStatus.CLOSED, SurveyStatus.COMPLETED));
                 if (current >= state.getMaxSurveys()) {
                     throw new PlanCapabilityException(
                         "Límite de encuestas alcanzado. Plan " + state.getEffectivePlan().name() +

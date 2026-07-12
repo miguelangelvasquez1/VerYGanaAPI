@@ -19,13 +19,6 @@ public class SurveyAnalyticsDTO {
     private String surveyTitle;
  
     private int    totalResponses;
-    private int    completedResponses;
- 
-    /** completedResponses / totalResponses × 100, rounded to 1 decimal */
-    private double completionRate;
- 
-    /** Average minutes from startedAt to completedAt. Null if no completions. */
-    private Double averageCompletionMinutes;
  
     private List<QuestionStatDTO> questionStats;
 

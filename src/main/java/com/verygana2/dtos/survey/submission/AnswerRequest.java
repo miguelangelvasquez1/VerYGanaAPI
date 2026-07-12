@@ -3,6 +3,7 @@ package com.verygana2.dtos.survey.submission;
 import java.util.List;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class AnswerRequest {
         private Long questionId;
  
         // For TEXT / RATING
+        @Size(max = 1000)
         private String textAnswer;
  
         // For SINGLE_CHOICE / YES_NO

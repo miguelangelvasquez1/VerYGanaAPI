@@ -1,6 +1,5 @@
 package com.verygana2.models.surveys;
 
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -58,7 +57,7 @@ public class Survey {
     private String description;
 
     @ManyToOne
-    @JoinColumn(name = "creator_id", nullable = true)
+    @JoinColumn(name = "creator_id", nullable = false)
     private CommercialDetails creator;
 
     @NotNull(message = "Reward amount is required")
@@ -79,10 +78,10 @@ public class Survey {
     private SurveyStatus status = SurveyStatus.DRAFT;
 
     @Column(name = "starts_at")
-    private LocalDateTime startsAt;
+    private ZonedDateTime startsAt;
 
     @Column(name = "ends_at")
-    private LocalDateTime endsAt;
+    private ZonedDateTime endsAt;
 
     // ===== SEGMENTACIÓN =====
 
@@ -108,13 +107,17 @@ public class Survey {
     private ZonedDateTime updatedAt;
 
     public boolean isActive() {
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now();
         return status == SurveyStatus.ACTIVE
             && (startsAt == null || !now.isBefore(startsAt))
             && (endsAt == null || !now.isAfter(endsAt));
     }
 
     public enum SurveyStatus {
-        DRAFT, ACTIVE, PAUSED, CLOSED
+        DRAFT, ACTIVE, PAUSED, CLOSED,
+        /** Admin-only. Freezes all activity on the survey (new sessions, resuming, submitting). */
+        SUSPENDED,
+        /** System-set only, when responseCount reaches maxResponses. */
+        COMPLETED
     }
 }

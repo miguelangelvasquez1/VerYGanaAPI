@@ -4,9 +4,11 @@ import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -33,6 +35,7 @@ import com.verygana2.dtos.survey.submission.UserRewardsSummary;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
+import com.verygana2.exceptions.surveys.SurveySuspendedException;
 import com.verygana2.mappers.SurveyMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.Municipality;
@@ -161,13 +164,6 @@ public class SurveyService {
                     : targetingValidator.getValidatedMunicipalities(request.getMunicipalityCodes()));
         }
 
-        if (request.getStartsAt() != null) {
-            if (survey.getStatus() != Survey.SurveyStatus.DRAFT) {
-                throw new ValidationException("La fecha de inicio solo se puede modificar en estado DRAFT");
-            }
-            survey.setStartsAt(request.getStartsAt());
-        }
-
         Survey saved = surveyRepository.save(survey);
         return buildCommercialDTO(saved);
     }
@@ -193,23 +189,24 @@ public class SurveyService {
 
     private SurveyCommercialDetailDTO buildCommercialDTO(Survey survey) {
         int questionCount = survey.getQuestions().size();
-        long completedSessions = sessionRepository.countBySurveyIdAndStatus(
-                survey.getId(), SurveySession.SessionStatus.COMPLETED);
         Long totalBudgetCents = survey.getMaxResponses() != null
                 ? (long) questionCount * survey.getMaxResponses() * survey.getRewardAmountPerQuestionCents()
                 : null;
 
         SurveyCommercialDetailDTO dto = mapper.toCommercialDetail(survey);
-        dto.setCompletedSessions(completedSessions);
         dto.setTotalBudgetCents(totalBudgetCents);
         return dto;
     }
 
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS})
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS})
     public SurveyResponseDTO publishSurvey(Long surveyId, Long commercialId) {
         Survey survey = findSurveyOrThrow(surveyId);
+        if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
+            throw new SurveySuspendedException(surveyId);
+        }
         survey.setStatus(Survey.SurveyStatus.ACTIVE);
+        activateIfFirstTime(survey);
         return mapper.toResponse(surveyRepository.save(survey));
     }
 
@@ -255,11 +252,75 @@ public class SurveyService {
         return dto;
     }
 
+    private static final Set<Survey.SurveyStatus> ADMIN_ALLOWED_STATUSES =
+            EnumSet.of(Survey.SurveyStatus.CLOSED, Survey.SurveyStatus.SUSPENDED, Survey.SurveyStatus.PAUSED);
+
+    /**
+     * Admin-only: restricted to CLOSED ("cancelled"), SUSPENDED, and PAUSED.
+     * PAUSED is only allowed to revert a SUSPENDED survey ("un-suspend") — it's not a general
+     * admin pause tool, that stays with {@link #updateSurveyStatusAsCommercial}.
+     * CLOSED is terminal: once closed, no further admin transition is allowed.
+     * No ownership check.
+     */
     @Transactional
     public SurveyResponseDTO updateSurveyStatus(Long surveyId, Survey.SurveyStatus status) {
+        if (!ADMIN_ALLOWED_STATUSES.contains(status)) {
+            throw new ValidationException("Los administradores solo pueden cambiar el estado a CLOSED, SUSPENDED o PAUSED (para revertir una suspensión)");
+        }
+
         Survey survey = findSurveyOrThrow(surveyId);
+
+        if (survey.getStatus() == Survey.SurveyStatus.CLOSED) {
+            throw new ValidationException("La encuesta ya fue cerrada y no se puede revertir");
+        }
+        if (status == Survey.SurveyStatus.PAUSED && survey.getStatus() != Survey.SurveyStatus.SUSPENDED) {
+            throw new ValidationException("Los administradores solo pueden poner PAUSED al revertir una encuesta SUSPENDED");
+        }
+
         survey.setStatus(status);
         return mapper.toResponse(surveyRepository.save(survey));
+    }
+
+    private static final Set<Survey.SurveyStatus> COMMERCIAL_ALLOWED_STATUSES =
+            EnumSet.of(Survey.SurveyStatus.ACTIVE, Survey.SurveyStatus.PAUSED, Survey.SurveyStatus.CLOSED);
+
+    /**
+     * Commercial-only status transition, restricted to ACTIVE / PAUSED / CLOSED ("cancelled").
+     * DRAFT surveys must go through {@link #publishSurvey} first; CLOSED is terminal.
+     */
+    @Transactional
+    public SurveyResponseDTO updateSurveyStatusAsCommercial(Long surveyId, Survey.SurveyStatus status, Long commercialId) {
+        Survey survey = findSurveyOrThrow(surveyId);
+
+        if (survey.getCreator() == null || !survey.getCreator().getId().equals(commercialId)) {
+            throw new AccessDeniedException("No tienes permiso para modificar esta encuesta");
+        }
+        if (!COMMERCIAL_ALLOWED_STATUSES.contains(status)) {
+            throw new ValidationException("Los comerciales solo pueden cambiar el estado entre ACTIVE, PAUSED o CLOSED");
+        }
+        if (survey.getStatus() == Survey.SurveyStatus.DRAFT) {
+            throw new ValidationException("La encuesta debe publicarse antes de cambiar su estado");
+        }
+        if (survey.getStatus() == Survey.SurveyStatus.CLOSED) {
+            throw new ValidationException("La encuesta ya fue cerrada y no se puede reactivar");
+        }
+        if (survey.getStatus() == Survey.SurveyStatus.COMPLETED) {
+            throw new ValidationException("La encuesta ya completó su cupo de respuestas y no se puede modificar");
+        }
+        if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
+            throw new AccessDeniedException("La encuesta fue suspendida por un administrador y solo un administrador puede modificarla");
+        }
+
+        survey.setStatus(status);
+        activateIfFirstTime(survey);
+        return mapper.toResponse(surveyRepository.save(survey));
+    }
+
+    /** Sets startsAt the first time a survey becomes ACTIVE; never overwritten on later re-activations. */
+    private void activateIfFirstTime(Survey survey) {
+        if (survey.getStatus() == Survey.SurveyStatus.ACTIVE && survey.getStartsAt() == null) {
+            survey.setStartsAt(ZonedDateTime.now());
+        }
     }
 
     // ─── CONSUMER ────────────────────────────────────────────────
@@ -278,8 +339,6 @@ public class SurveyService {
         return PagedResponse.from(page);
     }
 
-    // ─── Consumer: survey detail (read-only, no validation) ──────────────────
-
     @Transactional(readOnly = true)
     public SurveyDetailDTO getSurveyDetail(Long surveyId) {
         return mapper.toSurveyDetail(findSurveyOrThrow(surveyId));
@@ -295,11 +354,15 @@ public class SurveyService {
         Survey survey = surveyRepository.findByIdForUpdate(surveyId)
                 .orElseThrow(() -> new SurveyNotFoundException(surveyId));
 
+        // Suspended by an admin: blocks starting AND resuming sessions
+        if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
+            throw new SurveySuspendedException(surveyId);
+        }
+
         // Resume existing active non-expired session
         Optional<SurveySession> existing = sessionRepository.findActiveNonExpired(surveyId, consumerId, now);
         if (existing.isPresent()) {
-            log.debug("Resuming session {} for consumer {} survey {}",
-                    existing.get().getId(), consumerId, surveyId);
+            log.debug("Resuming session {} for consumer {} survey {}", existing.get().getId(), consumerId, surveyId);
             return buildStartResponse(existing.get());
         }
 
@@ -307,11 +370,10 @@ public class SurveyService {
         if (survey.getStatus() != Survey.SurveyStatus.ACTIVE) {
             throw new SurveyNotActiveException(surveyId);
         }
-        LocalDateTime localNow = now.toLocalDateTime();
-        if (survey.getStartsAt() != null && localNow.isBefore(survey.getStartsAt())) {
+        if (survey.getStartsAt() != null && now.isBefore(survey.getStartsAt())) {
             throw new ValidationException("La encuesta aún no ha comenzado");
         }
-        if (survey.getEndsAt() != null && localNow.isAfter(survey.getEndsAt())) {
+        if (survey.getEndsAt() != null && now.isAfter(survey.getEndsAt())) {
             throw new ValidationException("La encuesta ya ha finalizado");
         }
 
@@ -370,6 +432,10 @@ public class SurveyService {
 
         Survey survey = session.getSurvey();
 
+        if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
+            throw new SurveySuspendedException(survey.getId());
+        }
+
         Map<Long, SurveyQuestion> questionMap = survey.getQuestions().stream()
                 .collect(Collectors.toMap(SurveyQuestion::getId, Function.identity()));
 
@@ -400,6 +466,8 @@ public class SurveyService {
 
         SurveySession savedSession = sessionRepository.save(session);
         surveyRepository.incrementResponseCount(survey.getId());
+        surveyRepository.completeIfQuotaReached(survey.getId(), Survey.SurveyStatus.COMPLETED,
+                List.of(Survey.SurveyStatus.ACTIVE, Survey.SurveyStatus.PAUSED));
 
         SurveyReward reward = rewardService.grantReward(savedSession);
 

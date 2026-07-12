@@ -236,12 +236,23 @@ public class SurveyController {
         return ResponseEntity.ok(surveyService.getSurveyAdminDetail(surveyId));
     }
 
-    @PreAuthorize("hasAnyRole('COMMERCIAL','ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PatchMapping("/{surveyId}/status")
     public ResponseEntity<SurveyResponseDTO> updateStatus(
             @PathVariable Long surveyId,
             @RequestParam Survey.SurveyStatus status) {
 
         return ResponseEntity.ok(surveyService.updateSurveyStatus(surveyId, status));
+    }
+
+    /** Commercial-only status transition, restricted to ACTIVE / PAUSED / CLOSED ("cancelled"). */
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    @PatchMapping("/{surveyId}/commercial-status")
+    public ResponseEntity<SurveyResponseDTO> updateStatusAsCommercial(
+            @PathVariable Long surveyId,
+            @RequestParam Survey.SurveyStatus status,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.updateSurveyStatusAsCommercial(surveyId, status, jwt.getClaim("userId")));
     }
 }

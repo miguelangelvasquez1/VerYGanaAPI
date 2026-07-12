@@ -1,6 +1,5 @@
 package com.verygana2.dtos.survey;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.verygana2.models.enums.TargetGender;
@@ -36,7 +35,4 @@ public class UpdateSurveyRequest {
     private Integer maxAge;
 
     private TargetGender targetGender;
-
-    /** Only applied when the survey is in DRAFT status. */
-    private LocalDateTime startsAt;
 }
