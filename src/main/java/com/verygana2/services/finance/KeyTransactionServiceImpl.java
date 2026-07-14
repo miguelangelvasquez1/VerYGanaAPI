@@ -2,6 +2,7 @@ package com.verygana2.services.finance;
 
 import java.time.ZonedDateTime;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,6 +22,9 @@ public class KeyTransactionServiceImpl implements KeyTransactionService {
     private final KeyTransactionRepository keyTransactionRepository;
     private final KeyTransactionMapper keyTransactionMapper;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     @Override
     public Page<KeyTransactionResponseDTO> getByConsumerId(Long consumerId, ZonedDateTime initialDate,
             ZonedDateTime endDate, KeyTransactionType type, Pageable pageable) {
@@ -31,20 +35,20 @@ public class KeyTransactionServiceImpl implements KeyTransactionService {
 
     @Override
     public Long getTotalEarnedKeys(Long consumerId) {
-        Long totalEarnedKeys = keyTransactionRepository.sumTotalEarnedKeys(consumerId);
-        return totalEarnedKeys == null ? 0L : totalEarnedKeys;
+        Long totalEarnedKeysCents = keyTransactionRepository.sumTotalEarnedKeysCents(consumerId);
+        return totalEarnedKeysCents == null ? 0L : totalEarnedKeysCents / keyValueCents;
     }
 
     @Override
     public Long getTotalUsedKeys(Long consumerId) {
-        Long totalUsedKeys = keyTransactionRepository.sumTotalUsedKeys(consumerId);
-        return totalUsedKeys == null ? 0L : totalUsedKeys;
+        Long totalUsedKeysCents = keyTransactionRepository.sumTotalUsedKeysCents(consumerId);
+        return totalUsedKeysCents == null ? 0L : totalUsedKeysCents / keyValueCents;
     }
 
     @Override
     public Long getTotalExpiredKeys(Long consumerId) {
-        Long totalExpiredKeys = keyTransactionRepository.sumTotalExpiredKeys(consumerId);
-        return totalExpiredKeys == null ? 0L : totalExpiredKeys;
+        Long totalExpiredKeysCents = keyTransactionRepository.sumTotalExpiredKeysCents(consumerId);
+        return totalExpiredKeysCents == null ? 0L : totalExpiredKeysCents / keyValueCents;
     }
 
 }

@@ -1,6 +1,7 @@
 package com.verygana2.models.raffles;
 
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import jakarta.persistence.Column;
@@ -83,7 +84,7 @@ public class RaffleRule {
 
     @PrePersist
     public void onCreate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
         this.isActive = true;
@@ -92,7 +93,7 @@ public class RaffleRule {
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
     public boolean canIssueTickets(int quantity) {
@@ -124,16 +125,6 @@ public class RaffleRule {
     }
 
     /**
-     * Obtiene el porcentaje de tickets ya otorgados
-     */
-    public Double getUsagePercentage() {
-        if (maxTicketsBySource == null || maxTicketsBySource == 0) {
-            return null;
-        }
-        return (currentTicketsBySource.doubleValue() / maxTicketsBySource.doubleValue()) * 100.0;
-    }
-
-    /**
      * Incrementa el contador de tickets otorgados
      */
     public void incrementIssuedCount(int quantity) {
@@ -142,21 +133,5 @@ public class RaffleRule {
         }
         this.currentTicketsBySource += quantity;
     }
-
-    /**
-     * Verifica si está cerca de alcanzar el límite (>80%)
-     */
-    public boolean isNearingLimit() {
-        if (maxTicketsBySource == null) {
-            return false;
-        }
-        Double percentage = getUsagePercentage();
-        return percentage != null && percentage >= 80.0;
-    }
-
-    public void updateCurrentTicketsFromPurchases(int newTickets) {
-        this.currentTicketsBySource = currentTicketsBySource + newTickets;
-    }
-
 
 }

@@ -29,7 +29,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
     Page<KeyTransaction> findByConsumerId(@Param("consumerId") Long consumerId, @Param ("initialDate") ZonedDateTime initialDate, @Param ("endDate") ZonedDateTime endDate, @Param("type") KeyTransactionType type, Pageable pageable);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -39,10 +39,10 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
                 com.verygana2.models.enums.finance.KeyTransactionType.CREDIT_ADMIN_ADJUSTMENT
             )
             """)
-    Long sumTotalEarnedKeys(@Param("consumerId") Long consumerId);
+    Long sumTotalEarnedKeysCents(@Param("consumerId") Long consumerId);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -52,16 +52,16 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
                 com.verygana2.models.enums.finance.KeyTransactionType.DEBIT_ADMIN_ADJUSTMENT
             )
             """)
-    Long sumTotalUsedKeys(@Param("consumerId") Long consumerId);
+    Long sumTotalUsedKeysCents(@Param("consumerId") Long consumerId);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDelta, 0) + COALESCE(kt.connectivityKeysDelta, 0))
+            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
             AND kt.type = com.verygana2.models.enums.finance.KeyTransactionType.EXPIRED
             """)
-    Long sumTotalExpiredKeys(@Param("consumerId") Long consumerId);
+    Long sumTotalExpiredKeysCents(@Param("consumerId") Long consumerId);
 
     /**
      * Devuelve todos los créditos de llaves que ya vencieron y aún no se procesaron.
@@ -73,7 +73,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
             WHERE kt.expiredAt IS NOT NULL
             AND kt.expiredAt < :now
             AND kt.expiryProcessed = false
-            AND (kt.purchaseKeysDelta > 0 OR kt.connectivityKeysDelta > 0)
+            AND (kt.purchaseKeysDeltaCents > 0 OR kt.connectivityKeysDeltaCents > 0)
             ORDER BY kt.keyWallet.id
             """)
     List<KeyTransaction> findExpiredNotProcessed(@Param("now") ZonedDateTime now);

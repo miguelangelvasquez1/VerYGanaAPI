@@ -1,6 +1,6 @@
 package com.verygana2.models.raffles;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -58,7 +58,7 @@ public class RaffleParticipation {
         if (this.ticketsCount == null) {
             this.ticketsCount = 0L;
         }
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.firstParticipationAt = now;
         this.lastParticipationAt = now;
     }

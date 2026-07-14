@@ -65,20 +65,20 @@ public class KeyTransaction {
     private KeyTransactionType type;
 
     /**
-     * Delta de llaves de compra afectadas en este movimiento.
+     * Delta de llaves de compra afectadas en este movimiento, en centavos.
      * Positivo = crédito, negativo = débito.
      * Null si este movimiento no afecta las llaves de compra.
      */
-    @Column(name = "purchase_keys_delta", updatable = false)
-    private Long purchaseKeysDelta;
+    @Column(name = "purchase_keys_delta_cents", updatable = false)
+    private Long purchaseKeysDeltaCents;
 
     /**
-     * Delta de llaves de conectividad afectadas en este movimiento.
+     * Delta de llaves de conectividad afectadas en este movimiento, en centavos.
      * Positivo = crédito, negativo = débito.
      * Null si este movimiento no afecta las llaves de conectividad.
      */
-    @Column(name = "connectivity_keys_delta", updatable = false)
-    private Long connectivityKeysDelta;
+    @Column(name = "connectivity_keys_delta_cents", updatable = false)
+    private Long connectivityKeysDeltaCents;
 
     /**
      * Descripción legible del motivo para mostrar en el historial del usuario.
@@ -128,7 +128,7 @@ public class KeyTransaction {
      *   RESERVE_, RELEASE_, DEBIT_, CREDIT_ADMIN_ADJUSTMENT.
      *
      * CÁLCULO en KeyTransactionService:
-     *   ZoneId colombia = ZoneId.of("America/Bogota");
+     *   ZoneId colombia = ZonedDateTime.now(ZoneOffset.UTC);
      *   // Para purchase:
      *   ZonedDateTime.now(colombia).toLocalDate()
      *       .withDayOfMonth(1).plusMonths(1)
@@ -166,13 +166,13 @@ public class KeyTransaction {
     // Cada factory corresponde a un caso de uso específico del sistema.
 
     public static KeyTransaction forInteractionPurchaseKeys(
-            KeyWallet wallet, long purchaseDelta,
+            KeyWallet wallet, long purchaseDeltaCents,
             String reason, UUID referenceId,
             ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_INTERACTION)
-                .purchaseKeysDelta(purchaseDelta)
+                .purchaseKeysDeltaCents(purchaseDeltaCents)
                 .reason(reason)
                 .referenceId(referenceId)
                 .expiredAt(expiredAt)
@@ -180,13 +180,13 @@ public class KeyTransaction {
     }
 
     public static KeyTransaction forInteractionConnectivityKeys(
-            KeyWallet wallet, long connectivityDelta,
+            KeyWallet wallet, long connectivityDeltaCents,
             String reason, UUID referenceId,
             ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_INTERACTION)
-                .connectivityKeysDelta(connectivityDelta)
+                .connectivityKeysDeltaCents(connectivityDeltaCents)
                 .reason(reason)
                 .referenceId(referenceId)
                 .expiredAt(expiredAt)
@@ -194,12 +194,12 @@ public class KeyTransaction {
     }
 
     public static KeyTransaction forReferralBonus(
-            KeyWallet wallet, long purchaseDelta, String reason,
+            KeyWallet wallet, long purchaseDeltaCents, String reason,
             UUID referenceId, ZonedDateTime expiredAt) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.CREDIT_REFERRAL_BONUS)
-                .purchaseKeysDelta(purchaseDelta)
+                .purchaseKeysDeltaCents(purchaseDeltaCents)
                 .reason(reason)
                 .referenceId(referenceId)
                 .expiredAt(expiredAt)
@@ -207,57 +207,57 @@ public class KeyTransaction {
     }
 
     public static KeyTransaction forCopaymentReserve(
-            KeyWallet wallet, long keysToReserve, UUID copaymentId) {
+            KeyWallet wallet, long amountCentsToReserve, UUID copaymentId) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.RESERVE_COPAYMENT_PENDING)
-                .purchaseKeysDelta(-keysToReserve)
+                .purchaseKeysDeltaCents(-amountCentsToReserve)
                 .reason("Reserva de llaves para copago en proceso")
                 .referenceId(copaymentId)
                 .build();
     }
 
     public static KeyTransaction forCopaymentConfirm(
-            KeyWallet wallet, long keysDebited, UUID copaymentId, String productName) {
+            KeyWallet wallet, long amountCentsDebited, UUID copaymentId, String productName) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.DEBIT_COPAYMENT)
-                .purchaseKeysDelta(-keysDebited)
+                .purchaseKeysDeltaCents(-amountCentsDebited)
                 .reason("Pago con llaves: " + productName)
                 .referenceId(copaymentId)
                 .build();
     }
 
     public static KeyTransaction forCopaymentRelease(
-            KeyWallet wallet, long keysReleased, UUID copaymentId) {
+            KeyWallet wallet, long amountCentsReleased, UUID copaymentId) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.RELEASE_COPAYMENT_CANCELLED)
-                .purchaseKeysDelta(keysReleased)
+                .purchaseKeysDeltaCents(amountCentsReleased)
                 .reason("Devolución de llaves: copago cancelado o rechazado")
                 .referenceId(copaymentId)
                 .build();
     }
 
     public static KeyTransaction forConnectivityRecharge(
-            KeyWallet wallet, long keysDebited, String rechargeDescription, UUID rechargeOrderId) {
+            KeyWallet wallet, long amountCentsDebited, String rechargeDescription, UUID rechargeOrderId) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE)
-                .connectivityKeysDelta(-keysDebited)
+                .connectivityKeysDeltaCents(-amountCentsDebited)
                 .reason("Recarga: " + rechargeDescription)
                 .referenceId(rechargeOrderId)
                 .build();
     }
 
     public static KeyTransaction forExpiry(
-            KeyWallet wallet, long purchaseExpired, long connectivityExpired,
+            KeyWallet wallet, long purchaseExpiredCents, long connectivityExpiredCents,
             UUID expiryBatchId, String period) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.EXPIRED)
-                .purchaseKeysDelta(purchaseExpired > 0 ? -purchaseExpired : null)
-                .connectivityKeysDelta(connectivityExpired > 0 ? -connectivityExpired : null)
+                .purchaseKeysDeltaCents(purchaseExpiredCents > 0 ? -purchaseExpiredCents : null)
+                .connectivityKeysDeltaCents(connectivityExpiredCents > 0 ? -connectivityExpiredCents : null)
                 .reason("Vencimiento de llaves - período " + period)
                 .referenceId(expiryBatchId)
                 .expiryProcessed(true)
@@ -266,11 +266,11 @@ public class KeyTransaction {
 
     // KeyTransaction.java — agregar factory method
     public static KeyTransaction forPetGame(
-            KeyWallet wallet, long keysSpent, String itemName) {
+            KeyWallet wallet, long amountCentsSpent, String itemName) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.DEBIT_PET_GAME)
-                .purchaseKeysDelta(-keysSpent)
+                .purchaseKeysDeltaCents(-amountCentsSpent)
                 .reason("Mascota virtual: " + itemName)
                 .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
                 .build();

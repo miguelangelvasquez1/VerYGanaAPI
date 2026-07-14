@@ -108,8 +108,10 @@ public class WompiTransaction {
     /**
      * Momento en que Wompi procesó la transacción (viene en el payload).
      * Distinto de createdAt que es cuando la registramos nosotros.
+     * No es updatable=false: el registro se crea en PENDING sin este dato
+     * y se completa después, cuando llega el webhook con el estado final.
      */
-    @Column(name = "wompi_created_at", updatable = false)
+    @Column(name = "wompi_created_at")
     private ZonedDateTime wompiCreatedAt;
 
     @Column(name = "created_at", nullable = false, updatable = false)

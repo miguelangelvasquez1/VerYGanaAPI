@@ -1,6 +1,8 @@
 package com.verygana2.services.raffles;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -517,18 +519,6 @@ public class RaffleServiceImpl implements RaffleService {
         raffleRepository.save(raffle);
     }
 
-    @Override
-    public void liveRaffle(Long raffleId) {
-
-        Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.CLOSED) {
-            throw new InvalidOperationException("Raffle must be 'CLOSED' to set status 'LIVE'");
-        }
-
-        raffle.setRaffleStatus(RaffleStatus.LIVE);
-        raffleRepository.save(raffle);
-
-    }
 
     @Override
     public void cancelRaffle(Long raffleId) {
@@ -538,7 +528,7 @@ public class RaffleServiceImpl implements RaffleService {
             throw new InvalidOperationException("Raffle must be 'ACTIVE' to set status 'CANCELLED'");
         }
 
-        raffle.setRaffleStatus(RaffleStatus.LIVE);
+        raffle.setRaffleStatus(RaffleStatus.CANCELLED);
         raffleRepository.save(raffle);
     }
 
@@ -599,11 +589,18 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status,
-            RaffleType type, Pageable pageable) {
+    public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status,
+            String search, LocalDate drawDate, RaffleType type, Pageable pageable) {
 
-        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByRaffleStatusAndRaffleType(status, type,
-                pageable);
+        ZonedDateTime drawDateStart = null;
+        ZonedDateTime drawDateEnd = null;
+        if (drawDate != null) {
+            drawDateStart = drawDate.atStartOfDay(ZoneOffset.UTC);
+            drawDateEnd = drawDateStart.plusDays(1);
+        }
+
+        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByFilters(status, search, drawDateStart,
+                drawDateEnd, type, pageable);
         rafflesFound.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(rafflesFound);
     }

@@ -1,7 +1,7 @@
 package com.verygana2.models.raffles;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.PrizeStatus;
@@ -118,7 +118,7 @@ public class Prize {
     
     @PrePersist
     public void onCreate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
         this.prizeStatus = PrizeStatus.PENDING;
@@ -127,7 +127,7 @@ public class Prize {
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
     // ========== MÉTODOS DE UTILIDAD ==========
@@ -136,13 +136,6 @@ public class Prize {
         if (this.imageAsset == null)
             return null;
         return "https://cdn.verygana.com/public/" + this.imageAsset.getObjectKey();
-    }
-    
-    /**
-     * Verifica si aún hay premios disponibles para sortear
-     */
-    public boolean hasAvailablePrizes() {
-        return claimedCount < quantity;
     }
 
     /**
@@ -159,16 +152,4 @@ public class Prize {
         }
     }
 
-    /**
-     * Obtiene el nombre completo del premio con posición
-     */
-    public String getFullName() {
-        String positionName = switch(position) {
-            case 1 -> "1er Lugar";
-            case 2 -> "2do Lugar";
-            case 3 -> "3er Lugar";
-            default -> position + "º Lugar";
-        };
-        return positionName + " - " + title;
-    }
 }

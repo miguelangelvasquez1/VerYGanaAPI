@@ -79,8 +79,8 @@ public class ProductAdminController {
     }
 
     @GetMapping
-    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getAllProductsForAdmin (@RequestParam("status") ProductStatus status, @PageableDefault(page = 0, size = 5) Pageable pageable){
-        return ResponseEntity.ok(productService.getAllProductsForAdmin(status, pageable));
+    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getAllProductsForAdmin (@RequestParam(required = false) ProductStatus status, @RequestParam(required = false) String search, @PageableDefault(page = 0, size = 5) Pageable pageable){
+        return ResponseEntity.ok(productService.getAllProductsForAdmin(status, search, pageable));
     }
 
     @PostMapping("/{productId}/approve")

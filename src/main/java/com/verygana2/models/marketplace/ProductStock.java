@@ -138,7 +138,4 @@ public class ProductStock {
         return expirationDate != null && ZonedDateTime.now().isAfter(expirationDate);
     }
     
-    public boolean canBeSold() {
-        return status == StockStatus.AVAILABLE && !isExpired();
-    }
 }

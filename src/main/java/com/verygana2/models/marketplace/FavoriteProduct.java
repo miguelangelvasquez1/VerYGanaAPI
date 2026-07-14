@@ -1,6 +1,6 @@
 package com.verygana2.models.marketplace;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -54,6 +54,6 @@ public class FavoriteProduct {
 
     @PrePersist
     protected void onCreate(){
-        this.createdAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 }

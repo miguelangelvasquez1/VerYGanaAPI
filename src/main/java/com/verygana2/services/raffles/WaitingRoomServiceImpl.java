@@ -69,16 +69,6 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
     }
 
     @Override
-    public void clearRoom(Long raffleId) {
-        Set<String> sessions = viewers.get(raffleId);
-        if (sessions != null) {
-            sessions.forEach(sessionToRaffle::remove);
-            viewers.remove(raffleId);
-        }
-        log.info("[WaitingRoom] raffle {} room closed", raffleId);
-    }
-
-    @Override
     @Scheduled(fixedDelay = 10000)
     public void broadcastWaitingRoomUpdates() {
         viewers.forEach((raffleId, sessions) -> {

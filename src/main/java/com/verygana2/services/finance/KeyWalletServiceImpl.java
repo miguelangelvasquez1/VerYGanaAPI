@@ -31,6 +31,9 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private Long PURCHASE_KEYS_PERCENTAGE;
     private static final int PERCENTAGE_BASE = 100;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
 
     private final Clock clock;
@@ -99,7 +102,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     @Transactional(readOnly = true)
     public KeyBalanceResponseDTO getBalance(Long consumerId) {
         KeyWallet wallet = getByConsumerId(consumerId);
-        return new KeyBalanceResponseDTO(wallet.getAvailableKeys(), "keys");
+        return new KeyBalanceResponseDTO(wallet.getAvailableKeysCents() / keyValueCents, "keys");
     }
 
     @Override
@@ -107,16 +110,16 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
         KeyWallet wallet = getByConsumerId(consumerId);
 
-        if (!wallet.hasSufficientPurchaseKeys(request.amount())) {
+        if (!wallet.hasSufficientPurchaseKeysCents(request.amountCents())) {
             return SpendKeysResponseDTO.fail("Saldo insuficiente");
         }
 
-        wallet.expirePurchaseKeys(request.amount());
+        wallet.expirePurchaseKeysCents(request.amountCents());
         keyWalletRepository.save(wallet);
 
         keyTransactionRepository.save(
-                KeyTransaction.forPetGame(wallet, request.amount(), request.itemName()));
+                KeyTransaction.forPetGame(wallet, request.amountCents(), request.itemName()));
 
-        return SpendKeysResponseDTO.ok(wallet.getAvailableKeys());
+        return SpendKeysResponseDTO.ok(wallet.getAvailableKeysCents() / keyValueCents);
     }
 }

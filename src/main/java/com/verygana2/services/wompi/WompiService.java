@@ -2,7 +2,9 @@ package com.verygana2.services.wompi;
 
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.Map;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,7 +13,6 @@ import org.springframework.web.util.UriComponentsBuilder;
 import com.verygana2.config.wompi.WompiConfig;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
-import com.verygana2.dtos.wompi.WompiTransactionResponseDTO;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO.WompiTransactionData;
 import com.verygana2.exceptions.wompi.WompiApiException;
 import com.verygana2.models.finance.WompiTransaction;
@@ -140,35 +141,25 @@ public class WompiService {
     }
 
     /**
-     * Consulta el estado actual de una transacción directamente en la API de Wompi.
+     * Reconcilia una transacción directamente contra la API de Wompi por su
+     * referencia interna, sin depender de que el webhook haya llegado (a diferencia
+     * de consultar por el wompiId real, que todavía no existe si el webhook nunca
+     * notificó). Usado por el scheduler de expiración de compras antes de dar por
+     * abandonado un copago PENDING, y sirve también para reconciliación manual.
      *
-     * Cuándo usarlo:
-     *   - Reconciliación manual cuando un webhook no llegó
-     *   - El usuario regresó del checkout pero el webhook aún no llegó
-     *   - Verificación antes de marcar un pago como definitivo
-     *
-     * @param reference referencia interna del copago (ej: "VG-COP-abc123")
-     * @return datos actualizados de la transacción en Wompi
-     * @throws WompiApiException si la transacción no existe en Wompi o hay error de red
+     * @param reference referencia interna de la compra (Purchase.referenceId)
+     * @return los datos de Wompi si existe alguna transacción para esa referencia,
+     *         o empty si Wompi no tiene ningún registro (el usuario nunca llegó a pagar)
+     * @throws WompiApiException si hay un error de red o de la API de Wompi
      */
-    public WompiTransactionData getTransactionByReference(String reference) {
-        log.info("[WOMPI SERVICE] Searching transaction for reference={}", reference);
-
-        // Buscar el wompiId real en nuestro registro
-        // (el que guardamos con "PENDING-" no sirve para consultar a Wompi)
-        WompiTransaction localRecord = wompiTransactionRepository
-                .findByReference(reference)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "WompiTransaction with reference: " + reference + " not found "));
-
-        if (localRecord.getWompiId().startsWith("PENDING-")) {
-            log.warn("[WOMPI SERVICE] Transaction not processed yet for Wompi: reference={}", reference);
-            throw new IllegalStateException(
-                    "User have not completed payment in Wompi para reference: " + reference + " yet ");
+    public Optional<WompiTransactionData> reconcileByReference(String reference) {
+        log.info("[WOMPI SERVICE] Reconciliando contra Wompi: reference={}", reference);
+        WompiTransactionData data = wompiClient.findTransactionByReference(reference);
+        if (data == null) {
+            log.info("[WOMPI SERVICE] Wompi no tiene ninguna transacción registrada para reference={}", reference);
+            return Optional.empty();
         }
-
-        WompiTransactionResponseDTO response = wompiClient.getTransaction(localRecord.getWompiId());
-        return response.getData();
+        return Optional.of(data);
     }
 
     /**
@@ -180,10 +171,12 @@ public class WompiService {
      *   2. Actualiza wompiId, status y metadata con el payload completo
      *   3. Persiste los cambios
      *
-     * @param wompiId   ID real de la transacción en Wompi
-     * @param reference referencia interna que enviamos al crear el checkout
-     * @param status    nuevo estado ("APPROVED", "DECLINED", "ERROR", "VOIDED")
-     * @param metadata  payload completo del webhook para auditoría
+     * @param wompiId        ID real de la transacción en Wompi
+     * @param reference      referencia interna que enviamos al crear el checkout
+     * @param status         nuevo estado ("APPROVED", "DECLINED", "ERROR", "VOIDED")
+     * @param wompiCreatedAt timestamp ISO-8601 del campo "created_at" del payload
+     *                       de Wompi (momento en que Wompi procesó la transacción)
+     * @param metadata       payload completo del webhook para auditoría
      * @return WompiTransaction actualizada
      */
     @Transactional
@@ -191,6 +184,7 @@ public class WompiService {
             String wompiId,
             String reference,
             String status,
+            String wompiCreatedAt,
             Map<String, Object> metadata) {
 
         log.info("[WOMPI SERVICE] updating transaction por webhook: " +
@@ -211,7 +205,7 @@ public class WompiService {
         transaction.setUpdatedAt(ZonedDateTime.now(ZoneOffset.UTC));
 
         if ("APPROVED".equals(status)) {
-            transaction.setWompiCreatedAt(ZonedDateTime.now(ZoneOffset.UTC));
+            transaction.setWompiCreatedAt(parseWompiCreatedAt(wompiCreatedAt));
         }
 
         WompiTransaction saved = wompiTransactionRepository.save(transaction);
@@ -219,6 +213,25 @@ public class WompiService {
                 reference, status);
 
         return saved;
+    }
+
+    /**
+     * Parsea el "created_at" que envía Wompi en el payload del webhook.
+     * Es dato externo: si Wompi cambia el formato o no lo envía, no debe
+     * tumbar el procesamiento del webhook — se loguea y se deja null.
+     */
+    private ZonedDateTime parseWompiCreatedAt(String wompiCreatedAt) {
+        if (wompiCreatedAt == null || wompiCreatedAt.isBlank()) {
+            return null;
+        }
+
+        try {
+            return ZonedDateTime.parse(wompiCreatedAt);
+        } catch (DateTimeParseException e) {
+            log.warn("[WOMPI SERVICE] No se pudo parsear wompi created_at='{}': {}",
+                    wompiCreatedAt, e.getMessage());
+            return null;
+        }
     }
 
     /**

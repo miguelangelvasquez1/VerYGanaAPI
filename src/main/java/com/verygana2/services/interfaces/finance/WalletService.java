@@ -11,7 +11,6 @@ import com.verygana2.models.finance.Wallet;
 public interface WalletService {
 
     Wallet createFor(Long commercialId);
-    Wallet getByCommercialId(Long commercialId);
 
     BillingSummaryResponseDTO getBillingSummary(Long commercialId);
 

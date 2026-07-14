@@ -561,9 +561,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, Pageable pageable) {
+    public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, String search, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
-                .from(productRepository.findAllProductsForAdmin(status, pageable));
+                .from(productRepository.findAllProductsForAdmin(status, search, pageable));
         return products.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));

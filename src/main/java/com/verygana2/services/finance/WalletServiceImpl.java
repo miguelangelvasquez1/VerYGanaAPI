@@ -34,7 +34,6 @@ import com.verygana2.repositories.finance.plans.SubscriptionRepository;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.WalletService;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -55,15 +54,6 @@ public class WalletServiceImpl implements WalletService {
         }
         return walletRepository.save(
                 Objects.requireNonNull(Wallet.createFor(commercialDetailsService.getCommercialById(commercialId))));
-    }
-
-    @Override
-    public Wallet getByCommercialId(Long commercialId) {
-        if (commercialId == null || commercialId <= 0) {
-            throw new IllegalArgumentException("Commercial id must be positive");
-        }
-        return walletRepository.findByCommercialId(commercialId)
-                .orElseThrow(() -> new EntityNotFoundException("Wallet not found for commercial id: " + commercialId));
     }
 
     @Override

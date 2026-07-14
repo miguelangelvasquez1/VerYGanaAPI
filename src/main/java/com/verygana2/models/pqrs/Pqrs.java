@@ -104,10 +104,6 @@ public class Pqrs {
         return status == PqrsStatus.RECIBIDA || status == PqrsStatus.EN_REVISION;
     }
 
-    public boolean isPendingAssignment() {
-        return status == PqrsStatus.PENDIENTE_ASIGNACION;
-    }
-
     // No se persiste: se deriva del id (asignado solo tras el primer save) y el año de creación.
     public String getBased() {
         if (id == null) return null;

@@ -1,7 +1,6 @@
 package com.verygana2.repositories.raffles;
 
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -30,16 +29,6 @@ public interface TicketEarningRuleRepository extends JpaRepository<TicketEarning
             ORDER BY r.priority DESC 
             """)
     List<TicketEarningRule> findByRuleTypeAndIsActiveOrderByPriorityDesc(@Param("ruleType") TicketEarningRuleType ruleType, @Param("isActive") Boolean isActive, Pageable pageable);
-    
-    /**
-     * Todas las reglas activas
-     */
-    List<TicketEarningRule> findByIsActiveTrueOrderByPriorityDesc();
-    
-    /**
-     * Busca regla por nombre
-     */
-    Optional<TicketEarningRule> findByRuleName(String ruleName);
     
     /**
      * Verifica si existe una regla con ese nombre

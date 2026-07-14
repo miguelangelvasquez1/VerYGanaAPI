@@ -73,11 +73,11 @@ public abstract class UserMapper {
     @Mapping(target = "pep", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
-    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeysCents", qualifiedByName = "centsToKeys")
     @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
     public abstract ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO(ConsumerDetails consumer);
 
