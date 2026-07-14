@@ -326,6 +326,28 @@ public class SendGridEmailService implements EmailService {
         }
     }
 
+    // ===== SEGURIDAD =====
+
+    @Override
+    @Async
+    public void sendSecurityAlertEmail(String adminEmail, String alertType, String severity, String source,
+                                        String description, ZonedDateTime detectedAt) {
+        log.info("Sending security alert email to: {} - type: {}", adminEmail, alertType);
+        try {
+            String html = templateLoader.render("security-alert.html", Map.of(
+                    "alertType", escapeHtml(alertType),
+                    "severity", escapeHtml(severity),
+                    "source", escapeHtml(source),
+                    "description", escapeHtml(description),
+                    "detectedAt", detectedAt.format(DATE_FORMATTER),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail));
+            sendEmail(adminEmail, "🚨 Alerta de seguridad crítica — " + alertType, html);
+        } catch (Exception e) {
+            log.error("Error sending security alert email to: {}", adminEmail, e);
+        }
+    }
+
     private String pqrsTypeLabel(PqrsType type) {
         return switch (type) {
             case PETICION -> "Petición";

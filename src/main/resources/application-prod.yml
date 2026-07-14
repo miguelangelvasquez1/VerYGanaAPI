@@ -57,7 +57,9 @@ commissions:
 
 jwt:
   access-token:
-    expiration: 86400      # 1 day (in seconds)
+    expiration: 900        # 15 min (in seconds) — corto a propósito: es un JWT stateless sin
+                            # chequeo de revocación por request, así que su vida útil es la
+                            # ventana de exposición si se filtra. La sesión larga la maneja el refresh token.
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 

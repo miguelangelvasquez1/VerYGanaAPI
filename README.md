@@ -22,7 +22,6 @@
 - Añadir caché de usuarios?
 - Mirar lo del cache de categorias
 - https://www.datos.gov.co/api/v3/views/gdxc-w37w/export.csv?accessType=DOWNLOAD&app_token=bHWsGtRFRP9x8Hl8lYivqM1hQ -> Municipalitys and Departments
-- Usar presigned URLs en s3?
 
 Mejoras Implementadas en tokens:
 
@@ -162,8 +161,8 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
-- bug de carga y muchos llamados
-- panel admin encuestas(FILTROS FUNCIONALES). que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
+- critical en reportes y notificacion
+- que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc. surveys consumer probar todo
 - si un commercial cambia a plan mas bajo que no se devuelva lo creado
 - ver todo despues de haber preguntado a nestor(contratos).
@@ -176,3 +175,4 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
 - ver que se puede editar o no despues de los contratos
 
 - revisar app.security.monitoring, muchos active tokens
+- actuator?

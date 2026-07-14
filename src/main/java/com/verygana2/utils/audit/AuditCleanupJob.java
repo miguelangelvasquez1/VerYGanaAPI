@@ -7,6 +7,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 /**
  * Job programado para limpiar logs de auditoría antiguos
@@ -42,7 +44,8 @@ public class AuditCleanupJob {
                 LocalDateTime cutoffDate = LocalDateTime.now()
                     .minusDays(level.getRetentionDays());
 
-                int deleted = auditLogRepository.deleteOldLogsByLevel(cutoffDate, level);
+                ZonedDateTime zonedCutoffDate = ZonedDateTime.of(cutoffDate, ZoneId.systemDefault());
+                int deleted = auditLogRepository.deleteOldLogsByLevel(zonedCutoffDate, level);
                 totalDeleted += deleted;
 
                 log.info("Limpieza nivel {}: {} registros eliminados (retención: {} días)",
@@ -66,8 +69,9 @@ public class AuditCleanupJob {
         try {
             // Eliminar logs DEBUG más viejos de 24 horas
             LocalDateTime cutoffDate = LocalDateTime.now().minusDays(1);
+            ZonedDateTime zonedCutoffDate = ZonedDateTime.of(cutoffDate, ZoneId.systemDefault());
             int deleted = auditLogRepository.deleteOldLogsByLevel(
-                cutoffDate, 
+                zonedCutoffDate, 
                 AuditLevel.DEBUG
             );
             
@@ -87,7 +91,7 @@ public class AuditCleanupJob {
     @Scheduled(cron = "0 0 8 * * MON")
     public void generateWeeklyReport() {
         try {
-            LocalDateTime oneWeekAgo = LocalDateTime.now().minusWeeks(1);
+            ZonedDateTime oneWeekAgo = ZonedDateTime.now().minusWeeks(1);
             
             long criticalCount = auditLogRepository.countByLevelSince(
                 AuditLevel.CRITICAL, oneWeekAgo

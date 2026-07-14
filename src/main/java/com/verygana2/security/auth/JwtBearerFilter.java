@@ -53,7 +53,6 @@ public class JwtBearerFilter extends OncePerRequestFilter {
                 Jwt jwt = jwtDecoder.decode(token);
 
                 if (!isAccessToken(jwt)) {
-                    logger.warn("JWT is not an access token");
                     SecurityContextHolder.clearContext();
                     filterChain.doFilter(request, response);
                     return;
@@ -62,12 +61,10 @@ public class JwtBearerFilter extends OncePerRequestFilter {
                 Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
                 JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                // logger.debug("JWT authentication successful for user: {}", jwt.getSubject());
 
             } catch (JwtException e) {
-                logger.warn("Invalid JWT token: {}", e.getMessage());
+                logger.warn("Auth error: {}", e.getMessage());
                 SecurityContextHolder.clearContext();
-                // throw new ServletException("Invalid JWT token", e);
             }
         } else {
             logger.debug("No valid Bearer token found in Authorization header");

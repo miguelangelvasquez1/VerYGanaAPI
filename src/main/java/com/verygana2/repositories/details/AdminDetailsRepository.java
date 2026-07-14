@@ -22,4 +22,10 @@ public interface AdminDetailsRepository extends JpaRepository<AdminDetails, Long
            "AND u.userState = com.verygana2.models.enums.UserState.ACTIVE " +
            "ORDER BY a.lastPqrsAssignedAt ASC, a.id ASC")
     List<AdminDetails> findActiveAdminsForPqrsAssignmentForUpdate(Pageable pageable);
+
+    // Todos los admins activos, para difundir notificaciones (sin lock: no hay asignación de turno de por medio).
+    @Query("SELECT a FROM AdminDetails a JOIN a.user u " +
+           "WHERE u.role = com.verygana2.models.enums.Role.ADMIN " +
+           "AND u.userState = com.verygana2.models.enums.UserState.ACTIVE")
+    List<AdminDetails> findActiveAdmins();
 }
