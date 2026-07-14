@@ -35,7 +35,6 @@ public interface RaffleMapper {
     @Mapping(target = "imageAsset", ignore = true)
     @Mapping(target = "prizes", ignore = true)
     @Mapping(target = "raffleResult", ignore = true)
-    @Mapping(target = "activeRules", ignore = true)
     Raffle toRaffle(CreateRaffleRequestDTO request);
 
     @AfterMapping
@@ -79,6 +78,7 @@ public interface RaffleMapper {
     @Mapping(target = "maxTicketsFromAds", ignore = true)
     @Mapping(target = "maxTicketsFromGames", ignore = true)
     @Mapping(target = "maxTicketsFromReferrals", ignore = true)
+    @Mapping(target = "totalPrizesValue", ignore = true)
     RaffleStatsResponseDTO toRaffleStatsResponseDTO(Raffle raffle);
 
     default Long getPrizeCount(Raffle raffle) {

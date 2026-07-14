@@ -3,6 +3,7 @@ package com.verygana2.services.marketplace;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,6 +33,8 @@ import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
+import com.verygana2.services.wompi.WompiService;
+import com.verygana2.dtos.wompi.WompiTransactionResponseDTO.WompiTransactionData;
 
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -53,6 +56,7 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final TreasuryService treasuryService;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
+    private final WompiService wompiService;
 
     /**
      * Punto de entrada del webhook de Wompi para CHARGE_COPAYMENT.
@@ -120,13 +124,15 @@ public class CopaymentServiceImpl implements CopaymentService {
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
 
-            keyWallet.confirmReservedPurchaseKeys(keysUsed);
+            keyWallet.confirmReservedPurchaseKeysCents(keysValueCents);
             keyWalletRepository.save(keyWallet);
 
-            // Ledger inmutable: débito definitivo de llaves
+            // Ledger inmutable: débito definitivo de llaves (en centavos, misma
+            // escala que keysValueCents: 1 llave = keyValueCents centavos = keyValueCents
+            // subunidades del wallet)
             keyTransactionRepository.save(Objects.requireNonNull(
                     KeyTransaction.forCopaymentConfirm(
-                            keyWallet, keysUsed, copayment.getId(), buildProductNames(purchase))));
+                            keyWallet, keysValueCents, copayment.getId(), buildProductNames(purchase))));
 
             // Tesorería: KEYS_RESERVE → PAYOUTS_PENDING por el valor de las llaves
             treasuryService.convertKeysToPayoutPending(keysValueCents, copayment.getId());
@@ -190,6 +196,7 @@ public class CopaymentServiceImpl implements CopaymentService {
         log.info("[COPAYMENT] FAILED: copaymentId={}, reason={}", copayment.getId(), reason);
 
         long keysUsed = copayment.getKeysUsed();
+        long keysValueCents = copayment.getKeysValueCents();
 
         // 1. Devolver llaves reservadas al saldo disponible del usuario
         if (keysUsed > 0) {
@@ -199,12 +206,12 @@ public class CopaymentServiceImpl implements CopaymentService {
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
 
-            keyWallet.releasePurchaseKeys(keysUsed);
+            keyWallet.releasePurchaseKeysCents(keysValueCents);
             keyWalletRepository.save(keyWallet);
 
-            // Ledger inmutable: liberación de llaves bloqueadas
+            // Ledger inmutable: liberación de llaves bloqueadas (en centavos)
             keyTransactionRepository.save(Objects.requireNonNull(
-                    KeyTransaction.forCopaymentRelease(keyWallet, keysUsed, copayment.getId())));
+                    KeyTransaction.forCopaymentRelease(keyWallet, keysValueCents, copayment.getId())));
         }
 
         // 2. Devolver stock reservado al pool disponible
@@ -267,11 +274,18 @@ public class CopaymentServiceImpl implements CopaymentService {
         if (stale.isEmpty())
             return;
 
-        log.info("[COPAYMENT-EXPIRY] Expirando {} copago(s) PENDING anteriores a {}", stale.size(), cutoff);
+        log.info("[COPAYMENT-EXPIRY] Revisando {} copago(s) PENDING anteriores a {}", stale.size(), cutoff);
 
         for (Copayment copayment : stale) {
             try {
                 Purchase purchase = Objects.requireNonNull(copayment.getPurchase());
+
+                if (reconcileWithWompi(purchase.getReferenceId())) {
+                    log.info("[COPAYMENT-EXPIRY] Reconciliado con Wompi (el webhook nunca llegó): copaymentId={}",
+                            copayment.getId());
+                    continue;
+                }
+
                 handleFailed(copayment, purchase, "PAYMENT_SESSION_EXPIRED");
                 copaymentRepository.save(copayment);
                 purchaseRepository.save(purchase);
@@ -281,5 +295,32 @@ public class CopaymentServiceImpl implements CopaymentService {
                         copayment.getId(), e.getMessage(), e);
             }
         }
+    }
+
+    /**
+     * Antes de dar por abandonado un copago PENDING, confirma directamente con
+     * la API de Wompi si el pago en realidad sí se resolvió y el webhook nunca
+     * llegó (servidor caído, túnel de desarrollo apagado, etc.). Si Wompi confirma
+     * un estado terminal, lo procesamos aquí mismo en vez de expirarlo — evita
+     * cancelar una compra (liberar stock y llaves) cuando el dinero ya se cobró.
+     *
+     * @return true si Wompi tenía un estado terminal y ya se procesó (no hay que expirar)
+     */
+    private boolean reconcileWithWompi(String referenceId) {
+        WompiTransactionData wompiData = wompiService.reconcileByReference(referenceId).orElse(null);
+
+        if (wompiData == null || !wompiData.isTerminal()) {
+            return false;
+        }
+
+        log.warn("[COPAYMENT-EXPIRY] Wompi reporta status={} para reference={} pero el webhook nunca llegó. "
+                + "Procesando ahora en vez de expirar.", wompiData.getStatus(), referenceId);
+
+        WompiTransaction updatedTx = wompiService.updateTransactionFromWebhook(
+                wompiData.getId(), referenceId, wompiData.getStatus(), wompiData.getCreatedAt(),
+                Map.of("reconciled_from", "expiry_scheduler"));
+
+        handleWompiResult(updatedTx.getId());
+        return true;
     }
 }

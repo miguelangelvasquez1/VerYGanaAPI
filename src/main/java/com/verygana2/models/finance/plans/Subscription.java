@@ -143,9 +143,4 @@ public class Subscription {
         this.terminatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
-    public void cancel(String reason) {
-        this.status = SubscriptionStatus.CANCELLED;
-        this.terminatedAt = ZonedDateTime.now(ZoneOffset.UTC);
-        this.cancellationReason = reason;
-    }
 }

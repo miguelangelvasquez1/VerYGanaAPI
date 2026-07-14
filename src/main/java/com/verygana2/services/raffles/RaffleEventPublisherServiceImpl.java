@@ -1,6 +1,6 @@
 package com.verygana2.services.raffles;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -155,7 +155,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
     }
 
     private ZonedDateTime now() {
-        return ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        return ZonedDateTime.now(ZoneOffset.UTC);
     }
 
     private void sleep(int ms) {

@@ -29,7 +29,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000001', 'bronce_test',
 FROM users u WHERE u.email = 'bronce@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000001'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'bronce@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
@@ -66,7 +66,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000002', 'plata_test',
 FROM users u WHERE u.email = 'plata@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000002'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'plata@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
@@ -103,7 +103,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000003', 'oro_test',
 FROM users u WHERE u.email = 'oro@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000003'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'oro@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
@@ -141,7 +141,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'rubi_test',
 FROM users u WHERE u.email = 'rubi@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000004'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'rubi@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
@@ -179,7 +179,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000005', 'esmeralda_test',
 FROM users u WHERE u.email = 'esmeralda@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000005'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'esmeralda@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
@@ -217,7 +217,7 @@ SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000006', 'diamante_test',
 FROM users u WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
-INSERT INTO key_wallets (id, consumer_id, purchase_keys, blocked_purchase_keys, connectivity_keys, blocked_connectivity_keys, created_at, updated_at)
+INSERT INTO key_wallets (id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents, connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at)
 SELECT UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000006'), cd.user_id, 0, 0, 0, 0, NOW(), NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;

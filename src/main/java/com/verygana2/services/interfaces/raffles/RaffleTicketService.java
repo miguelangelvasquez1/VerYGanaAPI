@@ -1,5 +1,6 @@
 package com.verygana2.services.interfaces.raffles;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -7,6 +8,8 @@ import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
+import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
+import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
@@ -36,4 +39,11 @@ public interface RaffleTicketService {
     boolean validateTicket(String ticketNumber, Long raffleId);
 
     void expireTickets(Long raffleId);
+
+    List<TicketAuditLogResponseDTO> getAuditLogsByTicketId(Long ticketId);
+
+    PagedResponse<TicketAuditLogResponseDTO> getAuditLogsBetweenDates(LocalDate from, LocalDate to,
+            Pageable pageable);
+
+    List<SuspiciousIpActivityResponseDTO> getSuspiciousActivity(LocalDate since, long threshold);
 }

@@ -3,7 +3,6 @@ package com.verygana2.repositories.raffles;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -19,26 +18,6 @@ public interface RaffleParticipationRepository extends JpaRepository<RaffleParti
      * Encuentra participación de un usuario en una rifa
      */
     Optional<RaffleParticipation> findByConsumerIdAndRaffleId(Long consumerId, Long raffleId);
-    
-    /**
-     * Verifica si un usuario participa en una rifa
-     */
-    boolean existsByConsumerIdAndRaffleId(Long consumerId, Long raffleId);
-    
-    /**
-     * Participaciones de un usuario con paginación
-     */
-    Page<RaffleParticipation> findByConsumerId(Long consumerId, Pageable pageable);
-    
-    /**
-     * Todas las participaciones de una rifa
-     */
-    Page<RaffleParticipation> findByRaffleId(Long raffleId, Pageable pageable);
-    
-    /**
-     * Cuenta participantes de una rifa
-     */
-    long countByRaffleId(Long raffleId);
     
     /**
      * Encuentra el leaderboard de participantes de una rifa

@@ -14,10 +14,6 @@ import com.verygana2.models.marketplace.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-        default long countByCommercialIdAndIsActiveTrue(Long commercialId) {
-                return countCommercialProducts(commercialId, ProductStatus.ACTIVE);
-        }
-
         @Query("""
                         SELECT COUNT (p) FROM Product p
                         WHERE p.commercial.id = :commercialId
@@ -110,9 +106,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         SELECT p FROM Product p
                         JOIN FETCH p.productCategory c
                         LEFT JOIN FETCH p.imageAsset ia
-                        WHERE p.status = :status
+                        WHERE (:status IS NULL OR p.status = :status)
+                        AND (:search IS NULL OR :search = ''
+                        OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%'))
+                        OR LOWER(p.commercial.companyName) LIKE LOWER(CONCAT('%', :search, '%')))
                         ORDER BY p.createdAt DESC
                                 """)
-        Page<Product> findAllProductsForAdmin(@Param("status") ProductStatus status, Pageable pageable);
+        Page<Product> findAllProductsForAdmin(@Param("status") ProductStatus status, @Param("search") String search, Pageable pageable);
 
 }

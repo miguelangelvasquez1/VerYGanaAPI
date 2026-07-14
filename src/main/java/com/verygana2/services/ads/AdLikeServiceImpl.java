@@ -392,7 +392,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         keyTransactionRepository.save(Objects.requireNonNull(
                 KeyTransaction.forInteractionConnectivityKeys(keyWallet, rewardSplit.connectivityKeysReward(), reason, sessionId, connectivityExpiry)));
 
-        keyWallet.creditKeys(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
+        keyWallet.creditKeysCents(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);
     }
 

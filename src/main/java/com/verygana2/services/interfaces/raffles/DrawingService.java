@@ -14,11 +14,7 @@ public interface DrawingService {
 
     List<RaffleTicket> randomInternalDraw(List<RaffleTicket> tickets, Integer numberOfWinners);
 
-    /**
-     * Ejecuta el sorteo con Random.org. Lanza RandomOrgException si el servicio
-     * no está disponible — no hace fallback silencioso.
-     */
-    List<RaffleTicket> randomExternalDraw(List<RaffleTicket> tickets, Integer numberOfWinners);
+    
 
     /**
      * @param actualMethod      Método realmente usado (puede diferir del configurado si hubo fallback).

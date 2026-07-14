@@ -44,11 +44,6 @@ public interface SubscriptionRepository extends JpaRepository<Subscription, UUID
     List<Subscription> findExpiringBetween(
             @Param("from") ZonedDateTime from,
             @Param("to") ZonedDateTime to);
- 
-    /**
-     * Historial completo de un comercial.
-     */
-    List<Subscription> findByCommercialOrderByCreatedAtDesc(CommercialDetails commercial);
 
     /**
      * Historial filtrado por rango de fechas para el panel de facturación.

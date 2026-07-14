@@ -191,20 +191,20 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO key_wallets (
     id,
     consumer_id,
-    purchase_keys,
-    blocked_purchase_keys,
-    connectivity_keys,
-    blocked_connectivity_keys,
+    purchase_keys_cents,
+    blocked_purchase_keys_cents,
+    connectivity_keys_cents,
+    blocked_connectivity_keys_cents,
     created_at,
     updated_at
 )
 SELECT 
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440000'),
     cd.user_id,
-    0,   -- purchase_keys
-    0,   -- blocked_purchase_keys
-    0,   -- connectivity_keys
-    0,    -- blocked_connectivity_keys
+    0,   -- purchase_keys_cents
+    0,   -- blocked_purchase_keys_cents
+    0,   -- connectivity_keys_cents
+    0,    -- blocked_connectivity_keys_cents
     NOW(),
     NOW()
 
@@ -344,8 +344,8 @@ WHERE u.email = 'consumer1@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO key_wallets (
-    id, consumer_id, purchase_keys, blocked_purchase_keys,
-    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+    id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents,
+    connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at
 )
 SELECT
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440001'),
@@ -398,8 +398,8 @@ WHERE u.email = 'consumer2@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO key_wallets (
-    id, consumer_id, purchase_keys, blocked_purchase_keys,
-    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+    id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents,
+    connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at
 )
 SELECT
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440002'),
@@ -452,8 +452,8 @@ WHERE u.email = 'consumer3@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO key_wallets (
-    id, consumer_id, purchase_keys, blocked_purchase_keys,
-    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+    id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents,
+    connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at
 )
 SELECT
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440003'),
@@ -506,8 +506,8 @@ WHERE u.email = 'consumer4@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO key_wallets (
-    id, consumer_id, purchase_keys, blocked_purchase_keys,
-    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+    id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents,
+    connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at
 )
 SELECT
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440004'),
@@ -560,8 +560,8 @@ WHERE u.email = 'consumer5@verygana.com'
 ON DUPLICATE KEY UPDATE user_id = user_id;
 
 INSERT INTO key_wallets (
-    id, consumer_id, purchase_keys, blocked_purchase_keys,
-    connectivity_keys, blocked_connectivity_keys, created_at, updated_at
+    id, consumer_id, purchase_keys_cents, blocked_purchase_keys_cents,
+    connectivity_keys_cents, blocked_connectivity_keys_cents, created_at, updated_at
 )
 SELECT
     UUID_TO_BIN('550e8400-e29b-41d4-a716-446655440005'),

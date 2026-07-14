@@ -28,7 +28,6 @@ import com.verygana2.dtos.raffle.responses.WinnerProofResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
-import com.verygana2.exceptions.rafflesExceptions.RandomOrgException;
 import com.verygana2.models.Notification;
 import com.verygana2.models.enums.NotificationType;
 import com.verygana2.models.enums.raffles.DrawMethod;
@@ -323,50 +322,6 @@ public class DrawingServiceImpl implements DrawingService {
                         .collect(Collectors.joining(", ")));
 
         return winners;
-    }
-
-    @Override
-    public List<RaffleTicket> randomExternalDraw(List<RaffleTicket> tickets, Integer numberOfWinners) {
-
-        if (tickets == null || tickets.isEmpty()) {
-            throw new InvalidOperationException("Cannot draw from empty ticket list");
-        }
-
-        if (numberOfWinners == null || numberOfWinners <= 0) {
-            throw new InvalidOperationException("Number of winners must be positive");
-        }
-
-        if (numberOfWinners > tickets.size()) {
-            throw new InvalidOperationException(
-                    String.format("Cannot select %d winners from %d tickets",
-                            numberOfWinners, tickets.size()));
-        }
-
-        log.info("Starting external draw with Random.org: {} winners from {} tickets",
-                numberOfWinners, tickets.size());
-
-        try {
-            RandomOrgDrawResult result = randomOrgService.generateRandomIntegers(0, tickets.size() - 1,
-                    (int) numberOfWinners);
-            List<RaffleTicket> winners = new ArrayList<>(numberOfWinners);
-
-            for (Integer index : result.indices()) {
-                winners.add(tickets.get(index));
-            }
-
-            winners.forEach(w -> w.setIsWinner(true));
-            raffleTicketRepository.saveAll(winners);
-
-            log.info("External draw completed successfully. Serial: {}. Winners: {}",
-                    result.metadata().getSerialNumber(),
-                    winners.stream().map(RaffleTicket::getTicketNumber).collect(Collectors.joining(", ")));
-
-            return winners;
-
-        } catch (RandomOrgException e) {
-            log.error("Random.org external draw failed: {}", e.getMessage());
-            throw e;
-        }
     }
 
     @Override

@@ -74,14 +74,6 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
        // ========== BÚSQUEDAS CON FILTROS ==========
 
        /**
-        * Tickets de un usuario en una rifa con paginación
-        */
-       Page<RaffleTicket> findByTicketOwnerIdAndRaffleId(
-                     Long ticketOwnerId,
-                     Long raffleId,
-                     Pageable pageable);
-
-       /**
         * Tickets de un usuario con filtros
         */
        @Query("""
@@ -131,10 +123,6 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
         */
        List<RaffleTicket> findByRaffleIdAndStatus(Long raffleId, RaffleTicketStatus status);
 
-       /**
-        * Tickets ganadores de una rifa
-        */
-       List<RaffleTicket> findByRaffleIdAndIsWinnerTrue(Long raffleId);
 
        // ========== OPERACIONES MASIVAS ==========
 
@@ -148,14 +136,6 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
                      @Param("raffleId") Long raffleId,
                      @Param("now") ZonedDateTime now);
 
-       /**
-        * Marca un ticket como ganador
-        */
-       @Modifying
-       @Query("UPDATE RaffleTicket t SET t.isWinner = true " +
-                     "WHERE t.id = :ticketId")
-       int markAsWinner(@Param("ticketId") Long ticketId);
-
        // ========== ESTADÍSTICAS ==========
 
        /**
@@ -165,19 +145,4 @@ public interface RaffleTicketRepository extends JpaRepository<RaffleTicket, Long
                      "WHERE t.raffle.id = :raffleId GROUP BY t.source")
        List<Object[]> countTicketsBySource(@Param("raffleId") Long raffleId);
 
-       /**
-        * Cuenta tickets de un usuario por fuente en un rango de fechas
-        */
-       long countByTicketOwnerIdAndSourceAndIssuedAtBetween(
-                     Long ticketOwnerId,
-                     RaffleTicketSource source,
-                     ZonedDateTime start,
-                     ZonedDateTime end);
-
-       /**
-        * Cuenta tickets totales de un usuario por fuente
-        */
-       long countByTicketOwnerIdAndSource(
-                     Long ticketOwnerId,
-                     RaffleTicketSource source);
 }

@@ -7,9 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.finance.WompiTransaction;
-import com.verygana2.models.enums.finance.WompiTransactionStatus;
 
-import java.util.List;
 
 @Repository
 public interface WompiTransactionRepository extends JpaRepository<WompiTransaction, UUID> {
@@ -26,13 +24,4 @@ public interface WompiTransactionRepository extends JpaRepository<WompiTransacti
      */
     Optional<WompiTransaction> findByWompiId(String wompiId);
 
-    boolean existsByWompiId(String wompiId);
-
-    /**
-     * Busca transacciones en estado PENDING más antiguas de cierto tiempo.
-     * Usado por el job de reconciliación para detectar checkouts abandonados.
-     */
-    List<WompiTransaction> findByStatusAndCreatedAtBefore(
-            WompiTransactionStatus status,
-            java.time.ZonedDateTime before);
 }

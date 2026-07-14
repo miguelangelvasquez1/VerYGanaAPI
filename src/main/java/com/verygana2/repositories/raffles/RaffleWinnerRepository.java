@@ -22,13 +22,6 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
         List<RaffleWinner> findByRaffleResultId(Long raffleResultId);
 
         /**
-         * Encuentra ganadores por estado de premio
-         */
-        List<RaffleWinner> findByRaffleResultIdAndPrizePrizeStatus(
-                        Long raffleResultId,
-                        PrizeStatus status);
-
-        /**
          * Encuentra todos los premios ganados por un usuario
          */
         @Query("""
@@ -44,26 +37,9 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
                         @Param("status") PrizeStatus status, Pageable pageable);
 
         /**
-         * Encuentra ganador por ticket
-         */
-        Optional<RaffleWinner> findByWinningTicketId(Long ticketId);
-
-        /**
          * Cuenta ganadores de una rifa
          */
         long countByRaffleResultId(Long raffleResultId);
-
-        /**
-         * Ganadores que no han reclamado su premio
-         */
-        @Query("SELECT w FROM RaffleWinner w WHERE w.raffleResult.id = :raffleResultId " +
-                        "AND w.prizeClaimed = false")
-        List<RaffleWinner> findUnclaimedWinners(@Param("raffleResultId") Long raffleResultId);
-
-        /**
-         * Cuenta premios reclamados de una rifa
-         */
-        long countByRaffleResultIdAndPrizeClaimedTrue(Long raffleResultId);
 
         @Query("""
                         SELECT w FROM RaffleWinner w

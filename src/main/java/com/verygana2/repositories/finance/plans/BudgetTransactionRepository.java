@@ -15,8 +15,6 @@ import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
 @Repository
 public interface BudgetTransactionRepository extends JpaRepository<BudgetTransaction, Long> {
 
-    List<BudgetTransaction> findByWalletIdOrderByCreatedAtDesc(Long walletId);
-
     List<BudgetTransaction> findByWalletIdAndType(Long walletId, TransactionType type);
 
     /** Suma total de gasto publicitario en un período — card "Gastado este mes". */
