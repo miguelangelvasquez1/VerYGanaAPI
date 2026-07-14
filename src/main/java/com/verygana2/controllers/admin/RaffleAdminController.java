@@ -1,6 +1,12 @@
 package com.verygana2.controllers.admin;
 
 
+import java.time.LocalDate;
+import java.util.List;
+
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
@@ -25,9 +32,12 @@ import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
+import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
+import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.services.interfaces.raffles.DrawingService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
+import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -40,6 +50,7 @@ public class RaffleAdminController {
 
     private final DrawingService drawingService;
     private final RaffleService raffleService;
+    private final RaffleTicketService raffleTicketService;
 
     @PostMapping("/prepare")
     public ResponseEntity<RaffleAssetsUploadPermissionDTO> prepareRaffleCreation(
@@ -116,6 +127,26 @@ public class RaffleAdminController {
     @GetMapping("/count")
     public ResponseEntity<Long> countRafflesByStatus(@RequestParam("status") RaffleStatus status) {
         return ResponseEntity.ok(raffleService.countRafflesByStatus(status));
+    }
+
+    @GetMapping("/tickets/{ticketId}/audit-logs")
+    public ResponseEntity<List<TicketAuditLogResponseDTO>> getTicketAuditLogs(@PathVariable Long ticketId) {
+        return ResponseEntity.ok(raffleTicketService.getAuditLogsByTicketId(ticketId));
+    }
+
+    @GetMapping("/audit-logs")
+    public ResponseEntity<PagedResponse<TicketAuditLogResponseDTO>> getAuditLogsBetweenDates(
+            @RequestParam LocalDate from,
+            @RequestParam LocalDate to,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(raffleTicketService.getAuditLogsBetweenDates(from, to, pageable));
+    }
+
+    @GetMapping("/audit-logs/suspicious")
+    public ResponseEntity<List<SuspiciousIpActivityResponseDTO>> getSuspiciousActivity(
+            @RequestParam LocalDate since,
+            @RequestParam(defaultValue = "5") long threshold) {
+        return ResponseEntity.ok(raffleTicketService.getSuspiciousActivity(since, threshold));
     }
 
 }

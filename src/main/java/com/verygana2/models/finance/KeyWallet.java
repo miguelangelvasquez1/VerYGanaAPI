@@ -1,5 +1,6 @@
 package com.verygana2.models.finance;
 
+import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -58,10 +59,10 @@ public class KeyWallet {
      * total del saldo aquí y mueve el valor equivalente en COP al fondo
      * de fortalecimiento en TreasuryAccount(FORTIFICATION).
      */
-    @Column(name = "purchase_keys", nullable = false)
+    @Column(name = "purchase_keys_cents", nullable = false)
     @PositiveOrZero
     @Builder.Default
-    private Long purchaseKeys = 0L;
+    private Long purchaseKeysCents = 0L;
 
     /**
      * Llaves de compra reservadas durante un copago en curso (Copayment.PENDING).
@@ -72,10 +73,10 @@ public class KeyWallet {
      *
      * INVARIANTE: purchaseKeys + blockedPurchaseKeys = saldo real total de compra.
      */
-    @Column(name = "blocked_purchase_keys", nullable = false)
+    @Column(name = "blocked_purchase_keys_cents", nullable = false)
     @PositiveOrZero
     @Builder.Default
-    private Long blockedPurchaseKeys = 0L;
+    private Long blockedPurchaseKeysCents = 0L;
 
     // ─── LLAVES DE CONECTIVIDAD ───────────────────────────────────────────────
 
@@ -91,19 +92,19 @@ public class KeyWallet {
      * El job calcula expires_at = inicio_del_dia_siguiente en zona Colombia
      * (UTC-5).
      */
-    @Column(name = "connectivity_keys", nullable = false)
+    @Column(name = "connectivity_keys_cents", nullable = false)
     @PositiveOrZero
     @Builder.Default
-    private Long connectivityKeys = 0L;
+    private Long connectivityKeysCents = 0L;
 
     /**
      * Llaves de conectividad reservadas durante una recarga en curso.
      * Mismo principio que blockedPurchaseKeys.
      */
-    @Column(name = "blocked_connectivity_keys", nullable = false)
+    @Column(name = "blocked_connectivity_keys_cents", nullable = false)
     @PositiveOrZero
     @Builder.Default
-    private Long blockedConnectivityKeys = 0L;
+    private Long blockedConnectivityKeysCents = 0L;
 
     // ─── AUDITORÍA ────────────────────────────────────────────────────────────
 
@@ -118,14 +119,14 @@ public class KeyWallet {
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
-        if (this.purchaseKeys == null)
-            this.purchaseKeys = 0L;
-        if (this.blockedPurchaseKeys == null)
-            this.blockedPurchaseKeys = 0L;
-        if (this.connectivityKeys == null)
-            this.connectivityKeys = 0L;
-        if (this.blockedConnectivityKeys == null)
-            this.blockedConnectivityKeys = 0L;
+        if (this.purchaseKeysCents == null)
+            this.purchaseKeysCents = 0L;
+        if (this.blockedPurchaseKeysCents == null)
+            this.blockedPurchaseKeysCents = 0L;
+        if (this.connectivityKeysCents == null)
+            this.connectivityKeysCents = 0L;
+        if (this.blockedConnectivityKeysCents == null)
+            this.blockedConnectivityKeysCents = 0L;
     }
 
     @PreUpdate
@@ -135,32 +136,24 @@ public class KeyWallet {
 
     // ─── CONSULTAS ────────────────────────────────────────────────────────────
 
-    public long getAvailableKeys () {
-        return purchaseKeys + connectivityKeys;
-    }
-
-    public long getTotalKeys() {
-        return getTotalPurchaseKeys() + getTotalConnectivityKeys();
+    public long getAvailableKeysCents () {
+        return purchaseKeysCents + connectivityKeysCents;
     }
  
-    /**
-     * Total de llaves de compra incluyendo las bloqueadas.
-     * Útil para mostrar al usuario su saldo "real" vs "disponible".
-     */
-    public long getTotalPurchaseKeys() {
-        return purchaseKeys + blockedPurchaseKeys;
+    public long getTotalPurchaseKeysCents() {
+        return purchaseKeysCents + blockedPurchaseKeysCents;
     }
  
-    public long getTotalConnectivityKeys() {
-        return connectivityKeys + blockedConnectivityKeys;
+    public long getTotalConnectivityKeysCents() {
+        return connectivityKeysCents + blockedConnectivityKeysCents;
     }
  
-    public boolean hasSufficientPurchaseKeys(long amount) {
-        return purchaseKeys >= amount;
+    public boolean hasSufficientPurchaseKeysCents(long amountCents) {
+        return purchaseKeysCents >= amountCents;
     }
  
-    public boolean hasSufficientConnectivityKeys(long amount) {
-        return connectivityKeys >= amount;
+    public boolean hasSufficientConnectivityKeysCents(long amountCents) {
+        return connectivityKeysCents >= amountCents;
     }
 
 // ─── OPERACIONES DE COMPRA ────────────────────────────────────────────────
@@ -175,47 +168,47 @@ public class KeyWallet {
      * Acredita llaves de compra y conectividad según la distribución 75/25.
      * Llamado cuando el empresario hace un depósito y las llaves se distribuyen.
      */
-    public void creditKeys(long purchaseAmount, long connectivityAmount) {
-        validateNonNegative(purchaseAmount, "purchaseAmount");
-        validateNonNegative(connectivityAmount, "connectivityAmount");
-        this.purchaseKeys += purchaseAmount;
-        this.connectivityKeys += connectivityAmount;
+    public void creditKeysCents(long purchaseAmountCents, long connectivityAmountCents) {
+        validateNonNegative(purchaseAmountCents, "purchaseAmountCents");
+        validateNonNegative(connectivityAmountCents, "connectivityAmountCents");
+        this.purchaseKeysCents += purchaseAmountCents;
+        this.connectivityKeysCents += connectivityAmountCents;
     }
  
     /**
      * Reserva llaves de compra cuando inicia un copago (Copayment → PENDING).
      * Genera KeyTransaction(RESERVE_COPAYMENT_PENDING).
      */
-    public void reservePurchaseKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (!hasSufficientPurchaseKeys(amount))
+    public void reservePurchaseKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (!hasSufficientPurchaseKeysCents(amountCents))
             throw new IllegalStateException(
-                "Llaves insuficientes: disponibles=" + purchaseKeys + ", requeridas=" + amount);
-        this.purchaseKeys -= amount;
-        this.blockedPurchaseKeys += amount;
+                "Insufficient purchase keys: availables=" + new BigDecimal(purchaseKeysCents).divide(new BigDecimal(1000)) + ", required=" + new BigDecimal(amountCents).divide(new BigDecimal(1000)));
+        this.purchaseKeysCents -= amountCents;
+        this.blockedPurchaseKeysCents += amountCents;
     }
  
     /**
      * Confirma el débito de llaves reservadas cuando Wompi aprueba el copago.
      * Genera KeyTransaction(DEBIT_COPAYMENT).
      */
-    public void confirmReservedPurchaseKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.blockedPurchaseKeys < amount)
-            throw new IllegalStateException("No hay suficientes llaves bloqueadas para confirmar");
-        this.blockedPurchaseKeys -= amount;
+    public void confirmReservedPurchaseKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.blockedPurchaseKeysCents < amountCents)
+            throw new IllegalStateException("There are not enough blocked keys to confirm");
+        this.blockedPurchaseKeysCents -= amountCents;
     }
 
     /**
      * Devuelve las llaves reservadas al saldo disponible cuando el copago falla.
      * Genera KeyTransaction(RELEASE_COPAYMENT_CANCELLED).
      */
-    public void releasePurchaseKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.blockedPurchaseKeys < amount)
-            throw new IllegalStateException("No hay suficientes llaves bloqueadas para liberar");
-        this.blockedPurchaseKeys -= amount;
-        this.purchaseKeys += amount;
+    public void releasePurchaseKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.blockedPurchaseKeysCents < amountCents)
+            throw new IllegalStateException("There are not enough blocked keys to release");
+        this.blockedPurchaseKeysCents -= amountCents;
+        this.purchaseKeysCents += amountCents;
     }
  
     // ─── OPERACIONES DE CONECTIVIDAD ──────────────────────────────────────────
@@ -223,34 +216,34 @@ public class KeyWallet {
     /**
      * Reserva llaves de conectividad cuando inicia una recarga.
      */
-    public void reserveConnectivityKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (!hasSufficientConnectivityKeys(amount))
+    public void reserveConnectivityKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (!hasSufficientConnectivityKeysCents(amountCents))
             throw new IllegalStateException(
-                "Llaves de conectividad insuficientes: disponibles=" + connectivityKeys + ", requeridas=" + amount);
-        this.connectivityKeys -= amount;
-        this.blockedConnectivityKeys += amount;
+                "Unsufficient connectivity keys: available=" + new BigDecimal(connectivityKeysCents).divide(new BigDecimal(1000)) + ", required=" + new BigDecimal(amountCents).divide(new BigDecimal(1000)));
+        this.connectivityKeysCents -= amountCents;
+        this.blockedConnectivityKeysCents += amountCents;
     }
  
     /**
      * Confirma el débito de conectividad cuando Puntored confirma la recarga.
      */
-    public void confirmReservedConnectivityKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.blockedConnectivityKeys < amount)
-            throw new IllegalStateException("No hay suficientes llaves de conectividad bloqueadas");
-        this.blockedConnectivityKeys -= amount;
+    public void confirmReservedConnectivityKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.blockedConnectivityKeysCents < amountCents)
+            throw new IllegalStateException("There are not enough blocked connectivity keys");
+        this.blockedConnectivityKeysCents -= amountCents;
     }
  
     /**
      * Devuelve llaves de conectividad si Puntored rechaza la recarga.
      */
-    public void releaseConnectivityKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.blockedConnectivityKeys < amount)
-            throw new IllegalStateException("No hay suficientes llaves de conectividad bloqueadas para liberar");
-        this.blockedConnectivityKeys -= amount;
-        this.connectivityKeys += amount;
+    public void releaseConnectivityKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.blockedConnectivityKeysCents < amountCents)
+            throw new IllegalStateException("There are not enough blocked connectivity keys to release");
+        this.blockedConnectivityKeysCents -= amountCents;
+        this.connectivityKeysCents += amountCents;
     }
  
     // ─── VENCIMIENTOS ────────────────────────────────────────────────────────
@@ -263,35 +256,35 @@ public class KeyWallet {
      *
      * @return cantidad de llaves expiradas (para calcular el COP a mover a FORTIFICATION)
      */
-    public long expirePurchaseKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.purchaseKeys < amount)
-            throw new IllegalStateException("No se pueden expirar más llaves de las disponibles");
-        this.purchaseKeys -= amount;
-        return amount;
+    public long expirePurchaseKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.purchaseKeysCents < amountCents)
+            throw new IllegalStateException("Cannot expire more purchase keys than availables");
+        this.purchaseKeysCents -= amountCents;
+        return amountCents;
     }
  
     /**
      * Expira llaves de conectividad al corte diario.
      */
-    public long expireConnectivityKeys(long amount) {
-        validatePositive(amount, "amount");
-        if (this.connectivityKeys < amount)
-            throw new IllegalStateException("No se pueden expirar más llaves de las disponibles");
-        this.connectivityKeys -= amount;
-        return amount;
+    public long expireConnectivityKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (this.connectivityKeysCents < amountCents)
+            throw new IllegalStateException("Cannot expire more connectivity keys than availables");
+        this.connectivityKeysCents -= amountCents;
+        return amountCents;
     }
  
     // ─── PRIVADOS ─────────────────────────────────────────────────────────────
  
-    private void validatePositive(long amount, String field) {
-        if (amount <= 0)
-            throw new IllegalArgumentException(field + " debe ser positivo");
+    private void validatePositive(long amountCents, String field) {
+        if (amountCents <= 0)
+            throw new IllegalArgumentException(field + "Must be positive");
     }
  
-    private void validateNonNegative(long amount, String field) {
-        if (amount < 0)
-            throw new IllegalArgumentException(field + " no puede ser negativo");
+    private void validateNonNegative(long amountCents, String field) {
+        if (amountCents < 0)
+            throw new IllegalArgumentException(field + "Cannot be negative");
     }
 }
  

@@ -3,6 +3,7 @@ package com.verygana2.services.wompi;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -15,6 +16,7 @@ import org.springframework.web.reactive.function.client.WebClientResponseExcepti
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.config.wompi.WompiConfig;
+import com.verygana2.dtos.wompi.WompiTransactionListResponseDTO;
 import com.verygana2.dtos.wompi.WompiTransactionRequestDTO;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO;
 import com.verygana2.exceptions.wompi.WompiApiException;
@@ -80,6 +82,43 @@ public class WompiClient {
             }
             throw new WompiApiException(
                     "Error al consultar transacción en Wompi: " + e.getMessage(),
+                    e.getStatusCode().value());
+        }
+    }
+
+    /**
+     * Busca transacciones en Wompi por la referencia interna que enviamos al crear
+     * el checkout. A diferencia de {@link #getTransaction}, no necesita el ID real
+     * de Wompi — sirve para reconciliar pagos cuyo webhook nunca llegó.
+     *
+     * @return la transacción más reciente para esa referencia, o null si Wompi no
+     *         tiene ningún registro (el usuario nunca completó el checkout)
+     */
+    public WompiTransactionResponseDTO.WompiTransactionData findTransactionByReference(String reference) {
+        log.debug("[WOMPI] Buscando transacción por reference: {}", reference);
+        try {
+            WompiTransactionListResponseDTO response = webClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/transactions").queryParam("reference", reference).build())
+                    .retrieve()
+                    .bodyToMono(WompiTransactionListResponseDTO.class)
+                    .block();
+
+            if (response == null || response.getData() == null || response.getData().isEmpty()) {
+                return null;
+            }
+
+            // Reintentos del usuario pueden dejar varias transacciones con la misma
+            // referencia; nos quedamos con la más reciente.
+            return response.getData().stream()
+                    .max(Comparator.comparing(WompiTransactionResponseDTO.WompiTransactionData::getCreatedAt))
+                    .orElse(null);
+
+        } catch (WebClientResponseException e) {
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                return null;
+            }
+            throw new WompiApiException(
+                    "Error al buscar transacción por reference en Wompi: " + e.getMessage(),
                     e.getStatusCode().value());
         }
     }

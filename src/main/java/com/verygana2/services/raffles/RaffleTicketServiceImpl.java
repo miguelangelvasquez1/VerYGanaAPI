@@ -1,9 +1,12 @@
 package com.verygana2.services.raffles;
 
-import java.time.ZoneId;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -11,11 +14,16 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
+import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
+import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.raffles.RaffleTicketMapper;
+import com.verygana2.mappers.raffles.TicketAuditLogMapper;
 import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
 import com.verygana2.models.enums.raffles.AuditAction;
 import com.verygana2.models.enums.raffles.RaffleStatus;
@@ -38,6 +46,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleRuleService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
+import com.verygana2.utils.audit.AuditContextService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +66,9 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     private final ConsumerDetailsService consumerDetailsService;
     private final RaffleParticipationRepository participationRepository;
     private final TicketAuditLogRepository auditLogRepository;
+    private final AuditContextService auditContextService;
+    private final ObjectMapper objectMapper;
+    private final TicketAuditLogMapper ticketAuditLogMapper;
 
     // Emitir tiquetes de una rifa a un usuario
     @Override
@@ -328,6 +340,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             List<RaffleTicket> tickets,
             RaffleTicketSource source,
             Long sourceId) {
+        String ipAddress = auditContextService.getClientIpAddress();
+
         List<TicketAuditLog> logs = tickets.stream()
                 .map(ticket -> {
                     TicketAuditLog log = new TicketAuditLog();
@@ -335,12 +349,33 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
                     log.setAction(AuditAction.ISSUED);
                     log.setSourceType(source);
                     log.setSourceId(sourceId);
-                    // Opcional: agregar IP si tienes acceso al HttpServletRequest
+                    log.setIpAddress(ipAddress);
+                    log.setMetadata(buildAuditMetadata(ticket));
                     return log;
                 })
                 .toList();
 
         auditLogRepository.saveAll(logs);
+    }
+
+    /**
+     * Serializa contexto adicional del ticket (rifa, número, dueño) como JSON
+     * para el campo metadata de TicketAuditLog
+     */
+    private String buildAuditMetadata(RaffleTicket ticket) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("raffleId", ticket.getRaffle().getId());
+        metadata.put("raffleTitle", ticket.getRaffle().getTitle());
+        metadata.put("ticketNumber", ticket.getTicketNumber());
+        metadata.put("consumerId", ticket.getTicketOwner().getId());
+
+        try {
+            return objectMapper.writeValueAsString(metadata);
+        } catch (JsonProcessingException e) {
+            log.warn("No se pudo serializar metadata de auditoría para ticket {}: {}",
+                    ticket.getTicketNumber(), e.getMessage());
+            return null;
+        }
     }
 
     @Override
@@ -470,9 +505,37 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         }
 
         int expiredCount = raffleTicketRepository.expireTicketsByRaffle(raffleId,
-                ZonedDateTime.now(ZoneId.of("America/Bogota")));
+                ZonedDateTime.now(ZoneOffset.UTC));
 
         log.info("Expired {} tickets for raffle {}", expiredCount, raffleId);
+    }
+
+    @Override
+    public List<TicketAuditLogResponseDTO> getAuditLogsByTicketId(Long ticketId) {
+        return auditLogRepository.findByTicketIdOrderByCreatedAtDesc(ticketId).stream()
+                .map(ticketAuditLogMapper::toTicketAuditLogResponseDTO)
+                .toList();
+    }
+
+    @Override
+    public PagedResponse<TicketAuditLogResponseDTO> getAuditLogsBetweenDates(LocalDate from, LocalDate to,
+            Pageable pageable) {
+        ZonedDateTime fromDateTime = from.atStartOfDay(ZoneOffset.UTC);
+        ZonedDateTime toDateTime = to.plusDays(1).atStartOfDay(ZoneOffset.UTC);
+
+        Page<TicketAuditLogResponseDTO> page = auditLogRepository
+                .findLogsBetweenDates(fromDateTime, toDateTime, pageable)
+                .map(ticketAuditLogMapper::toTicketAuditLogResponseDTO);
+        return PagedResponse.from(page);
+    }
+
+    @Override
+    public List<SuspiciousIpActivityResponseDTO> getSuspiciousActivity(LocalDate since, long threshold) {
+        ZonedDateTime sinceDateTime = since.atStartOfDay(ZoneOffset.UTC);
+
+        return auditLogRepository.findSuspiciousActivity(sinceDateTime, threshold).stream()
+                .map(row -> new SuspiciousIpActivityResponseDTO((String) row[0], (Long) row[1]))
+                .toList();
     }
 
     // ==================== UTILIDADES ====================

@@ -115,7 +115,7 @@ public class RewardService {
                 KeyTransaction.forInteractionConnectivityKeys(
                         keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
 
-        keyWallet.creditKeys(split.purchaseKeysReward(), split.connectivityKeysReward());
+        keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);
     }
 }

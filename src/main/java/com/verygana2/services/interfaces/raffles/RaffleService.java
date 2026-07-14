@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces.raffles;
 
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -30,7 +31,6 @@ public interface RaffleService {
     EntityUpdatedResponseDTO updateRaffle(Long adminId, Long raffleId, UpdateRaffleRequestDTO request);
     void activateRaffle(Long raffleId);
     void closeRaffle(Long raffleId);
-    void liveRaffle (Long raffleId);
     void cancelRaffle (Long raffleId);
     void deleteRaffle(Long raffleId);
     Raffle getRaffleById(Long raffleId);
@@ -41,7 +41,7 @@ public interface RaffleService {
      */
     Raffle getRaffleWithPrizesById(Long raffleId);
     RaffleResponseDTO getRaffleResponseDTOById(Long raffleId);
-    PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status, RaffleType type, Pageable pageable);
+    PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status, String search, LocalDate drawDate, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
     List<ParticipantLeaderboardDTO> getRaffleLeaderBoard(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);

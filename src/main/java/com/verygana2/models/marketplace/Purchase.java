@@ -152,11 +152,6 @@ public class Purchase {
         item.setPurchase(this);
     }
 
-    public void removeItem(PurchaseItem item) {
-        items.remove(item);
-        item.setPurchase(null);
-    }
-
     /**
      * Calcula y persiste todos los campos financieros a partir de los ítems.
      * Se llama UNA SOLA VEZ en PurchaseService.create() después de agregar

@@ -279,6 +279,20 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+
+            <!-- Detección de código muerto: métodos/campos/parámetros/variables privados sin uso.
+                 Ejecutar con: mvn pmd:check (falla si hay hallazgos) o mvn pmd:pmd (solo reporta, ver target/pmd.xml) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.26.0</version>
+                <configuration>
+                    <rulesets>
+                        <ruleset>pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <includeTests>false</includeTests>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

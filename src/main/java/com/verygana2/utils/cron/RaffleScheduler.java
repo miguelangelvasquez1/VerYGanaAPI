@@ -1,6 +1,5 @@
 package com.verygana2.utils.cron;
 
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -199,7 +198,7 @@ public class RaffleScheduler {
      */
     @Scheduled(cron = "0 0 8 * * *")
     public void dailySummary() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
 
         long active = raffleRepository.countByRaffleStatus(RaffleStatus.ACTIVE);
         long closed = raffleRepository.countByRaffleStatus(RaffleStatus.CLOSED);

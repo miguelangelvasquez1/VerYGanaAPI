@@ -18,7 +18,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
@@ -156,21 +155,8 @@ public class PurchaseItem {
     @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
-
-    public void assignProductStock(ProductStock stock) {
-        this.assignedProductStock = stock;
-        this.deliveredCode = stock.getCode();
-        this.deliveredAt = ZonedDateTime.now();
-        this.status = PurchaseItemStatus.DELIVERED;
-    }
-
     public boolean isDelivered() {
         return status == PurchaseItemStatus.DELIVERED;
-    }
-
-    @Transient
-    public boolean hasReview() {
-        return this.review != null;
     }
 
     public boolean canBeReviewed() {

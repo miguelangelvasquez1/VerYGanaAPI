@@ -33,12 +33,15 @@ import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
+import com.verygana2.exceptions.kushki.KushkiApiException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
+import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveySuspendedException;
@@ -183,6 +186,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(WalletAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleWalletAlreadyExistsException(
+            WalletAlreadyExistsException ex, WebRequest request) {
+        log.warn("Wallet already exists: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handlePhoneNumberAlreadyExistsException(
             PhoneNumberAlreadyExistsException ex, WebRequest request) {
@@ -313,6 +323,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidRaffleStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRaffleStatusException(
+            InvalidRaffleStatusException ex, WebRequest request) {
+        log.warn("Invalid raffle status error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(InvalidContentException.class)
     public ResponseEntity<ErrorResponse> handleInvalidContentException(
             InvalidContentException ex, WebRequest request) {
@@ -348,6 +365,13 @@ public class GlobalExceptionHandler {
             InvalidPayoutMethodStateException ex, WebRequest request) {
         log.warn("Invalid payout method state: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(KushkiApiException.class)
+    public ResponseEntity<ErrorResponse> handleKushkiApiException(
+            KushkiApiException ex, WebRequest request) {
+        log.error("Kushki API error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_GATEWAY, "Payout provider error", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

@@ -1,7 +1,7 @@
 package com.verygana2.models;
 
 import java.time.Instant;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.NotificationType;
@@ -59,7 +59,7 @@ public class Notification {
 
     @PrePersist
     public void onCreate(){
-        this.createdAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
         this.isRead = false;
     }
 }

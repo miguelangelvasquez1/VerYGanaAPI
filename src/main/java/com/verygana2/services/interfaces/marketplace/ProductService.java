@@ -40,7 +40,7 @@ public interface ProductService {
 
     PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page);
 
-    PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin (ProductStatus status, Pageable pageable);
+    PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin (ProductStatus status, String search, Pageable pageable);
 
     ProductResponseDTO approveProductForAdmin (Long adminId, Long productId);
     ProductResponseDTO rejectProductForAdmin (Long adminId, Long productId, String reason);
