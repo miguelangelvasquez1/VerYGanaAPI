@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -23,8 +24,10 @@ import com.verygana2.dtos.game.GameMetricDTO;
 import com.verygana2.dtos.game.InitGameRequestDTO;
 import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.dtos.game.campaign.GameSchemaResponse;
+import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.UnauthorizedException;
+import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.games.Game;
@@ -76,6 +79,7 @@ public class GameServiceImpl implements GameService {
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
     private final ProductRepository productRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -205,6 +209,8 @@ public class GameServiceImpl implements GameService {
     @Override
     public void completeSession(GameEventDTO<EndSessionDTO> event, Long userId) {
 
+        // validateSessionOwnership rechaza sesiones ya completadas,
+        // lo que de paso evita duplicar el XP de GAME_PLAYED en reintentos
         GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
 
         ZonedDateTime end = ZonedDateTime.now();
@@ -216,6 +222,11 @@ public class GameServiceImpl implements GameService {
         session.setScore(event.getPayload().getFinalScore());
 
         gameSessionRepository.save(session);
+
+        // XP de gamificación — se otorga AFTER_COMMIT vía XpAwardListener,
+        // solo si la sesión quedó efectivamente persistida como completada
+        eventPublisher.publishEvent(new XpAwardRequestedEvent(
+                this, session.getConsumer().getId(), ActivityType.GAME_PLAYED));
     }
 
     @Override
