@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,10 +32,6 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
     private final KeyTransactionRepository keyTransactionRepository;
     private final KeyWalletRepository keyWalletRepository;
     private final TreasuryService treasuryService;
-
-    /** Centavos de COP que vale cada llave. Configurable en treasury.values.key-value */
-    @Value("${financial.key-value-cents:1000}")
-    private long keyValueCents;
 
     private static final ZoneId COLOMBIA = ZoneId.of("America/Bogota");
     private static final DateTimeFormatter PERIOD_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z");
@@ -65,26 +60,26 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
             KeyWallet wallet = kt.getKeyWallet();
             WalletExpiry expiry = groups.computeIfAbsent(wallet, k -> new WalletExpiry());
 
-            if (kt.getPurchaseKeysDelta() != null && kt.getPurchaseKeysDelta() > 0) {
-                expiry.purchaseSum += kt.getPurchaseKeysDelta();
+            if (kt.getPurchaseKeysDeltaCents() != null && kt.getPurchaseKeysDeltaCents() > 0) {
+                expiry.purchaseSumCents += kt.getPurchaseKeysDeltaCents();
             }
-            if (kt.getConnectivityKeysDelta() != null && kt.getConnectivityKeysDelta() > 0) {
-                expiry.connectivitySum += kt.getConnectivityKeysDelta();
+            if (kt.getConnectivityKeysDeltaCents() != null && kt.getConnectivityKeysDeltaCents() > 0) {
+                expiry.connectivitySumCents += kt.getConnectivityKeysDeltaCents();
             }
             expiry.transactionIds.add(kt.getId());
         }
 
-        long totalExpiredKeys = 0;
+        long totalExpiredCents = 0;
 
         for (Map.Entry<KeyWallet, WalletExpiry> entry : groups.entrySet()) {
             KeyWallet wallet = entry.getKey();
             WalletExpiry expiry = entry.getValue();
 
             // Nunca expirar más de lo que hay disponible (las bloqueadas se respetan)
-            long actualPurchaseExpiry = Math.min(wallet.getPurchaseKeys(), expiry.purchaseSum);
-            long actualConnectivityExpiry = Math.min(wallet.getConnectivityKeys(), expiry.connectivitySum);
+            long actualPurchaseExpiryCents = Math.min(wallet.getPurchaseKeysCents(), expiry.purchaseSumCents);
+            long actualConnectivityExpiryCents = Math.min(wallet.getConnectivityKeysCents(), expiry.connectivitySumCents);
 
-            if (actualPurchaseExpiry == 0 && actualConnectivityExpiry == 0) {
+            if (actualPurchaseExpiryCents == 0 && actualConnectivityExpiryCents == 0) {
                 log.debug("[KEY-EXPIRY] Wallet {} sin llaves disponibles para expirar (ya gastadas).",
                         wallet.getId());
                 keyTransactionRepository.markAllAsProcessed(expiry.transactionIds);
@@ -92,26 +87,26 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
             }
 
             try {
-                if (actualPurchaseExpiry > 0) {
-                    wallet.expirePurchaseKeys(actualPurchaseExpiry);
+                if (actualPurchaseExpiryCents > 0) {
+                    wallet.expirePurchaseKeysCents(actualPurchaseExpiryCents);
                 }
-                if (actualConnectivityExpiry > 0) {
-                    wallet.expireConnectivityKeys(actualConnectivityExpiry);
+                if (actualConnectivityExpiryCents > 0) {
+                    wallet.expireConnectivityKeysCents(actualConnectivityExpiryCents);
                 }
 
                 keyWalletRepository.save(wallet);
 
                 KeyTransaction expiryTx = KeyTransaction.forExpiry(
-                        wallet, actualPurchaseExpiry, actualConnectivityExpiry,
+                        wallet, actualPurchaseExpiryCents, actualConnectivityExpiryCents,
                         batchId, periodLabel);
                 keyTransactionRepository.save(Objects.requireNonNull(expiryTx));
 
                 keyTransactionRepository.markAllAsProcessed(expiry.transactionIds);
 
-                totalExpiredKeys += actualPurchaseExpiry + actualConnectivityExpiry;
+                totalExpiredCents += actualPurchaseExpiryCents + actualConnectivityExpiryCents;
 
-                log.debug("[KEY-EXPIRY] Wallet {}: purchase={}, connectivity={} llaves expiradas.",
-                        wallet.getId(), actualPurchaseExpiry, actualConnectivityExpiry);
+                log.debug("[KEY-EXPIRY] Wallet {}: purchase={}, connectivity={} centavos de llaves expiradas.",
+                        wallet.getId(), actualPurchaseExpiryCents, actualConnectivityExpiryCents);
 
             } catch (Exception e) {
                 log.error("[KEY-EXPIRY] Error expirando wallet {}: {}", wallet.getId(), e.getMessage(), e);
@@ -122,22 +117,21 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
             }
         }
 
-        if (totalExpiredKeys > 0) {
-            long totalCents = totalExpiredKeys * keyValueCents;
-            log.info("[KEY-EXPIRY] Total vencido: {} llaves = {} centavos COP. Moviendo a FORTIFICATION.",
-                    totalExpiredKeys, totalCents);
-            treasuryService.moveExpiredKeysToFortification(totalCents, batchId);
+        if (totalExpiredCents > 0) {
+            log.info("[KEY-EXPIRY] Total vencido: {} centavos COP. Moviendo a FORTIFICATION.",
+                    totalExpiredCents);
+            treasuryService.moveExpiredKeysToFortification(totalExpiredCents, batchId);
         }
 
-        log.info("[KEY-EXPIRY] Batch={} completado. {} usuarios procesados, {} llaves vencidas.",
-                batchId, groups.size(), totalExpiredKeys);
+        log.info("[KEY-EXPIRY] Batch={} completado. {} usuarios procesados, {} centavos de llaves vencidas.",
+                batchId, groups.size(), totalExpiredCents);
     }
 
     // ─── Auxiliar de agrupación ───────────────────────────────────────────────
 
     private static class WalletExpiry {
-        long purchaseSum = 0;
-        long connectivitySum = 0;
+        long purchaseSumCents = 0;
+        long connectivitySumCents = 0;
         final List<UUID> transactionIds = new ArrayList<>();
     }
 }

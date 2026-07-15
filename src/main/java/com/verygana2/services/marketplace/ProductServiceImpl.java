@@ -41,6 +41,7 @@ import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
@@ -53,6 +54,7 @@ import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -65,6 +67,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 
 @Service
@@ -96,6 +99,9 @@ public class ProductServiceImpl implements ProductService {
     private final R2Service r2Service;
 
     private final AssetOrphanedService assetOrphanedService;
+
+    @Qualifier("productCodeEncryptor")
+    private final CodeEncryptor productCodeEncryptor;
 
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
@@ -190,9 +196,15 @@ public class ProductServiceImpl implements ProductService {
             product.setProductCategory(category);
             product.setMaxKeysPct(plan.getMaxKeysPct());
 
-            // Asociar stockItems con el producto
+            // Asociar stockItems con el producto y cifrar sus códigos (nunca se
+            // guardan en texto plano, ver ProductStockServiceImpl para el mismo patrón).
             if (product.getStockItems() != null) {
-                product.getStockItems().forEach(stock -> stock.setProduct(product));
+                product.getStockItems().forEach(stock -> {
+                    stock.setProduct(product);
+                    String plainCode = stock.getCode();
+                    stock.setCode(productCodeEncryptor.encrypt(plainCode));
+                    stock.setCodeHash(productCodeEncryptor.hash(plainCode));
+                });
             }
             Product savedProduct = productRepository.save(Objects.requireNonNull(product));
             asset.setProduct(savedProduct);
@@ -549,9 +561,9 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, Pageable pageable) {
+    public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, String search, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
-                .from(productRepository.findAllProductsForAdmin(status, pageable));
+                .from(productRepository.findAllProductsForAdmin(status, search, pageable));
         return products.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));
@@ -676,6 +688,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_GAMES})
     public void markProductAsReward(Long commercialId, Long productId) {
         Product product = getById(productId);
 

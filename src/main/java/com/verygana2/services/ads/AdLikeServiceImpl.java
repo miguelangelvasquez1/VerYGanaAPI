@@ -53,6 +53,7 @@ import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
+import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.storage.service.R2Service;
 
@@ -296,7 +297,7 @@ public class AdLikeServiceImpl implements AdLikeService {
                 .stream()
                 .collect(Collectors.toMap(row -> (Long) row[0], row -> (ZonedDateTime) row[1]));
 
-        AdScoringContext ctx = new AdScoringContext(
+        ScoringContext ctx = new ScoringContext(
                 consumer.getId(),
                 consumer.getAge(),
                 toTargetGender(consumer.getGender()),
@@ -397,7 +398,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         keyTransactionRepository.save(Objects.requireNonNull(
                 KeyTransaction.forInteractionConnectivityKeys(keyWallet, rewardSplit.connectivityKeysReward(), reason, sessionId, connectivityExpiry)));
 
-        keyWallet.creditKeys(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
+        keyWallet.creditKeysCents(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);
     }
 

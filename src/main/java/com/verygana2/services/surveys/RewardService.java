@@ -9,6 +9,7 @@ import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.enums.ActivityType;
 import org.springframework.context.ApplicationEventPublisher;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +44,9 @@ public class RewardService {
     private final ApplicationEventPublisher eventPublisher;
     private final LevelService levelService;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     @Transactional
     public SurveyReward grantReward(SurveySession session) {
         long questionCount = session.getSurvey().getQuestions().size();
@@ -74,14 +78,15 @@ public class RewardService {
 
     public UserRewardsSummary getUserRewardsSummary(Long consumerId) {
         long completedSurveys = sessionRepository.countCompletedByConsumer(consumerId);
-        BigDecimal totalEarned = rewardRepository.getTotalRewardsByConsumer(consumerId);
+        BigDecimal totalEarnedCents = rewardRepository.getTotalRewardsByConsumer(consumerId);
+        long totalKeysEarned = totalEarnedCents.longValue() / keyValueCents;
 
         List<RewardInfo> recent = rewardRepository
                 .findBySessionConsumerId(consumerId, Pageable.ofSize(10))
                 .stream()
                 .map(r -> RewardInfo.builder()
                         .rewardId(r.getId())
-                        .amountCents(r.getAmountCents())
+                        .amountKeys(r.getAmountCents() / keyValueCents)
                         .status(r.getStatus())
                         .grantedAt(r.getGrantedAt())
                         .build())
@@ -89,7 +94,7 @@ public class RewardService {
 
         return UserRewardsSummary.builder()
                 .completedSurveys(completedSurveys)
-                .totalRewardsEarned(totalEarned)
+                .totalKeysEarned(totalKeysEarned)
                 .recentRewards(recent)
                 .build();
     }
@@ -113,7 +118,7 @@ public class RewardService {
                 KeyTransaction.forInteractionConnectivityKeys(
                         keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
 
-        keyWallet.creditKeys(split.purchaseKeysReward(), split.connectivityKeysReward());
+        keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);
     }
 }

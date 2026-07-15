@@ -1,6 +1,5 @@
 package com.verygana2.models.surveys;
 
-import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -8,9 +7,7 @@ import java.util.List;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import com.verygana2.models.Category;
-import com.verygana2.models.Municipality;
-import com.verygana2.models.enums.TargetGender;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.CascadeType;
@@ -18,19 +15,16 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -48,105 +42,82 @@ import lombok.Setter;
 @AllArgsConstructor
 @Builder
 public class Survey {
- 
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
- 
+
     @NotBlank(message = "Title is required")
     @Size(max = 200)
     @Column(nullable = false, length = 200)
     private String title;
- 
+
     @Size(max = 1000)
     @Column(length = 1000)
     private String description;
 
     @ManyToOne
-    @JoinColumn(name = "creator_id", nullable = true)
+    @JoinColumn(name = "creator_id", nullable = false)
     private CommercialDetails creator;
- 
+
     @NotNull(message = "Reward amount is required")
     @DecimalMin(value = "0.0", inclusive = false)
     @Column(name = "reward_amount_per_question_cents", nullable = false, precision = 10, scale = 2)
     private Long rewardAmountPerQuestionCents;
- 
+
     @Column(name = "max_responses")
     private Integer maxResponses;
- 
+
     @Column(name = "response_count")
     @Builder.Default
     private Integer responseCount = 0;
- 
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default
     private SurveyStatus status = SurveyStatus.DRAFT;
- 
+
     @Column(name = "starts_at")
-    private LocalDateTime startsAt;
- 
+    private ZonedDateTime startsAt;
+
     @Column(name = "ends_at")
-    private LocalDateTime endsAt;
- 
-    // Targeting fields (mirrors Ad targeting)
-    @ManyToMany
-    @JoinTable(
-        name = "survey_categories",
-        joinColumns = @JoinColumn(name = "survey_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    @NotNull(message = "Categories are required")
-    @Size(min = 1, message = "At least one category must be selected")
-    @Builder.Default
-    private List<Category> categories = new ArrayList<>();
- 
-    @ManyToMany
-    @JoinTable(
-        name = "survey_municipalities",
-        joinColumns = @JoinColumn(name = "survey_id"),
-        inverseJoinColumns = @JoinColumn(name = "municipality_code")
-    )
-    @Builder.Default
-    private List<Municipality> targetMunicipalities = new ArrayList<>();
- 
-    @Column(name = "min_age")
-    @Min(value = 13, message = "La edad mínima debe ser 13")
-    private Integer minAge;
- 
-    @Column(name = "max_age")
-    @Max(value = 100, message = "La edad máxima debe ser 100")
-    private Integer maxAge;
- 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_gender", length = 10)
-    private TargetGender targetGender;
- 
+    private ZonedDateTime endsAt;
+
+    // ===== SEGMENTACIÓN =====
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "target_audience_id")
+    private TargetAudience targetAudience;
+
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("orderIndex ASC")
     @Builder.Default
     private List<SurveyQuestion> questions = new ArrayList<>();
- 
+
     @OneToMany(mappedBy = "survey", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<SurveySession> sessions = new ArrayList<>();
- 
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private ZonedDateTime createdAt;
- 
+
     @UpdateTimestamp
     @Column(name = "updated_at")
     private ZonedDateTime updatedAt;
- 
+
     public boolean isActive() {
-        LocalDateTime now = LocalDateTime.now();
+        ZonedDateTime now = ZonedDateTime.now();
         return status == SurveyStatus.ACTIVE
             && (startsAt == null || !now.isBefore(startsAt))
             && (endsAt == null || !now.isAfter(endsAt));
     }
- 
+
     public enum SurveyStatus {
-        DRAFT, ACTIVE, PAUSED, CLOSED
+        DRAFT, ACTIVE, PAUSED, CLOSED,
+        /** Admin-only. Freezes all activity on the survey (new sessions, resuming, submitting). */
+        SUSPENDED,
+        /** System-set only, when responseCount reaches maxResponses. */
+        COMPLETED
     }
 }

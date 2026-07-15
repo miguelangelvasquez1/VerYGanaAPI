@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.Objects;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,13 +27,16 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     private final ConsumerDetailsRepository consumerDetailsRepository;
     private final UserMapper consumerDetailsMapper;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     @Override
     @Transactional(readOnly = true)
     public Long getConsumerAvailableKeys(Long consumerId) {
         if (consumerId == null || consumerId <= 0) {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
-        return getConsumerById(consumerId).getKeyWallet().getAvailableKeys();
+        return getConsumerById(consumerId).getKeyWallet().getAvailableKeysCents() / keyValueCents;
     }
 
     @Override

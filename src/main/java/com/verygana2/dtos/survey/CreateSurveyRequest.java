@@ -1,6 +1,5 @@
 package com.verygana2.dtos.survey;
 
-import java.time.LocalDateTime;
 import java.util.List;
 
 import com.verygana2.models.enums.TargetGender;
@@ -37,8 +36,6 @@ public class CreateSurveyRequest {
     @NotNull @Min(1)
     private Long pricePerQuestionCents;
 
-    private LocalDateTime startsAt;
- 
     // Targeting
     @NotNull @Size(min = 1)
     private List<Long> categoryIds;
@@ -50,6 +47,6 @@ public class CreateSurveyRequest {
  
     private TargetGender targetGender;
  
-    @Valid @NotEmpty
+    @Valid @NotEmpty @Size(max = 20)
     private List<CreateQuestionRequest> questions;
 }

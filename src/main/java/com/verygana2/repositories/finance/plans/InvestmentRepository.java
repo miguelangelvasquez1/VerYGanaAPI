@@ -18,8 +18,6 @@ public interface InvestmentRepository extends JpaRepository<Investment, Long> {
 
     Optional<Investment> findByWompiReference(String wompiReference);
 
-    List<Investment> findByWalletOrderByCreatedAtDesc(Wallet wallet);
-
     List<Investment> findByWalletAndConfirmedTrue(Wallet wallet);
 
     /**

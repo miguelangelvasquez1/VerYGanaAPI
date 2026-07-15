@@ -15,7 +15,7 @@ import lombok.NoArgsConstructor;
 @Data
 public class RewardInfo {
     private Long rewardId;
-    private Long amountCents;
+    private Long amountKeys;
     private SurveyReward.RewardStatus status;
     private ZonedDateTime grantedAt;
 }

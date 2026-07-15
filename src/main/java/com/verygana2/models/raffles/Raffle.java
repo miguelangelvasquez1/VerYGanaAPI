@@ -1,6 +1,5 @@
 package com.verygana2.models.raffles;
 
-import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -8,12 +7,9 @@ import java.util.List;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
-import com.verygana2.models.enums.raffles.TicketEarningRuleType;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
@@ -134,37 +130,11 @@ public class Raffle {
         this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
-    /**
-     * Obtiene el premio principal (posición 1)
-     */
-    public Prize getMainPrize() {
-        return prizes.stream()
-                .filter(p -> p.getPosition() == 1)
-                .findFirst()
-                .orElse(null);
-    }
-
-    /**
-     * Obtiene el valor total de todos los premios
-     */
-    public BigDecimal getTotalPrizesValue() {
-        return prizes.stream()
-                .map(Prize::getValue)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-    }
-
     public boolean hasReachedTotalLimit() {
         if (maxTotalTickets == null) {
             return false;
         }
         return totalTicketsIssued >= maxTotalTickets;
-    }
-
-    public Integer getAvailableTickets() {
-        if (maxTotalTickets == null) {
-            return null;
-        }
-        return Math.max(0, maxTotalTickets - totalTicketsIssued);
     }
 
     public void incrementTicketCount(int quantity) {
@@ -176,33 +146,6 @@ public class Raffle {
 
     public void incrementParticipantCount() {
         this.totalParticipants++;
-    }
-
-    public boolean isActiveAndNotExpired() {
-        if (raffleStatus != RaffleStatus.ACTIVE) {
-            return false;
-        }
-        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-        return now.isBefore(endDate);
-    }
-
-    public List<RaffleRule> getActiveRules() {
-        return raffleRules.stream()
-                .filter(RaffleRule::isActive)
-                .filter(config -> config.getTicketEarningRule().isActive())
-                .toList();
-    }
-
-    public boolean canBeDrawn() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
-        return raffleStatus == RaffleStatus.LIVE &&
-                now.isAfter(drawDate) &&
-                !prizes.isEmpty() &&
-                totalTicketsIssued > 0;
-    }
-
-    public RaffleRule getTicketEarningRuleByType (TicketEarningRuleType type) {
-        return this.getActiveRules().stream().filter(r -> r.getTicketEarningRule().getRuleType() == type).findAny().orElseThrow(() -> new EntityNotFoundException("Ticket earning rule with type : " + type + " not found"));
     }
 
 }

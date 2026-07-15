@@ -1,13 +1,17 @@
 package com.verygana2.services.plans;
 
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 
 import com.verygana2.models.enums.AdStatus;
+import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.surveys.Survey.SurveyStatus;
 import com.verygana2.repositories.AdRepository;
+import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.surveys.SurveyRepository;
@@ -38,6 +42,7 @@ public class PlanFeatureGuard {
     private final ProductRepository productRepository;
     private final AdRepository adRepository;
     private final CampaignRepository campaignRepository;
+    private final BrandingRequestRepository brandingRequestRepository;
     private final SurveyRepository surveyRepository;
 
     public void assertCapability(Long commercialId, RequirePlanCapability.Capability capability) {
@@ -79,7 +84,17 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_BRANDED_GAMES -> {
-                long current = campaignRepository.countByCommercialIdAndStatus(commercialId, CampaignStatus.ACTIVE);
+                // Cuenta campañas no finalizadas (DRAFT/ACTIVE/PAUSED) + solicitudes de branding
+                // aún en curso (todo lo que no sea REJECTED/CANCELLED/CAMPAIGN_CREATED, ya que
+                // esta última ya está representada por su Campaign correspondiente).
+                long nonFinalCampaigns = campaignRepository.countByCommercialIdAndStatusNotIn(
+                    commercialId, List.of(CampaignStatus.COMPLETED, CampaignStatus.CANCELLED));
+                long activeRequests = brandingRequestRepository.countByCommercial_User_IdAndStatusNotIn(
+                    commercialId, List.of(
+                        BrandingRequestStatus.REJECTED,
+                        BrandingRequestStatus.CANCELLED,
+                        BrandingRequestStatus.CAMPAIGN_CREATED));
+                long current = nonFinalCampaigns + activeRequests;
                 if (current >= state.getMaxBrandedGames()) {
                     throw new PlanCapabilityException(
                         "Límite de juegos branded alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -87,7 +102,9 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_SURVEYS -> {
-                long current = surveyRepository.countByCreatorIdAndStatus(commercialId, SurveyStatus.ACTIVE);
+                // Cuenta encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: CLOSED/"cancelada" y COMPLETED).
+                long current = surveyRepository.countByCreatorIdAndStatusNotIn(
+                    commercialId, List.of(SurveyStatus.CLOSED, SurveyStatus.COMPLETED));
                 if (current >= state.getMaxSurveys()) {
                     throw new PlanCapabilityException(
                         "Límite de encuestas alcanzado. Plan " + state.getEffectivePlan().name() +

@@ -1,11 +1,13 @@
 package com.verygana2.exceptions;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
@@ -29,14 +31,21 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
+import com.verygana2.exceptions.kushki.KushkiApiException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
+import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
+import com.verygana2.exceptions.surveys.SurveySuspendedException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
@@ -53,10 +62,17 @@ public class GlobalExceptionHandler {
 
     // ==================== EXCEPCIONES GENÉRICAS ====================
 
+    // Async/SSE requests (e.g. /notifications/stream) are opened with Accept: text/event-stream.
+    // Writing a JSON ErrorResponse body here would fail content negotiation
+    // (HttpMediaTypeNotAcceptableException), so we set the status directly on the servlet
+    // response instead of returning a body that needs a message converter.
     @ExceptionHandler(AsyncRequestTimeoutException.class)
-    public ResponseEntity<ErrorResponse> handleAsyncRequestTimeout(AsyncRequestTimeoutException ex, WebRequest request) {
-        log.debug("SSE connection timed out for {}", request.getDescription(false));
-        return buildError(HttpStatus.SERVICE_UNAVAILABLE, "SSE connection timed out", request);
+    public void handleAsyncRequestTimeout(
+            AsyncRequestTimeoutException ex, WebRequest request, HttpServletResponse response) throws IOException {
+        log.debug("Async request timed out for {}", request.getDescription(false));
+        if (!response.isCommitted()) {
+            response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
+        }
     }
 
     @ExceptionHandler(Exception.class)
@@ -112,6 +128,18 @@ public class GlobalExceptionHandler {
                 request);
     }
 
+    /**
+     * 423 (no 401) a propósito: le da al front un discriminador confiable por
+     * status code para saber que debe pedir el código de desbloqueo, sin
+     * depender de parsear el texto de "message".
+     */
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLockedException(
+            AccountLockedException ex, WebRequest request) {
+        log.warn("Login blocked — account locked by failed attempts: {}", ex.getMessage());
+        return buildError(HttpStatus.LOCKED, ex.getMessage(), request);
+    }
+
     // ==================== RECURSOS NO ENCONTRADOS (404) ====================
 
     @ExceptionHandler(AdNotFoundException.class)
@@ -164,6 +192,20 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(TokenBlacklistedException.class)
+    public ResponseEntity<ErrorResponse> handleTokenBlacklistedException(
+            TokenBlacklistedException ex, WebRequest request) {
+        log.warn("Token is blacklisted: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(WalletAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleWalletAlreadyExistsException(
+            WalletAlreadyExistsException ex, WebRequest request) {
+        log.warn("Wallet already exists: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(PhoneNumberAlreadyExistsException.class)
     public ResponseEntity<ErrorResponse> handlePhoneNumberAlreadyExistsException(
             PhoneNumberAlreadyExistsException ex, WebRequest request) {
@@ -189,6 +231,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCodeEncryptionException(CodeEncryptionException ex, WebRequest request) {
         log.warn("Code encryption/decryption error: {}", ex.getMessage(), ex);
         return buildError(HttpStatus.BAD_REQUEST, "Invalid or corrupted code", request);
+    }
+
+    @ExceptionHandler(EmailVerificationException.class)
+    public ResponseEntity<ErrorResponse> handleEmailVerificationException(EmailVerificationException ex, WebRequest request) {
+        log.warn("Email verification error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -260,6 +308,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(SurveySuspendedException.class)
+    public ResponseEntity<ErrorResponse> handleSurveySuspendedException(
+            SurveySuspendedException ex, WebRequest request) {
+        log.warn("Survey suspended: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(JDBCConnectionException.class)
     public ResponseEntity<ErrorResponse> handleJDBCConnectionException(
             JDBCConnectionException ex, WebRequest request) {
@@ -279,6 +334,13 @@ public class GlobalExceptionHandler {
             InvalidOperationException ex, WebRequest request) {
         log.warn("Invalid operation error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidRaffleStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidRaffleStatusException(
+            InvalidRaffleStatusException ex, WebRequest request) {
+        log.warn("Invalid raffle status error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     @ExceptionHandler(InvalidContentException.class)
@@ -316,6 +378,13 @@ public class GlobalExceptionHandler {
             InvalidPayoutMethodStateException ex, WebRequest request) {
         log.warn("Invalid payout method state: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(KushkiApiException.class)
+    public ResponseEntity<ErrorResponse> handleKushkiApiException(
+            KushkiApiException ex, WebRequest request) {
+        log.error("Kushki API error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_GATEWAY, "Payout provider error", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -395,6 +464,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleUnauthorized(UnauthorizedException ex, WebRequest request) {
         log.warn("Unauthorized: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, ex.getMessage(), request);
+    }
+
+    // ── 403 ───────────────────────────────────────────────────────────────────
+    @ExceptionHandler(PqrsAccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handlePqrsAccessDenied(PqrsAccessDeniedException ex, WebRequest request) {
+        log.warn("PQRS access denied: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN, ex.getMessage(), request);
     }
 
 

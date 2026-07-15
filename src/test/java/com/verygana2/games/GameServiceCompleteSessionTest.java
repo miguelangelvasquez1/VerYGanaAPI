@@ -37,7 +37,7 @@ import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
-import com.verygana2.services.GameServiceImpl;
+import com.verygana2.services.games.GameServiceImpl;
 import com.verygana2.utils.validators.MetricValidator;
 
 @ExtendWith(MockitoExtension.class)

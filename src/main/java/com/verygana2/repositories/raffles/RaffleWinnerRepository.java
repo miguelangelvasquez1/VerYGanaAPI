@@ -22,13 +22,6 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
         List<RaffleWinner> findByRaffleResultId(Long raffleResultId);
 
         /**
-         * Encuentra ganadores por estado de premio
-         */
-        List<RaffleWinner> findByRaffleResultIdAndPrizePrizeStatus(
-                        Long raffleResultId,
-                        PrizeStatus status);
-
-        /**
          * Encuentra todos los premios ganados por un usuario
          */
         @Query("""
@@ -37,33 +30,16 @@ public interface RaffleWinnerRepository extends JpaRepository<RaffleWinner, Long
                         JOIN FETCH w.winningTicket t
                         JOIN FETCH w.raffleResult r
                         WHERE w.winner.id = :consumerId
-                        AND (:isClaimed IS NULL OR w.prizeClaimed = :isClaimed)
+                        AND (:status IS NULL OR p.prizeStatus = :status)
                         ORDER BY r.drawnAt DESC
                                                              """)
         Page<RaffleWinner> findWonPrizesByConsumer(@Param("consumerId") Long consumerId,
-                        @Param("isClaimed") Boolean isClaimed, Pageable pageable);
-
-        /**
-         * Encuentra ganador por ticket
-         */
-        Optional<RaffleWinner> findByWinningTicketId(Long ticketId);
+                        @Param("status") PrizeStatus status, Pageable pageable);
 
         /**
          * Cuenta ganadores de una rifa
          */
         long countByRaffleResultId(Long raffleResultId);
-
-        /**
-         * Ganadores que no han reclamado su premio
-         */
-        @Query("SELECT w FROM RaffleWinner w WHERE w.raffleResult.id = :raffleResultId " +
-                        "AND w.prizeClaimed = false")
-        List<RaffleWinner> findUnclaimedWinners(@Param("raffleResultId") Long raffleResultId);
-
-        /**
-         * Cuenta premios reclamados de una rifa
-         */
-        long countByRaffleResultIdAndPrizeClaimedTrue(Long raffleResultId);
 
         @Query("""
                         SELECT w FROM RaffleWinner w

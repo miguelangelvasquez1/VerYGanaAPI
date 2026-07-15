@@ -38,7 +38,7 @@ import lombok.ToString;
         @Index(name = "idx_expiration_date_status", columnList = "expiration_date, status")
     },
     uniqueConstraints = {
-        @UniqueConstraint(name = "uk_code_per_product", columnNames = {"product_id", "code"})
+        @UniqueConstraint(name = "uk_code_hash_per_product", columnNames = {"product_id", "code_hash"})
     }
 )
 @Getter
@@ -64,10 +64,22 @@ public class ProductStock {
     private Product product;
     
     // ===== INFORMACIÓN DEL CÓDIGO =====
-    
-    @Column(nullable = false, unique = true, length = 500)
-    private String code; // El código/credencial/licencia
-    
+
+    /**
+     * Código/credencial/licencia cifrado con AES-GCM (CodeEncryptor). Nunca se
+     * guarda en texto plano; para comparar igualdad o detectar duplicados usar
+     * codeHash, no este campo.
+     */
+    @Column(nullable = false, length = 500)
+    private String code;
+
+    /**
+     * HMAC-SHA256 (hex) del código en texto plano. Determinístico, no reversible.
+     * Permite deduplicar/buscar coincidencias exactas sin descifrar codeHash.
+     */
+    @Column(name = "code_hash", nullable = false, length = 64)
+    private String codeHash;
+
     @Column(name = "expiration_date")
     private ZonedDateTime expirationDate; // Si el código expira
     
@@ -126,7 +138,4 @@ public class ProductStock {
         return expirationDate != null && ZonedDateTime.now().isAfter(expirationDate);
     }
     
-    public boolean canBeSold() {
-        return status == StockStatus.AVAILABLE && !isExpired();
-    }
 }

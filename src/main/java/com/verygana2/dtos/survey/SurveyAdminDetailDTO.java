@@ -39,6 +39,7 @@ public class SurveyAdminDetailDTO {
     private TargetGender targetGender;
 
     // ─── Questions ────────────────────────────────────────────────────────────
+    private int totalQuestions;
     private List<QuestionResponse> questions;
 
     // ─── Creator ──────────────────────────────────────────────────────────────

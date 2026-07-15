@@ -15,4 +15,5 @@ public interface ProductReviewService {
     Integer getCommercialReviewCount (Long commercialId);
     PagedResponse<ProductReviewResponseDTO> getProductReviewList (Long productId, Pageable pageable);
     boolean canBeReviewed (Long productId, Long consumerId);
+    void hideProductReview (Long reviewId);
 }

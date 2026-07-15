@@ -7,6 +7,7 @@ import lombok.Data;
 @Builder
 public class SessionHijackingPattern {
     private String tokenId;
+    private String conflictingTokenId;
     private String username;
     private boolean userAgentChanged;
     private boolean rapidIPChange;

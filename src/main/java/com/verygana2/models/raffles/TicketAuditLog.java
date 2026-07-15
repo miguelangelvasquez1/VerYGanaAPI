@@ -1,6 +1,6 @@
 package com.verygana2.models.raffles;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.AuditAction;
@@ -63,6 +63,6 @@ public class TicketAuditLog {
 
     @PrePersist
     public void onCreate() {
-        this.createdAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 }

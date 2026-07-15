@@ -29,9 +29,6 @@ public class GameDesignerDetails extends UserDetails {
     @Column(name = "campaigns_designed", nullable = false)
     private int campaignsDesigned = 0;
 
-    @Column(name = "can_publish_directly", nullable = false)
-    private boolean canPublishDirectly = false;
-
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 

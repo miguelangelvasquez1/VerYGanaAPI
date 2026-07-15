@@ -1,18 +1,16 @@
 package com.verygana2.models.branding;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.verygana2.models.Category;
-import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.CampaignGoal;
-import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.games.Game;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
@@ -31,8 +29,6 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
@@ -66,6 +62,10 @@ public class BrandingRequest {
     // ===== PARTES INVOLUCRADAS =====
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "game_config_definition_id", nullable = false)
+    private GameConfigDefinition gameConfigDefinition;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "commercial_id", nullable = false)
     private CommercialDetails commercial;
 
@@ -77,7 +77,6 @@ public class BrandingRequest {
     @JoinColumn(name = "assigned_designer_id")
     private GameDesignerDetails assignedDesigner;
 
-    // Admin que revisó (aprobó o rechazó) la solicitud
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reviewed_by_admin_id")
     private AdminDetails reviewedByAdmin;
@@ -98,25 +97,6 @@ public class BrandingRequest {
     @Column(name = "budget_cents", nullable = false)
     private Long budgetCents;
 
-    // ===== ECONOMÍA CONGELADA (capturada del juego al crear la solicitud) =====
-
-    @Column(name = "score_reward_factor", precision = 10, scale = 4)
-    private BigDecimal scoreRewardFactor;
-
-    @Column(name = "average_reward_per_session_cents")
-    private Long averageRewardPerSessionCents;
-
-    @Column(name = "estimated_sessions")
-    private Long estimatedSessions;
-
-    // Cuánto gana el jugador al completar una sesión (en centavos)
-    @Column(name = "completion_reward_cents")
-    private Long completionRewardCents;
-
-    // Máximo que puede ganar un jugador por sesión (en centavos)
-    @Column(name = "max_reward_per_session_cents")
-    private Long maxRewardPerSessionCents;
-
     @Column(name = "max_sessions_per_user_per_day")
     private Integer maxSessionsPerUserPerDay;
 
@@ -128,35 +108,11 @@ public class BrandingRequest {
     @Column(name = "end_date")
     private ZonedDateTime endDate;
 
-    // ===== SEGMENTACIÓN (se completan vía PATCH /config) =====
+    // ===== SEGMENTACIÓN =====
 
-    @ManyToMany
-    @JoinTable(
-        name = "branding_request_categories",
-        joinColumns = @JoinColumn(name = "branding_request_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    @Builder.Default
-    private List<Category> categories = new ArrayList<>();
-
-    @ManyToMany
-    @JoinTable(
-        name = "branding_request_municipalities",
-        joinColumns = @JoinColumn(name = "branding_request_id"),
-        inverseJoinColumns = @JoinColumn(name = "municipality_code")
-    )
-    @Builder.Default
-    private List<Municipality> targetMunicipalities = new ArrayList<>();
-
-    @Column(name = "min_age")
-    private Integer minAge;
-
-    @Column(name = "max_age")
-    private Integer maxAge;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_gender", length = 10)
-    private TargetGender targetGender;
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "target_audience_id")
+    private TargetAudience targetAudience;
 
     // ===== OBJETIVO DE CAMPAÑA =====
 
@@ -179,21 +135,18 @@ public class BrandingRequest {
     @Builder.Default
     private List<CorporateResource> corporateResources = new ArrayList<>();
 
-    // ===== CONFIGURACIÓN DEL JUEGO (rellenada por el diseñador) =====
+    // ===== CONFIGURACIÓN DEL JUEGO =====
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "game_config", columnDefinition = "json")
     private Map<String, Object> gameConfig;
 
-    // Borrador del formData RJSF: se actualiza al subir assets y al guardar cambios manualmente.
-    // Cada clave corresponde a un campo del jsonSchema; su valor es el dato ingresado por el diseñador.
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "draft_form_data", columnDefinition = "json")
     private Map<String, Object> draftFormData;
 
     // ===== CAMPAÑA GENERADA =====
 
-    // Se enlaza solo cuando el admin lanza la campaña (estado LAUNCHED)
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "campaign_id")
     private Campaign campaign;
@@ -229,7 +182,9 @@ public class BrandingRequest {
         return status == BrandingRequestStatus.DRAFT
             || status == BrandingRequestStatus.APPROVED
             || status == BrandingRequestStatus.DESIGN_IN_PROGRESS
-            || status == BrandingRequestStatus.CHANGES_REQUESTED;
+            || status == BrandingRequestStatus.CHANGES_REQUESTED
+            || status == BrandingRequestStatus.PENDING_REVIEW
+            || status == BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL;
     }
 
     public boolean canBeUpdatedByDesigner() {
@@ -251,14 +206,42 @@ public class BrandingRequest {
         return status == BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL;
     }
 
-    public boolean hasCompleteRewardConfig() {
-        return completionRewardCents != null
-            && maxRewardPerSessionCents != null
+    public boolean hasCompleteTargeting() {
+        if (targetAudience == null) return false;
+        List<com.verygana2.models.Category> cats = targetAudience.getCategories();
+        return cats != null && !cats.isEmpty()
+            && targetAudience.getMinAge() != null
+            && targetAudience.getMaxAge() != null
+            && targetAudience.getTargetGender() != null
+            && campaignGoal != null
             && maxSessionsPerUserPerDay != null
-            && maxRewardPerSessionCents >= completionRewardCents;
+            && startDate != null;
     }
 
-    public boolean hasCompleteTargeting() {
-        return categories != null && !categories.isEmpty();
+    // ===== ECONOMÍA (derivada de gameConfigDefinition) =====
+
+    public Double getScoreRewardFactor() {
+        Double factor = gameConfigDefinition.getScoreRewardFactor();
+        return factor != null ? factor : null;
+    }
+
+    public Long getAverageRewardPerSessionCents() {
+        return gameConfigDefinition.getAverageRewardPerSessionCents();
+    }
+
+    public Long getCompletionRewardCents() {
+        return gameConfigDefinition.getCompletionRewardCents();
+    }
+
+    public Long getMaxRewardPerSessionCents() {
+        return gameConfigDefinition.getMaxRewardPerSessionCents();
+    }
+
+    public Long getEstimatedSessions() {
+        Long averageRewardPerSessionCents = getAverageRewardPerSessionCents();
+        if (budgetCents == null || averageRewardPerSessionCents == null || averageRewardPerSessionCents <= 0) {
+            return null;
+        }
+        return budgetCents / averageRewardPerSessionCents;
     }
 }

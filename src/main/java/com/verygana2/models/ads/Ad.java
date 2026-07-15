@@ -4,10 +4,8 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.verygana2.models.Category;
-import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.AdStatus;
-import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.*;
@@ -56,18 +54,14 @@ public class Ad {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    /**
-     * Recompensa pagada al consumer por cada like, en centavos de COP.
-     * Mín: 1 centavo. Máx: 10.000 centavos (100 COP).
-     */
     @NotNull(message = "La recompensa por like es obligatoria")
-    @Min(value = 1,     message = "La recompensa mínima es 1 centavo")
+    @Min(value = 1,      message = "La recompensa mínima es 1 centavo")
     @Max(value = 100000, message = "La recompensa no puede exceder 100.000 centavos (1.000 COP)")
     @Column(name = "reward_per_like", nullable = false)
     private Long rewardPerLike;
 
     @NotNull(message = "El máximo de likes es obligatorio")
-    @Min(value = 1,     message = "Debe permitir al menos 1 like")
+    @Min(value = 1,        message = "Debe permitir al menos 1 like")
     @Max(value = 10000000, message = "No puede exceder 10,000,000 likes")
     @Column(name = "max_likes", nullable = false)
     private Integer maxLikes;
@@ -77,7 +71,7 @@ public class Ad {
     private Integer currentLikes = 0;
 
     @Column(name = "max_likes_per_user_per_day")
-    @Min(value = 1, message = "El máximo de likes por usuario por día debe ser al menos 1")
+    @Min(value = 1,   message = "El máximo de likes por usuario por día debe ser al menos 1")
     @Max(value = 100, message = "El máximo de likes por usuario por día no puede exceder 100")
     private Integer maxLikesPerUserPerDay;
 
@@ -110,39 +104,14 @@ public class Ad {
     @Column(name = "target_url", length = 500)
     private String targetUrl;
 
-    @ManyToMany
-    @JoinTable(
-        name = "ad_categories",
-        joinColumns = @JoinColumn(name = "ad_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    @NotNull(message = "Preferences are required")
-    @Size(min = 1, message = "At least one category must be selected")
-    private List<Category> categories;
+    // ===== SEGMENTACIÓN =====
 
-    @ManyToMany
-    @JoinTable(
-        name = "ad_municipalities",
-        joinColumns = @JoinColumn(name = "ad_id"),
-        inverseJoinColumns = @JoinColumn(name = "municipality_code")
-    )
-    @Builder.Default
-    private List<Municipality> targetMunicipalities = new ArrayList<>();
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "target_audience_id")
+    private TargetAudience targetAudience;
 
     @OneToOne(mappedBy = "ad", cascade = CascadeType.ALL)
     private AdAsset asset;
-
-    @Column(name = "min_age")
-    @Min(value = 13, message = "La edad mínima debe ser 13")
-    private Integer minAge;
-
-    @Column(name = "max_age")
-    @Max(value = 100, message = "La edad máxima debe ser 100")
-    private Integer maxAge;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_gender", length = 10)
-    private TargetGender targetGender;
 
     @Column(name = "rejection_reason", columnDefinition = "TEXT")
     private String rejectionReason;
@@ -169,7 +138,6 @@ public class Ad {
                 && hasRemainingBudget();
     }
 
-    /** Hay presupuesto para pagar al menos un like más. */
     public boolean hasRemainingBudget() {
         return (getSpentBudget() + rewardPerLike) <= getTotalBudget();
     }
@@ -181,19 +149,16 @@ public class Ad {
         }
     }
 
-    /** Centavos ya pagados (rewardPerLike × likes actuales). */
     public Long getSpentBudget() {
         if (rewardPerLike == null || currentLikes == null) return 0L;
         return rewardPerLike * currentLikes.longValue();
     }
 
-    /** Presupuesto total del anuncio en centavos (rewardPerLike × maxLikes). */
     public Long getTotalBudget() {
         if (rewardPerLike == null || maxLikes == null) return 0L;
         return rewardPerLike * maxLikes.longValue();
     }
 
-    /** Centavos restantes del presupuesto. */
     public Long getRemainingBudget() {
         return getTotalBudget() - getSpentBudget();
     }
@@ -206,8 +171,9 @@ public class Ad {
         return (currentLikes * 100.0) / maxLikes;
     }
 
-    public List<Municipality> getTargetMunicipalities() {
-        if (targetMunicipalities == null) targetMunicipalities = new ArrayList<>();
-        return targetMunicipalities;
+    public List<com.verygana2.models.Municipality> getTargetMunicipalities() {
+        if (targetAudience == null) return new ArrayList<>();
+        List<com.verygana2.models.Municipality> munis = targetAudience.getTargetMunicipalities();
+        return munis != null ? munis : new ArrayList<>();
     }
 }

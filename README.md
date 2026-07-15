@@ -22,7 +22,6 @@
 - Añadir caché de usuarios?
 - Mirar lo del cache de categorias
 - https://www.datos.gov.co/api/v3/views/gdxc-w37w/export.csv?accessType=DOWNLOAD&app_token=bHWsGtRFRP9x8Hl8lYivqM1hQ -> Municipalitys and Departments
-- Usar presigned URLs en s3?
 
 Mejoras Implementadas en tokens:
 
@@ -162,15 +161,18 @@ aws s3 cp . s3://verygana-games/builds/build-bogota/test1 `
   --content-type application/wasm
 
 
-- definir ful el flujo para la revision y todo lo que el commercial puede crear
-anadir politica de planes?, ver todo despues de haber preguntado a nestor,
-- ver flujo de creacion de solicitud full(config de dinero aparte porque va en el contrato), flujo de edicion(que se puedan subir mas recursos, separar entre target y config de dinero).
+- critical en reportes y notificacion
+- que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
+- flujo de jugar, metricas, casos de juego, etc. surveys consumer probar todo
+- si un commercial cambia a plan mas bajo que no se devuelva lo creado
+- ver todo despues de haber preguntado a nestor(contratos).
 
 - probar subir video a ads
-- probar max_ads, max_surveys, flujo de sesiones y recompena bien revisar.
+- probar max_ads, flujo de sesiones y recompena bien revisar.
 
 - star?date no se muestra bien?, fecha de iniico... para surveys tambien
 - ver que los asstes se borren del cdn.
 - ver que se puede editar o no despues de los contratos
 
 - revisar app.security.monitoring, muchos active tokens
+- actuator?

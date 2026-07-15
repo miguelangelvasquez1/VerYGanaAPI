@@ -18,7 +18,6 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
-import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
@@ -137,8 +136,13 @@ public class PurchaseItem {
     @Column(name = "max_keys_pct_at_purchase", nullable = false)
     private Integer maxKeysPctAtPurchase;
 
+    /**
+     * Código entregado al cliente, cifrado con AES-GCM (mismo ciphertext que
+     * ProductStock.code). Se descifra únicamente al exponerlo en la respuesta
+     * de "mis compras" del consumidor dueño de la compra (ver PurchaseMapper).
+     */
     @Column(name = "delivered_code", columnDefinition = "TEXT")
-    private String deliveredCode; // El código que se le entregó al cliente
+    private String deliveredCode;
 
     @Column(name = "delivered_at")
     private ZonedDateTime deliveredAt; // Cuándo se entregó
@@ -151,21 +155,8 @@ public class PurchaseItem {
     @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
-
-    public void assignProductStock(ProductStock stock) {
-        this.assignedProductStock = stock;
-        this.deliveredCode = stock.getCode();
-        this.deliveredAt = ZonedDateTime.now();
-        this.status = PurchaseItemStatus.DELIVERED;
-    }
-
     public boolean isDelivered() {
         return status == PurchaseItemStatus.DELIVERED;
-    }
-
-    @Transient
-    public boolean hasReview() {
-        return this.review != null;
     }
 
     public boolean canBeReviewed() {

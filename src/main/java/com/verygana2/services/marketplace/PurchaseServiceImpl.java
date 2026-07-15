@@ -191,12 +191,12 @@ public class PurchaseServiceImpl implements PurchaseService {
                     .orElseThrow(() -> new ObjectNotFoundException(
                             "KeyWallet not found for consumer: " + consumerId, KeyWallet.class));
 
-            if (!keyWallet.hasSufficientPurchaseKeys(keysToUse)) {
+            if (!keyWallet.hasSufficientPurchaseKeysCents(keysValueCents)) {
                 throw new InsufficientFundsException(
-                        "Insufficients purchase keys. Available: " + keyWallet.getPurchaseKeys());
+                        "Insufficients purchase keys. Available: " + keyWallet.getPurchaseKeysCents() / KEY_VALUE);
             }
 
-            keyWallet.reservePurchaseKeys(keysToUse);
+            keyWallet.reservePurchaseKeysCents(keysValueCents);
             keyWalletRepository.save(keyWallet);
         }
 

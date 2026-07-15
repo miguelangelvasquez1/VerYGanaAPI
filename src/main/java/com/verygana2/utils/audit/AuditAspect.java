@@ -13,7 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 /**
@@ -116,7 +116,7 @@ public class AuditAspect {
             .sessionId(contextService.getSessionId())
             
             // Timing
-            .timestamp(LocalDateTime.now())
+            .timestamp(ZonedDateTime.now())
             .executionTimeMs(executionTime)
             
             // Estado

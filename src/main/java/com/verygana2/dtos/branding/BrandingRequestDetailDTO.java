@@ -73,9 +73,11 @@ public class BrandingRequestDetailDTO {
     // ===== Recursos corporativos =====
     private List<CorporateResourceDTO> corporateResources;
 
-    // ===== Flags de completitud (para guiar el formulario en el frontend) =====
-    private boolean hasCompleteRewardConfig;
+    // ===== Flag de completitud de targeting (para guiar el formulario en el frontend) =====
     private boolean hasCompleteTargeting;
+
+    // ===== Campaña generada (solo si status == CAMPAIGN_CREATED) =====
+    private Long campaignId;
 
     // ===== Auditoría =====
     private ZonedDateTime createdAt;

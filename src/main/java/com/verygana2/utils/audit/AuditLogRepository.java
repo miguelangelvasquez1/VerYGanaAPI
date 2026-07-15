@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.List;
 
 @Repository
@@ -25,8 +25,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
            "ORDER BY al.createdAt DESC")
     Page<AuditLog> findByUserIdAndDateRange(
         @Param("userId") Long userId,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
+        @Param("startDate") ZonedDateTime startDate,
+        @Param("endDate") ZonedDateTime endDate,
         Pageable pageable
     );
 
@@ -45,7 +45,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
            "ORDER BY al.createdAt DESC")
     Page<AuditLog> findRecentByLevel(
         @Param("level") AuditLevel level,
-        @Param("fromDate") LocalDateTime fromDate,
+        @Param("fromDate") ZonedDateTime fromDate,
         Pageable pageable
     );
 
@@ -79,7 +79,7 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
            "ORDER BY al.createdAt DESC")
     List<AuditLog> findRecentFailuresByUser(
         @Param("userId") Long userId,
-        @Param("fromDate") LocalDateTime fromDate
+        @Param("fromDate") ZonedDateTime fromDate
     );
 
     // ==================== Estadísticas ====================
@@ -90,21 +90,69 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     long countByUserAndActionSince(
         @Param("userId") Long userId,
         @Param("action") String action,
-        @Param("fromDate") LocalDateTime fromDate
+        @Param("fromDate") ZonedDateTime fromDate
     );
 
     @Query("SELECT al.action, COUNT(al) FROM AuditLog al " +
            "WHERE al.createdAt >= :fromDate " +
            "GROUP BY al.action " +
            "ORDER BY COUNT(al) DESC")
-    List<Object[]> getTopActionsSince(@Param("fromDate") LocalDateTime fromDate);
+    List<Object[]> getTopActionsSince(@Param("fromDate") ZonedDateTime fromDate);
+
+    @Query("SELECT al.action, COUNT(al) FROM AuditLog al " +
+           "WHERE al.category = :category AND al.createdAt >= :fromDate " +
+           "GROUP BY al.action " +
+           "ORDER BY COUNT(al) DESC")
+    List<Object[]> getTopActionsByCategorySince(@Param("category") String category,
+                                                 @Param("fromDate") ZonedDateTime fromDate);
+
+    /**
+     * Igual que searchAuditLogs pero agregado (conteo por action) — para que el
+     * resumen de un listado filtrado use exactamente los mismos filtros que la
+     * búsqueda paginada, en vez de una ventana de tiempo fija independiente.
+     */
+    @Query("SELECT al.action, COUNT(al) FROM AuditLog al WHERE " +
+           "(:action IS NULL OR al.action = :action) AND " +
+           "(:level IS NULL OR al.level = :level) AND " +
+           "al.category = :category AND " +
+           "al.createdAt BETWEEN :startDate AND :endDate " +
+           "GROUP BY al.action " +
+           "ORDER BY COUNT(al) DESC")
+    List<Object[]> searchTopActionsByCategory(@Param("action") String action,
+                                               @Param("level") AuditLevel level,
+                                               @Param("category") String category,
+                                               @Param("startDate") ZonedDateTime startDate,
+                                               @Param("endDate") ZonedDateTime endDate);
 
     @Query("SELECT COUNT(al) FROM AuditLog al WHERE al.level = :level " +
            "AND al.createdAt >= :fromDate")
     long countByLevelSince(
         @Param("level") AuditLevel level,
-        @Param("fromDate") LocalDateTime fromDate
+        @Param("fromDate") ZonedDateTime fromDate
     );
+
+    // ==================== Fuerza bruta / credential stuffing (LOGIN_FAILED) ====================
+
+    /**
+     * IPs con al menos minAttempts logins FALLIDOS desde la ventana indicada — la
+     * señal real de credential stuffing (a diferencia de solo contar éxitos, que
+     * puede confundir tráfico legítimo de IPs compartidas con un ataque).
+     */
+    @Query("SELECT al.ipAddress, COUNT(al) FROM AuditLog al " +
+           "WHERE al.category = 'AUTH' AND al.action = 'LOGIN_FAILED' " +
+           "AND al.createdAt >= :since AND al.ipAddress IS NOT NULL " +
+           "GROUP BY al.ipAddress " +
+           "HAVING COUNT(al) >= :minAttempts " +
+           "ORDER BY COUNT(al) DESC")
+    List<Object[]> findIpsWithFailedLoginsSince(@Param("since") ZonedDateTime since,
+                                                 @Param("minAttempts") int minAttempts);
+
+    @Query("SELECT al FROM AuditLog al " +
+           "WHERE al.ipAddress = :ip AND al.category = 'AUTH' AND al.action = 'LOGIN_FAILED' " +
+           "AND al.createdAt >= :since AND al.createdAt <= :now")
+    List<AuditLog> findFailedLoginsByIpSince(@Param("ip") String ip,
+                                              @Param("since") ZonedDateTime since,
+                                              @Param("now") ZonedDateTime now);
 
     // ==================== Limpieza ====================
 
@@ -112,13 +160,13 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
     @Query("DELETE FROM AuditLog al WHERE al.createdAt < :cutoffDate " +
            "AND al.level = :level")
     int deleteOldLogsByLevel(
-        @Param("cutoffDate") LocalDateTime cutoffDate,
+        @Param("cutoffDate") ZonedDateTime cutoffDate,
         @Param("level") AuditLevel level
     );
 
     @Modifying
     @Query("DELETE FROM AuditLog al WHERE al.createdAt < :cutoffDate")
-    int deleteOldLogs(@Param("cutoffDate") LocalDateTime cutoffDate);
+    int deleteOldLogs(@Param("cutoffDate") ZonedDateTime cutoffDate);
 
     // ==================== Búsqueda Avanzada ====================
 
@@ -136,8 +184,8 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         @Param("level") AuditLevel level,
         @Param("category") String category,
         @Param("success") Boolean success,
-        @Param("startDate") LocalDateTime startDate,
-        @Param("endDate") LocalDateTime endDate,
+        @Param("startDate") ZonedDateTime startDate,
+        @Param("endDate") ZonedDateTime endDate,
         Pageable pageable
     );
 }

@@ -8,7 +8,6 @@ public enum BrandingRequestStatus {
     DESIGN_IN_PROGRESS,          // diseñador está creando assets
     PENDING_ADVERTISER_APPROVAL, // diseñador publicó propuesta, anunciante debe revisar
     CHANGES_REQUESTED,           // anunciante rechazó propuesta, vuelve al diseñador
-    READY_TO_LAUNCH,             // anunciante aprobó diseño, listo para activar
-    LAUNCHED,                    // admin activó la campaña
+    CAMPAIGN_CREATED,             // anunciante aprobó diseño → Campaign creada y activa
     CANCELLED                    // cancelado en cualquier punto
 }

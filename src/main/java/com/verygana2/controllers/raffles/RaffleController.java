@@ -1,5 +1,6 @@
 package com.verygana2.controllers.raffles;
 
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
@@ -9,6 +10,7 @@ import java.util.List;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -45,11 +47,13 @@ public class RaffleController {
 
     // Para admin
     @GetMapping
-    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByStatusAndType(
-            @RequestParam(value = "status") RaffleStatus status,
-            @RequestParam(value = "type") RaffleType type,
+    public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByFilters(
+            @RequestParam(required = false) RaffleStatus status,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDate drawDate,
+            @RequestParam(required = false) RaffleType type,
             @PageableDefault(size = 10, page = 0, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
-        return ResponseEntity.ok(raffleService.getSummaryRafflesByStatusAndType(status, type, pageable));
+        return ResponseEntity.ok(raffleService.getSummaryRafflesByFilters(status, search, drawDate, type, pageable));
     }
 
     @GetMapping("/{raffleId}")

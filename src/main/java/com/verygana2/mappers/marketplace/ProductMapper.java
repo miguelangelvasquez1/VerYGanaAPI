@@ -63,6 +63,7 @@ public interface ProductMapper {
     @Mapping(target = "soldAt", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "codeHash", ignore = true)
     ProductStock toProductStock(ProductStockRequestDTO request);
 
     @Mapping(target = "productCategory", ignore = true)

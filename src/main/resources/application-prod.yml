@@ -57,7 +57,9 @@ commissions:
 
 jwt:
   access-token:
-    expiration: 86400      # 1 day (in seconds)
+    expiration: 900        # 15 min (in seconds) — corto a propósito: es un JWT stateless sin
+                            # chequeo de revocación por request, así que su vida útil es la
+                            # ventana de exposición si se filtra. La sesión larga la maneja el refresh token.
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
@@ -170,6 +172,9 @@ app:
     base-url: ${FRONTEND_BASE_URL}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
+  product-code:
+    encryption-key: ${APP_PRODUCT_CODE_ENCRYPTION_KEY}
+    hmac-secret: ${APP_PRODUCT_CODE_HMAC_SECRET}
 
 payment:
   min-deposit: 5000      # $5.000 COP
@@ -180,6 +185,13 @@ purchase:
     max-age-minutes: 40   # checkout Wompi expira en ~30 min; 40 da margen para el webhook
   cleanup:
     interval-ms: 300000   # cada 5 minutos en producción
+
+# ============================================
+# PRIZE EXPIRY
+# ============================================
+prize:
+  expiry:
+    cron: "0 0/30 * * * *"  # cada 30 minutos
 
 
 # ============================================

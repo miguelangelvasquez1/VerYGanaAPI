@@ -1,18 +1,14 @@
 package com.verygana2.models.branding;
 
-import java.math.BigDecimal;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import com.verygana2.models.Category;
-import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.CampaignStatus;
-import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameSession;
@@ -29,19 +25,14 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 import jakarta.validation.ValidationException;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -77,7 +68,6 @@ public class Campaign {
     @JoinColumn(name = "config_definition_id", nullable = false)
     private GameConfigDefinition configDefinition;
 
-    // Full JSON config stored as JSONB, resultado de configDefinition
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "config_data", columnDefinition = "json", nullable = false)
     private Map<String, Object> configData;
@@ -86,90 +76,64 @@ public class Campaign {
     @JoinColumn(name = "commercial_id", nullable = false)
     private CommercialDetails commercial;
 
+    @OneToOne(mappedBy = "campaign", fetch = FetchType.LAZY)
+    private BrandingRequest brandingRequest;
+
     @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameSession> gameSessions;
 
-    @OneToMany(mappedBy = "campaign", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Asset> assets;
-
     // Stats persistidas
-    @Column(name = "sessions_played") // Total sessions on this campaign
+    @Column(name = "sessions_played")
     @Builder.Default
     private Long sessionsPlayed = 0L;
 
-    @Column(name = "completed_sessions") // Total sessions on this campaign that were completed
+    @Column(name = "completed_sessions")
     @Builder.Default
     private Long completedSessions = 0L;
 
-    @Column(name = "total_play_time_seconds") // Total play time of all sessions on this campaign
+    @Column(name = "total_play_time_seconds")
     @Builder.Default
     private Long totalPlayTimeSeconds = 0L;
 
-    // Rewards config --------------------
-
-    @Column(name = "coin_value", precision = 12, scale = 4, nullable = false)
-    private BigDecimal coinValue;
-    @Column(name = "completion_coins", nullable = false)
-    private Integer completionCoins; //completionCoins > maxCoinsPerSession
-    @Column(name = "budget_coins", nullable = false)
-    private Integer budgetCoins;
-    @Column(name = "spent_coins", nullable = false)
+    @Column(name = "unique_players_count")
     @Builder.Default
-    private Integer spentCoins = 0;
+    private Long uniquePlayersCount = 0L;
 
-    @Column(name = "max_coins_per_session", nullable = false)
-    private Integer maxCoinsPerSession;
-    @Column(name = "max_session_per_user_per_day", nullable = false)
+    // ===== REWARDS CONFIG =====
+
+    @Column(name = "score_reward_factor", nullable = false)
+    private Double scoreRewardFactor;
+
+    @Column(name = "completion_reward_cents", nullable = false)
+    private Long completionRewardCents;
+
+    @Column(name = "max_reward_per_session_cents", nullable = false)
+    private Long maxRewardPerSessionCents;
+
+    @Column(name = "average_reward_per_session_cents", nullable = false)
+    private Long averageRewardPerSessionCents;
+
+    @Column(name = "budget_cents", nullable = false)
+    private Long budgetCents;
+
+    @Column(name = "spent_cents", nullable = false)
+    @Builder.Default
+    private Long spentCents = 0L;
+
+    @Column(name = "max_session_per_user_per_day")
     private Integer maxSessionsPerUserPerDay;
 
-    @Column(name = "budget", precision = 12, scale = 2, nullable = false)
-    private BigDecimal budget; //Calculated: coinValue * budgetCoins
-
-    @Column(name = "spent", precision = 12, scale = 2, nullable = false)
-    @Builder.Default
-    private BigDecimal spent = BigDecimal.ZERO; // Calculated: coinValue * spentCoins
-
     @Column(name = "start_date")
-    private ZonedDateTime startDate; // Could be null, meaning it starts immediately
+    private ZonedDateTime startDate;
 
     @Column(name = "end_date")
-    private ZonedDateTime endDate; // Could be null, meaning it runs indefinitely until maxLikes is reached
+    private ZonedDateTime endDate;
 
-    @Column(name = "target_url", length = 500)
-    private String targetUrl; // When de user clicks the campaign url, where to redirect
+    // ===== SEGMENTACIÓN =====
 
-    // Users targeting
-    @ManyToMany
-    @JoinTable(
-        name = "campaign_categories",
-        joinColumns = @JoinColumn(name = "campaign_id"),
-        inverseJoinColumns = @JoinColumn(name = "category_id")
-    )
-    @NotNull(message = "Preferences are required")
-    @Size(min = 1, message = "At least one category must be selected")
-    private List<Category> categories;
-
-    @ManyToMany
-    @JoinTable(
-        name = "campaign_municipalities",
-        joinColumns = @JoinColumn(name = "campaign_id"),
-        inverseJoinColumns = @JoinColumn(name = "municipality_code")
-    )
-    @Builder.Default
-    private List<Municipality> targetMunicipalities = new ArrayList<>();
-
-    @Column(name = "min_age")
-    @Min(value = 13, message = "La edad mínima debe ser 13")
-    private Integer minAge;
-
-    @Column(name = "max_age")
-    @Max(value = 100, message = "La edad máxima debe ser 100")
-    private Integer maxAge;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "target_gender", length = 10)
-    private TargetGender targetGender;
-
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "target_audience_id")
+    private TargetAudience targetAudience;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 30)
@@ -186,46 +150,35 @@ public class Campaign {
         createdAt = ZonedDateTime.now();
         updatedAt = createdAt;
 
-        if (coinValue == null || coinValue.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new ValidationException("coinValue must be greater than 0");
+        if (scoreRewardFactor == null || scoreRewardFactor <= 0) {
+            throw new ValidationException("scoreRewardFactor must be greater than 0");
         }
-
-        if (budgetCoins == null || budgetCoins <= 0) {
-            throw new ValidationException("budgetCoins must be greater than 0");
+        if (maxRewardPerSessionCents == null || maxRewardPerSessionCents <= 0) {
+            throw new ValidationException("maxRewardPerSessionCents must be greater than 0");
         }
-
-        if (maxCoinsPerSession == null || maxCoinsPerSession <= 0) {
-            throw new ValidationException("maxCoinsPerSession must be greater than 0");
+        if (completionRewardCents == null || completionRewardCents < 0) {
+            throw new ValidationException("completionRewardCents cannot be negative");
         }
-
-        if (completionCoins == null || completionCoins < 0) {
-            throw new ValidationException("completionCoins cannot be negative");
-        }
-
-        if (maxCoinsPerSession < completionCoins) {
-            throw new ValidationException(
-                "maxCoinsPerSession must be greater than or equal to completionCoins"
-            );
-        }
-
-        if (maxSessionsPerUserPerDay == null || maxSessionsPerUserPerDay <= 0) {
+        if (maxSessionsPerUserPerDay != null && maxSessionsPerUserPerDay <= 0) {
             throw new ValidationException("maxSessionsPerUserPerDay must be greater than 0");
         }
 
-        if (minAge != null && maxAge != null && minAge > maxAge) {
-            throw new ValidationException("minAge cannot be greater than maxAge");
-        }
-
-        // Calculate derived values defensively
-        this.budget = coinValue.multiply(BigDecimal.valueOf(budgetCoins));
-
-        if (spent == null) {
-            this.spent = BigDecimal.ZERO;
+        if (spentCents == null) {
+            this.spentCents = 0L;
         }
     }
 
     @PreUpdate
     void onUpdate() {
         updatedAt = ZonedDateTime.now();
+    }
+
+    // ===== MÉTRICAS DERIVADAS =====
+
+    public Long getEstimatedSessions() {
+        if (budgetCents == null || averageRewardPerSessionCents == null || averageRewardPerSessionCents <= 0) {
+            return null;
+        }
+        return budgetCents / averageRewardPerSessionCents;
     }
 }

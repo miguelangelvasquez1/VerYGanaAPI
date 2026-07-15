@@ -2,7 +2,6 @@ package com.verygana2.services.raffles;
 
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -265,7 +264,7 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
     }
 
     private List<Raffle> getActiveRafflesOrderedByDrawDate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         log.info("Fetching active raffles at {}", now);
 
         List<Raffle> raffles = raffleService.getActiveRafflesOrderedByDrawDate(now);

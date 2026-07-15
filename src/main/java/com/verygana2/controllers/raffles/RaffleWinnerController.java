@@ -22,6 +22,8 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.requests.ClaimPrizeRequestDTO;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
+import com.verygana2.models.enums.raffles.PrizeStatus;
+import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
 
@@ -35,6 +37,7 @@ public class RaffleWinnerController {
 
     private final RaffleWinnerService raffleWinnerService;
     private final TwilioSmsService twilioSmsService;
+    private final EmailVerificationService emailVerificationService;
 
     @GetMapping("/raffle/{raffleId}")
     public ResponseEntity<List<WinnerSummaryResponseDTO>> getRaffleWinners(@PathVariable Long raffleId) {
@@ -45,10 +48,10 @@ public class RaffleWinnerController {
     @GetMapping("/my-prizes")
     public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(required = false) Boolean isClaimed,
+            @RequestParam(required = false) PrizeStatus status,
             @PageableDefault(size = 10, page = 0, direction = Sort.Direction.DESC) Pageable pageable) {
         Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, isClaimed, pageable));
+        return ResponseEntity.ok(raffleWinnerService.getWonPrizesList(consumerId, status, pageable));
     }
 
     @GetMapping("/last")
@@ -66,6 +69,19 @@ public class RaffleWinnerController {
     @PostMapping("/claim/send-otp")
     public ResponseEntity<Void> sendClaimPhoneOtp(@RequestParam String phoneNumber) {
         twilioSmsService.sendOtp(phoneNumber);
+        return ResponseEntity.accepted().build();
+    }
+
+    /**
+     * Paso 1 (solo si el ganador quiere entregar a un correo alternativo):
+     * envía el código de verificación de 6 dígitos al correo indicado.
+     *
+     * POST /api/winners/claim/send-email-otp?email=nuevo@correo.com
+     */
+    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PostMapping("/claim/send-email-otp")
+    public ResponseEntity<Void> sendClaimEmailOtp(@RequestParam String email) {
+        emailVerificationService.sendVerificationCode(email);
         return ResponseEntity.accepted().build();
     }
 

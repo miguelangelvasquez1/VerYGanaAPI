@@ -3,7 +3,7 @@ package com.verygana2.utils.audit;
 import lombok.Builder;
 import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 import java.util.Map;
 
 /**
@@ -34,7 +34,7 @@ public class AuditEvent {
     private String sessionId;
     
     // Timing
-    private LocalDateTime timestamp;
+    private ZonedDateTime timestamp;
     private Long executionTimeMs;
     
     // Entidad

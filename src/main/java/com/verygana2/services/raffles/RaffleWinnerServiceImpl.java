@@ -13,17 +13,20 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.requests.ClaimPrizeRequestDTO;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
 import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
+import com.verygana2.exceptions.EmailVerificationException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.mappers.raffles.RaffleWinnerMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.raffles.ClaimPreferenceDeliveryMethod;
+import com.verygana2.models.enums.raffles.PrizeStatus;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
-import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
@@ -31,6 +34,7 @@ import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 @RequiredArgsConstructor
@@ -43,8 +47,10 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     private final RaffleResultService raffleResultService;
     private final RaffleWinnerMapper raffleWinnerMapper;
     private final EmailService emailService;
+    private final EmailVerificationService emailVerificationService;
     private final TwilioSmsService twilioSmsService;
-    private final ClaimCodeEncryptor claimCodeEncryptor;
+    @Qualifier("claimCodeEncryptor")
+    private final CodeEncryptor claimCodeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Transactional(readOnly = true)
@@ -57,8 +63,8 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
     @Transactional(readOnly = true)
     @Override
-    public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, Boolean isClaimed, Pageable pageable) {
-        Page<RaffleWinner> wins = raffleWinnerRepository.findWonPrizesByConsumer(consumerId, isClaimed, pageable);
+    public PagedResponse<PrizeWonResponseDTO> getWonPrizesList(Long consumerId, PrizeStatus status, Pageable pageable) {
+        Page<RaffleWinner> wins = raffleWinnerRepository.findWonPrizesByConsumer(consumerId, status, pageable);
         return PagedResponse.from(wins.map(w -> {
             Prize prize = w.getPrize();
             return PrizeWonResponseDTO.builder()
@@ -132,9 +138,38 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
                 consumerId, prize.getId(), request.getDeliveryMethod(), deliveryRef);
     }
 
+    @Override
+    public int expireOverduePrizes() {
+        List<Prize> overduePrizes = prizeRepository.findOverdueUnclaimedPrizes(ZonedDateTime.now(ZoneOffset.UTC));
+
+        for (Prize prize : overduePrizes) {
+            prize.setPrizeStatus(PrizeStatus.EXPIRED);
+        }
+        prizeRepository.saveAll(overduePrizes);
+
+        if (!overduePrizes.isEmpty()) {
+            log.info("Prizes expired by deadline: {}", overduePrizes.stream().map(Prize::getId).toList());
+        }
+
+        return overduePrizes.size();
+    }
+
     private String deliver(ClaimPrizeRequestDTO request, Prize prize, User user, String decryptedCode) {
         if (request.getDeliveryMethod() == ClaimPreferenceDeliveryMethod.EMAIL) {
             String targetEmail = hasValue(request.getNewEmail()) ? request.getNewEmail() : user.getEmail();
+
+            // Si usa un correo alternativo, verificar el código de verificación primero
+            if (hasValue(request.getNewEmail())) {
+                if (!hasValue(request.getEmailOtpCode())) {
+                    throw new ClaimPrizeException("Email verification code is required to verify a new email");
+                }
+                try {
+                    emailVerificationService.verifyCode(request.getNewEmail(), request.getEmailOtpCode());
+                } catch (EmailVerificationException e) {
+                    throw new ClaimPrizeException(e.getMessage());
+                }
+            }
+
             emailService.sendPrizeClaimConfirmation(prize, targetEmail, decryptedCode);
             return "EMAIL:" + targetEmail;
         }

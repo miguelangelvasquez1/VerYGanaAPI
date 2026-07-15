@@ -36,7 +36,7 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        Page<Ad> findAllByStatus(@Param("status") AdStatus status, Pageable pageable);
 
        // Anuncios disponibles por categoría
-       @Query("SELECT DISTINCT a FROM Ad a JOIN a.categories c WHERE " +
+       @Query("SELECT DISTINCT a FROM Ad a JOIN a.targetAudience ta JOIN ta.categories c WHERE " +
                      "a.status = 'APPROVED' " +
                      "AND a.currentLikes < a.maxLikes " +
                      "AND c IN :categories " +
@@ -119,8 +119,9 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               AND (a.endDate IS NULL OR a.endDate > :now)
 
               AND (:municipality IS NULL
-                   OR a.targetMunicipalities IS EMPTY
-                   OR :municipality MEMBER OF a.targetMunicipalities)
+                   OR a.targetAudience IS NULL
+                   OR a.targetAudience.targetMunicipalities IS EMPTY
+                   OR :municipality MEMBER OF a.targetAudience.targetMunicipalities)
 
               AND NOT EXISTS (
                      SELECT 1 FROM AdLike al

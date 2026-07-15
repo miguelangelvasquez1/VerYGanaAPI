@@ -1,6 +1,6 @@
 package com.verygana2.models.raffles;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -100,7 +100,7 @@ public class TicketEarningRule {
     
     @PrePersist
     public void onCreate() {
-        ZonedDateTime now = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         this.createdAt = now;
         this.updatedAt = now;
         this.isActive = true;
@@ -108,7 +108,7 @@ public class TicketEarningRule {
 
     @PreUpdate
     public void onUpdate() {
-        this.updatedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
 

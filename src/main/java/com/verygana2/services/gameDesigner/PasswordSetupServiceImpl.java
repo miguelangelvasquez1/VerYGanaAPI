@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.models.PasswordSetupToken;
 import com.verygana2.models.User;
+import com.verygana2.models.enums.UserState;
 import com.verygana2.repositories.PasswordSetupTokenRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.EmailService;
@@ -73,6 +74,7 @@ public class PasswordSetupServiceImpl implements PasswordSetupService {
         User user = setupToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordConfigured(true);
+        user.setUserState(UserState.ACTIVE);
         userRepository.save(user);
 
         setupToken.setUsed(true);

@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record SpendKeysRequestDTO(
-        @NotNull @Min(1) Long amount,
+        @NotNull @Min(1) Long amountCents,
         @NotNull Integer itemId,
         @NotBlank String itemName
 ) {}

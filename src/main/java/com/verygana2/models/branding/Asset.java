@@ -58,10 +58,6 @@ public class Asset {
     private AssetStatus status;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "campaign_id", nullable = true)
-    private Campaign campaign;
-
-    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "branding_request_id", nullable = true)
     private BrandingRequest brandingRequest;
 
@@ -87,11 +83,9 @@ public class Asset {
 
     public void markAsAttached(Campaign campaign) {
         this.status = AssetStatus.ATTACHED;
-        this.campaign = campaign;
     }
 
     public void markAsOrphan() {
         this.status = AssetStatus.ORPHANED;
-        this.campaign = null;
     }
 }

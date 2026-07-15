@@ -133,6 +133,7 @@ public class WompiWebhookController {
                 txPayload.getId(),
                 txPayload.getReference(),
                 txPayload.getStatus(),
+                txPayload.getCreatedAt(),
                 metadata
         );
 

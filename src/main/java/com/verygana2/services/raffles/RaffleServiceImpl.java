@@ -1,6 +1,8 @@
 package com.verygana2.services.raffles;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -56,11 +58,12 @@ import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.raffles.RaffleService;
-import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.storage.service.R2Service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 @RequiredArgsConstructor
@@ -78,7 +81,8 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
-    private final ClaimCodeEncryptor claimCodeEncryptor;
+    @Qualifier("claimCodeEncryptor")
+    private final CodeEncryptor claimCodeEncryptor;
 
     private static final String domain = "https://cdn.verygana.com/public/";
 
@@ -515,18 +519,6 @@ public class RaffleServiceImpl implements RaffleService {
         raffleRepository.save(raffle);
     }
 
-    @Override
-    public void liveRaffle(Long raffleId) {
-
-        Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.CLOSED) {
-            throw new InvalidOperationException("Raffle must be 'CLOSED' to set status 'LIVE'");
-        }
-
-        raffle.setRaffleStatus(RaffleStatus.LIVE);
-        raffleRepository.save(raffle);
-
-    }
 
     @Override
     public void cancelRaffle(Long raffleId) {
@@ -536,7 +528,7 @@ public class RaffleServiceImpl implements RaffleService {
             throw new InvalidOperationException("Raffle must be 'ACTIVE' to set status 'CANCELLED'");
         }
 
-        raffle.setRaffleStatus(RaffleStatus.LIVE);
+        raffle.setRaffleStatus(RaffleStatus.CANCELLED);
         raffleRepository.save(raffle);
     }
 
@@ -563,6 +555,18 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public Raffle getRaffleWithPrizesById(Long raffleId) {
+
+        if (raffleId == null || raffleId <= 0) {
+            throw new IllegalArgumentException("Raffle id must be positive");
+        }
+
+        return raffleRepository.findByIdWithPrizes(raffleId).orElseThrow(
+                () -> new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ", Raffle.class));
+    }
+
+    @Override
     public RaffleResponseDTO getRaffleResponseDTOById(Long raffleId) {
 
         if (raffleId == null || raffleId <= 0) {
@@ -585,11 +589,18 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByStatusAndType(RaffleStatus status,
-            RaffleType type, Pageable pageable) {
+    public PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status,
+            String search, LocalDate drawDate, RaffleType type, Pageable pageable) {
 
-        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByRaffleStatusAndRaffleType(status, type,
-                pageable);
+        ZonedDateTime drawDateStart = null;
+        ZonedDateTime drawDateEnd = null;
+        if (drawDate != null) {
+            drawDateStart = drawDate.atStartOfDay(ZoneOffset.UTC);
+            drawDateEnd = drawDateStart.plusDays(1);
+        }
+
+        Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByFilters(status, search, drawDateStart,
+                drawDateEnd, type, pageable);
         rafflesFound.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(rafflesFound);
     }

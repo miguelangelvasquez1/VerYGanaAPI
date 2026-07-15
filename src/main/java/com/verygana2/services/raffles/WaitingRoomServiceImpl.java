@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import com.verygana2.mappers.raffles.PrizeMapper;
 import com.verygana2.services.interfaces.raffles.RaffleEventPublisherService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.WaitingRoomService;
@@ -24,6 +25,7 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
 
     private final RaffleEventPublisherService raffleEventPublisherService;
     private final RaffleService raffleService;
+    private final PrizeMapper prizeMapper;
 
     // raffleId -> Set de sessionIds conectados
     private final Map<Long, Set<String>> viewers = new ConcurrentHashMap<>();
@@ -67,16 +69,6 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
     }
 
     @Override
-    public void clearRoom(Long raffleId) {
-        Set<String> sessions = viewers.get(raffleId);
-        if (sessions != null) {
-            sessions.forEach(sessionToRaffle::remove);
-            viewers.remove(raffleId);
-        }
-        log.info("[WaitingRoom] raffle {} room closed", raffleId);
-    }
-
-    @Override
     @Scheduled(fixedDelay = 10000)
     public void broadcastWaitingRoomUpdates() {
         viewers.forEach((raffleId, sessions) -> {
@@ -84,7 +76,7 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
                 return;
 
             try {
-                var raffle = raffleService.getRaffleById(raffleId);
+                var raffle = raffleService.getRaffleWithPrizesById(raffleId);
                 ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
                 long seconds = ChronoUnit.SECONDS.between(now, raffle.getDrawDate());
 
@@ -96,7 +88,8 @@ public class WaitingRoomServiceImpl implements WaitingRoomService {
                         sessions.size(),
                         seconds,
                         raffle.getTotalTicketsIssued(),
-                        raffle.getTotalParticipants());
+                        raffle.getTotalParticipants(),
+                        raffle.getPrizes().stream().map(prizeMapper::toPrizeResponseDTO).toList());
             } catch (Exception e) {
                 log.error("[WaitingRoom] issuing update to raffle {} error", raffleId, e);
             }

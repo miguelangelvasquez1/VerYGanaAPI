@@ -25,4 +25,6 @@ public class SurveySummaryResponse {
     private boolean alreadyCompleted;
     private Long totalResponses;
     private LocalDateTime createdAt;
+    private LocalDateTime startsAt;
+    private LocalDateTime endsAt;
 }

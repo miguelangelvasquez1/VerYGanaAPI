@@ -35,6 +35,8 @@ public abstract class UserMapper {
 
     // ---- CONSUMER ----
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     @Mapping(target = "role", constant = "CONSUMER")
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "PENDING_EMAIL")
@@ -66,13 +68,16 @@ public abstract class UserMapper {
     @Mapping(target = "departmentName", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "lastDailyLoginDate", ignore = true)
+    @Mapping(target = "monthlyIncomeRange", ignore = true)
+    @Mapping(target = "occupation", ignore = true)
+    @Mapping(target = "pep", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
-    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeys", qualifiedByName = "centsToKeys")
-    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeys", qualifiedByName = "centsToKeys")
+    @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "connectivityKeys", source = "keyWallet.connectivityKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeysCents", qualifiedByName = "centsToKeys")
+    @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeysCents", qualifiedByName = "centsToKeys")
     @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
     public abstract ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO(ConsumerDetails consumer);
 
@@ -126,6 +131,8 @@ public abstract class UserMapper {
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(CommercialRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -139,6 +146,12 @@ public abstract class UserMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "ciiuCode", ignore = true)
+    @Mapping(target = "mercantileRegistration", ignore = true)
+    @Mapping(target = "legalRepDocType", ignore = true)
+    @Mapping(target = "legalRepDocNumber", ignore = true)
+    @Mapping(target = "pep", ignore = true)
+    @Mapping(target = "annualIncomeRange", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")
@@ -162,6 +175,8 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(GameDesignerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -182,6 +197,8 @@ public abstract class UserMapper {
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(ComplianceOfficerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)

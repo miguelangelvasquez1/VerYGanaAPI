@@ -1,6 +1,6 @@
 package com.verygana2.models.raffles;
 
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
@@ -74,7 +74,7 @@ public class RaffleTicket {
     @PrePersist
     public void onCreate() {
         this.status = RaffleTicketStatus.ACTIVE;
-        this.issuedAt = ZonedDateTime.now(ZoneId.of("America/Bogota"));
+        this.issuedAt = ZonedDateTime.now(ZoneOffset.UTC);
         this.isWinner = false;
     }
 }
