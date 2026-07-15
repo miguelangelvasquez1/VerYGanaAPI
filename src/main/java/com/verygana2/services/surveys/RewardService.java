@@ -25,6 +25,7 @@ import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.repositories.surveys.SurveySessionRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
+import com.verygana2.services.interfaces.levels.LevelService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -40,6 +41,7 @@ public class RewardService {
     private final KeyWalletService keyWalletService;
     private final KeyTransactionRepository keyTransactionRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final LevelService levelService;
 
     @Transactional
     public SurveyReward grantReward(SurveySession session) {
@@ -95,7 +97,8 @@ public class RewardService {
     private void creditPoints(SurveySession session, long amountCents) {
         Long consumerId = session.getConsumer().getId();
         KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
-        RewardSplit split = keyWalletService.calculate(amountCents);
+        long adjustedCents = Math.round(amountCents * levelService.getMultiplier(consumerId));
+        RewardSplit split = keyWalletService.calculate(adjustedCents);
 
         UUID referenceId = UUID.nameUUIDFromBytes(
                 ("survey-session-" + session.getId()).getBytes());

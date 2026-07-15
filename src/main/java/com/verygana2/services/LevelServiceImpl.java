@@ -23,6 +23,9 @@ import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.repositories.levels.ReactivationMissionRepository;
 import com.verygana2.repositories.levels.UserLevelProfileRepository;
 import com.verygana2.repositories.levels.XpKeyTransactionLogRepository;
+import com.verygana2.services.interfaces.NotificationService;
+
+import java.time.Instant;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,7 @@ public class LevelServiceImpl implements LevelService {
     private final ReactivationMissionRepository missionRepository;
     private final ConsumerDetailsRepository consumerDetailsRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final NotificationService notificationService;
 
     // ─── Inicialización ───────────────────────────────────────────────────────
 
@@ -68,14 +72,15 @@ public class LevelServiceImpl implements LevelService {
     public UserLevelProfile awardActivity(Long consumerId, ActivityType activityType) {
         UserLevelProfile profile = getOrCreateProfile(consumerId);
 
-        // Sin multiplicador si los beneficios están pausados
-        long xpEarned = profile.isBenefitsPaused()
-                ? activityType.getXpBase()
-                : profile.getCurrentLevel().applyMultiplier(activityType.getXpBase());
+        // Pausado por inactividad → gana como si fuera BRONCE
+        UserLevel effectiveLevel = profile.isBenefitsPaused()
+                ? UserLevel.BRONCE
+                : profile.getCurrentLevel();
+        long xpEarned = effectiveLevel.applyMultiplier(activityType.getXpBase());
 
         applyXp(profile, xpEarned);
         saveTransactionLog(consumerId, activityType, xpEarned,
-                profile.getCurrentLevel().getMultiplier());
+                effectiveLevel.getMultiplier());
 
         log.debug("Activity {} awarded to consumer {}: +{}xp", activityType, consumerId, xpEarned);
 
@@ -84,10 +89,17 @@ public class LevelServiceImpl implements LevelService {
 
     // ─── Multiplicador ────────────────────────────────────────────────────────
 
+    /**
+     * Multiplicador efectivo del usuario. Si los beneficios están pausados
+     * por inactividad, gana como si fuera BRONCE (el multiplicador más bajo).
+     */
     @Override
     @Transactional(readOnly = true)
     public double getMultiplier(Long consumerId) {
-        return getOrCreateProfile(consumerId).getCurrentLevel().getMultiplier();
+        UserLevelProfile profile = getOrCreateProfile(consumerId);
+        return profile.isBenefitsPaused()
+                ? UserLevel.BRONCE.getMultiplier()
+                : profile.getCurrentLevel().getMultiplier();
     }
 
     // ─── Inactividad ──────────────────────────────────────────────────────────
@@ -102,6 +114,7 @@ public class LevelServiceImpl implements LevelService {
         profileRepository.save(profile);
 
         triggerReactivationMission(consumerId);
+        sendBenefitsPausedNotification(consumerId);
         log.info("Benefits paused for consumer {} due to inactivity", consumerId);
     }
 
@@ -117,8 +130,8 @@ public class LevelServiceImpl implements LevelService {
                 .consumerId(consumerId)
                 .startedAt(LocalDateTime.now())
                 .expiresAt(LocalDateTime.now().plusDays(7))
-                .keysGoal(200L)
-                .keysProgress(0L)
+                .xpGoal(200L)
+                .xpProgress(0L)
                 .build();
 
         missionRepository.save(mission);
@@ -148,8 +161,8 @@ public class LevelServiceImpl implements LevelService {
                 profile.getCurrentLevel().getMultiplier(),
                 profile.isBenefitsPaused(),
                 profile.isReactivationMissionActive(),
-                mission != null ? mission.getKeysGoal()     : null,
-                mission != null ? mission.getKeysProgress() : null
+                mission != null ? mission.getXpGoal()     : null,
+                mission != null ? mission.getXpProgress() : null
         );
     }
 
@@ -213,9 +226,9 @@ public class LevelServiceImpl implements LevelService {
         }
 
         ReactivationMission mission = missionOpt.get();
-        mission.setKeysProgress(mission.getKeysProgress() + xpEarned);
+        mission.setXpProgress(mission.getXpProgress() + xpEarned);
 
-        if (mission.getKeysProgress() >= mission.getKeysGoal()) {
+        if (mission.getXpProgress() >= mission.getXpGoal()) {
             mission.setCompleted(true);
             profile.setBenefitsPaused(false);
             profile.setReactivationMissionActive(false);
@@ -223,6 +236,20 @@ public class LevelServiceImpl implements LevelService {
         }
 
         missionRepository.save(mission);
+    }
+
+    private void sendBenefitsPausedNotification(Long consumerId) {
+        try {
+            notificationService.createInternalNotification(
+                    consumerId,
+                    "Tus beneficios están pausados",
+                    "Llevas más de 31 días sin actividad, así que tus recompensas bajaron al nivel Bronce. "
+                            + "Completa la misión de reactivación para recuperar los beneficios de tu nivel.",
+                    Instant.now());
+        } catch (Exception e) {
+            log.error("Failed to send benefits-paused notification to consumer {}: {}",
+                    consumerId, e.getMessage());
+        }
     }
 
     private void saveTransactionLog(Long consumerId, ActivityType activityType,
@@ -236,9 +263,8 @@ public class LevelServiceImpl implements LevelService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public UserLevel getUserLevel(Long consumerId) {
-       UserLevelProfile profile = profileRepository.findByConsumerId(consumerId).orElseThrow(() -> new EntityNotFoundException("User profile not found for: " + consumerId));
-       return profile.getCurrentLevel();
+       return getOrCreateProfile(consumerId).getCurrentLevel();
     }
 }
