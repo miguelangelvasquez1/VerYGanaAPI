@@ -7,7 +7,7 @@ import lombok.*;
 
 /**
  * Misión especial que se activa cuando el usuario vuelve tras 31+ días inactivo.
- * Meta: ganar 200 llaves en 7 días para restaurar beneficios.
+ * Meta: ganar 200 XP en 7 días para restaurar beneficios.
  */
 @Entity
 @Table(name = "reactivation_mission")
@@ -31,14 +31,14 @@ public class ReactivationMission {
     @Column(nullable = false)
     private LocalDateTime expiresAt;
 
-    /** Meta fija según el documento: 200 llaves en 7 días */
-    @Column(nullable = false)
+    /** Meta fija según el documento: 200 XP en 7 días */
+    @Column(name = "xp_goal", nullable = false)
     @Builder.Default
-    private Long keysGoal = 200L;
+    private Long xpGoal = 200L;
 
-    @Column(nullable = false)
+    @Column(name = "xp_progress", nullable = false)
     @Builder.Default
-    private Long keysProgress = 0L;
+    private Long xpProgress = 0L;
 
     @Column(nullable = false)
     @Builder.Default

@@ -13,20 +13,17 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum UserLevel {
 
-    //            xpMin   xpMax    mult  refKeys  refTickets  raffleTickets
-    BRONCE  (     0,    999,  0.5,   100,    1),
-    PLATA   (  1000,   3999,  0.6,   160,    2),
-    ORO     (  4000,   8999,  0.7,   240,    3),
-    RUBI    (  9000,  17999,  0.8,   320,    4),
-    ESMERALDA(18000,  34999,  0.9,   430,    5),
-    DIAMANTE (35000, Long.MAX_VALUE, 1.0, 600, 6);
+    //            xpMin   xpMax    mult  refTickets
+    BRONCE  (     0,    999,  0.5,    1),
+    PLATA   (  1000,   3999,  0.6,    2),
+    ORO     (  4000,   8999,  0.7,    3),
+    RUBI    (  9000,  17999,  0.8,    4),
+    ESMERALDA(18000,  34999,  0.9,    5),
+    DIAMANTE (35000, Long.MAX_VALUE, 1.0, 6);
 
     private final long xpMin;
     private final long xpMax;
     private final double multiplier;
-
-    /** Llaves que recibe el referidor cuando NO hay rifa activa */
-    private final int referralKeys;
 
     /** Tickets que recibe el referidor cuando HAY rifa activa */
     private final int referralTickets;
