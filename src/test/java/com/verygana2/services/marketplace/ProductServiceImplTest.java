@@ -1,11 +1,8 @@
 package com.verygana2.services.marketplace;
 
 import java.math.BigDecimal;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-
 import org.hibernate.ObjectNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -14,8 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
@@ -23,9 +18,7 @@ import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
 import com.verygana2.dtos.product.requests.CreateProductRequestDTO;
-import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
-import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.exceptions.GameRewardException;
 import com.verygana2.exceptions.InvalidRequestException;
@@ -61,7 +54,6 @@ import jakarta.validation.ValidationException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
