@@ -10,7 +10,57 @@
 -- Re-ejecutable: borra y recrea por título
 -- ============================================================
 
--- Limpiar datos previos (CASCADE elimina questions, options y sessions)
+-- Limpiar datos previos. Los FK NO tienen ON DELETE CASCADE (Hibernate
+-- no lo genera), así que se borra de hijos a padres.
+
+-- 1. Opciones seleccionadas en respuestas (nieto de sessions)
+DELETE aso FROM answer_selected_options aso
+JOIN survey_answers sa ON sa.id = aso.answer_id
+JOIN survey_sessions ss ON ss.id = sa.session_id
+JOIN surveys s ON s.id = ss.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 2. Respuestas
+DELETE sa FROM survey_answers sa
+JOIN survey_sessions ss ON ss.id = sa.session_id
+JOIN surveys s ON s.id = ss.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 3. Recompensas de sesiones
+DELETE sr FROM survey_rewards sr
+JOIN survey_sessions ss ON ss.id = sr.session_id
+JOIN surveys s ON s.id = ss.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 4. Sesiones
+DELETE ss FROM survey_sessions ss
+JOIN surveys s ON s.id = ss.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 5. Opciones de preguntas
+DELETE qo FROM question_options qo
+JOIN survey_questions sq ON sq.id = qo.question_id
+JOIN surveys s ON s.id = sq.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 6. Preguntas
+DELETE sq FROM survey_questions sq
+JOIN surveys s ON s.id = sq.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 7. Categorías (tabla de unión)
+DELETE sc FROM survey_categories sc
+JOIN surveys s ON s.id = sc.survey_id
+WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+
+-- 8. Encuestas
 DELETE FROM surveys WHERE title IN (
     'Hábitos digitales',
     'Tendencias de moda femenina',

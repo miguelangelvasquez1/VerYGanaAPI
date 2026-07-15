@@ -226,3 +226,23 @@ INSERT INTO user_level_profile (consumer_id, xp_total, current_level, benefits_p
 SELECT cd.user_id, 40000, 'DIAMANTE', false, NOW(), false, NOW()
 FROM consumer_details cd JOIN users u ON u.id = cd.user_id WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE xp_total = xp_total;
+
+-- ============================================================
+-- CONSUMER PREFERENCES para los 6 usuarios de nivel
+-- (requerido: la validación de ConsumerDetails exige >= 1 categoría
+--  y se dispara al actualizar contadores, ej. al dar like a un ad)
+-- ============================================================
+
+INSERT INTO consumer_preferences (user_id, category_id)
+SELECT u.id, c.id
+FROM users u
+JOIN categories c ON c.name = 'Tecnología'
+WHERE u.email IN (
+    'bronce@verygana.com',
+    'plata@verygana.com',
+    'oro@verygana.com',
+    'rubi@verygana.com',
+    'esmeralda@verygana.com',
+    'diamante@verygana.com'
+)
+ON DUPLICATE KEY UPDATE user_id = user_id;
