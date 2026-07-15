@@ -533,17 +533,6 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
 
         if (!issued.isEmpty()) {
             sendNotification(referrerId, raffle, issued.size(), RaffleTicketSource.REFERRAL);
-
-            // Por cada ticket adicional más allá del primero, el nivel del referidor
-            // recibe un evento REFERRAL_ACTIVE extra (el primero ya fue otorgado en applyReferredBy).
-            int bonusXpEvents = issued.size() - 1;
-            for (int i = 0; i < bonusXpEvents; i++) {
-                eventPublisher.publishEvent(new XpAwardRequestedEvent(this, referrerId, ActivityType.REFERRAL_ACTIVE));
-            }
-            if (bonusXpEvents > 0) {
-                log.info("Awarded {} bonus XP event(s) to referrer {} for {} tickets issued",
-                        bonusXpEvents, referrerId, issued.size());
-            }
         }
 
         return true;
