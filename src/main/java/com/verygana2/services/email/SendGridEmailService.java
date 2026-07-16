@@ -146,6 +146,20 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
+    public void sendPasswordResetEmail(String toEmail, String code) {
+        log.info("Sending password reset email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("password-reset.html", Map.of(
+                    "resetCode", code,
+                    "supportEmail", supportEmail));
+            sendEmail(toEmail, "🔑 Recupera tu cuenta - VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending password reset email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode) {
         log.info("Sending password setup email to designer: {}", toEmail);
         try {
