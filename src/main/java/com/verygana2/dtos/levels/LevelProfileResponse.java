@@ -9,6 +9,6 @@ public record LevelProfileResponse(
         double multiplier,
         boolean benefitsPaused,
         boolean reactivationMissionActive,
-        Long reactivationKeysGoal,
-        Long reactivationKeysProgress
+        Long reactivationXpGoal,
+        Long reactivationXpProgress
 ) {}

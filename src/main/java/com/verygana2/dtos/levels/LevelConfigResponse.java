@@ -7,6 +7,5 @@ public record LevelConfigResponse(
         long xpMin,
         String xpMax,          // "∞" para Diamante
         double multiplier,
-        int referralKeys,
         int referralTickets
 ) {}
