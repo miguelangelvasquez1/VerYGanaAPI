@@ -71,6 +71,6 @@ public class ConsumerRegisterDTO {
     private IncomeRange ingresosMensualesRango;
 
     @NotNull(message = "PEP declaration is required")
-    private Boolean esPEP;
+    private Boolean isPEP;
 
 }

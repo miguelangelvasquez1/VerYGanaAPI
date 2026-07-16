@@ -20,4 +20,17 @@ public interface UserService {
 
     void verifyEmailCode(String email, String code);
     void resendVerificationEmail(String email);
+
+    /** Alternativa por SMS: envía OTP (Twilio Verify) al teléfono registrado de la cuenta */
+    void sendPhoneVerification(String email);
+    /** Verifica el OTP recibido por SMS y activa la cuenta */
+    void verifyPhoneCode(String email, String code);
+
+    /**
+     * Recuperación de contraseña: envía un código al correo si la cuenta existe.
+     * No revela si el correo está registrado (anti-enumeración).
+     */
+    void requestPasswordReset(String email);
+    /** Verifica el código y establece la nueva contraseña, revocando las sesiones activas */
+    void resetPassword(String email, String code, String newPassword);
 }

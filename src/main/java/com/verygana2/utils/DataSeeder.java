@@ -116,13 +116,13 @@ public class DataSeeder implements CommandLineRunner {
     private void loadTestEntities(ResourceDatabasePopulator populator) {
         populator.addScript(new ClassPathResource("db/seed/test/test-users.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-level-users.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test/test-surveys.sql"));
+        // populator.addScript(new ClassPathResource("db/seed/test/test-surveys.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-campaigns.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-products.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-productCategoryImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-productImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-raffle-referral-rule.sql")); // depende de test-users (admin)
-        populator.addScript(new ClassPathResource("db/seed/test/test-ads.sql")); // depende de test-users (comercial)
+        // populator.addScript(new ClassPathResource("db/seed/test/test-ads.sql")); // depende de test-users (comercial)
     }
 
     private void loadGames(ResourceDatabasePopulator populator) {
