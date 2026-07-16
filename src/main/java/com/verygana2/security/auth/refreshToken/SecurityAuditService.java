@@ -21,18 +21,18 @@ public class SecurityAuditService {
 
     public void logSuspiciousActivity(String username, String action, String description) {
         log.warn("SECURITY WARNING - Action: {}, User: {}, Detail: {}", action, username, description);
-        publish(username, action, description, AuditLevel.WARNING, null, "SECURITY", null, null);
+        publish(username, action, description, AuditLevel.WARNING, null, "SECURITY", null, null, false);
     }
 
     public void logCriticalEvent(String username, String action, String description,
                                   Map<String, Object> additionalData) {
         log.error("SECURITY CRITICAL - Action: {}, User: {}, Detail: {}", action, username, description);
-        publish(username, action, description, AuditLevel.CRITICAL, additionalData, "SECURITY", null, null);
+        publish(username, action, description, AuditLevel.CRITICAL, additionalData, "SECURITY", null, null, false);
     }
 
     public void logSystemError(String action, String message) {
         log.error("SECURITY SYSTEM ERROR - Action: {}, Message: {}", action, message);
-        publish("SYSTEM", action, message, AuditLevel.CRITICAL, null, "SECURITY", null, null);
+        publish("SYSTEM", action, message, AuditLevel.CRITICAL, null, "SECURITY", null, null, false);
     }
 
     /**
@@ -43,11 +43,28 @@ public class SecurityAuditService {
      */
     public void logAuthFailure(String username, String ipAddress, String userAgent, String reason) {
         log.warn("LOGIN FAILED - User: {}, IP: {}, Reason: {}", username, ipAddress, reason);
-        publish(username, "LOGIN_FAILED", reason, AuditLevel.WARNING, null, "AUTH", ipAddress, userAgent);
+        publish(username, "LOGIN_FAILED", reason, AuditLevel.WARNING, null, "AUTH", ipAddress, userAgent, false);
+    }
+
+    /** Login exitoso. category="AUTH", igual que LOGIN_FAILED — no es un evento para el panel de seguridad. */
+    public void logLoginSuccess(String username, String ipAddress, String userAgent) {
+        publish(username, "LOGIN", "Login exitoso", AuditLevel.INFO, null, "AUTH", ipAddress, userAgent, true);
+    }
+
+    /**
+     * Bloqueo de cuenta por intentos fallidos consecutivos. Va bajo category="AUTH"
+     * (no "SECURITY"): es un evento individual y auto-resuelto (el propio usuario se
+     * desbloquea con el código enviado a su correo), no un patrón agregado que
+     * amerite revisión de un admin — no debe aparecer en /admin/security-events.
+     */
+    public void logAccountLocked(String username, String description) {
+        log.warn("SECURITY WARNING - Action: ACCOUNT_LOCKED_FAILED_ATTEMPTS, User: {}, Detail: {}", username, description);
+        publish(username, "ACCOUNT_LOCKED_FAILED_ATTEMPTS", description, AuditLevel.WARNING, null, "AUTH", null, null, false);
     }
 
     private void publish(String username, String action, String description, AuditLevel level,
-                          Map<String, Object> additionalData, String category, String ipAddress, String userAgent) {
+                          Map<String, Object> additionalData, String category, String ipAddress, String userAgent,
+                          boolean success) {
         try {
             AuditEvent event = AuditEvent.builder()
                     .username(username)
@@ -59,7 +76,7 @@ public class SecurityAuditService {
                     .ipAddress(ipAddress)
                     .userAgent(userAgent)
                     .timestamp(ZonedDateTime.now())
-                    .success(false)
+                    .success(success)
                     .additionalData(additionalData)
                     .build();
 

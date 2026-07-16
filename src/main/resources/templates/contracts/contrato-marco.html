@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<style>
+    @page { size: letter; margin: 2.5cm 2cm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.5; }
+    h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; }
+    h2 { font-size: 12.5pt; margin-top: 22px; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+    .subtitle { text-align: center; color: #555; margin-bottom: 20px; font-size: 9.5pt; }
+    .notice { background: #fff6d9; border: 1px solid #e0c260; padding: 8px 12px; font-size: 9pt; margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    td, th { border: 1px solid #ddd; padding: 6px 8px; font-size: 10pt; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; width: 38%; }
+    .placeholder-legal { font-style: italic; color: #444; }
+    ul { margin: 4px 0 4px 18px; padding: 0; }
+    .footer { margin-top: 30px; font-size: 8.5pt; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Contrato Marco de Vinculación Comercial</h1>
+<p class="subtitle">VERYGANA — Anexo Ruta {{route}} · Versión {{version}} · Generado el {{generatedAt}}</p>
+
+<div class="notice">
+    Este documento fue generado automáticamente a partir de la información suministrada en el registro
+    comercial extendido. <strong>Es una plantilla base y no constituye un contrato legalmente revisado</strong>
+    hasta que el equipo jurídico de VERYGANA valide su contenido y clausulado definitivo.
+</div>
+
+<h2>1. Partes</h2>
+<table>
+    <tr><th>Razón social / Comerciante</th><td>{{companyName}}</td></tr>
+    <tr><th>Tipo de persona</th><td>{{personType}}</td></tr>
+    <tr><th>NIT</th><td>{{nit}}</td></tr>
+    <tr><th>Representante legal</th><td>{{legalRepFullName}} ({{legalRepDocType}} {{legalRepDocNumber}})</td></tr>
+    <tr><th>Actividad económica</th><td>{{economicActivityDescription}}</td></tr>
+    <tr><th>Domicilio</th><td>{{address}}</td></tr>
+</table>
+
+<h2>2. Objeto y clasificación</h2>
+<p class="placeholder-legal">
+    [Placeholder legal — pendiente de validación jurídica] VERYGANA y EL COMERCIANTE celebran el presente
+    Contrato Marco con el objeto de vincular al COMERCIANTE a la plataforma VERYGANA bajo las condiciones
+    comerciales correspondientes a la Ruta {{route}} descrita a continuación.
+</p>
+<p>{{routeExplanation}}</p>
+
+<h2>3. Plan comercial y condiciones económicas</h2>
+<table>
+    <tr><th>Plan asignado</th><td>{{planName}}</td></tr>
+    <tr><th>Tarifa mensual</th><td>{{monthlyFeeFormatted}}</td></tr>
+    <tr><th>Rango de inversión</th><td>{{investmentRangeFormatted}}</td></tr>
+    <tr><th>Comisión por venta a favor de VERYGANA</th><td>{{saleCommissionPct}}%</td></tr>
+    <tr><th>% máximo cubierto con Llaves Promocionales</th><td>{{maxKeysPct}}%</td></tr>
+    <tr><th>Impuestos</th><td>{{taxNote}}</td></tr>
+    <tr><th>Condiciones de liquidación</th><td>{{liquidationConditions}}</td></tr>
+</table>
+
+<h2>4. Vigencia y terminación</h2>
+<table>
+    <tr><th>Duración del contrato</th><td>{{contractDurationMonths}}</td></tr>
+    <tr><th>Periodicidad de pago</th><td>{{paymentPeriodicity}}</td></tr>
+    <tr><th>Forma de terminación</th><td>{{terminationTerms}}</td></tr>
+</table>
+<p class="placeholder-legal">
+    [Placeholder legal — pendiente de validación jurídica] Cláusulas de terminación anticipada, incumplimiento,
+    fuerza mayor y renovación automática a definir por el equipo jurídico de VERYGANA.
+</p>
+
+<h2>5. Anexo — Documentos aceptados</h2>
+<p>El COMERCIANTE cargó y VERYGANA validó los siguientes documentos como parte del presente proceso:</p>
+{{documentsListHtml}}
+
+<h2>6. Aceptación de Términos y Condiciones</h2>
+<table>
+    <tr><th>Versión aceptada</th><td>{{termsVersion}}</td></tr>
+    <tr><th>Fecha y hora de aceptación</th><td>{{termsAcceptedAt}}</td></tr>
+    <tr><th>Documento aceptado</th><td>{{termsDocumentUrl}}</td></tr>
+</table>
+
+<div class="footer">
+    Documento generado por VERYGANA · commercial_onboarding_id {{onboardingId}} · contrato v{{version}}
+</div>
+
+</body>
+</html>

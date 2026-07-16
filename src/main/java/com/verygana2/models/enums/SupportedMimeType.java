@@ -19,7 +19,9 @@ public enum SupportedMimeType {
     AUDIO_WAV("audio/wav", MediaType.AUDIO),
 
     VIDEO_MP4("video/mp4", MediaType.VIDEO),
-    VIDEO_QUICK_TIME("video/quicktime", MediaType.VIDEO);
+    VIDEO_QUICK_TIME("video/quicktime", MediaType.VIDEO),
+
+    APPLICATION_PDF("application/pdf", MediaType.DOCUMENT);
 
     private final String mime;
     private final MediaType mediaType;

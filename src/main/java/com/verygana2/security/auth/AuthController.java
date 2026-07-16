@@ -37,8 +37,6 @@ import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
-import com.verygana2.utils.audit.AuditLevel;
-import com.verygana2.utils.audit.Auditable;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -80,7 +78,6 @@ public class AuthController {
      * Login: Autentica al usuario y genera un par de tokens (access + refresh)
      */
     @PostMapping("/login")
-    @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request,
             @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
             HttpServletRequest httpRequest
@@ -119,6 +116,10 @@ public class AuthController {
         }
 
         accountLockService.registerSuccessfulLogin(request.getIdentifier());
+        securityAuditService.logLoginSuccess(
+                request.getIdentifier(),
+                RequestClientInfo.resolveIp(httpRequest),
+                RequestClientInfo.resolveUserAgent(httpRequest));
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 

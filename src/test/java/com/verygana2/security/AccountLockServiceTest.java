@@ -82,8 +82,7 @@ class AccountLockServiceTest {
             assertThat(user.getAccountLockedAt()).isNotNull();
             assertThat(user.getFailedLoginAttempts()).isZero();
             verify(emailVerificationService).sendVerificationCode("user@test.com");
-            verify(securityAuditService).logSuspiciousActivity(
-                    eq("user@test.com"), eq("ACCOUNT_LOCKED_FAILED_ATTEMPTS"), anyString());
+            verify(securityAuditService).logAccountLocked(eq("user@test.com"), anyString());
         }
 
         @Test

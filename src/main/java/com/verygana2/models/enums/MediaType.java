@@ -4,7 +4,8 @@ public enum MediaType {
     IMAGE("image"),
     AUDIO("audio"),
     MODEL("model"),
-    VIDEO("video");
+    VIDEO("video"),
+    DOCUMENT("document");
 
     private MediaType(String value) {
         this.value = value;
@@ -29,8 +30,10 @@ public enum MediaType {
             return VIDEO;
         } else if (mimeType.contains("model") || mimeType.contains("gltf") || mimeType.contains("glb")) {
             return MODEL;
+        } else if (mimeType.equals("application/pdf")) {
+            return DOCUMENT;
         }
-        
+
         throw new IllegalArgumentException("Unsupported mime type: " + mimeType);
     }
 }

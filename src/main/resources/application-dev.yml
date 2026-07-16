@@ -35,9 +35,7 @@ rsa:
 
 jwt:
   access-token:
-    expiration: 900        # 15 min (in seconds) — corto a propósito: es un JWT stateless sin
-                            # chequeo de revocación por request, así que su vida útil es la
-                            # ventana de exposición si se filtra. La sesión larga la maneja el refresh token.
+    expiration: 900
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
@@ -317,6 +315,17 @@ randomOrg:
   api-url: https://api.random.org/json-rpc/4/invoke
   api-key: ${RANDOM_ORG_API_KEY:your-random-org-api-key}
   timeout: 30000 # 30 segundos
+
+# ============================================
+# ONBOARDING COMERCIAL — RESUMEN ECONÓMICO Y CONTRATO
+# ============================================
+commercial:
+  onboarding:
+    economic-summary:
+      tax-note: "Los valores anteriores no incluyen IVA (19%). El IVA aplicable se liquidará según la normativa vigente al momento de cada transacción."
+      liquidation-conditions: "Los pagos se liquidan de forma mensual, dentro de los primeros 5 días hábiles del mes siguiente, previa deducción de la comisión de VERYGANA, a la cuenta bancaria certificada por el comerciante."
+    documents:
+      max-size-bytes: 10485760 # 10 MB
 
 # ============================================
 # SCREENING / SAGRILAFT CONFIG

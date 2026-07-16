@@ -60,7 +60,6 @@ import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.specifications.AdSpecifications;
 import com.verygana2.utils.validators.AssetDurationService;
-import com.verygana2.utils.validators.DateValidator;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityManager;
@@ -372,8 +371,6 @@ public class AdServiceImpl implements AdService {
     @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
     public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
         log.info("Updating ad {} for commercial {}", adId, commercialId);
-
-        DateValidator.validateFutureDate(updateDto.getStartDate(), "La fecha de inicio debe ser futura");
 
         Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));

@@ -188,4 +188,45 @@ public interface AuditLogRepository extends JpaRepository<AuditLog, Long> {
         @Param("endDate") ZonedDateTime endDate,
         Pageable pageable
     );
+
+    // ==================== Audit logs no-security (WARNING/CRITICAL) ====================
+
+    /**
+     * Eventos WARNING/CRITICAL de cualquier categoría EXCEPTO SECURITY — esa ya se
+     * expone aparte en /admin/security-events. Pensado para /admin/audit-logs, donde
+     * el front lista el resto de eventos relevantes (ej. PQRS, y lo que se agregue a
+     * futuro) sin duplicar lo que ya se ve en el panel de seguridad.
+     */
+    @Query("SELECT al FROM AuditLog al WHERE " +
+           "al.category <> 'SECURITY' AND al.level IN ('WARNING', 'CRITICAL') AND " +
+           "(:action IS NULL OR al.action = :action) AND " +
+           "(:category IS NULL OR al.category = :category) AND " +
+           "(:level IS NULL OR al.level = :level) AND " +
+           "al.createdAt BETWEEN :startDate AND :endDate " +
+           "ORDER BY al.createdAt DESC")
+    Page<AuditLog> searchNonSecurityAuditLogs(
+        @Param("action") String action,
+        @Param("category") String category,
+        @Param("level") AuditLevel level,
+        @Param("startDate") ZonedDateTime startDate,
+        @Param("endDate") ZonedDateTime endDate,
+        Pageable pageable
+    );
+
+    /** Igual que searchNonSecurityAuditLogs pero agregado (conteo por action), mismos filtros. */
+    @Query("SELECT al.action, COUNT(al) FROM AuditLog al WHERE " +
+           "al.category <> 'SECURITY' AND al.level IN ('WARNING', 'CRITICAL') AND " +
+           "(:action IS NULL OR al.action = :action) AND " +
+           "(:category IS NULL OR al.category = :category) AND " +
+           "(:level IS NULL OR al.level = :level) AND " +
+           "al.createdAt BETWEEN :startDate AND :endDate " +
+           "GROUP BY al.action " +
+           "ORDER BY COUNT(al) DESC")
+    List<Object[]> searchTopNonSecurityActions(
+        @Param("action") String action,
+        @Param("category") String category,
+        @Param("level") AuditLevel level,
+        @Param("startDate") ZonedDateTime startDate,
+        @Param("endDate") ZonedDateTime endDate
+    );
 }
