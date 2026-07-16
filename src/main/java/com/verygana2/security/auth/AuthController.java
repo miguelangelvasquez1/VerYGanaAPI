@@ -23,6 +23,7 @@ import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
 import com.verygana2.dtos.auth.RefreshRequest;
 import com.verygana2.dtos.auth.ResendUnlockCodeDTO;
+import com.verygana2.dtos.auth.ResetPasswordDTO;
 import com.verygana2.dtos.auth.SetupPasswordDTO;
 import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.dtos.auth.UnlockAccountDTO;
@@ -266,7 +267,7 @@ public class AuthController {
     @PostMapping("/register/consumer")
     public ResponseEntity<?> registerConsumer(@Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
         userService.registerConsumer(consumerRegisterRequest);
-        String message = Boolean.TRUE.equals(consumerRegisterRequest.getEsPEP())
+        String message = Boolean.TRUE.equals(consumerRegisterRequest.getIsPEP())
                 ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
                 : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
@@ -275,7 +276,7 @@ public class AuthController {
     @PostMapping("/register/commercial")
     public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
         userService.registerCommercial(dto);
-        String message = Boolean.TRUE.equals(dto.getEsPEP())
+        String message = Boolean.TRUE.equals(dto.getIsPEP())
                 ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
                 : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
@@ -300,6 +301,58 @@ public class AuthController {
         }
         userService.resendVerificationEmail(email);
         return ResponseEntity.ok("Correo de verificación reenviado.");
+    }
+
+    /**
+     * Alternativa por SMS: envía un OTP (Twilio Verify) al teléfono
+     * registrado de la cuenta pendiente de activación.
+     */
+    @PostMapping("/send-phone-verification")
+    public ResponseEntity<?> sendPhoneVerification(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body("El campo 'email' es requerido");
+        }
+        userService.sendPhoneVerification(email);
+        return ResponseEntity.ok("Código de verificación enviado por SMS al teléfono registrado.");
+    }
+
+    /**
+     * Activa la cuenta verificando el OTP recibido por SMS.
+     */
+    @PostMapping("/verify-phone")
+    public ResponseEntity<?> verifyPhone(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        if (email == null || email.isBlank() || code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body("Los campos 'email' y 'code' son requeridos");
+        }
+        userService.verifyPhoneCode(email, code);
+        return ResponseEntity.ok("Cuenta activada correctamente. Ya puedes iniciar sesión.");
+    }
+
+    /**
+     * Recuperación de contraseña: envía un código de 6 dígitos al correo.
+     * Responde igual exista o no la cuenta (anti-enumeración).
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body("El campo 'email' es requerido");
+        }
+        userService.requestPasswordReset(email);
+        return ResponseEntity.ok("Si el correo está registrado, recibirás un código de recuperación.");
+    }
+
+    /**
+     * Establece la nueva contraseña verificando el código de recuperación.
+     * Revoca todas las sesiones activas del usuario.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
+        userService.resetPassword(dto.getEmail(), dto.getCode(), dto.getNewPassword());
+        return ResponseEntity.ok("Contraseña actualizada correctamente. Ya puedes iniciar sesión.");
     }
 
     /**

@@ -15,6 +15,7 @@ public interface EmailService {
 
     // ===== AUTH =====
     void sendVerificationCodeEmail(String toEmail, String code);
+    void sendPasswordResetEmail(String toEmail, String code);
     void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode);
 
     // ===== BRANDING FLOW =====
