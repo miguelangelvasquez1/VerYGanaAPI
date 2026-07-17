@@ -212,10 +212,11 @@ public class SurveyService {
 
     // ─── ADMIN ────────────────────────────────────────────────────────────────
 
-    public PagedResponse<SurveySummaryResponse> getAllSurveys(Pageable pageable) {
-        Page<SurveySummaryResponse> page = surveyRepository.findAll(pageable)
-                .map(mapper::toSummaryResponse);
-        return PagedResponse.from(page);
+    public PagedResponse<SurveySummaryResponse> getAllSurveys(Pageable pageable, Survey.SurveyStatus status) {
+        Page<Survey> page = status != null
+                ? surveyRepository.findAllByStatusOrderByCreatedAtDesc(pageable, status)
+                : surveyRepository.findAll(pageable);
+        return PagedResponse.from(page.map(mapper::toSummaryResponse));
     }
 
     public SurveyAdminDetailDTO getSurveyAdminDetail(Long surveyId) {

@@ -1,5 +1,6 @@
 package com.verygana2.models;
 
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
@@ -62,6 +63,13 @@ public class User{
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
     private UserVerification verification;
+
+    // ── Bloqueo por intentos fallidos ───────────────────────────────────────
+    @Column(name = "failed_login_attempts", nullable = false, columnDefinition = "INT NOT NULL DEFAULT 0")
+    private int failedLoginAttempts = 0;
+
+    @Column(name = "account_locked_at")
+    private Instant accountLockedAt;
 
     @PrePersist
     private void generatePublicId() {

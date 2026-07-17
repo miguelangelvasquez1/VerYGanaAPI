@@ -109,6 +109,7 @@ class KeyExpiryServiceImplTest {
 
         service.processExpiredKeys();
 
+        @SuppressWarnings("unchecked")
         ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.forClass(List.class);
         verify(keyTransactionRepository).markAllAsProcessed(captor.capture());
         assertThat(captor.getValue()).containsExactly(credit.getId());

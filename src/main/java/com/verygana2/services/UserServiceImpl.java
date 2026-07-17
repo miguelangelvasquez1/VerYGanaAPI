@@ -54,6 +54,8 @@ public class UserServiceImpl implements UserService {
     private final PasswordSetupService passwordSetupService;
     private final EmailVerificationService emailVerificationService;
     private final ScreeningService screeningService;
+    private final TwilioSmsService twilioSmsService;
+    private final com.verygana2.security.auth.refreshToken.RefreshTokenRepository refreshTokenRepository;
 
     @Override
     public User registerGameDesigner(GameDesignerRegisterDTO dto) {
@@ -96,7 +98,7 @@ public class UserServiceImpl implements UserService {
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        if (Boolean.TRUE.equals(dto.getEsPEP())) {
+        if (Boolean.TRUE.equals(dto.getIsPEP())) {
             user.setUserState(UserState.PENDING_KYC_REVIEW);
         }
 
@@ -118,7 +120,7 @@ public class UserServiceImpl implements UserService {
         screeningService.screenOrThrow(savedUser.getId(), dto.getCompanyName(), dto.getNit());
         screeningService.screenOrThrow(savedUser.getId(), dto.getRepresentanteDocNumero(), dto.getRepresentanteDocNumero());
 
-        if (Boolean.TRUE.equals(dto.getEsPEP())) {
+        if (Boolean.TRUE.equals(dto.getIsPEP())) {
             log.info("Comercial {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", savedUser.getEmail());
         } else {
             sendVerificationEmail(savedUser);
@@ -154,7 +156,7 @@ public class UserServiceImpl implements UserService {
 
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
-        if (Boolean.TRUE.equals(dto.getEsPEP())) {
+        if (Boolean.TRUE.equals(dto.getIsPEP())) {
             user.setUserState(UserState.PENDING_KYC_REVIEW);
         }
 
@@ -180,7 +182,7 @@ public class UserServiceImpl implements UserService {
             );
         }
 
-        if (Boolean.TRUE.equals(dto.getEsPEP())) {
+        if (Boolean.TRUE.equals(dto.getIsPEP())) {
             log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", user.getEmail());
         } else {
             sendVerificationEmail(user);
@@ -220,6 +222,67 @@ public class UserServiceImpl implements UserService {
 
     private void sendVerificationEmail(User user) {
         emailVerificationService.sendVerificationCode(user.getEmail());
+    }
+
+    // ─── Verificación por SMS (alternativa al email) ─────────────────────────
+    // Twilio Verify gestiona generación, expiración, reintentos y rate-limit
+    // del OTP en su lado; aquí solo se controla el estado de la cuenta.
+
+    @Override
+    public void sendPhoneVerification(String email) {
+        User user = requirePendingEmailUser(email);
+        twilioSmsService.sendOtp(user.getPhoneNumber());
+        log.info("SMS verification code sent for account {}", email);
+    }
+
+    @Override
+    public void verifyPhoneCode(String email, String code) {
+        User user = requirePendingEmailUser(email);
+
+        if (!twilioSmsService.verifyOtp(user.getPhoneNumber(), code)) {
+            throw new IllegalArgumentException("Código de verificación incorrecto o expirado");
+        }
+
+        user.setUserState(UserState.ACTIVE);
+        userRepository.save(user);
+        log.info("Account {} activated via SMS verification", email);
+    }
+
+    private User requirePendingEmailUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
+        if (user.getUserState() != UserState.PENDING_EMAIL) {
+            throw new IllegalStateException("La cuenta ya está activa");
+        }
+        return user;
+    }
+
+    // ─── Recuperación de contraseña ───────────────────────────────────────────
+
+    @Override
+    public void requestPasswordReset(String email) {
+        // Anti-enumeración: si el correo no existe, no hacer nada y responder igual
+        userRepository.findByEmail(email).ifPresentOrElse(
+                user -> emailVerificationService.sendPasswordResetCode(email),
+                () -> log.info("Password reset requested for unknown email"));
+    }
+
+    @Override
+    @Transactional
+    public void resetPassword(String email, String code, String newPassword) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Código de verificación incorrecto"));
+
+        emailVerificationService.verifyCode(email, code);
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordConfigured(true);
+        userRepository.save(user);
+
+        // Cerrar todas las sesiones activas: la contraseña cambió
+        refreshTokenRepository.deleteByUsername(user);
+
+        log.info("Password reset completed for user {}", email);
     }
 
     private String normalizeUsername(String u) {

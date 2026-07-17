@@ -41,4 +41,9 @@ public class EmailVerificationCode {
     @Column(nullable = false)
     @Builder.Default
     private int attempts = 0;
+
+    /** Para rate-limiting: cooldown entre envíos y tope por hora */
+    @Column(nullable = false)
+    @Builder.Default
+    private LocalDateTime createdAt = LocalDateTime.now();
 }

@@ -48,7 +48,7 @@ public class CommercialRegisterDTO {
 
     @NotNull(message = "PEP declaration is required")
     @JsonProperty("legalRepPepDeclaration")
-    private Boolean esPEP;
+    private Boolean isPEP;
 
     @JsonProperty("annualIncomeRange")
     private AnnualRevenueRange ingresosAnualesRango;

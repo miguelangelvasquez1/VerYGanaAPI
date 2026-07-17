@@ -54,7 +54,6 @@ public class LevelController {
                         l.getXpMin(),
                         l.getXpMax() == Long.MAX_VALUE ? "∞" : String.valueOf(l.getXpMax()),
                         l.getMultiplier(),
-                        l.getReferralKeys(),
                         l.getReferralTickets()
                 ))
                 .toList();

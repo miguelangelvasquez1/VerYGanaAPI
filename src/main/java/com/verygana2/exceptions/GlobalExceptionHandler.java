@@ -31,6 +31,7 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
@@ -125,6 +126,18 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.UNAUTHORIZED,
                 "Tu cuenta ha sido bloqueada. Contacta al soporte para más información.",
                 request);
+    }
+
+    /**
+     * 423 (no 401) a propósito: le da al front un discriminador confiable por
+     * status code para saber que debe pedir el código de desbloqueo, sin
+     * depender de parsear el texto de "message".
+     */
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<ErrorResponse> handleAccountLockedException(
+            AccountLockedException ex, WebRequest request) {
+        log.warn("Login blocked — account locked by failed attempts: {}", ex.getMessage());
+        return buildError(HttpStatus.LOCKED, ex.getMessage(), request);
     }
 
     // ==================== RECURSOS NO ENCONTRADOS (404) ====================

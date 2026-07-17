@@ -1,6 +1,5 @@
 package com.verygana2.models.raffles;
 
-import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -8,12 +7,9 @@ import java.util.List;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
-import com.verygana2.models.enums.raffles.TicketEarningRuleType;
-
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;

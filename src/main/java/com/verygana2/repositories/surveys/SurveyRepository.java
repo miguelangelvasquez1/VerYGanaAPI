@@ -24,6 +24,8 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     Page<Survey> findAllByCreatorIdAndStatusOrderByCreatedAtDesc(Pageable pageable, Long creatorId, Survey.SurveyStatus status);
 
+    Page<Survey> findAllByStatusOrderByCreatedAtDesc(Pageable pageable, Survey.SurveyStatus status);
+
     long countByCreatorIdAndStatus(Long creatorId, Survey.SurveyStatus status);
 
     /** Counts surveys still consuming a plan slot (everything except final states: CLOSED/"cancelled" and COMPLETED). */

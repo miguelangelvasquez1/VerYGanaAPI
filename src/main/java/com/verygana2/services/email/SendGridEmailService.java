@@ -151,6 +151,20 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
+    public void sendPasswordResetEmail(String toEmail, String code) {
+        log.info("Sending password reset email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("password-reset.html", Map.of(
+                    "resetCode", code,
+                    "supportEmail", supportEmail));
+            sendEmail(toEmail, "🔑 Recupera tu cuenta - VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending password reset email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode) {
         log.info("Sending password setup email to designer: {}", toEmail);
         try {
@@ -328,6 +342,28 @@ public class SendGridEmailService implements EmailService {
             sendEmail(adminEmail, "⚠️ PQRS próximo a vencer — Radicado " + based, html);
         } catch (Exception e) {
             log.error("Error sending PQRS SLA alert to: {}", adminEmail, e);
+        }
+    }
+
+    // ===== SEGURIDAD =====
+
+    @Override
+    @Async
+    public void sendSecurityAlertEmail(String adminEmail, String alertType, String severity, String source,
+                                        String description, ZonedDateTime detectedAt) {
+        log.info("Sending security alert email to: {} - type: {}", adminEmail, alertType);
+        try {
+            String html = templateLoader.render("security-alert.html", Map.of(
+                    "alertType", escapeHtml(alertType),
+                    "severity", escapeHtml(severity),
+                    "source", escapeHtml(source),
+                    "description", escapeHtml(description),
+                    "detectedAt", detectedAt.format(DATE_FORMATTER),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail));
+            sendEmail(adminEmail, "🚨 Alerta de seguridad crítica — " + alertType, html);
+        } catch (Exception e) {
+            log.error("Error sending security alert email to: {}", adminEmail, e);
         }
     }
 

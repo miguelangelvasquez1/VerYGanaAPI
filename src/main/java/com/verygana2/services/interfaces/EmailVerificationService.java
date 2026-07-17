@@ -10,6 +10,12 @@ public interface EmailVerificationService {
     void sendVerificationCode(String email);
 
     /**
+     * Igual que {@link #sendVerificationCode} (mismo rate-limit y almacenamiento)
+     * pero envía la plantilla de recuperación de contraseña.
+     */
+    void sendPasswordResetCode(String email);
+
+    /**
      * Verifica el código ingresado por el usuario contra el último código
      * generado para ese correo.
      *

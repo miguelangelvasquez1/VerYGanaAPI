@@ -84,6 +84,31 @@ class SecurityAuditServiceTest {
         }
     }
 
+    // ─── logAuthFailure ───────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("logAuthFailure")
+    class LogAuthFailure {
+
+        @Test
+        @DisplayName("publica un AuditEvent en category=AUTH con IP y user-agent")
+        void publishesAuthCategoryEventWithClientInfo() {
+            service.logAuthFailure("user@test.com", "10.0.0.1", "Chrome/100", "Bad credentials");
+
+            ArgumentCaptor<AuditEvent> captor = ArgumentCaptor.forClass(AuditEvent.class);
+            verify(eventPublisher).publishEvent(captor.capture());
+
+            AuditEvent event = captor.getValue();
+            assertThat(event.getCategory()).isEqualTo("AUTH");
+            assertThat(event.getAction()).isEqualTo("LOGIN_FAILED");
+            assertThat(event.getLevel()).isEqualTo(AuditLevel.WARNING);
+            assertThat(event.getUsername()).isEqualTo("user@test.com");
+            assertThat(event.getIpAddress()).isEqualTo("10.0.0.1");
+            assertThat(event.getUserAgent()).isEqualTo("Chrome/100");
+            assertThat(event.getSuccess()).isFalse();
+        }
+    }
+
     // ─── logSystemError ───────────────────────────────────────────────────────
 
     @Nested

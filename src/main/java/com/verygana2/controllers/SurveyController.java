@@ -223,9 +223,10 @@ public class SurveyController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/admin")
     public ResponseEntity<PagedResponse<SurveySummaryResponse>> getAllSurveysForAdmin(
-            @PageableDefault(size = 10) Pageable pageable) {
+            @PageableDefault(size = 10) Pageable pageable,
+            @RequestParam(required = false) Survey.SurveyStatus status) {
 
-        return ResponseEntity.ok(surveyService.getAllSurveys(pageable));
+        return ResponseEntity.ok(surveyService.getAllSurveys(pageable, status));
     }
 
     @PreAuthorize("hasRole('ADMIN')")

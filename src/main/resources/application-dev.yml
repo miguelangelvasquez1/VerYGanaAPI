@@ -35,7 +35,9 @@ rsa:
 
 jwt:
   access-token:
-    expiration: 86400      # 1 day (in seconds)
+    expiration: 900        # 15 min (in seconds) — corto a propósito: es un JWT stateless sin
+                            # chequeo de revocación por request, así que su vida útil es la
+                            # ventana de exposición si se filtra. La sesión larga la maneja el refresh token.
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
@@ -244,15 +246,19 @@ app:
       enabled: true
       auto-block-enabled: false
       check-interval-ms: 3600000       # Detección sospechosa: cada 1 hora
-      session-check-interval-ms: 1800000 # Sesiones anómalas: cada 30 min
       health-check-interval-ms: 300000   # Health check: cada 5 min
     cleanup:
       cron: "0 0 2 * * ?"              # Limpieza de tokens: 2:00 AM diario
     suspicious-activity:
-      tokens-per-ip-threshold: 10       # Tokens por IP que activan alerta
-      check-window-hours: 1             # Ventana de tiempo para detección
+      failed-logins-per-ip-threshold: 10  # Logins fallidos por IP que activan alerta
+      check-window-hours: 1               # Ventana de tiempo para detección
+    token-farming:
+      threshold: 10                       # Tokens de un mismo usuario en la ventana (check-window-hours) que activan alerta
     sessions:
-      max-per-user: 15                  # Máx. sesiones activas por usuario
+      max-per-user: 5                   # Máx. sesiones activas por usuario (se aplica al conceder un token nuevo, no por job)
+      rapid-cycle-window-seconds: 60    # Si al llegar al cap la sesión más vieja tiene menos de esto, se loguea como posible farming
+    account-lock:
+      max-failed-attempts: 5            # Intentos fallidos de login antes de bloquear la cuenta (se desbloquea con código por correo)
 
 # ============================================
 # AUDIT CONFIG

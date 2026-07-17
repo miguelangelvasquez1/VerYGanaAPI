@@ -15,6 +15,7 @@ public interface EmailService {
 
     // ===== AUTH =====
     void sendVerificationCodeEmail(String toEmail, String code);
+    void sendPasswordResetEmail(String toEmail, String code);
     void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode);
 
     // ===== BRANDING FLOW =====
@@ -29,4 +30,8 @@ public interface EmailService {
     void sendPqrsAssignedToAdmin(String adminEmail, String adminName, String based, String subject, ZonedDateTime dueDate);
     void sendPqrsResolved(String toEmail, String requesterName, String based, String response);
     void sendPqrsSlaAlert(String adminEmail, String adminName, String based, ZonedDateTime dueDate);
+
+    // ===== SEGURIDAD =====
+    void sendSecurityAlertEmail(String adminEmail, String alertType, String severity, String source,
+                                 String description, ZonedDateTime detectedAt);
 }

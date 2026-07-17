@@ -6,7 +6,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 /**
  * Entidad para almacenar logs de auditoría
@@ -77,7 +77,7 @@ public class AuditLog {
     // ==================== Cuándo ====================
     
     @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    private ZonedDateTime createdAt;
     
     @Column(name = "execution_time_ms")
     private Long executionTimeMs;
@@ -121,7 +121,7 @@ public class AuditLog {
     @PrePersist
     protected void onCreate() {
         if (createdAt == null) {
-            createdAt = LocalDateTime.now();
+            createdAt = ZonedDateTime.now();
         }
     }
 }

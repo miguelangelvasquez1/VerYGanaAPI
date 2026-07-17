@@ -13,7 +13,6 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.verygana2.dtos.raffle.websocket.RaffleDrawEventDTO;
 import com.verygana2.models.enums.raffles.DrawEventType;
-import com.verygana2.models.raffles.RaffleWinner;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;

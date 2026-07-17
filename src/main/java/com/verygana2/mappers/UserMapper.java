@@ -35,6 +35,8 @@ public abstract class UserMapper {
 
     // ---- CONSUMER ----
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     @Mapping(target = "role", constant = "CONSUMER")
     @Mapping(target = "userDetails", ignore = true)
     @Mapping(target = "userState", constant = "PENDING_EMAIL")
@@ -129,6 +131,8 @@ public abstract class UserMapper {
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(CommercialRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -171,6 +175,8 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "password", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(GameDesignerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)
@@ -191,6 +197,8 @@ public abstract class UserMapper {
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
     @Mapping(target = "passwordConfigured", ignore = true)
+    @Mapping(target = "accountLockedAt", ignore = true)
+    @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(ComplianceOfficerRegisterDTO dto);
 
     @Mapping(target = "id", ignore = true)

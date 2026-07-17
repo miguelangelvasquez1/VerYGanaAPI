@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Entity
 @Table(
@@ -22,6 +23,7 @@ import lombok.Data;
     }
 )
 @Data
+@NoArgsConstructor
 public class RefreshToken {
 
     @Id
@@ -54,11 +56,18 @@ public class RefreshToken {
     @Column(name = "user_agent", length = 500)
     private String userAgent;
 
-    @Column(name = "device_id", length = 255)
-    private String deviceId;
-
     @Column(name = "last_used_at")
     private Instant lastUsedAt;
+
+    public RefreshToken(String username, String token, String jti, Instant expiresAt, String ipAddress, String userAgent) {
+        this.username = username;
+        this.token = token;
+        this.jti = jti;
+        this.expiresAt = expiresAt;
+        this.ipAddress = ipAddress;
+        this.userAgent = userAgent;
+        this.lastUsedAt = Instant.now();
+    }
 
     // ── Métodos helper ─────────────────────────────────────────────────────────
 

@@ -54,6 +54,7 @@ import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.scoring.ScoringContext;
+import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.OptimisticLockException;
@@ -96,6 +97,7 @@ public class AdLikeServiceImpl implements AdLikeService {
     private final AdMapper adMapper;
     private final R2Service r2Service;
     private final ApplicationEventPublisher eventPublisher;
+    private final LevelService levelService;
 
     @Override
     @Transactional(noRollbackFor = {ValidationException.class, LimitReachedException.class})
@@ -168,8 +170,11 @@ public class AdLikeServiceImpl implements AdLikeService {
             throw new ValidationException("El anuncio fue actualizado, intente nuevamente");
         }
 
+        long userRewardKeysCents = Math.round(
+                rewardKeysCents * levelService.getMultiplier(consumerId));
+
         KeyWallet keyWallet = consumer.getKeyWallet();
-        creditRewardToUser(keyWallet, rewardKeysCents, adId, sessionId);
+        creditRewardToUser(keyWallet, userRewardKeysCents, adId, sessionId);
 
         // 6. Actualizar la sesión de visualización
         session.setStatus(AdWatchSessionStatus.LIKED);
@@ -182,9 +187,10 @@ public class AdLikeServiceImpl implements AdLikeService {
                     new XpAwardRequestedEvent(this, consumerId, ActivityType.VIDEO_WATCHED));
         }
 
-        log.info("Like processed successfully. User rewarded with: {}", rewardKeysCents);
+        log.info("Like processed successfully. User rewarded with: {} (base: {})",
+                userRewardKeysCents, rewardKeysCents);
 
-        return new AdLikedResponse(true, rewardKeysCents / keyValueCents);
+        return new AdLikedResponse(true, userRewardKeysCents / keyValueCents);
     }
 
 

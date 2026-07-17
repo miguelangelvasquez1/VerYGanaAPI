@@ -8,8 +8,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -20,13 +22,18 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.auth.AuthResponse;
 import com.verygana2.dtos.auth.RefreshRequest;
+import com.verygana2.dtos.auth.ResendUnlockCodeDTO;
+import com.verygana2.dtos.auth.ResetPasswordDTO;
 import com.verygana2.dtos.auth.SetupPasswordDTO;
 import com.verygana2.dtos.auth.TokenPairDTO;
+import com.verygana2.dtos.auth.UnlockAccountDTO;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ComplianceOfficerRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.security.CustomUserDetails;
+import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,6 +56,8 @@ public class AuthController {
     private final UserService userService;
     private final TicketDeliveryService ticketDeliveryService;
     private final PasswordSetupService passwordSetupService;
+    private final SecurityAuditService securityAuditService;
+    private final AccountLockService accountLockService;
 
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
@@ -56,12 +65,16 @@ public class AuthController {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
-    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService, TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService) {
+    public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService,
+                           TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService,
+                           SecurityAuditService securityAuditService, AccountLockService accountLockService) {
         this.tokenService = tokenService;
         this.authManager = authManager;
         this.userService = userService;
         this.ticketDeliveryService = ticketDeliveryService;
         this.passwordSetupService = passwordSetupService;
+        this.securityAuditService = securityAuditService;
+        this.accountLockService = accountLockService;
     }
 
     /**
@@ -70,13 +83,43 @@ public class AuthController {
     @PostMapping("/login")
     @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request,
-            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType
+            @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
+            HttpServletRequest httpRequest
     ) {
 
         log.info("Login attempt for user: {} from {}", request.getIdentifier(), clientType);
 
-        Authentication authentication = authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a CustomUserDetailsService
+        if (accountLockService.isLocked(request.getIdentifier())) {
+            throw new AccountLockedException("Cuenta bloqueada por múltiples intentos fallidos. Revisa tu correo para el código de desbloqueo.");
+        }
+
+        Authentication authentication;
+        try {
+            authentication = authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.getIdentifier(), request.getPassword())); // -> Aquí se llama a CustomUserDetailsService
+        } catch (BadCredentialsException ex) {
+            securityAuditService.logAuthFailure(
+                    request.getIdentifier(),
+                    RequestClientInfo.resolveIp(httpRequest),
+                    RequestClientInfo.resolveUserAgent(httpRequest),
+                    ex.getMessage());
+
+            accountLockService.registerFailedAttempt(request.getIdentifier());
+            if (accountLockService.isLocked(request.getIdentifier())) {
+                throw new AccountLockedException(
+                        "Cuenta bloqueada por múltiples intentos fallidos. Revisa tu correo para el código de desbloqueo.");
+            }
+            throw ex;
+        } catch (AuthenticationException ex) {
+            securityAuditService.logAuthFailure(
+                    request.getIdentifier(),
+                    RequestClientInfo.resolveIp(httpRequest),
+                    RequestClientInfo.resolveUserAgent(httpRequest),
+                    ex.getMessage());
+            throw ex;
+        }
+
+        accountLockService.registerSuccessfulLogin(request.getIdentifier());
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 
@@ -224,7 +267,7 @@ public class AuthController {
     @PostMapping("/register/consumer")
     public ResponseEntity<?> registerConsumer(@Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
         userService.registerConsumer(consumerRegisterRequest);
-        String message = Boolean.TRUE.equals(consumerRegisterRequest.getEsPEP())
+        String message = Boolean.TRUE.equals(consumerRegisterRequest.getIsPEP())
                 ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
                 : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
@@ -233,7 +276,7 @@ public class AuthController {
     @PostMapping("/register/commercial")
     public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
         userService.registerCommercial(dto);
-        String message = Boolean.TRUE.equals(dto.getEsPEP())
+        String message = Boolean.TRUE.equals(dto.getIsPEP())
                 ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
                 : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
@@ -258,6 +301,78 @@ public class AuthController {
         }
         userService.resendVerificationEmail(email);
         return ResponseEntity.ok("Correo de verificación reenviado.");
+    }
+
+    /**
+     * Alternativa por SMS: envía un OTP (Twilio Verify) al teléfono
+     * registrado de la cuenta pendiente de activación.
+     */
+    @PostMapping("/send-phone-verification")
+    public ResponseEntity<?> sendPhoneVerification(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body("El campo 'email' es requerido");
+        }
+        userService.sendPhoneVerification(email);
+        return ResponseEntity.ok("Código de verificación enviado por SMS al teléfono registrado.");
+    }
+
+    /**
+     * Activa la cuenta verificando el OTP recibido por SMS.
+     */
+    @PostMapping("/verify-phone")
+    public ResponseEntity<?> verifyPhone(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        String code = body.get("code");
+        if (email == null || email.isBlank() || code == null || code.isBlank()) {
+            return ResponseEntity.badRequest().body("Los campos 'email' y 'code' son requeridos");
+        }
+        userService.verifyPhoneCode(email, code);
+        return ResponseEntity.ok("Cuenta activada correctamente. Ya puedes iniciar sesión.");
+    }
+
+    /**
+     * Recuperación de contraseña: envía un código de 6 dígitos al correo.
+     * Responde igual exista o no la cuenta (anti-enumeración).
+     */
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody java.util.Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body("El campo 'email' es requerido");
+        }
+        userService.requestPasswordReset(email);
+        return ResponseEntity.ok("Si el correo está registrado, recibirás un código de recuperación.");
+    }
+
+    /**
+     * Establece la nueva contraseña verificando el código de recuperación.
+     * Revoca todas las sesiones activas del usuario.
+     */
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody ResetPasswordDTO dto) {
+        userService.resetPassword(dto.getEmail(), dto.getCode(), dto.getNewPassword());
+        return ResponseEntity.ok("Contraseña actualizada correctamente. Ya puedes iniciar sesión.");
+    }
+
+    /**
+     * Desbloquea una cuenta bloqueada por intentos fallidos, verificando el
+     * código de 6 dígitos enviado al correo del usuario.
+     */
+    @PostMapping("/unlock-account")
+    public ResponseEntity<String> unlockAccount(@Valid @RequestBody UnlockAccountDTO dto) {
+        accountLockService.unlock(dto.getIdentifier(), dto.getCode());
+        return ResponseEntity.ok("Cuenta desbloqueada correctamente. Ya puedes iniciar sesión.");
+    }
+
+    /**
+     * Reenvía el código de desbloqueo. Responde con el mismo mensaje exista o
+     * no la cuenta / esté o no bloqueada, para no revelar esa información.
+     */
+    @PostMapping("/resend-unlock-code")
+    public ResponseEntity<String> resendUnlockCode(@Valid @RequestBody ResendUnlockCodeDTO dto) {
+        accountLockService.resendUnlockCode(dto.getIdentifier());
+        return ResponseEntity.ok("Si la cuenta existe y está bloqueada, se envió un nuevo código a su correo.");
     }
 
     @PostMapping("/register/compliance-officer")

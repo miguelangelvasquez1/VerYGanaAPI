@@ -1,6 +1,5 @@
 package com.verygana2.models.raffles;
 
-import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
@@ -33,9 +32,7 @@ import lombok.NoArgsConstructor;
         @Index(name = "idx_consumer_tickets", columnList = "ticket_owner_id, status"),
         @Index(name = "idx_ticket_source_lookup", columnList = "ticket_owner_id, source, source_id")
 }, uniqueConstraints = {
-        @UniqueConstraint(name = "unique_ticket_number_per_raffle", columnNames = { "raffle_id", "ticket_number" }),
-        @UniqueConstraint(name = "unique_ticket_source_per_user", columnNames = { "ticket_owner_id", "source",
-                "source_id" })
+        @UniqueConstraint(name = "unique_ticket_number_per_raffle", columnNames = { "raffle_id", "ticket_number" })
 })
 @Data
 @AllArgsConstructor

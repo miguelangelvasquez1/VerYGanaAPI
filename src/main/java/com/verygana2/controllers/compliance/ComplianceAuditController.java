@@ -1,6 +1,6 @@
 package com.verygana2.controllers.compliance;
 
-import java.time.LocalDateTime;
+import java.time.ZonedDateTime;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -34,12 +34,12 @@ public class ComplianceAuditController {
             @RequestParam(required = false) AuditLevel level,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) Boolean success,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime to,
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable) {
 
-        LocalDateTime start = from != null ? from : LocalDateTime.now().minusDays(30);
-        LocalDateTime end = to != null ? to : LocalDateTime.now();
+        ZonedDateTime start = from != null ? from : ZonedDateTime.now().minusDays(30);
+        ZonedDateTime end = to != null ? to : ZonedDateTime.now();
 
         Page<AuditLog> logs = auditLogRepository.searchAuditLogs(
                 userId, action, level, category, success, start, end, pageable);
@@ -49,11 +49,11 @@ public class ComplianceAuditController {
 
     @GetMapping("/critical")
     public ResponseEntity<Page<AuditLog>> getCritical(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime to,
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable) {
 
-        LocalDateTime start = from != null ? from : LocalDateTime.now().minusDays(30);
+        ZonedDateTime start = from != null ? from : ZonedDateTime.now().minusDays(30);
 
         Page<AuditLog> logs = auditLogRepository.findRecentByLevel(AuditLevel.CRITICAL, start, pageable);
         return ResponseEntity.ok(logs);
