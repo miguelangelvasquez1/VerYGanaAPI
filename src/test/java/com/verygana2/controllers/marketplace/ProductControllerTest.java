@@ -23,10 +23,8 @@ import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.requests.ConfirmProductCreationRequestDTO;
-import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
-import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.services.interfaces.marketplace.ProductService;
@@ -140,70 +138,8 @@ class ProductControllerTest {
     }
 
     @Nested
-    @DisplayName("stock digital")
-    class StockManagement {
-
-        @Test
-        @DisplayName("addStockItem: delega y responde 201 CREATED")
-        void addStockItem_returns201() {
-            ProductStockRequestDTO request = new ProductStockRequestDTO();
-            ProductStockResponseDTO expected = new ProductStockResponseDTO();
-            when(productStockService.addStockItem(1L, 9L, request)).thenReturn(expected);
-
-            var response = controller.addStockItem(1L, request, jwtWithUserId(9L));
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-            assertThat(response.getBody()).isSameAs(expected);
-        }
-
-        @Test
-        @DisplayName("updateStockItem: delega con productId/stockId/commercialId")
-        void updateStockItem_delegates() {
-            ProductStockRequestDTO request = new ProductStockRequestDTO();
-            ProductStockResponseDTO expected = new ProductStockResponseDTO();
-            when(productStockService.updateStockItem(1L, 2L, 9L, request)).thenReturn(expected);
-
-            var response = controller.updateStockItem(1L, 2L, request, jwtWithUserId(9L));
-
-            assertThat(response.getBody()).isSameAs(expected);
-        }
-
-        @Test
-        @DisplayName("deleteStockItem: delega y responde 204")
-        void deleteStockItem_returns204() {
-            var response = controller.deleteStockItem(1L, 2L, jwtWithUserId(9L));
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
-            verify(productStockService).deleteStockItem(1L, 2L, 9L);
-        }
-
-        @Test
-        @DisplayName("addBulkStockItems: delega y responde 201 CREATED")
-        void addBulkStockItems_returns201() {
-            List<ProductStockRequestDTO> requests = List.of(new ProductStockRequestDTO());
-            var expected = new com.verygana2.dtos.product.responses.BulkStockResponseDTO();
-            when(productStockService.addBulkStockItems(1L, 9L, requests)).thenReturn(expected);
-
-            var response = controller.addBulkStockItems(1L, requests, jwtWithUserId(9L));
-
-            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
-        }
-    }
-
-    @Nested
     @DisplayName("catálogo público")
     class Catalog {
-
-        @Test
-        @DisplayName("loadProducts: delega la página solicitada")
-        void loadProducts_delegates() {
-            var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
-            when(productService.getAllProducts(0)).thenReturn(expected);
-
-            var response = controller.loadProducts(0);
-
-            assertThat(response.getBody()).isSameAs(expected);
-        }
 
         @Test
         @DisplayName("searchProducts: pasa todos los filtros de búsqueda al service")

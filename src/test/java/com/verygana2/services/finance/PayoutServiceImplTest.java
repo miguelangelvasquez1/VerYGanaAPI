@@ -3,7 +3,6 @@ package com.verygana2.services.finance;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,28 +14,28 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.verygana2.dtos.kushki.KushkiTokenResponseDTO;
-import com.verygana2.dtos.kushki.KushkiTransferResponseDTO;
-import com.verygana2.dtos.kushki.KushkiWebhookEvent;
+import com.verygana2.config.wompi.WompiPayoutConfig;
+import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
+import com.verygana2.models.User;
 import com.verygana2.models.enums.finance.CopaymentStatus;
-import com.verygana2.models.enums.finance.KushkiTransactionStatus;
 import com.verygana2.models.enums.finance.PayoutStatus;
+import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.finance.Copayment;
-import com.verygana2.models.finance.KushkiTransaction;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
+import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
-import com.verygana2.repositories.finance.KushkiTransactionRepository;
 import com.verygana2.repositories.finance.PayoutItemRepository;
 import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
+import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
-import com.verygana2.services.kushki.KushkiPayoutClient;
+import com.verygana2.services.wompi.WompiPayoutClient;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -49,10 +48,10 @@ import static org.mockito.Mockito.when;
 
 /**
  * Tests de {@link PayoutServiceImpl}: el job de payouts en sus 2 fases
- * (agrupar copagos por comercial → transferir vía Kushki) y el webhook que
- * confirma cada transferencia. Kushki está mockeado — estos tests no
- * requieren credenciales reales, solo verifican que el servicio orquesta
- * correctamente lo que ya está implementado.
+ * (agrupar copagos por comercial → transferir vía Wompi Pagos a Terceros) y
+ * el webhook que confirma cada transferencia. Wompi está mockeado — estos
+ * tests no requieren credenciales reales, solo verifican que el servicio
+ * orquesta correctamente lo que ya está implementado.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PayoutServiceImpl")
@@ -62,8 +61,9 @@ class PayoutServiceImplTest {
     @Mock private PayoutItemRepository payoutItemRepository;
     @Mock private CopaymentRepository copaymentRepository;
     @Mock private TreasuryService treasuryService;
-    @Mock private KushkiPayoutClient kushkiPayoutClient;
-    @Mock private KushkiTransactionRepository kushkiTransactionRepository;
+    @Mock private WompiPayoutClient wompiPayoutClient;
+    @Mock private WompiTransactionRepository wompiTransactionRepository;
+    @Mock private WompiPayoutConfig wompiPayoutConfig;
     @Mock private PayoutMethodRepository payoutMethodRepository;
 
     private PayoutServiceImpl service;
@@ -71,13 +71,16 @@ class PayoutServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PayoutServiceImpl(payoutRepository, payoutItemRepository, copaymentRepository, treasuryService,
-                kushkiPayoutClient, kushkiTransactionRepository, payoutMethodRepository);
+                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig, payoutMethodRepository);
     }
 
     private CommercialDetails commercial(Long id, String name) {
         CommercialDetails c = new CommercialDetails();
         c.setId(id);
         c.setCompanyName(name);
+        User user = new User();
+        user.setEmail("comercial" + id + "@verygana.co");
+        c.setUser(user);
         return c;
     }
 
@@ -149,8 +152,9 @@ class PayoutServiceImplTest {
 
         private PayoutMethod verifiedMethod() {
             return PayoutMethod.builder().verificationStatus(VerificationStatus.VERIFIED)
+                    .type(PayoutMethod.PayoutMethodType.BANK_TRANSFER)
                     .accountHolderDocType(PayoutMethod.DocType.CC).accountHolderDoc("123")
-                    .accountHolderName("Juan").bankCode("1007")
+                    .accountHolderName("Juan").bankCode("bank-uuid-1007")
                     .bankAccountType(PayoutMethod.BankAccountType.SAVINGS).accountNumber("999").build();
         }
 
@@ -161,11 +165,11 @@ class PayoutServiceImplTest {
 
             service.processScheduledPayouts();
 
-            verify(kushkiPayoutClient, never()).tokenizeAccount(any());
+            verify(wompiPayoutClient, never()).createPayout(any());
         }
 
         @Test
-        @DisplayName("transferencia exitosa: el payout pasa a PROCESSING y queda vinculado a la KushkiTransaction")
+        @DisplayName("transferencia exitosa: el payout pasa a PROCESSING y queda vinculado a la WompiTransaction")
         void successfulTransfer_movesToProcessing() {
             CommercialDetails commercial = commercial(1L, "Tienda X");
             Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
@@ -174,21 +178,19 @@ class PayoutServiceImplTest {
             when(payoutRepository.findByStatus(PayoutStatus.SCHEDULED)).thenReturn(List.of(payout));
             when(payoutMethodRepository.findFirstByCommercialIdAndVerificationStatusAndActiveTrue(1L, VerificationStatus.VERIFIED))
                     .thenReturn(Optional.of(verifiedMethod()));
+            when(wompiPayoutConfig.getAccountId()).thenReturn("acc_123");
 
-            KushkiTokenResponseDTO tokenResponse = new KushkiTokenResponseDTO();
-            tokenResponse.setToken("tok_123");
-            when(kushkiPayoutClient.tokenizeAccount(any())).thenReturn(tokenResponse);
-
-            KushkiTransferResponseDTO transferResponse = new KushkiTransferResponseDTO();
-            transferResponse.setTransferId("tr_123");
-            transferResponse.setCode("000");
-            when(kushkiPayoutClient.initiateTransfer(any())).thenReturn(transferResponse);
-            when(kushkiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            WompiPayoutResponseDTO response = new WompiPayoutResponseDTO();
+            response.setId("wp_123");
+            response.setStatus("PENDING");
+            when(wompiPayoutClient.createPayout(any())).thenReturn(response);
+            when(wompiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             service.processScheduledPayouts();
 
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.PROCESSING);
-            assertThat(payout.getKushkiTransaction()).isNotNull();
+            assertThat(payout.getWompiTransaction()).isNotNull();
+            assertThat(payout.getWompiTransaction().getStatus()).isEqualTo(WompiTransactionStatus.PENDING);
         }
 
         @Test
@@ -206,12 +208,12 @@ class PayoutServiceImplTest {
 
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.FAILED);
             assertThat(payout.getFailureReason()).isNotBlank();
-            verify(kushkiPayoutClient, never()).tokenizeAccount(any());
+            verify(wompiPayoutClient, never()).createPayout(any());
         }
 
         @Test
-        @DisplayName("Kushki rechaza la transferencia (code != 000): el payout queda FAILED con el mensaje de Kushki")
-        void kushkiRejectsTransfer_marksFailed() {
+        @DisplayName("Wompi rechaza el payout (status != aceptado): el payout queda FAILED con el status de Wompi")
+        void wompiRejectsPayout_marksFailed() {
             CommercialDetails commercial = commercial(1L, "Tienda X");
             Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
                     .netAmountCents(90_000L).status(PayoutStatus.SCHEDULED).build();
@@ -219,21 +221,18 @@ class PayoutServiceImplTest {
             when(payoutRepository.findByStatus(PayoutStatus.SCHEDULED)).thenReturn(List.of(payout));
             when(payoutMethodRepository.findFirstByCommercialIdAndVerificationStatusAndActiveTrue(1L, VerificationStatus.VERIFIED))
                     .thenReturn(Optional.of(verifiedMethod()));
+            when(wompiPayoutConfig.getAccountId()).thenReturn("acc_123");
 
-            KushkiTokenResponseDTO tokenResponse = new KushkiTokenResponseDTO();
-            tokenResponse.setToken("tok_123");
-            when(kushkiPayoutClient.tokenizeAccount(any())).thenReturn(tokenResponse);
-
-            KushkiTransferResponseDTO transferResponse = new KushkiTransferResponseDTO();
-            transferResponse.setCode("500");
-            transferResponse.setMessage("Cuenta inválida");
-            when(kushkiPayoutClient.initiateTransfer(any())).thenReturn(transferResponse);
-            when(kushkiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            WompiPayoutResponseDTO response = new WompiPayoutResponseDTO();
+            response.setId("wp_123");
+            response.setStatus("DECLINED");
+            when(wompiPayoutClient.createPayout(any())).thenReturn(response);
+            when(wompiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             service.processScheduledPayouts();
 
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.FAILED);
-            assertThat(payout.getFailureReason()).isEqualTo("Cuenta inválida");
+            assertThat(payout.getFailureReason()).isEqualTo("DECLINED");
         }
     }
 
@@ -256,90 +255,84 @@ class PayoutServiceImplTest {
     }
 
     @Nested
-    @DisplayName("handleKushkiWebhook")
-    class HandleKushkiWebhook {
+    @DisplayName("handleWompiResult")
+    class HandleWompiResult {
 
-        private KushkiWebhookEvent event(String status) {
-            KushkiWebhookEvent e = new KushkiWebhookEvent();
-            e.setTransferId("tr_123");
-            e.setMerchantTransferReference("VG-PAYOUT-abc");
-            e.setStatus(status);
-            e.setMessage(status.equals("DECLINED") ? "Fondos insuficientes" : null);
-            return e;
+        @Test
+        @DisplayName("WompiTransaction inexistente: lanza IllegalArgumentException")
+        void unknownTransaction_throwsIllegalArgumentException() {
+            UUID txId = UUID.randomUUID();
+            when(wompiTransactionRepository.findById(txId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.handleWompiResult(txId))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
-        @DisplayName("KushkiTransaction inexistente: no falla, simplemente ignora el evento")
-        void unknownTransaction_ignoresSilently() {
-            when(kushkiTransactionRepository.findByInternalReference("VG-PAYOUT-abc")).thenReturn(Optional.empty());
-            when(kushkiTransactionRepository.findByKushkiTransferId("tr_123")).thenReturn(Optional.empty());
-
-            service.handleKushkiWebhook(event("APPROVED"), Map.of());
-
-            verify(payoutRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("evento duplicado sobre una transacción ya terminal: se ignora (idempotencia)")
-        void alreadyTerminal_ignoresAsIdempotent() {
-            KushkiTransaction tx = KushkiTransaction.builder().id(UUID.randomUUID())
-                    .status(KushkiTransactionStatus.APPROVED).build();
-            when(kushkiTransactionRepository.findByInternalReference("VG-PAYOUT-abc")).thenReturn(Optional.of(tx));
-
-            service.handleKushkiWebhook(event("APPROVED"), Map.of());
-
-            verify(kushkiTransactionRepository, never()).save(any());
-        }
-
-        @Test
-        @DisplayName("APPROVED: marca la KushkiTransaction y el Payout como PAID, y registra el envío en tesorería")
-        void approved_marksPaidAndRegistersInTreasury() {
-            KushkiTransaction tx = KushkiTransaction.builder().id(UUID.randomUUID())
-                    .status(KushkiTransactionStatus.PENDING).build();
+        @DisplayName("evento duplicado sobre un payout que ya no está PROCESSING: se ignora (idempotencia)")
+        void alreadyResolved_ignoresAsIdempotent() {
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.APPROVED).build();
             CommercialDetails commercial = commercial(1L, "Tienda X");
             Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
-                    .netAmountCents(90_000L).kushkiTransaction(tx).status(PayoutStatus.PROCESSING).build();
+                    .netAmountCents(90_000L).wompiTransaction(tx).status(PayoutStatus.PAID).build();
 
-            when(kushkiTransactionRepository.findByInternalReference("VG-PAYOUT-abc")).thenReturn(Optional.of(tx));
-            when(payoutRepository.findByKushkiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
 
-            service.handleKushkiWebhook(event("APPROVED"), Map.of());
+            service.handleWompiResult(tx.getId());
 
-            assertThat(tx.getStatus()).isEqualTo(KushkiTransactionStatus.APPROVED);
+            verify(payoutRepository, never()).save(any());
+            verify(treasuryService, never()).registerPayoutSent(any(), any());
+        }
+
+        @Test
+        @DisplayName("APPROVED: marca el Payout como PAID y registra el envío en tesorería")
+        void approved_marksPaidAndRegistersInTreasury() {
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.APPROVED).build();
+            CommercialDetails commercial = commercial(1L, "Tienda X");
+            Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
+                    .netAmountCents(90_000L).wompiTransaction(tx).status(PayoutStatus.PROCESSING).build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
+
+            service.handleWompiResult(tx.getId());
+
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.PAID);
             assertThat(payout.getPaidAt()).isNotNull();
             verify(treasuryService).registerPayoutSent(90_000L, payout.getId());
         }
 
         @Test
-        @DisplayName("DECLINED: marca la KushkiTransaction y el Payout como FAILED con el motivo, sin tocar tesorería")
+        @DisplayName("DECLINED: marca el Payout como FAILED con el motivo, sin tocar tesorería")
         void declined_marksFailedWithoutTreasury() {
-            KushkiTransaction tx = KushkiTransaction.builder().id(UUID.randomUUID())
-                    .status(KushkiTransactionStatus.PENDING).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.DECLINED).build();
             CommercialDetails commercial = commercial(1L, "Tienda X");
             Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
-                    .netAmountCents(90_000L).kushkiTransaction(tx).status(PayoutStatus.PROCESSING).build();
+                    .netAmountCents(90_000L).wompiTransaction(tx).status(PayoutStatus.PROCESSING).build();
 
-            when(kushkiTransactionRepository.findByInternalReference("VG-PAYOUT-abc")).thenReturn(Optional.of(tx));
-            when(payoutRepository.findByKushkiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
 
-            service.handleKushkiWebhook(event("DECLINED"), Map.of());
+            service.handleWompiResult(tx.getId());
 
-            assertThat(tx.getStatus()).isEqualTo(KushkiTransactionStatus.DECLINED);
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.FAILED);
-            assertThat(payout.getFailureReason()).isEqualTo("Fondos insuficientes");
+            assertThat(payout.getFailureReason()).isEqualTo("DECLINED");
             verify(treasuryService, never()).registerPayoutSent(any(), any());
         }
 
         @Test
-        @DisplayName("Payout no encontrado para la KushkiTransaction: lanza EntityNotFoundException")
+        @DisplayName("Payout no encontrado para la WompiTransaction: lanza EntityNotFoundException")
         void payoutNotFound_throwsEntityNotFoundException() {
-            KushkiTransaction tx = KushkiTransaction.builder().id(UUID.randomUUID())
-                    .status(KushkiTransactionStatus.PENDING).build();
-            when(kushkiTransactionRepository.findByInternalReference("VG-PAYOUT-abc")).thenReturn(Optional.of(tx));
-            when(payoutRepository.findByKushkiTransactionId(tx.getId())).thenReturn(Optional.empty());
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.APPROVED).build();
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> service.handleKushkiWebhook(event("APPROVED"), Map.of()))
+            assertThatThrownBy(() -> service.handleWompiResult(tx.getId()))
                     .isInstanceOf(EntityNotFoundException.class);
         }
     }

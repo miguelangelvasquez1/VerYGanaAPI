@@ -18,4 +18,5 @@ public interface PurchaseItemService {
     Integer getTotalCommercialSalesByMonth (Long commercialId, Integer year, Integer month);
     BigDecimal getTotalPlatformComissionsByMonth(Long commercialId, Integer year, Integer month);
     PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsPage(Long commercialId, Pageable pageable);
+    String getDeliveredCode (Long purchaseItemId, Long consumerId);
 }

@@ -14,7 +14,6 @@ import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
-import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
@@ -43,7 +42,6 @@ public interface RaffleService {
     RaffleResponseDTO getRaffleResponseDTOById(Long raffleId);
     PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status, String search, LocalDate drawDate, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
-    List<ParticipantLeaderboardDTO> getRaffleLeaderBoard(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);
     Long countRafflesByStatus(RaffleStatus status);
     List<RaffleSummaryResponseDTO> getLiveRaffles();

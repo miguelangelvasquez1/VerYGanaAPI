@@ -45,14 +45,6 @@ class ProductReviewControllerTest {
     }
 
     @Test
-    @DisplayName("getProductAvgRating: delega en el service con el productId del path")
-    void getProductAvgRating_delegates() {
-        when(productReviewService.getProductAvgRating(1L)).thenReturn(4.5);
-
-        assertThat(controller.getProductAvgRating(1L).getBody()).isEqualTo(4.5);
-    }
-
-    @Test
     @DisplayName("getCommercialAvgRating: delega con el commercialId del JWT")
     void getCommercialAvgRating_delegates() {
         when(productReviewService.getCommercialAvgRating(9L)).thenReturn(4.2);

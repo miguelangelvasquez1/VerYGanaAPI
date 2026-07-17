@@ -64,12 +64,12 @@ public class PayoutMethod {
     // ===== CAMPOS PARA BANK_TRANSFER =====
 
     /**
-     * Código ACH del banco destino.
+     * bankId (UUID) del catálogo GET /banks de Wompi Pagos a Terceros.
      * Solo aplica cuando type = BANK_TRANSFER.
-     * Ejemplos: "1007" = Bancolombia, "1013" = Davivienda, "1006" = Banco Bogotá.
-     * Wompi requiere este código para enrutar la transferencia interbancaria.
+     * A diferencia del código ACH numérico usado antes con Kushki, Wompi
+     * identifica cada banco por un UUID propio de su catálogo.
      */
-    @Column(name = "bank_code", length = 10)
+    @Column(name = "bank_code", length = 40)
     private String bankCode;
 
     /**

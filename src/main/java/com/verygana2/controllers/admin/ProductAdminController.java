@@ -95,11 +95,4 @@ public class ProductAdminController {
         return ResponseEntity.ok(productService.rejectProductForAdmin(adminId, productId, reason));
     }
 
-    @DeleteMapping("/{productId}")
-    public ResponseEntity<Void> deleteProduct (@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId, @RequestParam("reason") String reason){
-        Long adminId = jwt.getClaim("userId");
-        productService.deleteProductForAdmin(adminId, productId, reason);
-        return ResponseEntity.noContent().build();
-    }
-
 }

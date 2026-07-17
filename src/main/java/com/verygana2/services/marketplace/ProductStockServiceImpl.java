@@ -16,7 +16,6 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
 import com.verygana2.dtos.product.responses.BulkStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
-import com.verygana2.exceptions.ProductStock.DuplicateResourceException;
 import com.verygana2.mappers.marketplace.ProductStockMapper;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.marketplace.Product;
@@ -53,64 +52,6 @@ public class ProductStockServiceImpl implements ProductStockService {
                 productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable));
 
         return stockPage.map(this::toDecryptedResponseDTO);
-    }
-
-    @Override
-    public ProductStockResponseDTO addStockItem(Long productId, Long commercialId, ProductStockRequestDTO request) {
-        Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
-                        Product.class));
-
-        String codeHash = productCodeEncryptor.hash(request.getCode());
-        if (productStockRepository.existsByProductIdAndCodeHash(productId, codeHash)) {
-            throw new DuplicateResourceException("Stock code already exists for this product");
-        }
-
-        ProductStock stock = productStockMapper.toProductStock(request);
-        stock.setProduct(product);
-        stock.setStatus(StockStatus.AVAILABLE);
-        stock.setCreatedAt(ZonedDateTime.now());
-        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
-        stock.setCodeHash(codeHash);
-
-        ProductStock saved = productStockRepository.save(stock);
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(saved);
-        response.setCode(request.getCode());
-        return response;
-    }
-
-    @Override
-    public ProductStockResponseDTO updateStockItem(Long productId, Long stockId, Long commercialId,
-            ProductStockRequestDTO request) {
-
-        ProductStock stock = productStockRepository
-                .findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Stock item with id: " + stockId + " for product: " + productId +
-                                " and commercial: " + commercialId + " not found",
-                        ProductStock.class));
-
-        // No permitir editar si ya está vendido
-        if (stock.getStatus() == StockStatus.SOLD) {
-            throw new IllegalStateException("Cannot edit a sold stock item");
-        }
-
-        String newCodeHash = productCodeEncryptor.hash(request.getCode());
-
-        // Verificar duplicados si se cambia el código
-        if (!stock.getCodeHash().equals(newCodeHash) &&
-                productStockRepository.existsByProductIdAndCodeHash(productId, newCodeHash)) {
-            throw new DuplicateResourceException("Stock code already exists for this product");
-        }
-
-        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
-        stock.setCodeHash(newCodeHash);
-        ProductStock updated = productStockRepository.save(stock);
-
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(updated);
-        response.setCode(request.getCode());
-        return response;
     }
 
     @Override

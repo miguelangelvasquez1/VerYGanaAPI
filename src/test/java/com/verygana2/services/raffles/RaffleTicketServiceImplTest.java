@@ -239,18 +239,6 @@ class RaffleTicketServiceImplTest {
     }
 
     @Test
-    @DisplayName("validateTicket: true solo si el ticket existe y está ACTIVE")
-    void validateTicket_trueOnlyWhenActive() {
-        RaffleTicket active = new RaffleTicket();
-        active.setStatus(RaffleTicketStatus.ACTIVE);
-        when(raffleTicketRepository.findByTicketNumberAndRaffleId("000001", 1L)).thenReturn(Optional.of(active));
-        assertThat(service.validateTicket("000001", 1L)).isTrue();
-
-        when(raffleTicketRepository.findByTicketNumberAndRaffleId("000002", 1L)).thenReturn(Optional.empty());
-        assertThat(service.validateTicket("000002", 1L)).isFalse();
-    }
-
-    @Test
     @DisplayName("expireTickets: raffleId inválido lanza IllegalArgumentException")
     void expireTickets_invalidId_throwsIllegalArgumentException() {
         assertThatThrownBy(() -> service.expireTickets(-1L)).isInstanceOf(IllegalArgumentException.class);

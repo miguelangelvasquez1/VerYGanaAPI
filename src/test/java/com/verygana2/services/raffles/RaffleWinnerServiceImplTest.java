@@ -60,7 +60,7 @@ class RaffleWinnerServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new RaffleWinnerServiceImpl(raffleWinnerRepository, prizeRepository, raffleResultService,
+        service = new RaffleWinnerServiceImpl(raffleWinnerRepository, prizeRepository,
                 raffleWinnerMapper, emailService, emailVerificationService, twilioSmsService, claimCodeEncryptor);
     }
 
