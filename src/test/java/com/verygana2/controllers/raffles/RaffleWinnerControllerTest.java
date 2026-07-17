@@ -48,15 +48,6 @@ class RaffleWinnerControllerTest {
     }
 
     @Test
-    @DisplayName("getRaffleWinners: delega en el service con el raffleId del path")
-    void getRaffleWinners_delegates() {
-        List<WinnerSummaryResponseDTO> expected = List.of(WinnerSummaryResponseDTO.builder().build());
-        when(raffleWinnerService.getRaffleWinnersByRaffleId(1L)).thenReturn(expected);
-
-        assertThat(controller.getRaffleWinners(1L).getBody()).isSameAs(expected);
-    }
-
-    @Test
     @DisplayName("getWonPrizes: extrae el consumerId del JWT y pasa el filtro de status")
     void getWonPrizes_delegates() {
         var pageable = PageRequest.of(0, 10);

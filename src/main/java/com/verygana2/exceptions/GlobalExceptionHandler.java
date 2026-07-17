@@ -34,12 +34,12 @@ import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
-import com.verygana2.exceptions.kushki.KushkiApiException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
+import com.verygana2.exceptions.wompi.WompiApiException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
@@ -367,11 +367,11 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
-    @ExceptionHandler(KushkiApiException.class)
-    public ResponseEntity<ErrorResponse> handleKushkiApiException(
-            KushkiApiException ex, WebRequest request) {
-        log.error("Kushki API error: {}", ex.getMessage(), ex);
-        return buildError(HttpStatus.BAD_GATEWAY, "Payout provider error", request);
+    @ExceptionHandler(WompiApiException.class)
+    public ResponseEntity<ErrorResponse> handleWompiApiException(
+            WompiApiException ex, WebRequest request) {
+        log.error("Wompi API error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_GATEWAY, "Payment/payout provider error", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

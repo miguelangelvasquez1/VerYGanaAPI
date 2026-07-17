@@ -40,16 +40,9 @@ public abstract class PurchaseMapper {
     @Mapping(target = "productName", source = "product.name")
     @Mapping(target = "imageUrl", source = "product.imageUrl")
     @Mapping(target = "canBeReviewed", expression = "java(productReviewService.canBeReviewed(purchaseItem.getProduct().getId(), purchaseItem.getPurchase().getConsumer().getId()))")
-    @Mapping(target = "deliveredCode", expression = "java(decryptDeliveredCode(purchaseItem.getDeliveredCode()))")
     public abstract ConsumerPurchaseItemResponseDTO toConsumerPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
     protected Integer getTotalItems(Purchase purchase) {
         return purchase.getItems().size();
-    }
-
-    // deliveredCode se guarda cifrado (mismo ciphertext que ProductStock.code);
-    // solo se descifra al exponerlo en la respuesta al consumidor dueño de la compra.
-    protected String decryptDeliveredCode(String deliveredCode) {
-        return deliveredCode == null ? null : productCodeEncryptor.decrypt(deliveredCode);
     }
 }

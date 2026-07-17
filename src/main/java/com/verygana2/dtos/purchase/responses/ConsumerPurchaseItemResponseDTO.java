@@ -19,7 +19,6 @@ public class ConsumerPurchaseItemResponseDTO {
     private String productName;
     private String imageUrl;
     private Long unitPriceCents;
-    private String deliveredCode;
     private ZonedDateTime deliveredAt;
     private PurchaseItemStatus status;
     private boolean canBeReviewed;

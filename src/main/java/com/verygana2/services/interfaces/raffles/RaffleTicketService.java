@@ -1,7 +1,6 @@
 package com.verygana2.services.interfaces.raffles;
 
 import java.time.LocalDate;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -21,8 +20,6 @@ public interface RaffleTicketService {
 
     boolean canUserReceiveTickets(Long consumerId, RaffleType raffleType);
 
-    Long getUserTicketBalanceInRaffle(Long consumerId, Long raffleId, RaffleTicketStatus status);
-
     Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status);
 
     Long getUserWinnerTotalTickets (Long consumerId);
@@ -32,11 +29,6 @@ public interface RaffleTicketService {
     PagedResponse<RaffleTicketResponseDTO> getUserTicketsByRaffle(Long consumerId, Long raffleId, Pageable pageable);
 
     PagedResponse<RaffleTicketResponseDTO> getUserWinnerTickets(Long consumerId, Pageable pageable);
-
-    PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
-            RaffleTicketSource source,ZonedDateTime issuedAt, Pageable pageable);
-
-    boolean validateTicket(String ticketNumber, Long raffleId);
 
     void expireTickets(Long raffleId);
 

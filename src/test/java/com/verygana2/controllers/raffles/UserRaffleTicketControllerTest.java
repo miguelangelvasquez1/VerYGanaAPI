@@ -12,7 +12,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
-import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -69,13 +68,4 @@ class UserRaffleTicketControllerTest {
         assertThat(controller.getWinnerUserTotalTickets(jwtWithUserId(9L)).getBody()).isEqualTo(2L);
     }
 
-    @Test
-    @DisplayName("canUserReceiveTickets: delega con el consumerId del JWT y el tipo de rifa del path")
-    void canUserReceiveTickets_delegates() {
-        when(raffleTicketService.canUserReceiveTickets(9L, RaffleType.PREMIUM)).thenReturn(true);
-
-        var response = controller.canUserReceiveTickets(jwtWithUserId(9L), RaffleType.PREMIUM);
-
-        assertThat(response.getBody()).isTrue();
-    }
 }

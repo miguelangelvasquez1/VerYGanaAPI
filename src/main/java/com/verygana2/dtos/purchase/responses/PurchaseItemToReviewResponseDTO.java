@@ -12,6 +12,5 @@ public class PurchaseItemToReviewResponseDTO {
     private Long productId;
     private String productName;
     private String productImageUrl;
-    private String deliveredCode;
     private ZonedDateTime deliveredAt;
 }

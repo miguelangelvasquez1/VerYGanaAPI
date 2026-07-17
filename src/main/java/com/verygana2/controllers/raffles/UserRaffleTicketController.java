@@ -17,7 +17,6 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
-import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 
 import lombok.RequiredArgsConstructor;
@@ -67,23 +66,6 @@ public class UserRaffleTicketController {
             @AuthenticationPrincipal Jwt jwt) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleTicketService.getUserTicketBalanceByRaffle(consumerId));
-    }
-
-    // Retorna la cantidad numerica de boletos de un usuario en una rifa especifica en la que este participando
-    @GetMapping("/balance/raffle/{raffleId}")
-    public ResponseEntity<Long> getUserTicketBalanceInRaffle(@AuthenticationPrincipal Jwt jwt,
-            @PathVariable Long raffleId, 
-            @RequestParam("status") RaffleTicketStatus status) {
-        Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(raffleTicketService.getUserTicketBalanceInRaffle(consumerId, raffleId, status));
-    }
-
-    // Retorna TRUE O FALSE dependiendo si el usuario cumple con los requisitos para participar en un tipo de rifa
-    @GetMapping("/eligibility/{raffleType}")
-    public ResponseEntity<Boolean> canUserReceiveTickets(@AuthenticationPrincipal Jwt jwt,
-            @PathVariable RaffleType raffleType) {
-        Long consumerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(raffleTicketService.canUserReceiveTickets(consumerId, raffleType));
     }
 
 }

@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -23,6 +24,7 @@ import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.raffles.Prize;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -48,6 +50,9 @@ public class SendGridEmailService implements EmailService {
     private final SendGrid sendGrid;
     private final MoneyMapper moneyMapper;
     private final EmailTemplateLoader templateLoader;
+
+    @Qualifier("productCodeEncryptor")
+    private final CodeEncryptor productCodeEncryptor;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -381,7 +386,9 @@ public class SendGridEmailService implements EmailService {
                 }
                 sb.append("<div class='code-section'>");
                 sb.append("<div class='code-label'>Tu Código</div>");
-                sb.append("<div class='code-value'>").append(escapeHtml(item.getDeliveredCode())).append("</div>");
+                sb.append("<div class='code-value'>")
+                        .append(escapeHtml(productCodeEncryptor.decrypt(item.getDeliveredCode())))
+                        .append("</div>");
                 sb.append("</div>");
                 sb.append("</div>");
             }

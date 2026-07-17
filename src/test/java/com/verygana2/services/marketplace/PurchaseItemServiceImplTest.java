@@ -16,8 +16,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.security.CodeEncryptor;
+
+import jakarta.persistence.EntityNotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -34,12 +38,13 @@ import static org.mockito.Mockito.when;
 class PurchaseItemServiceImplTest {
 
     @Mock private PurchaseItemRepository purchaseItemRepository;
+    @Mock private CodeEncryptor codeEncryptor;
 
     private PurchaseItemServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PurchaseItemServiceImpl(purchaseItemRepository);
+        service = new PurchaseItemServiceImpl(purchaseItemRepository, codeEncryptor);
     }
 
     @Nested
@@ -125,5 +130,58 @@ class PurchaseItemServiceImplTest {
         when(purchaseItemRepository.findDeliveredItemsWithoutReview(9L)).thenReturn(List.of(item));
 
         assertThat(service.getDeliveredItemsWithoutReview(9L)).containsExactly(item);
+    }
+
+    @Nested
+    @DisplayName("getDeliveredCode")
+    class GetDeliveredCode {
+
+        @Test
+        @DisplayName("item del consumidor con código entregado: lo desencripta y lo retorna")
+        void ownedAndDelivered_returnsDecryptedCode() {
+            PurchaseItem item = new PurchaseItem();
+            item.setDeliveredCode("cipherText123");
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+            when(codeEncryptor.decrypt("cipherText123")).thenReturn("PLAINCODE-1234");
+
+            assertThat(service.getDeliveredCode(1L, 9L)).isEqualTo("PLAINCODE-1234");
+        }
+
+        @Test
+        @DisplayName("item que no pertenece al consumidor (o no existe): lanza EntityNotFoundException sin desencriptar nada")
+        void notOwned_throwsEntityNotFoundException() {
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.getDeliveredCode(1L, 9L))
+                    .isInstanceOf(EntityNotFoundException.class);
+            org.mockito.Mockito.verifyNoInteractions(codeEncryptor);
+        }
+
+        @Test
+        @DisplayName("item aún no entregado (deliveredCode null): lanza InvalidStatusException sin desencriptar nada")
+        void notYetDelivered_throwsInvalidStatusException() {
+            PurchaseItem item = new PurchaseItem();
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.getDeliveredCode(1L, 9L))
+                    .isInstanceOf(InvalidStatusException.class);
+            org.mockito.Mockito.verifyNoInteractions(codeEncryptor);
+        }
+
+        @Test
+        @DisplayName("purchaseItemId inválido (<=0): lanza IllegalArgumentException antes de consultar el repositorio")
+        void invalidPurchaseItemId_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> service.getDeliveredCode(0L, 9L))
+                    .isInstanceOf(IllegalArgumentException.class);
+            org.mockito.Mockito.verifyNoInteractions(purchaseItemRepository);
+        }
+
+        @Test
+        @DisplayName("consumerId inválido (<=0): lanza IllegalArgumentException antes de consultar el repositorio")
+        void invalidConsumerId_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> service.getDeliveredCode(1L, 0L))
+                    .isInstanceOf(IllegalArgumentException.class);
+            org.mockito.Mockito.verifyNoInteractions(purchaseItemRepository);
+        }
     }
 }
