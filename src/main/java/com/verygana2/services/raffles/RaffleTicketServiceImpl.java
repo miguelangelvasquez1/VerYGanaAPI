@@ -20,7 +20,6 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
-import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.raffles.RaffleTicketMapper;
 import com.verygana2.mappers.raffles.TicketAuditLogMapper;
@@ -392,16 +391,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     }
 
     @Override
-    public Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status) {
-
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        return raffleTicketRepository.countByTicketOwnerIdAndStatus(consumerId, status);
-    }
-
-    @Override
     public Long getUserWinnerTotalTickets(Long consumerId) {
 
         if (consumerId == null || consumerId <= 0) {
@@ -409,28 +398,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         }
 
         return raffleTicketRepository.countWinnerTicketsByUserId(consumerId);
-    }
-
-    @Override
-    public List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId) {
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        // Query que agrupe tickets por raffle
-        List<Object[]> results = raffleTicketRepository
-                .countTicketsByTicketOwnerGroupedByRaffle(consumerId);
-
-        return results.stream()
-                .map(row -> TicketBalanceResponseDTO.builder()
-                        .raffleId((Long) row[0])
-                        .raffleTitle((String) row[1])
-                        .raffleType((RaffleType) row[2])
-                        .ticketsCount((Long) row[3])
-                        .drawDate((ZonedDateTime) row[4])
-                        .raffleStatus((RaffleStatus) row[5])
-                        .build())
-                .toList();
     }
 
     @Override

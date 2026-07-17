@@ -11,7 +11,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
-import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,16 +47,6 @@ class UserRaffleTicketControllerTest {
         var response = controller.getUserTicketsByRaffle(jwtWithUserId(9L), 1L, pageable);
 
         assertThat(response.getBody()).isSameAs(expected);
-    }
-
-    @Test
-    @DisplayName("getUserTotalTickets: pasa el status recibido como query param")
-    void getUserTotalTickets_delegates() {
-        when(raffleTicketService.getUserTotalTickets(9L, RaffleTicketStatus.ACTIVE)).thenReturn(15L);
-
-        var response = controller.getUserTotalTickets(jwtWithUserId(9L), RaffleTicketStatus.ACTIVE);
-
-        assertThat(response.getBody()).isEqualTo(15L);
     }
 
     @Test

@@ -38,13 +38,10 @@ public interface ProductService {
     EntityUpdatedResponseDTO confirmProductImageUpdate(Long productId, Long commercialId,
         Long newAssetId);
 
-    PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page);
-
     PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin (ProductStatus status, String search, Pageable pageable);
 
     ProductResponseDTO approveProductForAdmin (Long adminId, Long productId);
     ProductResponseDTO rejectProductForAdmin (Long adminId, Long productId, String reason);
-    void deleteProductForAdmin (Long adminId, Long productId, String reason);
 
     PagedResponse<ProductSummaryResponseDTO> getCommercialProducts(Long commercialId, Integer page);
     

@@ -9,9 +9,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
-import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
-import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 
 public interface RaffleTicketService {
@@ -20,11 +18,7 @@ public interface RaffleTicketService {
 
     boolean canUserReceiveTickets(Long consumerId, RaffleType raffleType);
 
-    Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status);
-
     Long getUserWinnerTotalTickets (Long consumerId);
-
-    List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId);
 
     PagedResponse<RaffleTicketResponseDTO> getUserTicketsByRaffle(Long consumerId, Long raffleId, Pageable pageable);
 

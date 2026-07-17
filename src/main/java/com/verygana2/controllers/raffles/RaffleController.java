@@ -19,10 +19,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.DrawStatusResponseDTO;
-import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
@@ -64,11 +62,6 @@ public class RaffleController {
     @GetMapping("/{raffleId}/stats")
     public ResponseEntity<RaffleStatsResponseDTO> getRaffleStats(@PathVariable Long raffleId) {
         return ResponseEntity.ok(raffleService.getRaffleStats(raffleId));
-    }
-
-    @GetMapping("/{raffleId}/leaderboard")
-    public ResponseEntity<List<ParticipantLeaderboardDTO>> getRaffleLeaderboard(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleLeaderBoard(raffleId));
     }
 
     // Para usuarios
