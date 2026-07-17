@@ -69,11 +69,6 @@ public class TicketEarningRuleController {
         return ResponseEntity.ok(ticketEarningRuleService.getTicketEarningRulesList(type, isActive, pageable));
     }
 
-    @GetMapping("/{ruleId}")
-    public ResponseEntity<TicketEarningRuleResponseDTO> getTicketEarningRule(@PathVariable Long ruleId) {
-        return ResponseEntity.ok(ticketEarningRuleService.getTicketEarningRuleResponseDTOById(ruleId));
-    }
-
     @PatchMapping("/{ruleId}/activate")
     public ResponseEntity<Void> activeTicketEarningRule(@PathVariable Long ruleId) {
         ticketEarningRuleService.activateTicketEarningRule(ruleId);

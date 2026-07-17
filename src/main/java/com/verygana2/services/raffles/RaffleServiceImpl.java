@@ -27,7 +27,6 @@ import com.verygana2.dtos.raffle.requests.CreatePrizeRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRuleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
-import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.PrizeResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
@@ -53,7 +52,6 @@ import com.verygana2.models.raffles.TicketEarningRule;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
-import com.verygana2.repositories.raffles.RaffleParticipationRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
@@ -75,7 +73,6 @@ public class RaffleServiceImpl implements RaffleService {
     private final PrizeRepository prizeRepository;
     private final TicketEarningRuleRepository ticketEarningRuleRepository;
     private final RaffleTicketRepository raffleTicketRepository;
-    private final RaffleParticipationRepository raffleParticipationRepository;
     private final RaffleImageAssetRepository raffleImageAssetRepository;
     private final PrizeImageAssetRepository prizeImageAssetRepository;
     private final R2Service r2Service;
@@ -624,23 +621,6 @@ public class RaffleServiceImpl implements RaffleService {
 
     }
 
-    @Override
-    public List<ParticipantLeaderboardDTO> getRaffleLeaderBoard(Long raffleId) {
-        if (raffleId == null || raffleId <= 0) {
-            throw new IllegalArgumentException("Raffle id must be positive");
-        }
-
-        return raffleParticipationRepository
-                .findLeaderboard(raffleId, PageRequest.of(0, 10))
-                .stream()
-                .map(row -> new ParticipantLeaderboardDTO(
-                        (Long) row[0],
-                        (String) row[1],
-                        (String) row[2],
-                        (Long) row[3],
-                        (Double) row[4]))
-                .toList();
-    }
 
     @Override
     public List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate) {

@@ -73,7 +73,7 @@ class RaffleServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new RaffleServiceImpl(raffleRepository, prizeRepository, ticketEarningRuleRepository,
-                raffleTicketRepository, raffleParticipationRepository, raffleImageAssetRepository,
+                raffleTicketRepository, raffleImageAssetRepository,
                 prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper, claimCodeEncryptor);
     }
 

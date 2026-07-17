@@ -20,7 +20,6 @@ import com.verygana2.models.User;
 import com.verygana2.models.enums.raffles.ClaimPreferenceDeliveryMethod;
 import com.verygana2.models.enums.raffles.PrizeStatus;
 import com.verygana2.models.raffles.Prize;
-import com.verygana2.models.raffles.RaffleResult;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
@@ -28,7 +27,6 @@ import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
-import com.verygana2.services.interfaces.raffles.RaffleResultService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -44,7 +42,6 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
 
     private final RaffleWinnerRepository raffleWinnerRepository;
     private final PrizeRepository prizeRepository;
-    private final RaffleResultService raffleResultService;
     private final RaffleWinnerMapper raffleWinnerMapper;
     private final EmailService emailService;
     private final EmailVerificationService emailVerificationService;
@@ -52,14 +49,6 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     @Qualifier("claimCodeEncryptor")
     private final CodeEncryptor claimCodeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
-
-    @Transactional(readOnly = true)
-    @Override
-    public List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId(Long raffleId) {
-        RaffleResult result = raffleResultService.getByRaffleId(raffleId);
-        List<RaffleWinner> winners = raffleWinnerRepository.findByRaffleResultId(result.getId());
-        return winners.stream().map(raffleWinnerMapper::toWinnerSummaryResponseDTO).toList();
-    }
 
     @Transactional(readOnly = true)
     @Override

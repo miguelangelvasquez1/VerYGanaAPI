@@ -15,7 +15,6 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.domain.Sort.Direction;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -400,18 +399,6 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<ProductSummaryResponseDTO> getAllProducts(Integer page) {
-        Pageable pageable = PageRequest.of(page, 20, Direction.DESC, "createdAt");
-        PagedResponse<Product> activeProducts = PagedResponse.from(productRepository.findAllActiveProducts(pageable));
-        return activeProducts.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
-            dto.setImageUrl(resolveImageUrl(product));
-            return dto;
-        });
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery, Long categoryId,
             Double minRating,
             BigDecimal maxPrice, Integer page,
@@ -631,26 +618,6 @@ public class ProductServiceImpl implements ProductService {
         notificationService.createInternalNotification(product.getCommercial().getId(),
                 "Solicitud de creacion de producto rechazada", reason, Instant.now());
         return productMapper.toProductResponseDTO(product);
-    }
-
-    @Override
-    public void deleteProductForAdmin(Long adminId, Long productId, String reason) {
-        log.info("Admin {} deleting product {}", adminId, productId);
-
-        Product product = getById(productId);
-        AdminDetails admin = adminDetailsService.getById(adminId);
-        product.setDeletedBy(admin);
-        product.setDeletedAt(ZonedDateTime.now(ZoneOffset.UTC));
-        product.setDeletionReason(reason);
-        product.setStatus(ProductStatus.INACTIVE);
-        productRepository.save(product);
-
-        log.info("Product {} deleted succesfully", productId);
-
-        notificationService.createInternalNotification(product.getCommercial().getId(),
-                "Tu producto: " + product.getName() + " ha sido eliminado por uno de nuestros administradores. ",
-                reason, Instant.now());
-
     }
 
     @Override

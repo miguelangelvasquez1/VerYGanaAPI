@@ -8,6 +8,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,5 +45,13 @@ public class PurchaseItemController {
     public ResponseEntity<PagedResponse<FeaturedProductResponseDTO>> getTopSellingProductsPage (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 5, page = 0) Pageable pageable){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseItemService.getTopSellingProductsPage(commercialId, pageable));
+    }
+
+    @GetMapping("/{purchaseItemId}/delivered-code")
+    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    public ResponseEntity<String> getDeliveredCode (@AuthenticationPrincipal Jwt jwt,
+            @PathVariable("purchaseItemId") Long purchaseItemId){
+        Long consumerId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseItemService.getDeliveredCode(purchaseItemId, consumerId));
     }
 }

@@ -6,16 +6,20 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -23,6 +27,8 @@ import lombok.RequiredArgsConstructor;
 public class PurchaseItemServiceImpl implements PurchaseItemService {
 
     private final PurchaseItemRepository purchaseItemRepository;
+    @Qualifier("productCodeEncryptor")
+    private final CodeEncryptor codeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Override
@@ -145,6 +151,26 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(commercialId, pageable);
         topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
         return PagedResponse.from(topSellingProducts);
+    }
+
+    @Override
+    public String getDeliveredCode(Long purchaseItemId, Long consumerId) {
+        if (purchaseItemId == null || purchaseItemId <= 0) {
+            throw new IllegalArgumentException("PurchaseItem id must be positive");
+        }
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        PurchaseItem item = purchaseItemRepository.findByIdAndConsumerId(purchaseItemId, consumerId)
+                .orElseThrow(() -> new EntityNotFoundException("Purchase Item with id:" + purchaseItemId + " not found"));
+
+        if (item.getDeliveredCode() == null) {
+            throw new InvalidStatusException("This purchase item has not been delivered yet");
+        }
+
+        return codeEncryptor.decrypt(item.getDeliveredCode());
     }
 
 }

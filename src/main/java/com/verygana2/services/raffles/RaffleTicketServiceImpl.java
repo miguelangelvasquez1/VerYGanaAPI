@@ -20,7 +20,6 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
-import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.raffles.RaffleTicketMapper;
 import com.verygana2.mappers.raffles.TicketAuditLogMapper;
@@ -392,30 +391,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     }
 
     @Override
-    public Long getUserTicketBalanceInRaffle(Long consumerId, Long raffleId, RaffleTicketStatus status) {
-
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        if (raffleId == null || raffleId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        return raffleTicketRepository.countByTicketOwnerIdAndRaffleIdAndStatus(consumerId, raffleId, status);
-    }
-
-    @Override
-    public Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status) {
-
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        return raffleTicketRepository.countByTicketOwnerIdAndStatus(consumerId, status);
-    }
-
-    @Override
     public Long getUserWinnerTotalTickets(Long consumerId) {
 
         if (consumerId == null || consumerId <= 0) {
@@ -423,28 +398,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         }
 
         return raffleTicketRepository.countWinnerTicketsByUserId(consumerId);
-    }
-
-    @Override
-    public List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId) {
-        if (consumerId == null || consumerId <= 0) {
-            throw new IllegalArgumentException("Consumer id must be positive");
-        }
-
-        // Query que agrupe tickets por raffle
-        List<Object[]> results = raffleTicketRepository
-                .countTicketsByTicketOwnerGroupedByRaffle(consumerId);
-
-        return results.stream()
-                .map(row -> TicketBalanceResponseDTO.builder()
-                        .raffleId((Long) row[0])
-                        .raffleTitle((String) row[1])
-                        .raffleType((RaffleType) row[2])
-                        .ticketsCount((Long) row[3])
-                        .drawDate((ZonedDateTime) row[4])
-                        .raffleStatus((RaffleStatus) row[5])
-                        .build())
-                .toList();
     }
 
     @Override
@@ -472,29 +425,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
         return PagedResponse.from(raffleTicketRepository.findUserWinnerTickets(consumerId, pageable)
                 .map(raffleTicketMapper::toRaffleTicketResponseDTO));
-    }
-
-    @Override
-    public PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
-            RaffleTicketSource source, ZonedDateTime issuedAt, Pageable pageable) {
-
-        if (raffleId == null || raffleId <= 0) {
-            throw new IllegalArgumentException("Raffle id must be positive");
-        }
-
-        Page<RaffleTicketResponseDTO> page = raffleTicketRepository
-                .findRaffleTicketsWithFilters(raffleId, status, source, issuedAt, pageable)
-                .map(raffleTicketMapper::toRaffleTicketResponseDTO);
-        return PagedResponse.from(page);
-
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public boolean validateTicket(String ticketNumber, Long raffleId) {
-        return raffleTicketRepository.findByTicketNumberAndRaffleId(ticketNumber, raffleId)
-                .map(ticket -> ticket.getStatus() == RaffleTicketStatus.ACTIVE)
-                .orElse(false);
     }
 
     @Override

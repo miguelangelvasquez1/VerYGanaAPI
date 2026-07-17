@@ -183,20 +183,7 @@ twilio:
   phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
-# KUSHKI CONFIG
-# ============================================
-kushki:
-  private-key: ${KUSHKI_PRIVATE_KEY}
-  public-key: ${KUSHKI_PUBLIC_KEY}
-  api-base-url: https://api-uat.kushkipagos.com  # sandbox
-  # api-base-url: https://api.kushkipagos.com    # producción
-  payout:
-    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
-    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
-    min-balance-alert-cents: 5000000  # alerta si Kushki balance < $50.000 COP
-
-# ============================================
-# WOMPI CONFIG
+# WOMPI CONFIG (cobros + Pagos a Terceros)
 # ============================================
 # Configuración de Wompi (Produccion)
 # wompi:
@@ -206,6 +193,14 @@ kushki:
 #   events-key: ${WOMPI_EVENTS_KEY}
 #   checkout-base-url: https://checkout.wompi.co/p/
 #   api-base-url: https://production.wompi.co/v1
+#   payout:
+#     api-key: ${WOMPI_PAYOUT_API_KEY}
+#     principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
+#     events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
+#     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
+#     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
+#     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
+#     api-base-url: https://api.payouts.wompi.co/v1
 
 wompi:
   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
@@ -214,7 +209,19 @@ wompi:
   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
   checkout-base-url: https://checkout.wompi.co/p/
   api-base-url: https://sandbox.wompi.co/v1
-  
+  payout:
+    api-key: ${WOMPI_PAYOUT_API_KEY}
+    principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
+    events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
+    account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
+    nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
+    daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
+    api-base-url: https://api.sandbox.payouts.wompi.co/v1  # sandbox
+    # api-base-url: https://api.payouts.wompi.co/v1        # producción
+    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
+    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
+
 payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP
