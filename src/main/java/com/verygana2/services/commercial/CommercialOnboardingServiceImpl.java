@@ -18,18 +18,25 @@ import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponse
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.User;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.UserState;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.OnboardingStep;
+import com.verygana2.models.enums.legal.LegalDocumentType;
 import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.legal.LegalDocument;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
+import com.verygana2.repositories.legal.LegalDocumentRepository;
 import com.verygana2.services.LocationService;
 import com.verygana2.services.interfaces.commercial.CommercialOnboardingService;
+import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.utils.audit.AuditEvent;
 import com.verygana2.utils.audit.AuditLevel;
 
@@ -46,6 +53,9 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final CommercialContractRepository commercialContractRepository;
     private final PlanRepository planRepository;
+    private final UserRepository userRepository;
+    private final ScreeningService screeningService;
+    private final LegalDocumentRepository legalDocumentRepository;
     private final LocationService locationService;
     private final ApplicationEventPublisher eventPublisher;
 
@@ -66,9 +76,14 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                                                                String ipAddress, String userAgent) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
 
-        onboarding.setTermsVersion(dto.getTermsVersion());
-        onboarding.setTermsDocumentUrl(dto.getTermsDocumentUrl());
-        onboarding.setTermsPublishedDate(dto.getTermsPublishedDate());
+        LegalDocument terms = legalDocumentRepository
+                .findByTypeAndVersion(LegalDocumentType.BUSINESS_OWNER_TERMS_AND_CONDITIONS, dto.getTermsVersion())
+                .orElseThrow(() -> new OnboardingStepException(
+                        "La versión de Términos y Condiciones indicada no existe: " + dto.getTermsVersion()));
+
+        onboarding.setTermsVersion(terms.getVersion());
+        onboarding.setTermsDocumentUrl(terms.getDocumentUrl());
+        onboarding.setTermsPublishedDate(terms.getPublishedDate());
         onboarding.setTermsAcceptedAt(ZonedDateTime.now());
         onboarding.setTermsAcceptedIp(ipAddress);
         onboarding.setTermsAcceptedUserAgent(userAgent);
@@ -82,7 +97,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         publishAudit(userId, "TERMS_ACCEPTED",
                 "Comercial aceptó Términos y Condiciones v" + dto.getTermsVersion(),
                 ipAddress, userAgent,
-                Map.of("termsVersion", dto.getTermsVersion(), "termsDocumentUrl", dto.getTermsDocumentUrl()));
+                Map.of("termsVersion", terms.getVersion(), "termsDocumentUrl", terms.getDocumentUrl()));
 
         log.info("Comercial userId={} aceptó T&C v{}", userId, dto.getTermsVersion());
         return toStatusDTO(onboarding);
@@ -114,8 +129,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         details.setCompanyName(dto.getCompanyName());
         details.setNit(dto.getNit());
+        details.setMercantileRegistration(dto.getMercantileRegistration());
         details.setLegalRepDocType(dto.getLegalRepDocType());
         details.setLegalRepDocNumber(dto.getLegalRepDocNumber());
+        details.setPep(Boolean.TRUE.equals(dto.getLegalRepPepDeclaration()));
+        details.setAnnualIncomeRange(dto.getAnnualIncomeRange());
         if (dto.getCiiuCode() != null && !dto.getCiiuCode().isBlank()) {
             details.setCiiuCode(dto.getCiiuCode());
         }
@@ -126,6 +144,18 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
             details.setDepartmentName(municipality.getDepartment().getName());
         }
         commercialDetailsRepository.save(details);
+
+        // Screening SAGRILAFT de la empresa y del representante legal — solo puede
+        // correr aquí, en el paso 3, porque es cuando estos datos existen por primera vez.
+        screeningService.screenOrThrow(userId, dto.getCompanyName(), dto.getNit());
+        screeningService.screenOrThrow(userId, dto.getLegalRepFullName(), dto.getLegalRepDocNumber());
+
+        User user = onboarding.getUser();
+        if (Boolean.TRUE.equals(dto.getLegalRepPepDeclaration())) {
+            user.setUserState(UserState.PENDING_KYC_REVIEW);
+            userRepository.save(user);
+            log.info("Comercial {} marcado como PEP en identificación jurídica. Cuenta en revisión manual (PENDING_KYC_REVIEW).", userId);
+        }
 
         onboardingRepository.save(onboarding);
 

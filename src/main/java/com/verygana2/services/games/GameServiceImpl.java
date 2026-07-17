@@ -295,7 +295,7 @@ public class GameServiceImpl implements GameService {
             baseUrl = String.format("https://%s/%s/%s/?",
             cdnUrl,
             "builds/build-bogota",
-            //"28-04-2026", // Cambia segun version
+            "16-07-2026", // Cambia segun version
             game.getUrl()
             );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {

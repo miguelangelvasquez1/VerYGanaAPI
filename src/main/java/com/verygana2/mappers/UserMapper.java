@@ -135,6 +135,9 @@ public abstract class UserMapper {
     @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(CommercialRegisterDTO dto);
 
+    // El registro básico (paso 1) solo trae email/password/phoneNumber/municipalityCode:
+    // toda la identificación jurídica (companyName, nit, ciiuCode, etc.) se completa
+    // después en el paso 3 (submitLegalIdentification), por eso se ignora aquí.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
@@ -146,6 +149,8 @@ public abstract class UserMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "companyName", ignore = true)
+    @Mapping(target = "nit", ignore = true)
     @Mapping(target = "ciiuCode", ignore = true)
     @Mapping(target = "mercantileRegistration", ignore = true)
     @Mapping(target = "legalRepDocType", ignore = true)

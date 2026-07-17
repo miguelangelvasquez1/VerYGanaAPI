@@ -1,5 +1,6 @@
 package com.verygana2.dtos.user.commercial.onboarding;
 
+import com.verygana2.models.enums.AnnualRevenueRange;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.commercial.PersonType;
 
@@ -22,6 +23,9 @@ public class LegalIdentificationRequestDTO {
     @Size(max = 20)
     private String nit;
 
+    @Size(max = 20, message = "Matrícula mercantil must not exceed 20 characters")
+    private String mercantileRegistration;
+
     @NotBlank(message = "El nombre completo del representante legal es requerido")
     @Size(max = 200)
     private String legalRepFullName;
@@ -32,6 +36,11 @@ public class LegalIdentificationRequestDTO {
     @NotBlank(message = "El número de documento del representante legal es requerido")
     @Size(max = 20)
     private String legalRepDocNumber;
+
+    @NotNull(message = "La declaración de PEP del representante legal es requerida")
+    private Boolean legalRepPepDeclaration;
+
+    private AnnualRevenueRange annualIncomeRange;
 
     @NotBlank(message = "La descripción de la actividad económica es requerida")
     @Size(max = 500)

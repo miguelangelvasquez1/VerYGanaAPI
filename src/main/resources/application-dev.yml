@@ -327,6 +327,10 @@ commercial:
     documents:
       max-size-bytes: 10485760 # 10 MB
 
+legal:
+  documents:
+    max-size-bytes: 10485760 # 10 MB
+
 # ============================================
 # SCREENING / SAGRILAFT CONFIG
 # ============================================

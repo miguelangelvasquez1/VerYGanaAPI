@@ -1,11 +1,13 @@
 package com.verygana2.dtos.user;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.verygana2.models.enums.AnnualRevenueRange;
-import com.verygana2.models.enums.DocumentType;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
+/**
+ * Registro básico (paso 1) de un usuario comercial. La identificación jurídica
+ * (razón social, NIT, representante legal, actividad económica, etc.) se
+ * completa después en el paso 3 del onboarding — ver LegalIdentificationRequestDTO.
+ */
 @Data
 public class CommercialRegisterDTO {
 
@@ -18,40 +20,9 @@ public class CommercialRegisterDTO {
     private String password;
 
     @NotBlank(message = "Phone number is required")
+    @Min(value = 7, message = "Phone number must have at least 7 digits")
+    @Max(value = 15, message = "Phone number must have at most 15 digits")
     private String phoneNumber;
-
-    @NotBlank(message = "Company name is required")
-    private String companyName;
-
-    @NotBlank(message = "NIT is required")
-    private String nit;
-
-    // ==================== KYC / SAGRILAFT ====================
-
-    @NotBlank(message = "CIIU code is required")
-    @Size(max = 10, message = "CIIU code must not exceed 10 characters")
-    @JsonProperty("ciiuCode")
-    private String codigoCIIU;
-
-    @Size(max = 20, message = "Matrícula mercantil must not exceed 20 characters")
-    @JsonProperty("mercantileRegistration")
-    private String matriculaMercantil;
-
-    @NotNull(message = "Representative document type is required")
-    @JsonProperty("legalRepDocumentType")
-    private DocumentType representanteDocType;
-
-    @NotBlank(message = "Representative document number is required")
-    @Size(max = 20, message = "Document number must not exceed 20 characters")
-    @JsonProperty("legalRepDocumentNumber")
-    private String representanteDocNumero;
-
-    @NotNull(message = "PEP declaration is required")
-    @JsonProperty("legalRepPepDeclaration")
-    private Boolean isPEP;
-
-    @JsonProperty("annualIncomeRange")
-    private AnnualRevenueRange ingresosAnualesRango;
 
     @Size(max = 5, message = "Municipality code must be a 5-digit DANE code")
     private String municipalityCode;

@@ -48,7 +48,7 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 
 
-- revisar lo de los contratos
+- +57 en el commercial, grok, que al dar click a los terminos me redirija para verlos(no descargar?), 
 - que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc.
 - si un commercial cambia a plan mas bajo que no se devuelva lo creado
@@ -61,6 +61,32 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 
 - actuator (backend metrics)?
+
+
+Backend — Flujo de registro comercial extendido
+Nueva entidad CommercialOnboarding (1:1 con User, tabla commercial_onboarding) que registra el progreso a través de 5 pasos, más los enums de soporte en models/enums/commercial/.
+
+Paso 1 (Registro básico): sin cambios — POST /auth/register/commercial sigue igual, pero ahora crea automáticamente la fila de onboarding en TERMS_PENDING.
+Paso 2 (T&C): POST /commercials/onboarding/terms — recibe versión, URL del PDF (que vive en el .env del frontend) y accepted=true; el backend registra fecha/hora, IP y User-Agent del servidor (no confía en el cliente para eso).
+Paso 3 (Identificación jurídica): POST /commercials/onboarding/legal-identification — persona natural/jurídica, razón social, NIT, representante legal, actividad económica, domicilio, municipio.
+Paso 4 (Diagnóstico comercial): POST /commercials/onboarding/diagnostic — las 10 preguntas (Q3-Q12), devuelve directamente la clasificación calculada.
+Paso 5 (Clasificación): GET /commercials/onboarding/classification (para releer antes de confirmar) y POST /commercials/onboarding/classification/confirm (finaliza el onboarding).
+Estado: GET /commercials/onboarding/status.
+Reglas de clasificación A-E (propuesta que aprobaste, aislada en CommercialOnboardingServiceImpl.classify() para ajustarla fácilmente): negociación especial→E, sector regulado→D, requiere integración técnica o juegos personalizados→C, tarifa fija sin comisión→A, resto (comisión por venta estándar)→B.
+Nuevas piezas clave:
+
+CommercialOnboarding extendida con snapshot de plan/condiciones económicas + documentsCompletedAt.
+CommercialDocument (entidad + tabla commercial_documents) para la carga documental, reutilizando el mismo patrón de subida que ya usan los anuncios: prepare-upload (URL pre-firmada a R2) → confirm (validación real de tamaño/MIME con Tika) → discard. Añadí soporte de PDF (SupportedMimeType.APPLICATION_PDF, MediaType.DOCUMENT) que no existía.
+CommercialContract (entidad + tabla commercial_contracts) con su ciclo PENDING_BUSINESS_REVIEW → PENDING_VERYGANA_REVIEW → APPROVED/REJECTED.
+Generación real de PDF: agregué la dependencia openhtmltopdf-pdfbox (no existía ninguna librería de PDF en el proyecto), una plantilla HTML en templates/contracts/contrato-marco.html (mismo estilo {{var}} que ya usan los emails) y un ContractPdfRenderer.
+ComplianceContractController (/compliance/contracts, rol ROLE_COMPLIANCE_OFFICER) para el paso 11, calcado del patrón ya usado en ComplianceKycController.
+Decisiones de negocio que tomé por ti (documentadas y fácilmente ajustables):
+
+Mapeo Ruta → Plan: A→BASIC, B→STANDARD, C/D/E→PREMIUM, con un flag requiresAdvisorContact=true en D/E (aislado en resolvePlanForRoute()).
+El "aceptar el plan" no activa el pago real — sigue existiendo el flujo actual de Wompi (checkout/webhook) para activar CommercialDetails.currentPlan; aceptar el plan en el onboarding solo congela un snapshot de las condiciones para el contrato. Evité tocar la lógica de pagos existente.
+La plantilla del contrato es un esqueleto, no texto legal validado — está marcada explícitamente como "[Placeholder legal — pendiente de validación jurídica]" en el propio PDF. Necesita revisión de tu equipo jurídico antes de producción.
+Campos jurídicos (paso 3) quedan bloqueados tras el primer envío; diagnóstico/plan/documentos (pasos 4, 6-8) se pueden corregir hasta que el contrato entra en revisión del empresario, punto desde el cual solo se reabren vía POST /contract/request-changes.
+
 
 Revisé el flujo completo del lado del frontend. Lo bueno: no hay ningún bug ahí — authService.login() y authService.refresh() (en authService.ts) ya usan credentials: 'include' en ambos fetch, y no hay ningún código JS en el repo que toque document.cookie manualmente. La cookie del refresh token es 100% httpOnly y la controla el backend vía Set-Cookie — desde este repo no se "setea" nada de esa cookie.
 

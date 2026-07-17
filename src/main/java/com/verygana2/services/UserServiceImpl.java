@@ -95,15 +95,18 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * Registro básico (paso 1): solo email/password/phoneNumber/municipalityCode.
+     * La identificación jurídica (razón social, NIT, representante legal, etc.) y el
+     * screening SAGRILAFT correspondiente se completan en el paso 3 del onboarding
+     * (ver {@link com.verygana2.services.commercial.CommercialOnboardingServiceImpl#submitLegalIdentification}),
+     * una vez esos datos existen — por eso aquí no hay lógica de PEP ni de screening.
+     */
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
-
-        if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            user.setUserState(UserState.PENDING_KYC_REVIEW);
-        }
 
         CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
@@ -123,15 +126,7 @@ public class UserServiceImpl implements UserService {
         onboarding.setUser(savedUser);
         commercialOnboardingRepository.save(onboarding);
 
-        // Screening empresa y representante legal
-        screeningService.screenOrThrow(savedUser.getId(), dto.getCompanyName(), dto.getNit());
-        screeningService.screenOrThrow(savedUser.getId(), dto.getRepresentanteDocNumero(), dto.getRepresentanteDocNumero());
-
-        if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            log.info("Comercial {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", savedUser.getEmail());
-        } else {
-            sendVerificationEmail(savedUser);
-        }
+        sendVerificationEmail(savedUser);
         return savedUser;
     }
 

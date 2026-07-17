@@ -107,6 +107,7 @@ public class DataSeeder implements CommandLineRunner {
         populator.addScript(new ClassPathResource("db/seed/categories.sql"));
         populator.addScript(new ClassPathResource("db/seed/system-features.sql"));
         populator.addScript(new ClassPathResource("db/seed/pricing-config.sql"));
+        populator.addScript(new ClassPathResource("db/seed/legal-documents.sql"));
         populator.addScript(new ClassPathResource("db/seed/avatars.sql"));
         populator.addScript(new ClassPathResource("db/seed/departments.sql"));
         populator.addScript(new ClassPathResource("db/seed/municipalities.sql")); // depende de departamentos

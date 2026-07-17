@@ -146,6 +146,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.PERCENTAGE)
                 .build());
 
+        Feature canHavePets = featureRepository.save(Feature.builder()
+                .code("CAN_HAVE_PETS")
+                .name("Puede tener mascotas")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -158,6 +164,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, maxBrandedGames, 0,    null,  null),
             pf(basic, maxSurveys,      0,    null,  null),
             pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
+            pf(basic, canHavePets,     null, false, null),
 
             // ── STANDARD ──────────────────────────────────────────────────────
             pf(standard, canAdvertise,    null, true,  null),
@@ -168,6 +175,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, maxBrandedGames, 5,    null,  null),
             pf(standard, maxSurveys,      10,   null,  null),
             pf(standard, visibilityBoost, null, null,  new BigDecimal("20.00")),
+            pf(standard, canHavePets,     null, false, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
@@ -177,7 +185,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, maxAds,          100,  null,  null),
             pf(premium, maxBrandedGames, 20,   null,  null),
             pf(premium, maxSurveys,      50,   null,  null),
-            pf(premium, visibilityBoost, null, null,  new BigDecimal("50.00"))
+            pf(premium, visibilityBoost, null, null,  new BigDecimal("50.00")),
+            pf(premium, canHavePets,     null, true,  null)
         );
 
         planFeatureRepository.saveAll(planFeatures);

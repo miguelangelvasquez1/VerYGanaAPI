@@ -6,6 +6,7 @@ public class PublicPaths {
         "/avatars",
         "/categories/all",
         "/products/{id}",
+        "/legal-documents/**",
         "/auth/**",
         "/users/**",
         "/locations/**",

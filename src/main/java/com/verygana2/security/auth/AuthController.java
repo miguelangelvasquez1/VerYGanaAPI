@@ -277,10 +277,11 @@ public class AuthController {
     @PostMapping("/register/commercial")
     public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
         userService.registerCommercial(dto);
-        String message = Boolean.TRUE.equals(dto.getIsPEP())
-                ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
-                : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
-        return ResponseEntity.status(HttpStatus.CREATED).body(message);
+        // La declaración de PEP y el screening SAGRILAFT ahora ocurren en el paso 3
+        // (identificación jurídica), no en el registro básico — por eso el mensaje ya
+        // no depende de isPEP aquí.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Registro exitoso. Revisa tu correo para activar tu cuenta.");
     }
 
     @PostMapping("/verify-email")
