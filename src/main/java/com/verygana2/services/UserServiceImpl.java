@@ -6,7 +6,7 @@ import com.verygana2.models.enums.UserState;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
-import com.verygana2.services.interfaces.PasswordSetupService;
+
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,7 +24,6 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.repositories.UserRepository;
-import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
@@ -56,7 +55,6 @@ public class UserServiceImpl implements UserService {
     private final PasswordSetupService passwordSetupService;
     private final EmailVerificationService emailVerificationService;
     private final ScreeningService screeningService;
-    private final CommercialOnboardingRepository commercialOnboardingRepository;
     private final TwilioSmsService twilioSmsService;
     private final com.verygana2.security.auth.refreshToken.RefreshTokenRepository refreshTokenRepository;
 
@@ -96,8 +94,8 @@ public class UserServiceImpl implements UserService {
     }
 
     /**
-     * Registro básico (paso 1): solo email/password/phoneNumber/municipalityCode.
-     * La identificación jurídica (razón social, NIT, representante legal, etc.) y el
+     * Registro básico (paso 1): solo email/password/phoneNumber.
+     * La identificación jurídica (razón social, NIT, representante legal, municipio, etc.) y el
      * screening SAGRILAFT correspondiente se completan en el paso 3 del onboarding
      * (ver {@link com.verygana2.services.commercial.CommercialOnboardingServiceImpl#submitLegalIdentification}),
      * una vez esos datos existen — por eso aquí no hay lógica de PEP ni de screening.
@@ -111,20 +109,17 @@ public class UserServiceImpl implements UserService {
         CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
 
-        if (dto.getMunicipalityCode() != null) {
-            Municipality municipality = locationService.getMunicipalityEntityByCode(dto.getMunicipalityCode());
-            details.setMunicipality(municipality);
-            details.setMunicipalityName(municipality.getName());
-            details.setDepartmentName(municipality.getDepartment().getName());
-        }
-
         user.setUserDetails(details);
 
-        User savedUser = userRepository.save(user);
-
         CommercialOnboarding onboarding = new CommercialOnboarding();
-        onboarding.setUser(savedUser);
-        commercialOnboardingRepository.save(onboarding);
+        onboarding.setCommercialDetails(details);
+        details.setOnboarding(onboarding);
+
+        // user -> details -> onboarding se persisten en cascada (CascadeType.ALL en
+        // ambos saltos), por eso un solo save alcanza; guardar onboarding aparte antes
+        // de esto fallaba con TransientPropertyValueException porque details todavía
+        // no tenía id asignado.
+        User savedUser = userRepository.save(user);
 
         sendVerificationEmail(savedUser);
         return savedUser;

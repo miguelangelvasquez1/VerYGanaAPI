@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 
 import lombok.RequiredArgsConstructor;
@@ -47,11 +48,13 @@ public class CommercialContractController {
         return ResponseEntity.ok(contractService.businessApprove(userId));
     }
 
-    /** Paso 10: el empresario regresa a corregir campos no jurídicos (diagnóstico, plan o documentos). */
+    /**
+     * Paso 10: el empresario regresa a corregir campos no jurídicos (diagnóstico, plan o documentos).
+     * Devuelve el paso al que quedó el onboarding para que el front redirija ahí directamente.
+     */
     @PostMapping("/request-changes")
-    public ResponseEntity<Void> requestChanges(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<OnboardingStep> requestChanges(@AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
-        contractService.requestChanges(userId);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(contractService.requestChanges(userId));
     }
 }

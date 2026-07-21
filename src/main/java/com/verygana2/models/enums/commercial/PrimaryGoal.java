@@ -5,5 +5,4 @@ public enum PrimaryGoal {
     VENDER,
     PUBLICIDAD,
     AMBAS,
-    SERVICIO_A_VERYGANA
 }

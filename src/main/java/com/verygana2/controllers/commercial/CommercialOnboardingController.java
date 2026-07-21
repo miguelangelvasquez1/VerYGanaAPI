@@ -10,9 +10,12 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
@@ -43,9 +46,20 @@ public class CommercialOnboardingController {
         return ResponseEntity.ok(onboardingService.getStatus(userId));
     }
 
+    /**
+     * Resumen de solo lectura de todo lo capturado en los pasos 2-8, para mostrarse
+     * ANTES de generar el Contrato Marco — así el comercial revisa sus datos sin
+     * necesitar un PDF nuevo cada vez que quiere corregir algo antes de generarlo.
+     */
+    @GetMapping("/summary")
+    public ResponseEntity<CommercialOnboardingSummaryResponseDTO> getSummary(@AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(onboardingService.getSummary(userId));
+    }
+
     /** Paso 2: lectura y aceptación de Términos y Condiciones. */
     @PostMapping("/terms")
-    public ResponseEntity<CommercialOnboardingStatusResponseDTO> acceptTerms(
+    public ResponseEntity<CommercialOnboardingStatusResponseDTO> acceptTerms( 
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody TermsAcceptanceRequestDTO dto,
             HttpServletRequest request) {
@@ -87,17 +101,19 @@ public class CommercialOnboardingController {
         return ResponseEntity.ok(onboardingService.confirmClassification(userId));
     }
 
-    /** Paso 6-7: plan recomendado según la ruta, con el resumen económico completo (tarifa, comisión, impuestos, liquidación). */
+    /** Paso 6-7: catálogo completo de planes (para tabla comparativa), marcando el recomendado según la ruta. */
     @GetMapping("/plan")
-    public ResponseEntity<PlanSummaryResponseDTO> getRecommendedPlan(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<PlanComparisonResponseDTO> getRecommendedPlan(@AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.ok(onboardingService.getRecommendedPlan(userId));
     }
 
-    /** Paso 7: el empresario acepta el plan y sus condiciones económicas. */
+    /** Paso 7: el empresario acepta un plan (no necesariamente el recomendado) y sus condiciones económicas. */
     @PostMapping("/plan/accept")
-    public ResponseEntity<PlanSummaryResponseDTO> acceptPlan(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<PlanSummaryResponseDTO> acceptPlan(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody AcceptPlanRequestDTO dto) {
         Long userId = jwt.getClaim("userId");
-        return ResponseEntity.ok(onboardingService.acceptPlan(userId));
+        return ResponseEntity.ok(onboardingService.acceptPlan(userId, dto));
     }
 }

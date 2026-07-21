@@ -90,6 +90,11 @@ logging:
     com.verygana2.services.storage: DEBUG
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    # PDFBox construye su FontMapper una sola vez por JVM escaneando C:\Windows\Fonts;
+    # algunas fuentes CJK preinstaladas en Windows (NotoSansTC-*.ttf) traen un formato
+    # que su TTFParser no soporta y lanza EOFException — inofensivo (PDFBox salta esa
+    # fuente y sigue), pero genera ruido de stacktraces largos al primer PDF generado.
+    org.apache.pdfbox.pdmodel.font.FileSystemFontProvider: ERROR
     org.springframework.security: DEBUG
     org.springframework.security.authentication: WARN
     org.springframework.security.authorization.method: WARN
@@ -232,7 +237,7 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
-    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
+    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
@@ -348,3 +353,10 @@ screening:
     api-key: ${TRUORA_API_KEY:}
     base-url: https://api.truora.com/v1
     timeout-seconds: 5
+
+# ============================================
+# E-SIGNATURE CONFIG
+# ============================================
+esignature:
+  # 'noop' hasta elegir un proveedor real (DocuSign, HelloSign, etc.)
+  provider: noop

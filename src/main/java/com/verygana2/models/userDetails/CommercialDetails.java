@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.models.Municipality;
+import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.AnnualRevenueRange;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
@@ -22,6 +23,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -43,10 +45,13 @@ public class CommercialDetails extends UserDetails {
 
     // ==================== KYC / SAGRILAFT ====================
 
+    @OneToOne(mappedBy = "commercialDetails", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private CommercialOnboarding onboarding;
+
     @Column(name = "ciiu_code", length = 10)
     private String ciiuCode;
 
-    @Column(name = "mercantile_registration", length = 20)
+    @Column(name = "mercantile_registration", unique = true, length = 20)
     private String mercantileRegistration;
 
     @Enumerated(EnumType.STRING)

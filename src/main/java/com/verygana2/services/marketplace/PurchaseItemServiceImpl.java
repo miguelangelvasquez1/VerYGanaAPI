@@ -20,16 +20,19 @@ import com.verygana2.security.CodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
 import jakarta.persistence.EntityNotFoundException;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class PurchaseItemServiceImpl implements PurchaseItemService {
 
     private final PurchaseItemRepository purchaseItemRepository;
-    @Qualifier("productCodeEncryptor")
     private final CodeEncryptor codeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
+
+    public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository,
+            @Qualifier("productCodeEncryptor") CodeEncryptor codeEncryptor) {
+        this.purchaseItemRepository = purchaseItemRepository;
+        this.codeEncryptor = codeEncryptor;
+    }
 
     @Override
     public Long getTotalSalesbyCommercial(Long commercialId) {

@@ -4,14 +4,13 @@ import java.time.ZonedDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.verygana2.models.User;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.OnboardingStep;
-import com.verygana2.models.enums.commercial.PaymentPeriodicity;
 import com.verygana2.models.enums.commercial.PersonType;
 import com.verygana2.models.enums.commercial.PrimaryGoal;
 import com.verygana2.models.enums.commercial.TechIntegrationNeed;
 import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
@@ -45,8 +44,8 @@ public class CommercialOnboarding {
     private Long id;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false, unique = true)
-    private User user;
+    @JoinColumn(name = "commercial_details_id", nullable = false, unique = true)
+    private CommercialDetails commercialDetails;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "current_step", nullable = false, length = 40)
@@ -86,8 +85,11 @@ public class CommercialOnboarding {
     @Column(name = "person_type", length = 20)
     private PersonType personType;
 
-    @Column(name = "legal_rep_full_name", length = 200)
-    private String legalRepFullName;
+    @Column(name = "legal_rep_first_name", length = 100)
+    private String legalRepFirstName;
+
+    @Column(name = "legal_rep_last_name", length = 100)
+    private String legalRepLastName;
 
     @Column(name = "economic_activity_description", length = 500)
     private String economicActivityDescription;
@@ -107,15 +109,6 @@ public class CommercialOnboarding {
     @Column(name = "wants_fixed_fee")
     private Boolean wantsFixedFee; // Q4
 
-    @Column(name = "accepts_commission_on_sale_only")
-    private Boolean acceptsCommissionOnSaleOnly; // Q5
-
-    @Column(name = "max_promotional_keys_percentage")
-    private Integer maxPromotionalKeysPercentage; // Q6 (0-100)
-
-    @Column(name = "accepted_commission_percentage")
-    private Integer acceptedCommissionPercentage; // Q7 (0-100)
-
     @Column(name = "requires_custom_games")
     private Boolean requiresCustomGames; // Q8
 
@@ -125,21 +118,15 @@ public class CommercialOnboarding {
     @Column(name = "tech_need", length = 30)
     private Set<TechIntegrationNeed> techIntegrationNeeds = new HashSet<>(); // Q9
 
+    /** Descripción libre de la integración requerida. Requerida cuando hay techIntegrationNeeds. */
+    @Column(name = "integration_details", length = 1000)
+    private String integrationDetails;
+
     @Column(name = "regulated_sector")
     private Boolean regulatedSector; // Q10
 
     @Column(name = "requires_special_negotiation")
     private Boolean requiresSpecialNegotiation; // Q11
-
-    @Column(name = "contract_duration_months")
-    private Integer contractDurationMonths; // Q12a
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_periodicity", length = 20)
-    private PaymentPeriodicity paymentPeriodicity; // Q12b
-
-    @Column(name = "termination_terms", length = 500)
-    private String terminationTerms; // Q12c
 
     @Column(name = "diagnostic_completed_at")
     private ZonedDateTime diagnosticCompletedAt;
@@ -182,6 +169,14 @@ public class CommercialOnboarding {
 
     @Column(name = "max_investment_cents_snapshot")
     private Long maxInvestmentCentsSnapshot;
+
+    /** Monto que el empresario se comprometió a invertir dentro del rango del plan. Null para BASIC. */
+    @Column(name = "investment_amount_cents_snapshot")
+    private Long investmentAmountCentsSnapshot;
+
+    /** Duración del contrato en meses. Solo aplica a BASIC (suscripción con tarifa fija). Null para STANDARD/PREMIUM. */
+    @Column(name = "contract_duration_months")
+    private Integer contractDurationMonths;
 
     @Column(name = "sale_commission_pct_snapshot")
     private Integer saleCommissionPctSnapshot;

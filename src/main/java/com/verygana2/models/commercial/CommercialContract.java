@@ -60,6 +60,23 @@ public class CommercialContract {
     @Column(name = "admin_decision_notes", length = 1000)
     private String adminDecisionNotes;
 
+    // ==================== FIRMA ELECTRÓNICA (PASO 11b) ====================
+
+    @Column(name = "esignature_provider", length = 30)
+    private String esignatureProvider;
+
+    @Column(name = "esignature_envelope_id", length = 200)
+    private String esignatureEnvelopeId;
+
+    @Column(name = "esignature_sent_at")
+    private ZonedDateTime esignatureSentAt;
+
+    @Column(name = "esignature_signer_email", length = 255)
+    private String esignatureSignerEmail;
+
+    @Column(name = "esignature_signed_at")
+    private ZonedDateTime esignatureSignedAt;
+
     @PrePersist
     protected void onCreate() {
         if (generatedAt == null) {

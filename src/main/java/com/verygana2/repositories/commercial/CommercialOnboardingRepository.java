@@ -7,6 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import com.verygana2.models.commercial.CommercialOnboarding;
 
 public interface CommercialOnboardingRepository extends JpaRepository<CommercialOnboarding, Long> {
-    Optional<CommercialOnboarding> findByUser_Id(Long userId);
-    boolean existsByUser_Id(Long userId);
+    Optional<CommercialOnboarding> findByCommercialDetails_Id(Long userId);
+    boolean existsByCommercialDetails_Id(Long userId);
 }

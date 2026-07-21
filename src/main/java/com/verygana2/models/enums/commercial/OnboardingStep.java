@@ -11,5 +11,7 @@ public enum OnboardingStep {
     CONTRACT_PENDING,           // Paso 9: pendiente de generar el contrato
     BUSINESS_REVIEW_PENDING,    // Paso 10: contrato generado, pendiente de revisión/aprobación del empresario
     VERYGANA_REVIEW_PENDING,    // Paso 11: pendiente de revisión de VERYGANA
+    SIGNATURE_PENDING,          // Paso 11b: contrato aprobado, enviado a firma electrónica
+    PAYMENT_PENDING,            // Paso 12: firmado, pendiente de pago/activación
     COMPLETED
 }
