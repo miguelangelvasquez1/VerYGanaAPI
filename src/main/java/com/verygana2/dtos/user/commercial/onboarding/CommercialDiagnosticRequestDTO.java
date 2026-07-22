@@ -2,56 +2,42 @@ package com.verygana2.dtos.user.commercial.onboarding;
 
 import java.util.Set;
 
-import com.verygana2.models.enums.commercial.PaymentPeriodicity;
 import com.verygana2.models.enums.commercial.PrimaryGoal;
 import com.verygana2.models.enums.commercial.TechIntegrationNeed;
 
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** Formulario inteligente: preguntas 3 a 12 del diagnóstico comercial. */
+/**
+ * Formulario inteligente: preguntas 3 a 11 del diagnóstico comercial.
+ *
+ * Q9 (techIntegrationNeeds) actúa como pregunta de bifurcación: si viene con al
+ * menos una necesidad, el resto de las preguntas (Q3-Q8, Q10-Q11) se ignoran y
+ * solo se exige integrationDetails, ya que ese caso se resuelve por negociación
+ * directa con un asesor (Ruta D) sin pasar por clasificación ni selección de plan.
+ * La validación condicional vive en el servicio, no en anotaciones, porque
+ * depende del valor de techIntegrationNeeds.
+ *
+ * La duración del contrato (antes Q12a) se mueve a AcceptPlanRequestDTO: solo
+ * aplica al plan Básico (suscripción con tarifa fija) y no tiene sentido
+ * preguntarla antes de saber qué plan se va a elegir. La periodicidad de pago
+ * (Q12b) y las condiciones de terminación (Q12c) se eliminaron por completo.
+ */
 @Data
 public class CommercialDiagnosticRequestDTO {
 
-    @NotNull(message = "El objetivo principal es requerido")
-    private PrimaryGoal primaryGoal; // Q3
-
-    @NotNull(message = "Debe indicar si desea pagar una tarifa fija")
-    private Boolean wantsFixedFee; // Q4
-
-    @NotNull(message = "Debe indicar si acepta pagar comisión únicamente cuando exista una venta")
-    private Boolean acceptsCommissionOnSaleOnly; // Q5
-
-    @NotNull(message = "El porcentaje máximo cubierto con Llaves Promocionales es requerido")
-    @Min(0)
-    @Max(100)
-    private Integer maxPromotionalKeysPercentage; // Q6
-
-    @NotNull(message = "La comisión que acepta pagar a VERYGANA es requerida")
-    @Min(0)
-    @Max(100)
-    private Integer acceptedCommissionPercentage; // Q7
-
-    @NotNull(message = "Debe indicar si requiere juegos personalizados")
-    private Boolean requiresCustomGames; // Q8
-
     private Set<TechIntegrationNeed> techIntegrationNeeds; // Q9 (vacío/null = ninguna)
 
-    @NotNull(message = "Debe indicar si la actividad pertenece a un sector regulado")
+    @Size(max = 1000)
+    private String integrationDetails; // Requerido solo si techIntegrationNeeds no está vacío
+
+    private PrimaryGoal primaryGoal; // Q3
+
+    private Boolean wantsFixedFee; // Q4
+
+    private Boolean requiresCustomGames; // Q8
+
     private Boolean regulatedSector; // Q10
 
-    @NotNull(message = "Debe indicar si requiere negociación especial o aprobación corporativa previa")
     private Boolean requiresSpecialNegotiation; // Q11
-
-    @Min(1)
-    private Integer contractDurationMonths; // Q12a
-
-    @NotNull(message = "La periodicidad de pago es requerida")
-    private PaymentPeriodicity paymentPeriodicity; // Q12b
-
-    @Size(max = 500)
-    private String terminationTerms; // Q12c
 }

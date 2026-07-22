@@ -118,25 +118,25 @@ public class GameController {
             
         // ==================== NUEVOS JUEGOS (11 al 20) ====================
         
-         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+         if (req.getCampaignId() != null && req.getCampaignId() == 11L) {
             return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 12L) {
             return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 13L) {
             return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 14L) {
             return ResponseEntity.ok(StackTowerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 15L) {
             return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 16L) {
             return ResponseEntity.ok(WordSearchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 17L) {
             return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) {
             return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) {
             return ResponseEntity.ok(TicTacToeAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 20L) {
             return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
         }
 

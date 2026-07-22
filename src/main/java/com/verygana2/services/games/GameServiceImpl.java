@@ -114,9 +114,6 @@ public class GameServiceImpl implements GameService {
 
         ConsumerDetails consumer = entityManager.getReference(ConsumerDetails.class, userId);
 
-        // 2. Seleccionar la campaña (y por lo tanto el juego) que mejor se ajuste al consumidor.
-        // No se usa request.getGameId() aquí: en modo sponsored el juego es una consecuencia
-        // de la campaña elegida, no una elección del usuario.
         Campaign campaign = selectBestCampaign(consumer)
                 .orElseThrow(() -> new ValidationException("No active campaigns available"));
 
@@ -159,7 +156,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "false", "none");
+                baseUrl, "public", userId.toString(), "true", 15L); //"none", false
     }
 
     @Transactional(readOnly = true)

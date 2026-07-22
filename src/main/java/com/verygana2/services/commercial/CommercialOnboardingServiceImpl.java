@@ -1,40 +1,50 @@
 package com.verygana2.services.commercial;
 
 import java.time.ZonedDateTime;
-import java.util.HashSet;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
+import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
+import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.Municipality;
-import com.verygana2.models.User;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialOnboarding;
-import com.verygana2.models.enums.UserState;
 import com.verygana2.models.enums.commercial.CommercialRoute;
+import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
+import com.verygana2.models.enums.commercial.PersonType;
+import com.verygana2.models.enums.commercial.PrimaryGoal;
 import com.verygana2.models.enums.legal.LegalDocumentType;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.legal.LegalDocument;
 import com.verygana2.models.userDetails.CommercialDetails;
-import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.legal.LegalDocumentRepository;
 import com.verygana2.services.LocationService;
+import com.verygana2.services.interfaces.commercial.CommercialDocumentService;
 import com.verygana2.services.interfaces.commercial.CommercialOnboardingService;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.utils.audit.AuditEvent;
@@ -53,11 +63,12 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final CommercialContractRepository commercialContractRepository;
     private final PlanRepository planRepository;
-    private final UserRepository userRepository;
     private final ScreeningService screeningService;
     private final LegalDocumentRepository legalDocumentRepository;
     private final LocationService locationService;
     private final ApplicationEventPublisher eventPublisher;
+    private final CommercialDocumentService documentService;
+    private final CommercialOnboardingMapper commercialOnboardingMapper;
 
     @Value("${commercial.onboarding.economic-summary.tax-note}")
     private String taxNote;
@@ -72,6 +83,29 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public CommercialOnboardingSummaryResponseDTO getSummary(Long userId) {
+        CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
+        CommercialDetails details = onboarding.getCommercialDetails();
+
+        LegalIdentificationSummaryDTO legalIdentification = onboarding.getLegalIdentificationCompletedAt() == null ? null
+                : commercialOnboardingMapper.toLegalIdentificationSummary(onboarding, details);
+
+        DiagnosticSummaryDTO diagnostic = onboarding.getDiagnosticCompletedAt() == null ? null
+                : commercialOnboardingMapper.toDiagnosticSummary(onboarding);
+
+        RouteClassificationResponseDTO classification = onboarding.getRoute() == null ? null
+                : commercialOnboardingMapper.toRouteClassification(onboarding);
+
+        PlanSummaryResponseDTO plan = onboarding.getSelectedPlan() == null ? null
+                : buildPlanSummary(onboarding, onboarding.getSelectedPlan());
+
+        return commercialOnboardingMapper.toSummaryDTO(
+                onboarding, legalIdentification, diagnostic, classification, plan, documentService.getStatus(userId));
+    }
+
+    // 1. ACEPTACIÓN DE TÉRMINOS Y CONDICIONES
+    @Override
     public CommercialOnboardingStatusResponseDTO acceptTerms(Long userId, TermsAcceptanceRequestDTO dto,
                                                                String ipAddress, String userAgent) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
@@ -81,12 +115,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 .orElseThrow(() -> new OnboardingStepException(
                         "La versión de Términos y Condiciones indicada no existe: " + dto.getTermsVersion()));
 
-        onboarding.setTermsVersion(terms.getVersion());
-        onboarding.setTermsDocumentUrl(terms.getDocumentUrl());
-        onboarding.setTermsPublishedDate(terms.getPublishedDate());
+        commercialOnboardingMapper.applyTermsAcceptance(terms, ipAddress, userAgent, onboarding);
         onboarding.setTermsAcceptedAt(ZonedDateTime.now());
-        onboarding.setTermsAcceptedIp(ipAddress);
-        onboarding.setTermsAcceptedUserAgent(userAgent);
 
         if (onboarding.getCurrentStep() == OnboardingStep.TERMS_PENDING) {
             onboarding.setCurrentStep(OnboardingStep.LEGAL_IDENTIFICATION_PENDING);
@@ -103,6 +133,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return toStatusDTO(onboarding);
     }
 
+    // 2. IDENTIFICACIÓN JURÍDICA
     @Override
     public CommercialOnboardingStatusResponseDTO submitLegalIdentification(Long userId, LegalIdentificationRequestDTO dto) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
@@ -110,14 +141,10 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         if (onboarding.getLegalIdentificationCompletedAt() != null) {
             throw new OnboardingStepException(
-                    "La identificación jurídica ya fue registrada y no puede modificarse desde el registro. "
-                            + "Contacta a soporte si necesitas corregirla.");
+                    "La identificación jurídica ya fue registrada y no puede modificarse desde el registro. " + "Contacta a soporte si necesitas corregirla.");
         }
 
-        onboarding.setPersonType(dto.getPersonType());
-        onboarding.setLegalRepFullName(dto.getLegalRepFullName());
-        onboarding.setEconomicActivityDescription(dto.getEconomicActivityDescription());
-        onboarding.setAddress(dto.getAddress());
+        commercialOnboardingMapper.applyLegalIdentificationToOnboarding(dto, onboarding);
         onboarding.setLegalIdentificationCompletedAt(ZonedDateTime.now());
 
         if (onboarding.getCurrentStep() == OnboardingStep.LEGAL_IDENTIFICATION_PENDING) {
@@ -127,13 +154,25 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         CommercialDetails details = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new ObjectNotFoundException("CommercialDetails no encontrado para userId: " + userId, CommercialDetails.class));
 
-        details.setCompanyName(dto.getCompanyName());
-        details.setNit(dto.getNit());
-        details.setMercantileRegistration(dto.getMercantileRegistration());
-        details.setLegalRepDocType(dto.getLegalRepDocType());
-        details.setLegalRepDocNumber(dto.getLegalRepDocNumber());
-        details.setPep(Boolean.TRUE.equals(dto.getLegalRepPepDeclaration()));
-        details.setAnnualIncomeRange(dto.getAnnualIncomeRange());
+        if (commercialDetailsRepository.existsByNit(dto.getNit())) {
+            throw new OnboardingStepException("El NIT '" + dto.getNit() + "' ya está registrado por otra cuenta.");
+        }
+        if (dto.getMercantileRegistration() != null && !dto.getMercantileRegistration().isBlank()
+                && commercialDetailsRepository.existsByMercantileRegistration(dto.getMercantileRegistration())) {
+            throw new OnboardingStepException(
+                    "La matrícula mercantil '" + dto.getMercantileRegistration() + "' ya está registrada por otra cuenta.");
+        }
+
+        String companyName = dto.getCompanyName();
+        if (companyName == null || companyName.isBlank()) {
+            if (dto.getPersonType() == PersonType.JURIDICA) {
+                throw new OnboardingStepException("La razón social es requerida para persona jurídica.");
+            }
+            companyName = dto.getLegalRepFirstName() + " " + dto.getLegalRepLastName();
+        }
+
+        details.setCompanyName(companyName);
+        commercialOnboardingMapper.applyLegalIdentificationToDetails(dto, details);
         if (dto.getCiiuCode() != null && !dto.getCiiuCode().isBlank()) {
             details.setCiiuCode(dto.getCiiuCode());
         }
@@ -143,19 +182,19 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
             details.setMunicipalityName(municipality.getName());
             details.setDepartmentName(municipality.getDepartment().getName());
         }
-        commercialDetailsRepository.save(details);
+        try {
+            commercialDetailsRepository.save(details);
+        } catch (DataIntegrityViolationException ex) {
+            // Red de seguridad ante condiciones de carrera: dos submits simultáneos con el
+            // mismo NIT/matrícula mercantil pueden pasar ambos el chequeo existsBy* de arriba.
+            throw new OnboardingStepException("El NIT o la matrícula mercantil ya están registrados por otra cuenta.");
+        }
 
         // Screening SAGRILAFT de la empresa y del representante legal — solo puede
         // correr aquí, en el paso 3, porque es cuando estos datos existen por primera vez.
-        screeningService.screenOrThrow(userId, dto.getCompanyName(), dto.getNit());
-        screeningService.screenOrThrow(userId, dto.getLegalRepFullName(), dto.getLegalRepDocNumber());
-
-        User user = onboarding.getUser();
-        if (Boolean.TRUE.equals(dto.getLegalRepPepDeclaration())) {
-            user.setUserState(UserState.PENDING_KYC_REVIEW);
-            userRepository.save(user);
-            log.info("Comercial {} marcado como PEP en identificación jurídica. Cuenta en revisión manual (PENDING_KYC_REVIEW).", userId);
-        }
+        screeningService.screenOrThrow(userId, companyName, dto.getNit());
+        screeningService.screenOrThrow(userId,
+                dto.getLegalRepFirstName() + " " + dto.getLegalRepLastName(), dto.getLegalRepDocNumber());
 
         onboardingRepository.save(onboarding);
 
@@ -166,38 +205,39 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return toStatusDTO(onboarding);
     }
 
+    // 3. DIAGNÓSTICO COMERCIAL Y CLASIFICACIÓN AUTOMÁTICA DE RUTA (A-E)
     @Override
     public RouteClassificationResponseDTO submitDiagnostic(Long userId, CommercialDiagnosticRequestDTO dto) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         requireLegalIdentificationCompleted(onboarding);
         requireNotInBusinessReviewOrLater(onboarding);
+        validateDiagnostic(dto);
 
-        onboarding.setPrimaryGoal(dto.getPrimaryGoal());
-        onboarding.setWantsFixedFee(dto.getWantsFixedFee());
-        onboarding.setAcceptsCommissionOnSaleOnly(dto.getAcceptsCommissionOnSaleOnly());
-        onboarding.setMaxPromotionalKeysPercentage(dto.getMaxPromotionalKeysPercentage());
-        onboarding.setAcceptedCommissionPercentage(dto.getAcceptedCommissionPercentage());
-        onboarding.setRequiresCustomGames(dto.getRequiresCustomGames());
-        onboarding.setTechIntegrationNeeds(dto.getTechIntegrationNeeds() == null
-                ? new HashSet<>() : new HashSet<>(dto.getTechIntegrationNeeds()));
-        onboarding.setRegulatedSector(dto.getRegulatedSector());
-        onboarding.setRequiresSpecialNegotiation(dto.getRequiresSpecialNegotiation());
-        onboarding.setContractDurationMonths(dto.getContractDurationMonths());
-        onboarding.setPaymentPeriodicity(dto.getPaymentPeriodicity());
-        onboarding.setTerminationTerms(dto.getTerminationTerms());
+        commercialOnboardingMapper.applyDiagnostic(dto, onboarding);
         onboarding.setDiagnosticCompletedAt(ZonedDateTime.now());
 
         RouteClassificationResponseDTO classification = classify(onboarding);
         onboarding.setRoute(classification.getRoute());
         onboarding.setRouteExplanation(classification.getExplanation());
         onboarding.setClassifiedAt(ZonedDateTime.now());
-        onboarding.setRouteConfirmed(false);
-        onboarding.setRouteConfirmedAt(null);
 
         // La ruta pudo cambiar: cualquier plan ya aceptado queda invalidado y debe re-aceptarse.
         onboarding.setSelectedPlan(null);
         onboarding.setPlanAcceptedAt(null);
-        onboarding.setCurrentStep(OnboardingStep.CLASSIFICATION_PENDING);
+
+        if (classification.getRoute() == CommercialRoute.D) {
+            // Ruta D (integración técnica): no hay clasificación que confirmar ni plan que
+            // aceptar, se resuelve por negociación directa con un asesor. Se salta derecho
+            // a la carga documental.
+            onboarding.setRouteConfirmed(true);
+            onboarding.setRouteConfirmedAt(ZonedDateTime.now());
+            onboarding.setRequiresAdvisorContact(true);
+            onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
+        } else {
+            onboarding.setRouteConfirmed(false);
+            onboarding.setRouteConfirmedAt(null);
+            onboarding.setCurrentStep(OnboardingStep.CLASSIFICATION_PENDING);
+        }
 
         onboardingRepository.save(onboarding);
 
@@ -208,6 +248,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return classification;
     }
 
+    // 4. CONSULTAR CLASIFICACIÓN (RUTA + EXPLICACIÓN)
     @Override
     @Transactional(readOnly = true)
     public RouteClassificationResponseDTO getClassification(Long userId) {
@@ -215,11 +256,10 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         if (onboarding.getRoute() == null) {
             throw new OnboardingStepException("Aún no se ha completado el diagnóstico comercial, no hay una ruta asignada.");
         }
-        return new RouteClassificationResponseDTO(
-                onboarding.getRoute(), onboarding.getRoute().name(),
-                onboarding.getRouteExplanation(), onboarding.isRouteConfirmed());
+        return commercialOnboardingMapper.toRouteClassification(onboarding);
     }
 
+    // 4b. EL EMPRESARIO CONFIRMA SU CLASIFICACIÓN Y AVANZA AL PASO 5 (PLAN)
     @Override
     public CommercialOnboardingStatusResponseDTO confirmClassification(Long userId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
@@ -242,30 +282,50 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return toStatusDTO(onboarding);
     }
 
-    // ==================== PASO 6-7: PLAN Y RESUMEN ECONÓMICO ====================
-
+    // 5. CONSULTAR CATÁLOGO DE PLANES (PARA TABLA COMPARATIVA) Y CUÁL ES EL RECOMENDADO
     @Override
     @Transactional(readOnly = true)
-    public PlanSummaryResponseDTO getRecommendedPlan(Long userId) {
+    public PlanComparisonResponseDTO getRecommendedPlan(Long userId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         requireRouteConfirmed(onboarding);
-        Plan plan = resolvePlanForRoute(onboarding.getRoute());
-        return buildPlanSummary(onboarding, plan);
+
+        Plan.PlanCode recommendedCode = resolvePlanForRoute(onboarding.getRoute()).getCode();
+
+        List<PlanOptionDTO> plans = planRepository.findAllByActiveTrue().stream()
+                .sorted(Comparator.comparing(p -> p.getCode().ordinal()))
+                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, p.getCode() == recommendedCode))
+                .toList();
+
+        return new PlanComparisonResponseDTO(
+                recommendedCode,
+                requiresAdvisor(onboarding),
+                taxNote,
+                liquidationConditions,
+                plans);
     }
 
+    // 5b. EL EMPRESARIO ACEPTA UN PLAN (NO NECESARIAMENTE EL RECOMENDADO) Y SUS CONDICIONES ECONÓMICAS
     @Override
-    public PlanSummaryResponseDTO acceptPlan(Long userId) {
+    public PlanSummaryResponseDTO acceptPlan(Long userId, AcceptPlanRequestDTO dto) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         requireRouteConfirmed(onboarding);
         requireNotInBusinessReviewOrLater(onboarding);
 
-        Plan plan = resolvePlanForRoute(onboarding.getRoute());
+        Plan plan = planRepository.findByCodeAndActiveTrue(dto.getPlanCode())
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "No hay un plan activo configurado para: " + dto.getPlanCode(), Plan.class));
+
+        boolean isRecommended = plan.getCode() == resolvePlanForRoute(onboarding.getRoute()).getCode();
+        Long investmentAmountCents = resolveInvestmentAmount(plan, dto.getInvestmentAmountCents());
+        Integer contractDurationMonths = resolveContractDuration(plan, dto.getContractDurationMonths());
 
         onboarding.setSelectedPlan(plan);
-        onboarding.setRequiresAdvisorContact(requiresAdvisor(onboarding.getRoute()));
+        onboarding.setRequiresAdvisorContact(requiresAdvisor(onboarding));
         onboarding.setMonthlyFeeCentsSnapshot(plan.getMonthlyPriceCents());
         onboarding.setMinInvestmentCentsSnapshot(plan.getMinInvestmentCents());
         onboarding.setMaxInvestmentCentsSnapshot(plan.getMaxInvestmentCents());
+        onboarding.setInvestmentAmountCentsSnapshot(investmentAmountCents);
+        onboarding.setContractDurationMonths(contractDurationMonths);
         onboarding.setSaleCommissionPctSnapshot(plan.getSaleCommissionPct());
         onboarding.setMaxKeysPctSnapshot(plan.getMaxKeysPct());
         onboarding.setTaxNoteSnapshot(taxNote);
@@ -278,9 +338,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         onboardingRepository.save(onboarding);
 
         publishAudit(userId, "COMMERCIAL_PLAN_ACCEPTED",
-                "Comercial aceptó el plan " + plan.getCode() + " y sus condiciones económicas.",
+                "Comercial aceptó el plan " + plan.getCode() + " y sus condiciones económicas"
+                        + (isRecommended ? " (recomendado)." : " (distinto al recomendado)."),
                 null, null, Map.of("planCode", plan.getCode().name(),
-                        "saleCommissionPct", plan.getSaleCommissionPct()));
+                        "saleCommissionPct", plan.getSaleCommissionPct(),
+                        "wasRecommended", isRecommended));
 
         return buildPlanSummary(onboarding, plan);
     }
@@ -288,15 +350,58 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private Plan resolvePlanForRoute(CommercialRoute route) {
         Plan.PlanCode code = switch (route) {
             case A -> Plan.PlanCode.BASIC;
-            case B -> Plan.PlanCode.STANDARD;
-            case C, D, E -> Plan.PlanCode.PREMIUM;
+            case C -> Plan.PlanCode.STANDARD;
+            case B, D, E -> Plan.PlanCode.PREMIUM;
         };
         return planRepository.findByCodeAndActiveTrue(code)
                 .orElseThrow(() -> new ObjectNotFoundException("No hay un plan activo configurado para: " + code, Plan.class));
     }
 
-    private boolean requiresAdvisor(CommercialRoute route) {
-        return route == CommercialRoute.D || route == CommercialRoute.E;
+    /** Rutas D/E siempre requieren asesor; sector regulado también, por la validación de cumplimiento adicional. */
+    private boolean requiresAdvisor(CommercialOnboarding onboarding) {
+        return onboarding.getRoute() == CommercialRoute.D
+                || onboarding.getRoute() == CommercialRoute.E
+                || Boolean.TRUE.equals(onboarding.getRegulatedSector());
+    }
+
+    /**
+     * BASIC es suscripción mensual fija: el monto a invertir no aplica y se ignora
+     * si se envía. STANDARD/PREMIUM sí lo requieren, y debe caer dentro del rango
+     * de inversión del plan (PREMIUM no tiene techo, así que ahí solo se valida el mínimo).
+     */
+    private Long resolveInvestmentAmount(Plan plan, Long requestedAmountCents) {
+        if (plan.getCode() == Plan.PlanCode.BASIC) {
+            return null;
+        }
+        if (requestedAmountCents == null) {
+            throw new OnboardingStepException(
+                    "El monto a invertir es requerido para el plan " + plan.getCode() + ".");
+        }
+        if (plan.getMinInvestmentCents() != null && requestedAmountCents < plan.getMinInvestmentCents()) {
+            throw new OnboardingStepException(
+                    "El monto a invertir debe ser al menos $" + (plan.getMinInvestmentCents() / 100) + " COP para el plan " + plan.getCode() + ".");
+        }
+        if (plan.getMaxInvestmentCents() != null && requestedAmountCents > plan.getMaxInvestmentCents()) {
+            throw new OnboardingStepException(
+                    "El monto a invertir no debe superar $" + (plan.getMaxInvestmentCents() / 100) + " COP para el plan " + plan.getCode() + ".");
+        }
+        return requestedAmountCents;
+    }
+
+    /**
+     * BASIC es suscripción con tarifa fija recurrente: la duración del contrato aplica
+     * y es requerida. STANDARD/PREMIUM no la piden — el monto invertido se consume vía
+     * comisión a un ritmo que depende de las ventas, no de un plazo fijo — así que se ignora.
+     */
+    private Integer resolveContractDuration(Plan plan, Integer requestedMonths) {
+        if (plan.getCode() != Plan.PlanCode.BASIC) {
+            return null;
+        }
+        if (requestedMonths == null || requestedMonths < 1) {
+            throw new OnboardingStepException(
+                    "La duración del contrato (en meses) es requerida para el plan " + plan.getCode() + ".");
+        }
+        return requestedMonths;
     }
 
     private PlanSummaryResponseDTO buildPlanSummary(CommercialOnboarding onboarding, Plan plan) {
@@ -308,29 +413,71 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 accepted ? onboarding.getMonthlyFeeCentsSnapshot() : plan.getMonthlyPriceCents(),
                 accepted ? onboarding.getMinInvestmentCentsSnapshot() : plan.getMinInvestmentCents(),
                 accepted ? onboarding.getMaxInvestmentCentsSnapshot() : plan.getMaxInvestmentCents(),
+                accepted ? onboarding.getInvestmentAmountCentsSnapshot() : null,
+                accepted ? onboarding.getContractDurationMonths() : null,
                 accepted ? onboarding.getSaleCommissionPctSnapshot() : plan.getSaleCommissionPct(),
                 accepted ? onboarding.getMaxKeysPctSnapshot() : plan.getMaxKeysPct(),
                 accepted ? onboarding.getTaxNoteSnapshot() : taxNote,
                 accepted ? onboarding.getLiquidationConditionsSnapshot() : liquidationConditions,
-                requiresAdvisor(onboarding.getRoute()),
+                requiresAdvisor(onboarding),
                 accepted,
                 onboarding.getPlanAcceptedAt());
+    }
+
+    /**
+     * Q9 (techIntegrationNeeds) es una pregunta de bifurcación: si viene marcada, el resto
+     * del diagnóstico es irrelevante (la ruta D se resuelve por negociación directa con un
+     * asesor, sin plan), así que solo se exige integrationDetails. Si no viene marcada, se
+     * exige el resto de las preguntas como antes.
+     */
+    private void validateDiagnostic(CommercialDiagnosticRequestDTO dto) {
+        boolean needsTechIntegration = dto.getTechIntegrationNeeds() != null && !dto.getTechIntegrationNeeds().isEmpty();
+
+        if (needsTechIntegration) {
+            if (dto.getIntegrationDetails() == null || dto.getIntegrationDetails().isBlank()) {
+                throw new OnboardingStepException(
+                        "Debe describir la integración técnica que necesita para que un asesor la evalúe.");
+            }
+            return;
+        }
+
+        if (dto.getPrimaryGoal() == null) {
+            throw new OnboardingStepException("El objetivo principal es requerido");
+        }
+        if (dto.getWantsFixedFee() == null) {
+            throw new OnboardingStepException("Debe indicar si desea pagar una tarifa fija");
+        }
+        if (dto.getRequiresCustomGames() == null) {
+            throw new OnboardingStepException("Debe indicar si requiere juegos personalizados");
+        }
+        if (dto.getRegulatedSector() == null) {
+            throw new OnboardingStepException("Debe indicar si la actividad pertenece a un sector regulado");
+        }
+        if (dto.getRequiresSpecialNegotiation() == null) {
+            throw new OnboardingStepException(
+                    "Debe indicar si requiere negociación especial o aprobación corporativa previa");
+        }
     }
 
     // ==================== CLASIFICACIÓN AUTOMÁTICA (RUTA A-E) ====================
 
     /**
      * Motor de reglas de clasificación. Evaluado en orden de prioridad: negociación
-     * especial > sector regulado > requisitos técnicos/personalización > modelo de
-     * tarifa fija > comisión estándar (caso por defecto).
+     * especial > integración técnica > personalización (Básico no soporta juegos:
+     * CAN_USE_GAMES=false en PlanDataInitializer, así que quien los pide siempre va
+     * a un plan de inversión con esa capacidad) > tarifa fija (solo Básico tiene una
+     * tarifa fija real) > objetivo de venta > caso por defecto. Sector regulado no
+     * cambia la ruta pero sí exige asesor y el permiso sectorial (ver requiresAdvisor
+     * y CommercialDocumentServiceImpl).
      */
     private RouteClassificationResponseDTO classify(CommercialOnboarding o) {
         boolean specialNegotiation = Boolean.TRUE.equals(o.getRequiresSpecialNegotiation());
+        boolean needsTechIntegration = o.getTechIntegrationNeeds() != null && !o.getTechIntegrationNeeds().isEmpty();
+        boolean sells = o.getPrimaryGoal() == PrimaryGoal.VENDER || o.getPrimaryGoal() == PrimaryGoal.AMBAS;
+        boolean visibilityGoal = o.getPrimaryGoal() == PrimaryGoal.PUBLICIDAD;
+        boolean fixedFee = Boolean.TRUE.equals(o.getWantsFixedFee());
+        boolean customGames = Boolean.TRUE.equals(o.getRequiresCustomGames());
         boolean regulated = Boolean.TRUE.equals(o.getRegulatedSector());
-        boolean needsTechOrCustomGames = Boolean.TRUE.equals(o.getRequiresCustomGames())
-                || (o.getTechIntegrationNeeds() != null && !o.getTechIntegrationNeeds().isEmpty());
-        boolean fixedFeeOnly = Boolean.TRUE.equals(o.getWantsFixedFee())
-                && !Boolean.TRUE.equals(o.getAcceptsCommissionOnSaleOnly());
 
         CommercialRoute route;
         String explanation;
@@ -338,23 +485,40 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         if (specialNegotiation) {
             route = CommercialRoute.E;
             explanation = "Ruta E: su solicitud requiere negociación corporativa especial o aprobación previa. "
-                    + "Un asesor comercial de VERYGANA se pondrá en contacto para definir condiciones a la medida.";
-        } else if (regulated) {
+                    + "Un asesor comercial de VERYGANA se pondrá en contacto para definir condiciones a la medida. "
+                    + "Por ahora, selecciona el plan que mas se ajuste a tus necesidades.";
+        } else if (needsTechIntegration) {
             route = CommercialRoute.D;
-            explanation = "Ruta D: su actividad pertenece a un sector regulado. Antes de activarse, su cuenta pasará "
-                    + "por una validación adicional de cumplimiento normativo.";
-        } else if (needsTechOrCustomGames) {
-            route = CommercialRoute.C;
-            explanation = "Ruta C: su operación requiere integración tecnológica (API, conciliación o activación "
-                    + "automática) y/o juegos personalizados. El equipo técnico de VERYGANA coordinará la implementación.";
-        } else if (fixedFeeOnly) {
+            explanation = "Ruta D: es un proveedor o aliado de servicios que requiere integración técnica "
+                    + "(API, conciliación o activación automática). El equipo técnico de VERYGANA coordinará "
+                    + "la implementación y las condiciones económicas se definirán según el tipo de integración.";
+        } else if (customGames) {
+            // El plan Básico no soporta juegos (CAN_USE_GAMES=false): quien los necesita
+            // siempre se asigna a un plan de inversión con esa capacidad, venda o no.
+            route = CommercialRoute.B;
+            explanation = "Ruta B: requiere juegos personalizados en su operación. El plan Básico no incluye "
+                    + "esta función, así que se asigna un plan de inversión con soporte completo de gamificación.";
+        } else if (fixedFee && sells) {
+            // Plan Básico: única opción con tarifa fija mensual real (ver PlanDataInitializer).
             route = CommercialRoute.A;
-            explanation = "Ruta A: pagará una tarifa fija con presencia en espacios generales de la plataforma. "
+            explanation = "Ruta A: paga una tarifa fija y vende directamente en la plataforma. "
                     + "Es el camino de activación más simple y rápido.";
+        } else if (!sells) {
+            route = CommercialRoute.C;
+            explanation = visibilityGoal
+                    ? "Ruta C: es una gran marca enfocada en visibilidad. No paga tarifa fija sino una "
+                            + "inversión dentro del plan asignado, y normalmente no vende directamente en la plataforma."
+                    : "Ruta C: su objetivo principal no es la venta directa, por lo que se clasifica como "
+                            + "marca de visibilidad.";
         } else {
             route = CommercialRoute.B;
-            explanation = "Ruta B: pagará comisión únicamente cuando exista una venta, bajo el modelo estándar "
-                    + "de VERYGANA, sin requisitos técnicos ni regulatorios especiales.";
+            explanation = "Ruta B: vende en la plataforma bajo el modelo estándar de VERYGANA, sin tarifa "
+                    + "fija ni requisitos técnicos especiales.";
+        }
+
+        if (regulated) {
+            explanation += " Al pertenecer a un sector regulado, deberá cargar el permiso sectorial "
+                    + "correspondiente y su cuenta pasará por una validación de cumplimiento adicional.";
         }
 
         return new RouteClassificationResponseDTO(route, route.name(), explanation, false);
@@ -363,7 +527,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     // ==================== HELPERS ====================
 
     private CommercialOnboarding getOnboardingOrThrow(Long userId) {
-        return onboardingRepository.findByUser_Id(userId)
+        return onboardingRepository.findByCommercialDetails_Id(userId)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "No existe un proceso de onboarding comercial para userId: " + userId, CommercialOnboarding.class));
     }
@@ -395,6 +559,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         OnboardingStep step = onboarding.getCurrentStep();
         if (step == OnboardingStep.BUSINESS_REVIEW_PENDING
                 || step == OnboardingStep.VERYGANA_REVIEW_PENDING
+                || step == OnboardingStep.SIGNATURE_PENDING
+                || step == OnboardingStep.PAYMENT_PENDING
                 || step == OnboardingStep.COMPLETED) {
             throw new OnboardingStepException(
                     "No puede modificar esta información en este punto del proceso. "
@@ -404,7 +570,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
     private CommercialOnboardingStatusResponseDTO toStatusDTO(CommercialOnboarding o) {
         RouteClassificationResponseDTO classification = o.getRoute() == null ? null
-                : new RouteClassificationResponseDTO(o.getRoute(), o.getRoute().name(), o.getRouteExplanation(), o.isRouteConfirmed());
+                : commercialOnboardingMapper.toRouteClassification(o);
 
         CommercialContract contract = commercialContractRepository.findByOnboarding_Id(o.getId()).orElse(null);
 
@@ -422,7 +588,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 contract != null ? contract.getStatus() : null,
                 contract != null && contract.getBusinessApprovedAt() != null,
                 contract != null && contract.getAdminReviewedAt() != null,
-                o.getCurrentStep() == OnboardingStep.COMPLETED);
+                o.getCurrentStep() == OnboardingStep.COMPLETED,
+                contract != null && contract.getStatus() == ContractStatus.REJECTED
+                        ? contract.getAdminDecisionNotes() : null,
+                contract != null && contract.getStatus() == ContractStatus.REJECTED
+                        ? contract.getAdminReviewedAt() : null);
     }
 
     private void publishAudit(Long userId, String action, String description, String ip, String userAgent,

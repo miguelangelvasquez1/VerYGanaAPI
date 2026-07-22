@@ -5,7 +5,8 @@
       "WebSearch",
       "Bash(grep -E \"\\\\.java$\")",
       "Bash(mvnw.cmd compile *)",
-      "Bash(./mvnw.cmd -q compile)"
+      "Bash(./mvnw.cmd -q compile)",
+      "Bash(mvn -q compile -Dmaven.resources.skip=true)"
     ]
   }
 }

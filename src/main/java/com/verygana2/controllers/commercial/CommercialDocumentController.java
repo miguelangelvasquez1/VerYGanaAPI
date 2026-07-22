@@ -54,4 +54,11 @@ public class CommercialDocumentController {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.ok(documentService.discard(userId, documentId));
     }
+
+    /** Botón "Continuar" del tab de Documentos: confirma la carga completa y avanza a CONTRACT_PENDING. */
+    @PostMapping("/continue")
+    public ResponseEntity<CommercialDocumentsStatusResponseDTO> continueToContract(@AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(documentService.continueToContract(userId));
+    }
 }

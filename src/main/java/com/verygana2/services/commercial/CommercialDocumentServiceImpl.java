@@ -91,6 +91,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         return new DocumentUploadPermissionDTO(saved.getId(), permission);
     }
 
+    // 6. CARGAR DOCUMENTOS. El avance de paso NO es automático — ver continueToContract().
     @Override
     public CommercialDocumentsStatusResponseDTO confirmUpload(Long userId, Long documentId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
@@ -103,8 +104,6 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         document.setMimeType(realMime);
         document.setStatus(CommercialDocumentStatus.VALIDATED);
         documentRepository.save(document);
-
-        recomputeDocumentsCompleted(onboarding);
 
         publishAudit(userId, "COMMERCIAL_DOCUMENT_UPLOADED",
                 "Comercial cargó documento " + document.getDocumentType(), document.getDocumentType().name());
@@ -126,7 +125,13 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         document.setStatus(CommercialDocumentStatus.ORPHANED);
         documentRepository.save(document);
 
-        recomputeDocumentsCompleted(onboarding);
+        if (onboarding.getDocumentsCompletedAt() != null && !isAllRequiredUploaded(onboarding)) {
+            onboarding.setDocumentsCompletedAt(null);
+            if (onboarding.getCurrentStep() == OnboardingStep.CONTRACT_PENDING) {
+                onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
+            }
+            onboardingRepository.save(onboarding);
+        }
 
         return buildStatus(onboarding);
     }
@@ -137,24 +142,29 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         return buildStatus(getOnboardingOrThrow(userId));
     }
 
-    // ==================== HELPERS ====================
+    // 6b. EL COMERCIAL CONFIRMA LA CARGA DOCUMENTAL COMPLETA Y AVANZA A CONTRACT_PENDING
+    @Override
+    public CommercialDocumentsStatusResponseDTO continueToContract(Long userId) {
+        CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
+        requireEditable(onboarding);
 
-    private void recomputeDocumentsCompleted(CommercialOnboarding onboarding) {
-        boolean allRequired = isAllRequiredUploaded(onboarding);
+        if (!isAllRequiredUploaded(onboarding)) {
+            throw new OnboardingStepException("Debe cargar todos los documentos requeridos antes de continuar.");
+        }
 
-        if (allRequired && onboarding.getDocumentsCompletedAt() == null) {
-            onboarding.setDocumentsCompletedAt(ZonedDateTime.now());
-            if (onboarding.getCurrentStep() == OnboardingStep.DOCUMENTS_PENDING) {
-                onboarding.setCurrentStep(OnboardingStep.CONTRACT_PENDING);
-            }
-        } else if (!allRequired && onboarding.getDocumentsCompletedAt() != null) {
-            onboarding.setDocumentsCompletedAt(null);
-            if (onboarding.getCurrentStep() == OnboardingStep.CONTRACT_PENDING) {
-                onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
-            }
+        onboarding.setDocumentsCompletedAt(ZonedDateTime.now());
+        if (onboarding.getCurrentStep() == OnboardingStep.DOCUMENTS_PENDING) {
+            onboarding.setCurrentStep(OnboardingStep.CONTRACT_PENDING);
         }
         onboardingRepository.save(onboarding);
+
+        publishAudit(userId, "COMMERCIAL_DOCUMENTS_COMPLETED",
+                "Comercial confirmó la carga documental completa.", "ALL_REQUIRED_DOCUMENTS");
+
+        return buildStatus(onboarding);
     }
+
+    // ==================== HELPERS ====================
 
     private boolean isAllRequiredUploaded(CommercialOnboarding onboarding) {
         List<CommercialDocument> validated = documentRepository.findByOnboarding_IdAndStatus(
@@ -205,6 +215,8 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         OnboardingStep step = onboarding.getCurrentStep();
         if (step == OnboardingStep.BUSINESS_REVIEW_PENDING
                 || step == OnboardingStep.VERYGANA_REVIEW_PENDING
+                || step == OnboardingStep.SIGNATURE_PENDING
+                || step == OnboardingStep.PAYMENT_PENDING
                 || step == OnboardingStep.COMPLETED) {
             throw new OnboardingStepException(
                     "No puede modificar documentos en este punto del proceso. "
@@ -213,7 +225,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
     }
 
     private CommercialOnboarding getOnboardingOrThrow(Long userId) {
-        return onboardingRepository.findByUser_Id(userId)
+        return onboardingRepository.findByCommercialDetails_Id(userId)
                 .orElseThrow(() -> new ObjectNotFoundException(
                         "No existe un proceso de onboarding comercial para userId: " + userId, CommercialOnboarding.class));
     }

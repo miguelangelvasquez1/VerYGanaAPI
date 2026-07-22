@@ -15,20 +15,26 @@ public class LegalIdentificationRequestDTO {
     @NotNull(message = "El tipo de persona (natural o jurídica) es requerido")
     private PersonType personType;
 
-    @NotBlank(message = "La razón social es requerida")
-    @Size(max = 200)
+    // Obligatoria solo para persona jurídica; para persona natural, si viene vacía
+    // se completa automáticamente con el nombre del representante legal (ver
+    // CommercialOnboardingServiceImpl#submitLegalIdentification).
+    @Size(max = 100)
     private String companyName;
 
-    @NotBlank(message = "El NIT es requerido")
-    @Size(max = 20)
+    @NotBlank(message =  "El NIT es requerido")
+    @Size(max = 10)
     private String nit;
 
     @Size(max = 20, message = "Matrícula mercantil must not exceed 20 characters")
     private String mercantileRegistration;
 
-    @NotBlank(message = "El nombre completo del representante legal es requerido")
-    @Size(max = 200)
-    private String legalRepFullName;
+    @NotBlank(message = "El nombre del representante legal es requerido")
+    @Size(max = 50)
+    private String legalRepFirstName;
+
+    @NotBlank(message = "El apellido del representante legal es requerido")
+    @Size(max = 50)
+    private String legalRepLastName;
 
     @NotNull(message = "El tipo de documento del representante legal es requerido")
     private DocumentType legalRepDocType;
@@ -50,7 +56,7 @@ public class LegalIdentificationRequestDTO {
     private String ciiuCode;
 
     @NotBlank(message = "El domicilio es requerido")
-    @Size(max = 300)
+    @Size(max = 100)
     private String address;
 
     @Size(max = 5, message = "El código de municipio debe ser el código DANE de 5 dígitos")

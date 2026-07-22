@@ -33,6 +33,9 @@ import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
 import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
+import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
+import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
+import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
@@ -40,6 +43,7 @@ import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
+import com.verygana2.exceptions.esignature.ESignatureApiException;
 import com.verygana2.exceptions.wompi.WompiApiException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
@@ -48,6 +52,7 @@ import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveySuspendedException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
+import com.twilio.exception.ApiException;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
@@ -108,6 +113,48 @@ public class GlobalExceptionHandler {
             BadCredentialsException ex, WebRequest request) {
         log.warn("Bad credentials: {}", ex.getMessage());
         return buildError(HttpStatus.UNAUTHORIZED, "Invalid credentials", request);
+    }
+
+    /**
+     * 403: credenciales correctas pero falta verificar el correo. Status
+     * distinto al de PendingKycReviewException/PasswordNotConfiguredException
+     * para que el front sepa a qué pantalla redirigir sin parsear "message".
+     */
+    @ExceptionHandler(PendingEmailVerificationException.class)
+    public ResponseEntity<ErrorResponse> handlePendingEmailVerificationException(
+            PendingEmailVerificationException ex, WebRequest request) {
+        log.warn("Login attempt with unverified email: {}", ex.getMessage());
+        return buildError(HttpStatus.FORBIDDEN,
+                "Tu correo electrónico aún no ha sido verificado. Revisa tu bandeja de entrada para activar tu cuenta.",
+                request);
+    }
+
+    /**
+     * 409: credenciales correctas pero la cuenta está en un estado que
+     * temporalmente entra en conflicto con el login (revisión de
+     * cumplimiento/KYC en curso), no por falta de acción del usuario.
+     */
+    @ExceptionHandler(PendingKycReviewException.class)
+    public ResponseEntity<ErrorResponse> handlePendingKycReviewException(
+            PendingKycReviewException ex, WebRequest request) {
+        log.warn("Login attempt on account pending KYC review: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada.",
+                request);
+    }
+
+    /**
+     * 428 (Precondition Required): credenciales correctas pero el usuario
+     * debe completar la configuración de su contraseña (link enviado por
+     * correo) antes de poder iniciar sesión normalmente.
+     */
+    @ExceptionHandler(PasswordNotConfiguredException.class)
+    public ResponseEntity<ErrorResponse> handlePasswordNotConfiguredException(
+            PasswordNotConfiguredException ex, WebRequest request) {
+        log.warn("Login attempt before password setup: {}", ex.getMessage());
+        return buildError(HttpStatus.PRECONDITION_REQUIRED,
+                "Debes modificar la contraseña antes de iniciar sesión. Sigue los pasos para recuperarla.",
+                request);
     }
 
     @ExceptionHandler(DisabledException.class)
@@ -315,6 +362,21 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    /**
+     * Twilio devuelve ApiException tanto para número inválido (code 21211,
+     * error del cliente) como para fallas propias del proveedor. Se
+     * distingue por code para no responder 400 en casos que en realidad son
+     * un problema de Twilio.
+     */
+    @ExceptionHandler(ApiException.class)
+    public ResponseEntity<ErrorResponse> handleTwilioApiException(ApiException ex, WebRequest request) {
+        log.warn("Twilio API error [{}]: {}", ex.getCode(), ex.getMessage());
+        if (ex.getCode() != null && ex.getCode() == 21211) {
+            return buildError(HttpStatus.BAD_REQUEST, "Número de teléfono inválido", request);
+        }
+        return buildError(HttpStatus.BAD_GATEWAY, "Error del proveedor de SMS", request);
+    }
+
     @ExceptionHandler(JDBCConnectionException.class)
     public ResponseEntity<ErrorResponse> handleJDBCConnectionException(
             JDBCConnectionException ex, WebRequest request) {
@@ -385,6 +447,13 @@ public class GlobalExceptionHandler {
             WompiApiException ex, WebRequest request) {
         log.error("Wompi API error: {}", ex.getMessage(), ex);
         return buildError(HttpStatus.BAD_GATEWAY, "Payment/payout provider error", request);
+    }
+
+    @ExceptionHandler(ESignatureApiException.class)
+    public ResponseEntity<ErrorResponse> handleESignatureApiException(
+            ESignatureApiException ex, WebRequest request) {
+        log.error("E-signature provider error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_GATEWAY, "E-signature provider error", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

@@ -28,6 +28,12 @@ public class PlanSummaryResponseDTO {
     private Long minInvestmentCents;
     private Long maxInvestmentCents;
 
+    /** Monto elegido por el empresario dentro del rango. Null hasta que se acepte el plan (o si es BASIC). */
+    private Long investmentAmountCents;
+
+    /** Solo aplica a BASIC. Null para STANDARD/PREMIUM o hasta que se acepte el plan. */
+    private Integer contractDurationMonths;
+
     private int saleCommissionPct;
     private int maxKeysPct;
 

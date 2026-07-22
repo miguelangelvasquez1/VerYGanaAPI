@@ -16,6 +16,8 @@ public interface PlanRepository extends JpaRepository<Plan, Long> {
     
     Optional<Plan> findByCodeAndActiveTrue(PlanCode code);
 
+    List<Plan> findAllByActiveTrue();
+
     @Query("""
         SELECT p FROM Plan p
         WHERE p.active = true

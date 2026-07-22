@@ -11,4 +11,6 @@ import com.verygana2.models.enums.commercial.ContractStatus;
 public interface CommercialContractRepository extends JpaRepository<CommercialContract, Long> {
     Optional<CommercialContract> findByOnboarding_Id(Long onboardingId);
     List<CommercialContract> findByStatus(ContractStatus status);
+    List<CommercialContract> findByStatusIn(List<ContractStatus> statuses);
+    Optional<CommercialContract> findByEsignatureEnvelopeId(String envelopeId);
 }
