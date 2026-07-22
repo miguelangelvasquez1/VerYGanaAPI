@@ -339,7 +339,20 @@ El flag `firstPayoutCompleted` empieza en `false`. Cuando el job ejecuta el prim
 | `WOMPI_PAYOUT_NEQUI_BANK_ID` | `bankId` de Wompi que representa a Nequi en el catálogo `/banks` |
 | `WOMPI_PAYOUT_DAVIPLATA_BANK_ID` | `bankId` de Wompi que representa a Daviplata |
 
-> **Pendiente de verificar en sandbox:** que `GET /banks` efectivamente incluya entradas para Nequi y Daviplata, y el nombre exacto de los headers de autenticación (la documentación pública de Wompi no los detalla). Ver `WompiPayoutWebClientConfig` y `WompiPayoutConfig`.
+### Headers de autenticación (confirmados)
+
+Contra el spec público de SwaggerHub (`https://app.swaggerhub.com/apis-docs/wompi/Payouts/1.0.0`), cada request lleva dos headers en minúscula, sin esquema `Bearer`:
+
+```
+x-api-key: {WOMPI_PAYOUT_API_KEY}
+user-principal-id: {WOMPI_PAYOUT_PRINCIPAL_USER_ID}
+```
+
+Ver `WompiPayoutWebClientConfig`.
+
+**`POST /payouts` además requiere un tercer header, `idempotency-key`** (confirmado en sandbox: sin él, la API responde `500 EXC_001` genérico en vez de un error claro). Debe ser único por request, 1-64 caracteres (letras, números, guion), y expira en 24h — por eso no puede ser un header fijo del `WebClient` como los otros dos; `WompiPayoutClient.createPayout()` genera un `UUID.randomUUID()` nuevo en cada llamada. Ref: `https://docs.wompi.co/docs/colombia/crea-tu-primer-lote/`.
+
+> **Pendiente de verificar en sandbox:** que `GET /banks` efectivamente incluya entradas para Nequi y Daviplata, y el envelope exacto de `GET /accounts` (se asume `{status, code, data: [...]}`, consistente con `POST /payouts`, pero sin ejemplo público confirmado).
 
 ### Ambientes
 
@@ -354,14 +367,61 @@ Cambiar en `application-dev.yml` / `application-prod.yml` bajo la clave `wompi.p
 
 | Método | Path | Propósito |
 |---|---|---|
-| `GET` | `/accounts` | Consultar balance disponible (`balanceInCents`) |
+| `GET` | `/accounts` | Consultar balance disponible (`data[].balanceInCents`) |
 | `POST` | `/payouts` | Crear el payout — sin tokenización previa, todo en una llamada |
 | `GET` | `/payouts/{id}` | Consultar estado de un payout (uso manual/soporte) |
 | `GET` | `/banks` | Catálogo de bancos/canales disponibles (incluye, a confirmar, Nequi/Daviplata) |
 
+### Body de POST /payouts (confirmado)
+
+```json
+{
+  "reference": "VG-PAYOUT-{payoutId}",
+  "accountId": "{WOMPI_PAYOUT_ACCOUNT_ID}",
+  "paymentType": "PROVIDERS",
+  "transactions": [
+    {
+      "legalIdType": "CC",
+      "legalId": "123456789",
+      "personType": "NATURAL",
+      "bankId": "{bankId}",
+      "accountType": "AHORROS",
+      "accountNumber": "0011223344",
+      "name": "Juan Pérez",
+      "email": "juan@ejemplo.com",
+      "amount": 90000,
+      "reference": "VG-PAYOUT-{payoutId}"
+    }
+  ]
+}
+```
+
+- `paymentType`: `PAYROLL` | `PROVIDERS` | `OTHER`. Usamos `PROVIDERS` — el payout es una liquidación a un tercero (comercial) por venta, no una nómina.
+- `personType`: `NATURAL` | `JURIDICA`, obligatorio. Se infiere en `PayoutServiceImpl`: `JURIDICA` si `legalIdType=NIT`, `NATURAL` en el resto de casos.
+- `accountType`: **confirmado en sandbox que solo acepta `AHORROS` o `CORRIENTE`** (400 con cualquier otro valor). El spec público de SwaggerHub documenta un tercer valor `DEPOSITO_ELECTRONICO` para Nequi/Daviplata que en la práctica la API rechaza — para esos dos canales también se envía `AHORROS`.
+
+Respuesta:
+
+```json
+{
+  "status": 201,
+  "code": "OK",
+  "message": "Solicitud ejecutada correctamente.",
+  "data": { "payoutId": "...", "transactions": 1, "success": 1, "failed": 0 }
+}
+```
+
+Esta respuesta solo confirma que el lote fue *aceptado* — no es el resultado final. Si `data.failed > 0`, la transacción fue rechazada en validación (dato inválido) y el `Payout` pasa directo a `FAILED`, sin esperar webhook. El resultado real (`APPROVED`/`DECLINED`/`FAILED`) llega vía `POST /wompi/payouts/events`.
+
 ### Fondeo del balance de la cuenta de dispersión
 
-Igual que con el proveedor anterior, el fondeo se hace por transferencia bancaria manual a la cuenta que Wompi indique para la cuenta de dispersión configurada. El `PayoutScheduler` consulta el balance antes de cada ciclo y lanza una advertencia en los logs si está por debajo del umbral configurado (`wompi.payout.min-balance-alert-cents`).
+Wompi ofrece una **"Wompi Cuenta"**: el mismo lugar donde se acumula el dinero de las ventas de "Recibe pagos online" (nuestros Copayments vía Checkout/Transacciones). Esa misma cuenta puede usarse como `accountId` de origen para Pagos a Terceros — como el payout es siempre el *neto* (gross − comisión), el saldo que ya entra por ventas alcanza para cubrir los payouts sin necesidad de fondeo manual adicional, salvo por el margen operativo que se quiera mantener.
+
+Alternativa: vincular una cuenta bancaria propia (Bancolombia, Banco de Occidente, Banco de Bogotá) como cuenta de origen — requiere firma digital vía ZapSign y tarda hasta 3 días hábiles en activarse (más para bancos distintos de Bancolombia). No es necesario para operar; usar la Wompi Cuenta es más simple.
+
+> **`accountId` no está documentado en el dashboard.** Se obtiene llamando `GET /accounts` una vez la autenticación esté funcionando, y tomando el `id` de la cuenta que corresponda (la Wompi Cuenta aparece junto con cualquier cuenta bancaria vinculada).
+
+El `PayoutScheduler` consulta el balance antes de cada ciclo y lanza una advertencia en los logs si está por debajo del umbral configurado (`wompi.payout.min-balance-alert-cents`).
 
 ### Ciclos ACH Colombia
 

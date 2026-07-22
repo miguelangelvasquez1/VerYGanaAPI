@@ -5,7 +5,6 @@ import java.util.List;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
@@ -18,7 +17,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +31,7 @@ public class DataSeeder implements CommandLineRunner {
     private final DataSource dataSource;
     private final ProductRepository productRepository;
     private final ProductStockRepository productStockRepository;
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor productCodeEncryptor;
+    private final ProductCodeEncryptor productCodeEncryptor;
 
     @Override
     public void run(String... args) throws Exception {

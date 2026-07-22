@@ -23,7 +23,7 @@ import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
@@ -32,7 +32,6 @@ import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 @RequiredArgsConstructor
@@ -46,8 +45,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     private final EmailService emailService;
     private final EmailVerificationService emailVerificationService;
     private final TwilioSmsService twilioSmsService;
-    @Qualifier("claimCodeEncryptor")
-    private final CodeEncryptor claimCodeEncryptor;
+    private final ClaimCodeEncryptor claimCodeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Transactional(readOnly = true)

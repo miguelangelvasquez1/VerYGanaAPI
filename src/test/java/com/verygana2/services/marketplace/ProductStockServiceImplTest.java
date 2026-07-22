@@ -19,7 +19,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,7 +40,7 @@ class ProductStockServiceImplTest {
     @Mock private ProductStockRepository productStockRepository;
     @Mock private ProductRepository productRepository;
     @Mock private ProductStockMapper productStockMapper;
-    @Mock private CodeEncryptor productCodeEncryptor;
+    @Mock private ProductCodeEncryptor productCodeEncryptor;
 
     private ProductStockServiceImpl service;
 

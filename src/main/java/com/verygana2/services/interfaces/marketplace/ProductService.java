@@ -47,7 +47,8 @@ public interface ProductService {
     
     Integer getTotalCommercialProducts (Long commercialId, ProductStatus status);
 
-    PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery,
+    PagedResponse<ProductSummaryResponseDTO> filterProducts(Long consumerId,
+            String searchQuery,
             Long categoryId,
             Double minRating,
             BigDecimal maxPrice,
@@ -68,6 +69,4 @@ public interface ProductService {
     void markProductAsReward (Long commercialId, Long productId);
 
     void streamPrivateProductImage(Long productId, jakarta.servlet.http.HttpServletResponse response) throws IOException;
-
-    
 }

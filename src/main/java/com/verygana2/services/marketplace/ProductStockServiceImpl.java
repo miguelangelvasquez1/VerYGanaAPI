@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -22,9 +21,10 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.ProductStockService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -36,8 +36,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductStockRepository productStockRepository;
     private final ProductRepository productRepository;
     private final ProductStockMapper productStockMapper;
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor productCodeEncryptor;
+    private final ProductCodeEncryptor productCodeEncryptor;
 
     @Override
     public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long commercialId,
@@ -48,10 +47,8 @@ public class ProductStockServiceImpl implements ProductStockService {
                         "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
-        PagedResponse<ProductStock> stockPage = PagedResponse.from(
-                productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable));
+        return PagedResponse.from(productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable).map(productStockMapper::toProductStockResponseDTO));
 
-        return stockPage.map(this::toDecryptedResponseDTO);
     }
 
     @Override
@@ -139,9 +136,9 @@ public class ProductStockServiceImpl implements ProductStockService {
         );
     }
 
-    private ProductStockResponseDTO toDecryptedResponseDTO(ProductStock stock) {
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(stock);
-        response.setCode(productCodeEncryptor.decrypt(stock.getCode()));
-        return response;
+    @Override
+    public String getStockCode(Long stockId, Long productId, Long commercialId) {
+       ProductStock stock = productStockRepository.findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId).orElseThrow(() -> new EntityNotFoundException("Stock with id: " + stockId + ", productId: " + productId + ", commercialId: " + commercialId + " not found"));
+       return productCodeEncryptor.decrypt(stock.getCode());
     }
 }

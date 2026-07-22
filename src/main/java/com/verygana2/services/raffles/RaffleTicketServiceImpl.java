@@ -46,6 +46,7 @@ import com.verygana2.services.interfaces.raffles.RaffleRuleService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 import com.verygana2.utils.audit.AuditContextService;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -68,6 +69,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     private final AuditContextService auditContextService;
     private final ObjectMapper objectMapper;
     private final TicketAuditLogMapper ticketAuditLogMapper;
+    private final TargetAudienceAssembler targetAudienceAssembler;
 
     // Emitir tiquetes de una rifa a un usuario
     @Override
@@ -103,7 +105,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
                 consumer.getId(), consumer.isHasPet());
 
         log.debug("Validating user eligibility...");
-        validateUserEligibility(consumer, raffle.getRaffleType());
+        validateUserEligibility(consumer, raffle);
         log.info("User eligibility validated");
 
         log.debug("Validating limits...");
@@ -179,7 +181,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     /**
      * Valida que el usuario pueda participar en el tipo de rifa
      */
-    private void validateUserEligibility(ConsumerDetails consumer, RaffleType raffleType) {
+    private void validateUserEligibility(ConsumerDetails consumer, Raffle raffle) {
+        RaffleType raffleType = raffle.getRaffleType();
         log.debug("Checking eligibility: RaffleType={}, UserHasPet={}",
                 raffleType, consumer.isHasPet());
 
@@ -190,6 +193,9 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             throw new InvalidRequestException(
                     "Premium raffles require the user to have a registered pet");
         }
+
+        targetAudienceAssembler.validateEligibility(consumer, raffle.getTargetAudience(), "Esta rifa");
+
         log.debug("User is eligible for {} raffle", raffleType);
     }
 

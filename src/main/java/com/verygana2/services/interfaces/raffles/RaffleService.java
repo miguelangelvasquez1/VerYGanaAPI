@@ -44,8 +44,8 @@ public interface RaffleService {
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);
     Long countRafflesByStatus(RaffleStatus status);
-    List<RaffleSummaryResponseDTO> getLiveRaffles();
-    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, int pageNumber);
+    List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode);
+    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode, int pageNumber);
     PagedResponse<UserRaffleSummaryResponseDTO> getMyRafflesByStatus (Long consumerId, RaffleStatus status, Pageable pageable);
     Long countMyRafflesByStatus (Long consumerId, RaffleStatus status);
 }

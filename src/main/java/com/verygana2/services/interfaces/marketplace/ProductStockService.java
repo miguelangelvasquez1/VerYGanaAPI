@@ -15,4 +15,5 @@ public interface ProductStockService {
     PagedResponse<ProductStockResponseDTO> getProductStock (Long productId, Long commercialId, StockStatus status, LocalDate soldDate, Pageable pageable);
     void deleteStockItem (Long productId, Long stockId, Long commercialId);
     BulkStockResponseDTO addBulkStockItems (Long productId, Long commercialId, List<ProductStockRequestDTO> requests);
+    String getStockCode (Long stockId, Long productId, Long commercialId);
 }

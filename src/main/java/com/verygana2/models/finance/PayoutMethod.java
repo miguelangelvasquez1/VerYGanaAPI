@@ -211,7 +211,9 @@ public class PayoutMethod {
         CC,   // Cédula de ciudadanía
         CE,   // Cédula de extranjería
         NIT,  // NIT empresa
-        PP    // Pasaporte
+        PP,   // Pasaporte
+        TI,   // Tarjeta de identidad
+        DNI   // Documento nacional de identidad (extranjero)
     }
 
     public enum VerificationStatus {

@@ -19,13 +19,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000001', 'bronce_test',
        'Usuario', 'Bronce', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       25, 'MALE', false, 0, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false
+       25, 'MALE', false, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false
 FROM users u WHERE u.email = 'bronce@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -56,13 +56,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000002', 'plata_test',
        'Usuario', 'Plata', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       28, 'FEMALE', false, 0, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false
+       28, 'FEMALE', false, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false
 FROM users u WHERE u.email = 'plata@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -93,13 +93,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000003', 'oro_test',
        'Usuario', 'Oro', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       30, 'MALE', false, 0, 0, 0, 'REF-ORO-003', 'CC', '10000003', false
+       30, 'MALE', false, 0, 0, 'REF-ORO-003', 'CC', '10000003', false
 FROM users u WHERE u.email = 'oro@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -131,13 +131,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'rubi_test',
        'Usuario', 'Rubi', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       32, 'FEMALE', true, 0, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false
+       32, 'FEMALE', true, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false
 FROM users u WHERE u.email = 'rubi@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -169,13 +169,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000005', 'esmeralda_test',
        'Usuario', 'Esmeralda', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       35, 'MALE', true, 0, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false
+       35, 'MALE', true, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false
 FROM users u WHERE u.email = 'esmeralda@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -207,13 +207,13 @@ ON DUPLICATE KEY UPDATE user_id = user_id;
 INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
-    avatar_id, age, gender, has_pet, ads_watched, total_withdraws,
+    avatar_id, age, gender, has_pet, ads_watched,
     daily_ad_count, referral_code, document_type, document_number, is_pep
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000006', 'diamante_test',
        'Usuario', 'Diamante', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       40, 'FEMALE', true, 0, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false
+       40, 'FEMALE', true, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false
 FROM users u WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 

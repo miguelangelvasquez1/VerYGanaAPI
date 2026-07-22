@@ -12,6 +12,7 @@ import com.verygana2.dtos.product.responses.ProductEditInfoResponseDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductReviewResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
+import com.verygana2.mappers.TargetAudienceMapper;
 import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
@@ -20,7 +21,7 @@ import com.verygana2.models.marketplace.ProductStock;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = {MoneyMapper.class})
+@Mapper(componentModel = "spring", uses = {MoneyMapper.class, TargetAudienceMapper.class})
 public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -50,6 +51,7 @@ public interface ProductMapper {
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "priceCents", source = "price")
     @Mapping(target = "isGameReward", ignore = true)
+    @Mapping(target = "targetAudience", ignore = true)
     Product toProduct(CreateProductRequestDTO request);
 
     List<ProductStock> toProductStockList(List<ProductStockRequestDTO> stockRequests);
@@ -93,6 +95,7 @@ public interface ProductMapper {
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "priceCents", source = "price")
     @Mapping(target = "isGameReward", ignore = true)
+    @Mapping(target = "targetAudience", ignore = true)
     void updateProductFromRequest(UpdateProductRequestDTO request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponseDTO (completed) =====
@@ -145,5 +148,6 @@ public interface ProductMapper {
     @Mapping(target = "availableStockItems", expression = "java(product.getAvailableStock())")
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "price", source = "priceCents")
+    @Mapping(target = "targeting", source = "targetAudience")
     ProductEditInfoResponseDTO toProductEditInfoDTO (Product product);
 }

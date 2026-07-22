@@ -190,13 +190,16 @@ public class ProductController {
      */
     @GetMapping("/filter")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> searchProducts(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long categoryId, @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) BigDecimal maxPrice, @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(searchQuery, categoryId,
+        Long consumerId = jwt.getClaim("userId");
+        PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(consumerId, searchQuery,
+                categoryId,
                 minRating,
                 maxPrice, page, sortBy, sortDirection);
         return ResponseEntity.ok(response);
@@ -328,5 +331,12 @@ public class ProductController {
         }
 
         productService.streamPrivateProductImage(productId, response);
+    }
+
+    @GetMapping("/{productId}/stock/{stockId}/code")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<String> getProductStockCode (@AuthenticationPrincipal Jwt jwt, @PathVariable Long stockId, @PathVariable Long productId){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productStockService.getStockCode(stockId, productId, commercialId));
     }
 }
