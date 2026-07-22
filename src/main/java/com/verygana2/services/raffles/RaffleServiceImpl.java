@@ -1,12 +1,16 @@
 package com.verygana2.services.raffles;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -43,12 +47,16 @@ import com.verygana2.models.enums.raffles.RaffleImagePolicy;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleType;
+import com.verygana2.models.enums.raffles.TicketEarningRuleType;
+import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.PrizeImageAsset;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
+import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
@@ -56,12 +64,12 @@ import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.raffles.RaffleService;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 @Service
 @RequiredArgsConstructor
@@ -78,8 +86,9 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
-    @Qualifier("claimCodeEncryptor")
-    private final CodeEncryptor claimCodeEncryptor;
+    private final MunicipalityRepository municipalityRepository;
+    private final TargetAudienceAssembler targetAudienceAssembler;
+    private final ClaimCodeEncryptor claimCodeEncryptor;
 
     private static final String domain = "https://cdn.verygana.com/public/";
 
@@ -259,6 +268,7 @@ public class RaffleServiceImpl implements RaffleService {
             // --- Construir entidades ---
             Raffle raffle = raffleMapper.toRaffle(raffleData);
             raffle.setCreatedBy(adminId);
+            raffle.setTargetAudience(targetAudienceAssembler.build(raffleData.getTargeting()));
 
             List<Prize> rafflePrizes = new ArrayList<>();
             for (int i = 0; i < raffleData.getPrizes().size(); i++) {
@@ -479,6 +489,13 @@ public class RaffleServiceImpl implements RaffleService {
         raffleUpdated.setEndDate(request.getEndDate());
         raffleUpdated.setDrawDate(request.getDrawDate());
 
+        TargetAudience targetAudience = raffleUpdated.getTargetAudience();
+        if (targetAudience == null) {
+            targetAudience = new TargetAudience();
+            raffleUpdated.setTargetAudience(targetAudience);
+        }
+        targetAudienceAssembler.applyTo(targetAudience, request.getTargeting());
+
         raffleRepository.save(raffleUpdated);
 
         return new EntityUpdatedResponseDTO(raffleUpdated.getId(), "Raffle updated successfully", Instant.now());
@@ -617,8 +634,54 @@ public class RaffleServiceImpl implements RaffleService {
 
         response.setTicketsBySource(ticketsBySource);
 
+        Map<TicketEarningRuleType, Long> maxTicketsByRuleType = sumMaxTicketsByRuleType(raffle.getRaffleRules());
+        response.setMaxTicketsFromPurchases(maxTicketsByRuleType.get(TicketEarningRuleType.PURCHASE));
+        response.setMaxTicketsFromDailyLogin(maxTicketsByRuleType.get(TicketEarningRuleType.DAILY_LOGIN));
+        response.setMaxTicketsFromReferrals(maxTicketsByRuleType.get(TicketEarningRuleType.REFERRAL));
+
+        response.setTotalPrizesValue(sumPrizesValue(raffle.getPrizes()));
+
         return response;
 
+    }
+
+    /**
+     * Suma el límite de tickets configurado por tipo de regla activa.
+     * Si alguna regla activa de un tipo no tiene límite (maxTicketsBySource ==
+     * null), ese tipo se considera sin límite y se omite del resultado (el
+     * llamador lo interpretará como null).
+     */
+    private Map<TicketEarningRuleType, Long> sumMaxTicketsByRuleType(List<RaffleRule> raffleRules) {
+        Map<TicketEarningRuleType, Long> totals = new HashMap<>();
+        if (raffleRules == null) {
+            return totals;
+        }
+
+        Set<TicketEarningRuleType> unlimited = new HashSet<>();
+        for (RaffleRule rule : raffleRules) {
+            if (!rule.isActive()) {
+                continue;
+            }
+            TicketEarningRuleType type = rule.getTicketEarningRule().getRuleType();
+            Long max = rule.getMaxTicketsBySource();
+            if (max == null) {
+                unlimited.add(type);
+                continue;
+            }
+            totals.merge(type, max, Long::sum);
+        }
+
+        unlimited.forEach(totals::remove);
+        return totals;
+    }
+
+    private BigDecimal sumPrizesValue(List<Prize> prizes) {
+        if (prizes == null) {
+            return BigDecimal.ZERO;
+        }
+        return prizes.stream()
+                .map(prize -> prize.getValue().multiply(BigDecimal.valueOf(prize.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
 
@@ -633,18 +696,32 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public List<RaffleSummaryResponseDTO> getLiveRaffles() {
-        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles();
+    public List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode) {
+        Municipality municipality = resolveMunicipality(municipalityCode);
+        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality);
         lives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return lives;
     }
 
     @Override
-    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, int pageNumber) {
+    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode,
+            int pageNumber) {
+        Municipality municipality = resolveMunicipality(municipalityCode);
         Pageable pageable = PageRequest.of(pageNumber, 10);
-        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, pageable);
+        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, pageable);
         actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(actives);
+    }
+
+    /**
+     * municipalityCode es un filtro opcional de UX en endpoints públicos sin JWT
+     * garantizado: si el código no existe, se ignora en vez de fallar.
+     */
+    private Municipality resolveMunicipality(String municipalityCode) {
+        if (municipalityCode == null || municipalityCode.isBlank()) {
+            return null;
+        }
+        return municipalityRepository.findById(municipalityCode).orElse(null);
     }
 
     @Override

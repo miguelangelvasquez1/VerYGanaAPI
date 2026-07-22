@@ -15,10 +15,9 @@ import reactor.core.publisher.Mono;
  * (wompiWebClient) porque es un producto/host distinto con su propia
  * autenticación.
  *
- * Nombres de header pendientes de confirmar contra el Postman/Swagger
- * oficial de Pagos a Terceros (docs.wompi.co no detalla el nombre exacto
- * de los headers, solo que la auth usa "API Key" + "ID Usuario Principal").
- * Ajustar aquí si el nombre real difiere una vez se pruebe en sandbox.
+ * Headers confirmados contra el spec público de SwaggerHub
+ * (https://app.swaggerhub.com/apis-docs/wompi/Payouts/1.0.0): la API espera
+ * "x-api-key" y "user-principal-id" en minúscula, sin esquema "Bearer".
  */
 @Slf4j
 @Configuration
@@ -33,8 +32,8 @@ public class WompiPayoutWebClientConfig {
                 .baseUrl(wompiPayoutConfig.getApiBaseUrl())
                 .defaultHeader("Content-Type", "application/json")
                 .defaultHeader("Accept", "application/json")
-                .defaultHeader("Authorization", "Bearer " + wompiPayoutConfig.getApiKey())
-                .defaultHeader("Principal-User-Id", wompiPayoutConfig.getPrincipalUserId())
+                .defaultHeader("x-api-key", wompiPayoutConfig.getApiKey())
+                .defaultHeader("user-principal-id", wompiPayoutConfig.getPrincipalUserId())
                 .filter(logRequest())
                 .filter(logResponse())
                 .build();

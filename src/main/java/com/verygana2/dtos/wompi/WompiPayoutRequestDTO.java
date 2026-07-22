@@ -26,13 +26,13 @@ public class WompiPayoutRequestDTO {
     private String accountId;
 
     /**
-     * Tipo de pago. "PAYROLL" es el único valor confirmado en la documentación
-     * pública; verificar en sandbox si existe un valor más específico para
-     * dispersión a vendedores de marketplace antes de ir a producción.
+     * Tipo de pago. Enum confirmado: PAYROLL, PROVIDERS, OTHER.
+     * Usamos PROVIDERS: el payout es una liquidación a un tercero (comercial)
+     * por venta de producto, no una nómina.
      */
     @JsonProperty("paymentType")
     @Builder.Default
-    private String paymentType = "PAYROLL";
+    private String paymentType = "PROVIDERS";
 
     @JsonProperty("transactions")
     private List<WompiPayoutTransactionDTO> transactions;
@@ -41,18 +41,27 @@ public class WompiPayoutRequestDTO {
     @Builder
     public static class WompiPayoutTransactionDTO {
 
-        /** Tipo de documento del titular: CC, CE, NIT, PP. */
+        /** Tipo de documento del titular: CC, CE, NIT, PP, TI, DNI. */
         @JsonProperty("legalIdType")
         private String legalIdType;
 
         @JsonProperty("legalId")
         private String legalId;
 
+        /** NATURAL o JURIDICA — JURIDICA cuando legalIdType=NIT, NATURAL en el resto de casos. */
+        @JsonProperty("personType")
+        private String personType;
+
         /** bankId (UUID) del catálogo GET /banks — ver WompiPayoutConfig para Nequi/Daviplata. */
         @JsonProperty("bankId")
         private String bankId;
 
-        /** AHORROS o CORRIENTE. */
+        /**
+         * AHORROS o CORRIENTE — confirmado en sandbox que son los únicos valores
+         * aceptados (el spec de SwaggerHub documenta un tercer valor
+         * "DEPOSITO_ELECTRONICO" para Nequi/Daviplata que en la práctica la API
+         * rechaza con 400; para esos canales también se usa AHORROS).
+         */
         @JsonProperty("accountType")
         private String accountType;
 

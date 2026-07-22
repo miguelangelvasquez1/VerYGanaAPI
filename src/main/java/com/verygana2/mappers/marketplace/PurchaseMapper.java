@@ -3,7 +3,6 @@ package com.verygana2.mappers.marketplace;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 
 import com.verygana2.dtos.purchase.responses.ConsumerPurchaseItemResponseDTO;
 import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
@@ -11,7 +10,7 @@ import com.verygana2.dtos.purchase.responses.PurchaseItemResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.ProductReviewService;
 
 
@@ -22,8 +21,7 @@ public abstract class PurchaseMapper {
     protected ProductReviewService productReviewService;
 
     @Autowired
-    @Qualifier("productCodeEncryptor")
-    protected CodeEncryptor productCodeEncryptor;
+    protected ProductCodeEncryptor productCodeEncryptor;
 
     @Mapping(target = "totalItems", expression = "java(getTotalItems(purchase))")
     public abstract PurchaseResponseDTO toPurchaseResponseDTO(Purchase purchase);

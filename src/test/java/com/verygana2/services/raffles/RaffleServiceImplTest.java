@@ -36,8 +36,10 @@ import com.verygana2.repositories.raffles.RaffleParticipationRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.repositories.MunicipalityRepository;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -66,7 +68,9 @@ class RaffleServiceImplTest {
     @Mock private R2Service r2Service;
     @Mock private RaffleMapper raffleMapper;
     @Mock private PrizeMapper prizeMapper;
-    @Mock private CodeEncryptor claimCodeEncryptor;
+    @Mock private ClaimCodeEncryptor claimCodeEncryptor;
+    @Mock private MunicipalityRepository municipalityRepository;
+    @Mock private TargetAudienceAssembler targetAudienceAssembler;
 
     private RaffleServiceImpl service;
 
@@ -74,7 +78,8 @@ class RaffleServiceImplTest {
     void setUp() {
         service = new RaffleServiceImpl(raffleRepository, prizeRepository, ticketEarningRuleRepository,
                 raffleTicketRepository, raffleImageAssetRepository,
-                prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper, claimCodeEncryptor);
+                prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper, municipalityRepository,
+                targetAudienceAssembler, claimCodeEncryptor);
     }
 
     private Raffle raffle(Long id, RaffleStatus status) {
@@ -233,7 +238,7 @@ class RaffleServiceImplTest {
         private UpdateRaffleRequestDTO validRequest() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(1);
             return new UpdateRaffleRequestDTO("Nuevo título", "Nueva descripción", RaffleType.STANDARD, false,
-                    start, start.plusDays(5), start.plusDays(6));
+                    start, start.plusDays(5), start.plusDays(6), null);
         }
 
         @Test
@@ -253,7 +258,7 @@ class RaffleServiceImplTest {
         void drawDateNotAfterEndDate_throwsInvalidRequestException() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(1);
             UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD, false,
-                    start, start.plusDays(5), start.plusDays(5)); // drawDate == endDate
+                    start, start.plusDays(5), start.plusDays(5), null); // drawDate == endDate
 
             assertThatThrownBy(() -> service.updateRaffle(9L, 1L, request))
                     .isInstanceOf(InvalidRequestException.class);
@@ -264,7 +269,7 @@ class RaffleServiceImplTest {
         void endDateNotAfterStartDate_throwsInvalidRequestException() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(5);
             UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD, false,
-                    start, start, start.plusDays(6)); // endDate == startDate
+                    start, start, start.plusDays(6), null); // endDate == startDate
 
             assertThatThrownBy(() -> service.updateRaffle(9L, 1L, request))
                     .isInstanceOf(InvalidRequestException.class);
@@ -284,7 +289,7 @@ class RaffleServiceImplTest {
             CreateRaffleRuleRequestDTO rule = new CreateRaffleRuleRequestDTO(1L, 100L);
             return new CreateRaffleRequestDTO("t", "d", RaffleType.STANDARD, start, start.plusDays(5),
                     start.plusDays(6), 100L, 10L, false, DrawMethod.SYSTEM_RANDOM, List.of(prize), List.of(rule),
-                    "terms");
+                    "terms", null);
         }
 
         @Test

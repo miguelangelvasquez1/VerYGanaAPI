@@ -19,7 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -38,7 +38,7 @@ import static org.mockito.Mockito.when;
 class PurchaseItemServiceImplTest {
 
     @Mock private PurchaseItemRepository purchaseItemRepository;
-    @Mock private CodeEncryptor codeEncryptor;
+    @Mock private ProductCodeEncryptor codeEncryptor;
 
     private PurchaseItemServiceImpl service;
 

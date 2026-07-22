@@ -142,13 +142,14 @@ class ProductControllerTest {
     class Catalog {
 
         @Test
-        @DisplayName("searchProducts: pasa todos los filtros de búsqueda al service")
+        @DisplayName("searchProducts: pasa el consumerId del JWT y todos los filtros de búsqueda al service")
         void searchProducts_passesAllFilters() {
             var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
-            when(productService.filterProducts("netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
+            when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
                     .thenReturn(expected);
 
-            var response = controller.searchProducts("netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC");
+            var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
+                    "price", "ASC");
 
             assertThat(response.getBody()).isSameAs(expected);
         }

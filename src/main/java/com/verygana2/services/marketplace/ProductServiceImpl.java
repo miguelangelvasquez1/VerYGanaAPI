@@ -39,6 +39,8 @@ import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
+import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.marketplace.FavoriteProduct;
@@ -53,7 +55,7 @@ import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -61,12 +63,12 @@ import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 
 @Service
@@ -99,8 +101,9 @@ public class ProductServiceImpl implements ProductService {
 
     private final AssetOrphanedService assetOrphanedService;
 
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor productCodeEncryptor;
+    private final ProductCodeEncryptor productCodeEncryptor;
+
+    private final TargetAudienceAssembler targetAudienceAssembler;
 
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
@@ -194,6 +197,7 @@ public class ProductServiceImpl implements ProductService {
             product.setCommercial(commercial);
             product.setProductCategory(category);
             product.setMaxKeysPct(plan.getMaxKeysPct());
+            product.setTargetAudience(targetAudienceAssembler.build(request.getProductData().getTargeting()));
 
             // Asociar stockItems con el producto y cifrar sus códigos (nunca se
             // guardan en texto plano, ver ProductStockServiceImpl para el mismo patrón).
@@ -302,6 +306,14 @@ public class ProductServiceImpl implements ProductService {
         validateProductPrice(product.getPriceCents());
         ProductCategory category = productCategoryService.getById(request.getProductCategoryId());
         product.setProductCategory(category);
+
+        TargetAudience targetAudience = product.getTargetAudience();
+        if (targetAudience == null) {
+            targetAudience = new TargetAudience();
+            product.setTargetAudience(targetAudience);
+        }
+        targetAudienceAssembler.applyTo(targetAudience, request.getTargeting());
+
         productRepository.save(product);
 
         return new EntityUpdatedResponseDTO(productId, "The product has been updated successfully", Instant.now());
@@ -399,7 +411,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<ProductSummaryResponseDTO> filterProducts(String searchQuery, Long categoryId,
+    public PagedResponse<ProductSummaryResponseDTO> filterProducts(Long consumerId, String searchQuery,
+            Long categoryId,
             Double minRating,
             BigDecimal maxPrice, Integer page,
             String sortBy, String sortDirection) {
@@ -413,9 +426,14 @@ public class ProductServiceImpl implements ProductService {
 
         Long maxPriceCents = maxPrice != null ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue() : null;
 
+        // El municipio del consumidor solo prioriza el orden de resultados, nunca
+        // excluye productos (ver TargetAudienceAssembler/plan de sectorización).
+        ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+        Municipality municipality = consumer.getMunicipality();
+
         PagedResponse<Product> productPage = PagedResponse
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
-                        pageable));
+                        municipality, pageable));
 
         return productPage.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
@@ -665,6 +683,7 @@ public class ProductServiceImpl implements ProductService {
 
         if (Boolean.TRUE.equals(product.getIsGameReward())) {
             product.setIsGameReward(false);
+            product.setGameRewardAutoDisabled(false);
             productRepository.save(product);
             return;
         }
@@ -678,9 +697,8 @@ public class ProductServiceImpl implements ProductService {
         }
 
         product.setIsGameReward(true);
+        product.setGameRewardAutoDisabled(false);
         productRepository.save(product);
     }
-
-    
 
 }

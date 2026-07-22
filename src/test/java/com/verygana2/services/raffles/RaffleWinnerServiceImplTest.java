@@ -22,7 +22,7 @@ import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleWinnerRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
@@ -54,7 +54,7 @@ class RaffleWinnerServiceImplTest {
     @Mock private EmailService emailService;
     @Mock private EmailVerificationService emailVerificationService;
     @Mock private TwilioSmsService twilioSmsService;
-    @Mock private CodeEncryptor claimCodeEncryptor;
+    @Mock private ClaimCodeEncryptor claimCodeEncryptor;
 
     private RaffleWinnerServiceImpl service;
 

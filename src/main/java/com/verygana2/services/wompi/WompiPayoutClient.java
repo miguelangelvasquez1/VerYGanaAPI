@@ -5,6 +5,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -46,15 +47,16 @@ public class WompiPayoutClient {
     /**
      * Consulta el balance disponible en la cuenta de dispersiones configurada.
      */
-    public WompiPayoutBalanceResponseDTO getBalance() {
+    public WompiPayoutBalanceResponseDTO.Account getBalance() {
         log.info("[WOMPI PAYOUT] Consultando balance de dispersiones");
         try {
-            List<WompiPayoutBalanceResponseDTO> accounts = webClient.get()
+            WompiPayoutBalanceResponseDTO response = webClient.get()
                     .uri("/accounts")
                     .retrieve()
-                    .bodyToMono(new org.springframework.core.ParameterizedTypeReference<List<WompiPayoutBalanceResponseDTO>>() {})
+                    .bodyToMono(WompiPayoutBalanceResponseDTO.class)
                     .block();
 
+            List<WompiPayoutBalanceResponseDTO.Account> accounts = response != null ? response.getData() : null;
             if (accounts == null || accounts.isEmpty()) {
                 throw new WompiApiException("Wompi no devolvió ninguna cuenta de dispersión", 502);
             }
@@ -79,8 +81,12 @@ public class WompiPayoutClient {
     public WompiPayoutResponseDTO createPayout(WompiPayoutRequestDTO request) {
         log.info("[WOMPI PAYOUT] Creando payout: reference={}", request.getReference());
         try {
+            // Header obligatorio, único por request (1-64 chars, letras/números/guion,
+            // expira en 24h) — no puede ir como header fijo del WebClient.
+            // Ref: https://docs.wompi.co/docs/colombia/crea-tu-primer-lote/
             WompiPayoutResponseDTO response = webClient.post()
                     .uri("/payouts")
+                    .header("idempotency-key", UUID.randomUUID().toString())
                     .bodyValue(request)
                     .retrieve()
                     .bodyToMono(WompiPayoutResponseDTO.class)
@@ -91,7 +97,7 @@ public class WompiPayoutClient {
                         "Wompi no devolvió respuesta para reference=" + request.getReference(), 502);
             }
 
-            log.info("[WOMPI PAYOUT] Payout creado: id={}, status={}", response.getId(), response.getStatus());
+            log.info("[WOMPI PAYOUT] Payout creado: payoutId={}, status={}", response.getPayoutId(), response.getStatus());
             return response;
 
         } catch (WebClientResponseException e) {

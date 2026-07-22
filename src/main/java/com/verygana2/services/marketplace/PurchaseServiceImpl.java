@@ -306,6 +306,16 @@ public class PurchaseServiceImpl implements PurchaseService {
             }
 
             product.updateStockCount();
+
+            // La sección de recompensas de juegos no filtra por stock (ver
+            // ProductRepository.findGameRewardsProducts), así que hay que apagar
+            // isGameReward manualmente al agotarse para no ofrecer un producto
+            // sin unidades disponibles.
+            if (Boolean.TRUE.equals(product.getIsGameReward()) && product.getAvailableStock() == 0) {
+                product.setIsGameReward(false);
+                product.setGameRewardAutoDisabled(true);
+            }
+
             productRepository.save(product);
         }
 

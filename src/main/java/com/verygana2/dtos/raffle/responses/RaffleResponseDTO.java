@@ -3,6 +3,7 @@ package com.verygana2.dtos.raffle.responses;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import com.verygana2.dtos.targeting.TargetAudienceResponseDTO;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
@@ -34,5 +35,6 @@ public class RaffleResponseDTO {
     private boolean requiresPet;
     private DrawMethod drawMethod;
     private String termsAndConditions;
+    private TargetAudienceResponseDTO targeting;
 
 }

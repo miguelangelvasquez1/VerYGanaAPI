@@ -192,9 +192,9 @@ twilio:
 #   checkout-base-url: https://checkout.wompi.co/p/
 #   api-base-url: https://production.wompi.co/v1
 #   payout:
-#     api-key: ${WOMPI_PAYOUT_API_KEY}
-#     principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
-#     events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
+#     api-key: ${WOMPI_PAYOUTS_API_KEY}
+#     principal-user-id: ${WOMPI_PAYOUTS_USER_ID}
+#     events-key: ${WOMPI_PAYOUTS_SECRET}
 #     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
 #     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
 #     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
@@ -208,9 +208,9 @@ wompi:
   checkout-base-url: https://checkout.wompi.co/p/
   api-base-url: https://sandbox.wompi.co/v1
   payout:
-    api-key: ${WOMPI_PAYOUT_API_KEY}
-    principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
-    events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
+    api-key: ${WOMPI_SANDBOX_PAYOUTS_API_KEY}
+    principal-user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    events-key: ${WOMPI_SANDBOX_PAYOUTS_SECRET}
     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}

@@ -6,7 +6,6 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,7 @@ import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -27,8 +26,7 @@ import lombok.RequiredArgsConstructor;
 public class PurchaseItemServiceImpl implements PurchaseItemService {
 
     private final PurchaseItemRepository purchaseItemRepository;
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor codeEncryptor;
+    private final ProductCodeEncryptor codeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
     @Override

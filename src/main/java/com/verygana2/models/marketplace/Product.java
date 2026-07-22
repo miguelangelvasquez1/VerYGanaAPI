@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.exceptions.InsufficientStockException;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.userDetails.AdminDetails;
@@ -57,6 +58,10 @@ public class Product {
 
     @OneToOne(mappedBy = "product", fetch = FetchType.LAZY)
     private ProductImageAsset imageAsset;
+
+    @ManyToOne(fetch = FetchType.LAZY, cascade = {CascadeType.PERSIST, CascadeType.MERGE})
+    @JoinColumn(name = "target_audience_id")
+    private TargetAudience targetAudience;
 
     /**
      * Precio total del producto en centavos de COP.
@@ -118,6 +123,15 @@ public class Product {
     @Column(name = "is_game_reward")
     private Boolean isGameReward;
 
+    /**
+     * True cuando isGameReward se apagó automáticamente por quedarse sin stock
+     * (ver PurchaseServiceImpl.addPurchaseItems), no por decisión manual del
+     * comercial. Permite reactivarlo solo en ese caso si el stock se libera
+     * (compra cancelada/expirada) y sigue habiendo cupo (máx. 3 rewards activos).
+     */
+    @Column(name = "game_reward_auto_disabled")
+    private Boolean gameRewardAutoDisabled;
+
     // Auditoria
 
     @ManyToOne(fetch = FetchType.LAZY)
@@ -169,6 +183,7 @@ public class Product {
         this.reviewCount = 0;
         this.status = ProductStatus.PENDING;
         this.isGameReward = false;
+        this.gameRewardAutoDisabled = false;
     }
 
     @PreUpdate

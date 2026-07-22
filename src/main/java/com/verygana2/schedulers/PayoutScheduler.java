@@ -69,7 +69,7 @@ public class PayoutScheduler {
 
     private void checkWompiBalance() {
         try {
-            WompiPayoutBalanceResponseDTO balance = wompiPayoutClient.getBalance();
+            WompiPayoutBalanceResponseDTO.Account balance = wompiPayoutClient.getBalance();
             long balanceCents = balance.getBalanceInCents();
             long alertThreshold = wompiPayoutConfig.getPayout().getMinBalanceAlertCents();
 

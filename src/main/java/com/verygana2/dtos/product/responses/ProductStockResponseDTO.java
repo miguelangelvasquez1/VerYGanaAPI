@@ -13,7 +13,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ProductStockResponseDTO {
     private Long id;
-    private String code;
     private StockStatus status;
     private ZonedDateTime createdAt;
     private ZonedDateTime soldAt;

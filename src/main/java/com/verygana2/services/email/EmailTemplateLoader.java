@@ -27,6 +27,9 @@ public class EmailTemplateLoader {
             layoutVars.put("content", contentHtml);
             layoutVars.putIfAbsent("logoUrl", logoUrl);
             layoutVars.putIfAbsent("year", String.valueOf(Year.now().getValue()));
+            // Sin eslogan por defecto (p. ej. correos a admins): solo consumer/commercial
+            // lo pasan explícitamente, ver SendGridEmailService.
+            layoutVars.putIfAbsent("sloganSection", "");
 
             return applyVars(loadTemplate(LAYOUT_TEMPLATE), layoutVars);
         } catch (IOException ex) {

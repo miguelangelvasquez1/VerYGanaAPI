@@ -292,10 +292,10 @@ public class GameServiceImpl implements GameService {
         //             "justudios.co/test-verygana",
         //             game.getUrl());
 
-            baseUrl = String.format("https://%s/%s/%s/?",
+            baseUrl = String.format("https://%s/%s/%s/%s/?",
             cdnUrl,
             "builds/build-bogota",
-            "16-07-2026", // Cambia segun version
+            "18-07-2026", // Cambia segun version
             game.getUrl()
             );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {

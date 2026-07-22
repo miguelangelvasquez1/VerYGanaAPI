@@ -181,8 +181,13 @@ class PayoutServiceImplTest {
             when(wompiPayoutConfig.getAccountId()).thenReturn("acc_123");
 
             WompiPayoutResponseDTO response = new WompiPayoutResponseDTO();
-            response.setId("wp_123");
-            response.setStatus("PENDING");
+            response.setStatus(201);
+            response.setCode("OK");
+            WompiPayoutResponseDTO.PayoutData data = new WompiPayoutResponseDTO.PayoutData();
+            data.setPayoutId("wp_123");
+            data.setSuccess(1);
+            data.setFailed(0);
+            response.setData(data);
             when(wompiPayoutClient.createPayout(any())).thenReturn(response);
             when(wompiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
@@ -224,15 +229,16 @@ class PayoutServiceImplTest {
             when(wompiPayoutConfig.getAccountId()).thenReturn("acc_123");
 
             WompiPayoutResponseDTO response = new WompiPayoutResponseDTO();
-            response.setId("wp_123");
-            response.setStatus("DECLINED");
+            response.setStatus(400);
+            response.setCode("VALIDATION_ERROR");
+            response.setMessage("Cuenta destino inválida");
             when(wompiPayoutClient.createPayout(any())).thenReturn(response);
             when(wompiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             service.processScheduledPayouts();
 
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.FAILED);
-            assertThat(payout.getFailureReason()).isEqualTo("DECLINED");
+            assertThat(payout.getFailureReason()).isEqualTo("VALIDATION_ERROR: Cuenta destino inválida");
         }
     }
 

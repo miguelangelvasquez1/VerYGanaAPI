@@ -66,14 +66,17 @@ public class RaffleController {
 
     // Para usuarios
     @GetMapping("/lives")
-    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles() {
-        return ResponseEntity.ok(raffleService.getLiveRaffles());
+    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(
+            @RequestParam(required = false) String municipalityCode) {
+        return ResponseEntity.ok(raffleService.getLiveRaffles(municipalityCode));
     }
 
     @GetMapping("/actives")
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(
-            @RequestParam(name = "type", required = false) RaffleType type, @RequestParam("pageNumber") int pageNumber) {
-        return ResponseEntity.ok(raffleService.getActiveRaffles(type, pageNumber));
+            @RequestParam(name = "type", required = false) RaffleType type,
+            @RequestParam(required = false) String municipalityCode,
+            @RequestParam("pageNumber") int pageNumber) {
+        return ResponseEntity.ok(raffleService.getActiveRaffles(type, municipalityCode, pageNumber));
     }
 
     @GetMapping("/{raffleId}/draw-status")

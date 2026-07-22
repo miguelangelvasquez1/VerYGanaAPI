@@ -2,7 +2,9 @@ package com.verygana2.dtos.product.requests;
 
 import java.math.BigDecimal;
 
+import com.verygana2.dtos.targeting.OptionalTargetAudienceDTO;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -28,5 +30,14 @@ public class UpdateProductRequestDTO {
     @NotNull(message = "The product price cannot be null")
     @DecimalMin(value = "0.0", inclusive = false, message = "Price must be greater than zero")
     private BigDecimal price;
+
+    /**
+     * Localidades/edad/género de interés para este producto. No es una
+     * restricción de acceso (nunca bloquea búsqueda ni compra): solo se usa
+     * para priorizar el producto en el catálogo de consumidores afines.
+     * null = sin preferencia.
+     */
+    @Valid
+    private OptionalTargetAudienceDTO targeting;
 }
 

@@ -35,6 +35,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleRuleService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.utils.audit.AuditContextService;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -63,6 +64,7 @@ class RaffleTicketServiceImplTest {
     @Mock private TicketAuditLogRepository auditLogRepository;
     @Mock private AuditContextService auditContextService;
     @Mock private TicketAuditLogMapper ticketAuditLogMapper;
+    @Mock private TargetAudienceAssembler targetAudienceAssembler;
 
     private RaffleTicketServiceImpl service;
 
@@ -70,7 +72,8 @@ class RaffleTicketServiceImplTest {
     void setUp() {
         service = new RaffleTicketServiceImpl(raffleTicketRepository, raffleRepository, raffleRuleRespository,
                 raffleRuleService, raffleService, raffleTicketMapper, consumerDetailsService, participationRepository,
-                auditLogRepository, auditContextService, new ObjectMapper(), ticketAuditLogMapper);
+                auditLogRepository, auditContextService, new ObjectMapper(), ticketAuditLogMapper,
+                targetAudienceAssembler);
     }
 
     private Raffle activeRaffle(RaffleType type) {

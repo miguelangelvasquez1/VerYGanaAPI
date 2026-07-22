@@ -52,9 +52,6 @@ public class ConsumerDetails extends UserDetails {
     @Min(value = 0, message = "adsWatched must be zero or positive")
     private Integer adsWatched;
 
-    @Min(value = 0, message = "totalWithdraws must be zero or positive")
-    private Integer totalWithdraws;
-
     @Min(value = 0, message = "dailyAdCount must be zero or positive")
     @Max(value = 100, message = "dailyAdCount cannot exceed 100")
     private Integer dailyAdCount;

@@ -13,15 +13,15 @@ import org.springframework.context.annotation.Configuration;
 public class CodeEncryptionConfig {
 
     @Bean
-    public CodeEncryptor claimCodeEncryptor(
+    public ClaimCodeEncryptor claimCodeEncryptor(
             @Value("${app.claim-code.encryption-key}") String aesHexKey) {
-        return new CodeEncryptor(aesHexKey, null);
+        return new ClaimCodeEncryptor(aesHexKey, null);
     }
 
     @Bean
-    public CodeEncryptor productCodeEncryptor(
+    public ProductCodeEncryptor productCodeEncryptor(
             @Value("${app.product-code.encryption-key}") String aesHexKey,
             @Value("${app.product-code.hmac-secret}") String hmacHexKey) {
-        return new CodeEncryptor(aesHexKey, hmacHexKey);
+        return new ProductCodeEncryptor(aesHexKey, hmacHexKey);
     }
 }

@@ -290,7 +290,7 @@ public class PayoutServiceImpl implements PayoutService {
                 : WompiTransactionStatus.ERROR;
 
         WompiTransaction tx = WompiTransaction.builder()
-                .wompiId(response.getId() != null ? response.getId() : internalReference)
+                .wompiId(response.getPayoutId() != null ? response.getPayoutId() : internalReference)
                 .type(WompiTransactionType.TRANSFER_PAYOUT)
                 .amountInCents(payout.getNetAmountCents())
                 .status(initialStatus)
@@ -301,11 +301,11 @@ public class PayoutServiceImpl implements PayoutService {
 
         payout.setWompiTransaction(tx);
         payout.setStatus(response.isAccepted() ? PayoutStatus.PROCESSING : PayoutStatus.FAILED);
-        if (!response.isAccepted()) payout.setFailureReason(response.getStatus());
+        if (!response.isAccepted()) payout.setFailureReason(response.getCode() + ": " + response.getMessage());
         payoutRepository.save(payout);
 
         log.info("[PAYOUT-SCHEDULER] Payout → {}: id={}, commercial={}, wompiId={}",
-                payout.getStatus(), payout.getId(), commercial.getCompanyName(), response.getId());
+                payout.getStatus(), payout.getId(), commercial.getCompanyName(), response.getPayoutId());
     }
 
     /**
@@ -324,12 +324,14 @@ public class PayoutServiceImpl implements PayoutService {
             case NEQUI -> {
                 bankId = wompiPayoutConfig.getNequiBankId();
                 accountNumber = method.getPhoneNumber();
-                accountType = null;
+                // Confirmado en sandbox: la API solo acepta AHORROS/CORRIENTE — "DEPOSITO_ELECTRONICO"
+                // (documentado en el spec de SwaggerHub) es rechazado con 400. Nequi/Daviplata van como AHORROS.
+                accountType = "AHORROS";
             }
             case DAVIPLATA -> {
                 bankId = wompiPayoutConfig.getDaviplataBankId();
                 accountNumber = method.getPhoneNumber();
-                accountType = null;
+                accountType = "AHORROS";
             }
             default -> { // BANK_TRANSFER
                 bankId = method.getBankCode();
@@ -340,9 +342,15 @@ public class PayoutServiceImpl implements PayoutService {
             }
         }
 
+        // JURIDICA cuando el titular se identifica con NIT (empresa), NATURAL en el resto de casos.
+        String personType = method.getAccountHolderDocType() == PayoutMethod.DocType.NIT
+                ? "JURIDICA"
+                : "NATURAL";
+
         WompiPayoutTransactionDTO transaction = WompiPayoutTransactionDTO.builder()
                 .legalIdType(method.getAccountHolderDocType().name())
                 .legalId(method.getAccountHolderDoc())
+                .personType(personType)
                 .bankId(bankId)
                 .accountType(accountType)
                 .accountNumber(accountNumber)

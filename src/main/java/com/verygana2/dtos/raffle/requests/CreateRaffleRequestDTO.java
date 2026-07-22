@@ -3,9 +3,11 @@ package com.verygana2.dtos.raffle.requests;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import com.verygana2.dtos.targeting.OptionalTargetAudienceDTO;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.RaffleType;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -62,4 +64,8 @@ public class CreateRaffleRequestDTO {
     @NotBlank(message = "Terms and conditions are required")
     @Size(max = 5000)
     private String termsAndConditions;
+
+    /** Localidades/edad/género permitidos para participar. null = sin restricciones. */
+    @Valid
+    private OptionalTargetAudienceDTO targeting;
 }
