@@ -27,8 +27,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final ProductCodeEncryptor codeEncryptor;
     private static final String domain = "https://cdn.verygana.com/public/";
 
-    public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository,
-            @Qualifier("productCodeEncryptor") CodeEncryptor codeEncryptor) {
+    public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, ProductCodeEncryptor codeEncryptor) {
         this.purchaseItemRepository = purchaseItemRepository;
         this.codeEncryptor = codeEncryptor;
     }

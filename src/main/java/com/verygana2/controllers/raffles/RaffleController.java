@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.DrawStatusResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
-import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
@@ -57,11 +56,6 @@ public class RaffleController {
     @GetMapping("/{raffleId}")
     public ResponseEntity<RaffleResponseDTO> getRaffleById(@PathVariable Long raffleId) {
         return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId));
-    }
-
-    @GetMapping("/{raffleId}/stats")
-    public ResponseEntity<RaffleStatsResponseDTO> getRaffleStats(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleStats(raffleId));
     }
 
     // Para usuarios
