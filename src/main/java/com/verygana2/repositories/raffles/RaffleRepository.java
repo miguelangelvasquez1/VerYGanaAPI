@@ -13,6 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.raffles.Raffle;
@@ -142,13 +143,17 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                ) FROM Raffle r
                                JOIN r.prizes p
                                WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.LIVE)
+                               AND (:municipality IS NULL
+                                    OR r.targetAudience IS NULL
+                                    OR r.targetAudience.targetMunicipalities IS EMPTY
+                                    OR :municipality MEMBER OF r.targetAudience.targetMunicipalities)
                                GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                                     r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                                     r.totalParticipants, r.requiresPet
                                 ORDER BY r.drawDate ASC
                                 LIMIT 10
                             """)
-        List<RaffleSummaryResponseDTO> findLiveRaffles();
+        List<RaffleSummaryResponseDTO> findLiveRaffles(@Param("municipality") Municipality municipality);
 
         @Query("""
                         SELECT new com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO(
@@ -168,6 +173,10 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         JOIN r.prizes p
                         WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.ACTIVE)
                         AND (:type IS NULL OR r.raffleType = :type)
+                        AND (:municipality IS NULL
+                             OR r.targetAudience IS NULL
+                             OR r.targetAudience.targetMunicipalities IS EMPTY
+                             OR :municipality MEMBER OF r.targetAudience.targetMunicipalities)
                         GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                              r.totalParticipants, r.requiresPet
@@ -175,6 +184,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         """)
         Page<RaffleSummaryResponseDTO> findActiveRaffles(
                         @Param("type") RaffleType type,
+                        @Param("municipality") Municipality municipality,
                         Pageable pageable);
 
         @Query("""

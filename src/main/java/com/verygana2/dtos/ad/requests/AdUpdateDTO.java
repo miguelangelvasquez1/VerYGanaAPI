@@ -1,6 +1,5 @@
 package com.verygana2.dtos.ad.requests;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.validator.constraints.URL;
@@ -28,9 +27,7 @@ public class AdUpdateDTO {
     
     @Size(min = 10, max = 1000, message = "La descripción debe tener entre 10 y 1000 caracteres")
     private String description;
-    
-    private ZonedDateTime startDate;
- 
+
     @Size(max = 500, message = "Target URL must not exceed 500 characters")
     @URL(message = "Target URL must be a valid URL")
     private String targetUrl;

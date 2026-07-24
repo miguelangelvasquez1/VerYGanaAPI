@@ -60,9 +60,8 @@ public class AccountLockService {
 
             if (justLocked) {
                 log.warn("ACCOUNT LOCKED - User: {}, failed attempts reached: {}", user.getEmail(), maxFailedAttempts);
-                securityAuditService.logSuspiciousActivity(
+                securityAuditService.logAccountLocked(
                         user.getEmail(),
-                        "ACCOUNT_LOCKED_FAILED_ATTEMPTS",
                         String.format("Cuenta bloqueada tras %d intentos fallidos consecutivos", maxFailedAttempts)
                 );
                 emailVerificationService.sendVerificationCode(user.getEmail());

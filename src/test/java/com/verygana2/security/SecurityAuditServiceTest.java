@@ -109,6 +109,52 @@ class SecurityAuditServiceTest {
         }
     }
 
+    // ─── logLoginSuccess ──────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("logLoginSuccess")
+    class LogLoginSuccess {
+
+        @Test
+        @DisplayName("publica un AuditEvent en category=AUTH con success=true")
+        void publishesAuthCategorySuccessEvent() {
+            service.logLoginSuccess("user@test.com", "10.0.0.1", "Chrome/100");
+
+            ArgumentCaptor<AuditEvent> captor = ArgumentCaptor.forClass(AuditEvent.class);
+            verify(eventPublisher).publishEvent(captor.capture());
+
+            AuditEvent event = captor.getValue();
+            assertThat(event.getCategory()).isEqualTo("AUTH");
+            assertThat(event.getAction()).isEqualTo("LOGIN");
+            assertThat(event.getLevel()).isEqualTo(AuditLevel.INFO);
+            assertThat(event.getIpAddress()).isEqualTo("10.0.0.1");
+            assertThat(event.getUserAgent()).isEqualTo("Chrome/100");
+            assertThat(event.getSuccess()).isTrue();
+        }
+    }
+
+    // ─── logAccountLocked ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("logAccountLocked")
+    class LogAccountLocked {
+
+        @Test
+        @DisplayName("publica un AuditEvent en category=AUTH (no SECURITY, no visible en el panel de admin)")
+        void publishesAuthCategoryEvent() {
+            service.logAccountLocked("user@test.com", "Cuenta bloqueada tras 5 intentos fallidos consecutivos");
+
+            ArgumentCaptor<AuditEvent> captor = ArgumentCaptor.forClass(AuditEvent.class);
+            verify(eventPublisher).publishEvent(captor.capture());
+
+            AuditEvent event = captor.getValue();
+            assertThat(event.getCategory()).isEqualTo("AUTH");
+            assertThat(event.getAction()).isEqualTo("ACCOUNT_LOCKED_FAILED_ATTEMPTS");
+            assertThat(event.getLevel()).isEqualTo(AuditLevel.WARNING);
+            assertThat(event.getSuccess()).isFalse();
+        }
+    }
+
     // ─── logSystemError ───────────────────────────────────────────────────────
 
     @Nested

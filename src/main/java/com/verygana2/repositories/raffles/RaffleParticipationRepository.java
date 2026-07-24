@@ -1,12 +1,8 @@
 package com.verygana2.repositories.raffles;
 
-import java.util.List;
 import java.util.Optional;
 
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Query;
-import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.raffles.RaffleParticipation;
@@ -19,26 +15,4 @@ public interface RaffleParticipationRepository extends JpaRepository<RaffleParti
      */
     Optional<RaffleParticipation> findByConsumerIdAndRaffleId(Long consumerId, Long raffleId);
     
-    /**
-     * Encuentra el leaderboard de participantes de una rifa
-     * Ordena por cantidad de tickets descendente
-     */
-    @Query("""
-    SELECT
-        p.consumer.id,
-        p.consumer.userName,
-        av.imageUrl,
-        p.ticketsCount,
-        (CAST(p.ticketsCount AS double) * 100.0 
-            / CAST(p.raffle.totalTicketsIssued AS double))
-    FROM RaffleParticipation p
-    JOIN p.consumer.avatar av
-    WHERE p.raffle.id = :raffleId
-    AND p.ticketsCount > 0
-    ORDER BY p.ticketsCount DESC
-    """)
-    List<Object[]> findLeaderboard(
-            @Param("raffleId") Long raffleId,
-            Pageable pageable
-    );
 }

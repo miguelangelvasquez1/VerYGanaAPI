@@ -8,7 +8,6 @@ import java.util.List;
 import java.util.Set;
 
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
@@ -16,16 +15,16 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
 import com.verygana2.dtos.product.responses.BulkStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
-import com.verygana2.exceptions.ProductStock.DuplicateResourceException;
 import com.verygana2.mappers.marketplace.ProductStockMapper;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.ProductStockService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,8 +36,7 @@ public class ProductStockServiceImpl implements ProductStockService {
     private final ProductStockRepository productStockRepository;
     private final ProductRepository productRepository;
     private final ProductStockMapper productStockMapper;
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor productCodeEncryptor;
+    private final ProductCodeEncryptor productCodeEncryptor;
 
     @Override
     public PagedResponse<ProductStockResponseDTO> getProductStock(Long productId, Long commercialId,
@@ -49,68 +47,8 @@ public class ProductStockServiceImpl implements ProductStockService {
                         "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
                         Product.class));
 
-        PagedResponse<ProductStock> stockPage = PagedResponse.from(
-                productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable));
+        return PagedResponse.from(productStockRepository.findByProductIdWithFilters(productId, status, soldDate, pageable).map(productStockMapper::toProductStockResponseDTO));
 
-        return stockPage.map(this::toDecryptedResponseDTO);
-    }
-
-    @Override
-    public ProductStockResponseDTO addStockItem(Long productId, Long commercialId, ProductStockRequestDTO request) {
-        Product product = productRepository.findByIdAndCommercialId(productId, commercialId)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Product with id: " + productId + " and commercialId: " + commercialId + " not found",
-                        Product.class));
-
-        String codeHash = productCodeEncryptor.hash(request.getCode());
-        if (productStockRepository.existsByProductIdAndCodeHash(productId, codeHash)) {
-            throw new DuplicateResourceException("Stock code already exists for this product");
-        }
-
-        ProductStock stock = productStockMapper.toProductStock(request);
-        stock.setProduct(product);
-        stock.setStatus(StockStatus.AVAILABLE);
-        stock.setCreatedAt(ZonedDateTime.now());
-        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
-        stock.setCodeHash(codeHash);
-
-        ProductStock saved = productStockRepository.save(stock);
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(saved);
-        response.setCode(request.getCode());
-        return response;
-    }
-
-    @Override
-    public ProductStockResponseDTO updateStockItem(Long productId, Long stockId, Long commercialId,
-            ProductStockRequestDTO request) {
-
-        ProductStock stock = productStockRepository
-                .findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId)
-                .orElseThrow(() -> new ObjectNotFoundException(
-                        "Stock item with id: " + stockId + " for product: " + productId +
-                                " and commercial: " + commercialId + " not found",
-                        ProductStock.class));
-
-        // No permitir editar si ya está vendido
-        if (stock.getStatus() == StockStatus.SOLD) {
-            throw new IllegalStateException("Cannot edit a sold stock item");
-        }
-
-        String newCodeHash = productCodeEncryptor.hash(request.getCode());
-
-        // Verificar duplicados si se cambia el código
-        if (!stock.getCodeHash().equals(newCodeHash) &&
-                productStockRepository.existsByProductIdAndCodeHash(productId, newCodeHash)) {
-            throw new DuplicateResourceException("Stock code already exists for this product");
-        }
-
-        stock.setCode(productCodeEncryptor.encrypt(request.getCode()));
-        stock.setCodeHash(newCodeHash);
-        ProductStock updated = productStockRepository.save(stock);
-
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(updated);
-        response.setCode(request.getCode());
-        return response;
     }
 
     @Override
@@ -198,9 +136,9 @@ public class ProductStockServiceImpl implements ProductStockService {
         );
     }
 
-    private ProductStockResponseDTO toDecryptedResponseDTO(ProductStock stock) {
-        ProductStockResponseDTO response = productStockMapper.toProductStockResponseDTO(stock);
-        response.setCode(productCodeEncryptor.decrypt(stock.getCode()));
-        return response;
+    @Override
+    public String getStockCode(Long stockId, Long productId, Long commercialId) {
+       ProductStock stock = productStockRepository.findByIdAndProductIdAndProductCommercialId(stockId, productId, commercialId).orElseThrow(() -> new EntityNotFoundException("Stock with id: " + stockId + ", productId: " + productId + ", commercialId: " + commercialId + " not found"));
+       return productCodeEncryptor.decrypt(stock.getCode());
     }
 }

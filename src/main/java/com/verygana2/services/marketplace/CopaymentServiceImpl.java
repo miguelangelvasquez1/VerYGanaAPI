@@ -20,6 +20,7 @@ import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.WompiTransaction;
+import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.marketplace.ProductStock;
@@ -27,6 +28,7 @@ import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
+import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.EmailService;
@@ -53,6 +55,7 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final KeyWalletRepository keyWalletRepository;
     private final KeyTransactionRepository keyTransactionRepository;
     private final ProductStockRepository productStockRepository;
+    private final ProductRepository productRepository;
     private final TreasuryService treasuryService;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
@@ -186,6 +189,15 @@ public class CopaymentServiceImpl implements CopaymentService {
                     purchase.getId(), e.getMessage(), e);
         }
 
+        // 8. Notificar a cada commercial involucrado de su nueva venta (fallo no
+        // revierte el pago)
+        try {
+            emailService.sendCommercialSaleNotification(purchase);
+        } catch (Exception e) {
+            log.error("[COPAYMENT] Error enviando notificación de venta a commercials para purchaseId={}: {}",
+                    purchase.getId(), e.getMessage(), e);
+        }
+
         log.info("[COPAYMENT] Completado: keysUsed={}, keysValueCents={}, cashAmountCents={}",
                 keysUsed, keysValueCents, cashAmountCents);
     }
@@ -252,8 +264,36 @@ public class CopaymentServiceImpl implements CopaymentService {
                 item.setStatus(PurchaseItemStatus.CANCELLED);
                 stock.markAsAvailable();
                 productStockRepository.save(stock);
+                restoreGameRewardIfEligible(stock.getProduct());
             }
         }
+    }
+
+    /**
+     * Reactiva isGameReward solo si se había apagado automáticamente por falta
+     * de stock (ver PurchaseServiceImpl.addPurchaseItems) y no por decisión
+     * manual del comercial (ver ProductServiceImpl.markProductAsReward).
+     * Si mientras tanto el comercial ya llenó su cupo de 3 rewards activos,
+     * queda apagado y debe reactivarlo manualmente.
+     */
+    private void restoreGameRewardIfEligible(Product product) {
+        if (!Boolean.TRUE.equals(product.getGameRewardAutoDisabled())) {
+            return;
+        }
+
+        product.updateStockCount();
+        if (product.getAvailableStock() <= 0) {
+            return;
+        }
+
+        Long commercialId = product.getCommercial().getId();
+        if (productRepository.countGameRewards(commercialId) >= 3) {
+            return;
+        }
+
+        product.setIsGameReward(true);
+        product.setGameRewardAutoDisabled(false);
+        productRepository.save(product);
     }
 
     private String buildProductNames(Purchase purchase) {

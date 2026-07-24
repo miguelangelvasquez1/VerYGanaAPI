@@ -1,6 +1,5 @@
 package com.verygana2.dtos.ad.requests;
 
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.validator.constraints.URL;
@@ -52,10 +51,7 @@ public class CreateAdRequestDTO {
     @Size(max = 500, message = "Target URL must not exceed 500 characters")
     @URL(message = "Target URL must be a valid URL")
     private String targetUrl;
-    
-    // Fechas (pueden ser null)
-    private ZonedDateTime startDate;
-    
+
     @NotEmpty(message = "At least one category must be selected")
     @Size(max = 10, message = "Cannot select more than 10 categories")
     private List<Long> categoryIds;

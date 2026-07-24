@@ -31,12 +31,6 @@ public class ProductReviewController {
     
     private final ProductReviewService productReviewService;
 
-    @GetMapping("/{productId}/avg")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Double> getProductAvgRating (@PathVariable Long productId){
-        return ResponseEntity.ok(productReviewService.getProductAvgRating(productId));
-    }
-
     @GetMapping("/commercial/avg")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
     public ResponseEntity<Double> getCommercialAvgRating (@AuthenticationPrincipal Jwt jwt){

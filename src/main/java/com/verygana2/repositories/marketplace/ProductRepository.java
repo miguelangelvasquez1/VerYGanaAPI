@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.marketplace.Product;
 
@@ -49,21 +50,34 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND (:productCategoryId IS NULL OR pc.id = :productCategoryId)
                         AND (:minRating IS NULL OR p.averageRate >= :minRating)
                         AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)
+                        ORDER BY CASE WHEN (:municipality IS NULL
+                                        OR p.targetAudience IS NULL
+                                        OR p.targetAudience.targetMunicipalities IS EMPTY
+                                        OR :municipality MEMBER OF p.targetAudience.targetMunicipalities)
+                                THEN 0 ELSE 1 END ASC
                                 """)
         Page<Product> searchProductsInternal(
                         @Param("searchQuery") String searchQuery,
                         @Param("productCategoryId") Long productCategoryId,
                         @Param("minRating") Double minRating,
                         @Param("maxPriceCents") Long maxPriceCents,
+                        @Param("municipality") Municipality municipality,
                         Pageable pageable);
 
+        /**
+         * El municipio solo prioriza (ordena primero) los productos afines a la
+         * localidad del consumidor; nunca excluye resultados, a diferencia del
+         * filtrado de rifas. Ver TargetAudienceAssembler / plan de sectorización.
+         */
         default Page<Product> searchProducts(
                         String searchQuery,
                         Long productCategoryId,
                         Double minRating,
                         Long maxPriceCents,
+                        Municipality municipality,
                         Pageable pageable) {
-                return searchProductsInternal(searchQuery, productCategoryId, minRating, maxPriceCents, pageable);
+                return searchProductsInternal(searchQuery, productCategoryId, minRating, maxPriceCents, municipality,
+                                pageable);
         }
 
         @Query("""

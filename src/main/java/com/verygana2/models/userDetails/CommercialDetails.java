@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.models.Municipality;
+import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.AnnualRevenueRange;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
@@ -22,6 +23,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -31,25 +33,32 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class CommercialDetails extends UserDetails {
 
-    @Column(name = "company_name", nullable = false, length = 200)
+    // Razón social, NIT y el resto de datos de identificación jurídica se
+    // capturan en el paso 3 del onboarding (submitLegalIdentification), no en
+    // el registro básico — por eso quedan nullable aquí hasta ese momento.
+
+    @Column(name = "company_name", length = 200)
     private String companyName;
 
-    @Column(nullable = false, unique = true, length = 20)
+    @Column(unique = true, length = 20)
     private String nit;
 
     // ==================== KYC / SAGRILAFT ====================
 
-    @Column(name = "ciiu_code", nullable = false, length = 10)
+    @OneToOne(mappedBy = "commercialDetails", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private CommercialOnboarding onboarding;
+
+    @Column(name = "ciiu_code", length = 10)
     private String ciiuCode;
 
-    @Column(name = "mercantile_registration", length = 20)
+    @Column(name = "mercantile_registration", unique = true, length = 20)
     private String mercantileRegistration;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "legal_rep_doc_type", nullable = false, length = 5)
+    @Column(name = "legal_rep_doc_type", length = 5)
     private DocumentType legalRepDocType;
 
-    @Column(name = "legal_rep_doc_number", nullable = false, length = 20)
+    @Column(name = "legal_rep_doc_number", length = 20)
     private String legalRepDocNumber;
 
     @Column(name = "is_pep", nullable = false)

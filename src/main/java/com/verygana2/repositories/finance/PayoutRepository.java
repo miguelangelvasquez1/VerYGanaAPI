@@ -49,8 +49,8 @@ public interface PayoutRepository extends JpaRepository<Payout, UUID> {
             @Param("start") ZonedDateTime start,
             @Param("end") ZonedDateTime end);
 
-    /** Busca el Payout vinculado a una KushkiTransaction — usado por el webhook handler. */
-    Optional<Payout> findByKushkiTransactionId(UUID kushkiTransactionId);
+    /** Busca el Payout vinculado a una WompiTransaction — usado por el webhook handler. */
+    Optional<Payout> findByWompiTransactionId(UUID wompiTransactionId);
 
     /** Historial paginado de payouts de un comercial filtrado por período — panel de facturación. */
     @Query("""

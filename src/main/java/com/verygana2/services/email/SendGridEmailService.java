@@ -23,6 +23,7 @@ import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.raffles.Prize;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
 
 import lombok.RequiredArgsConstructor;
@@ -49,7 +50,20 @@ public class SendGridEmailService implements EmailService {
     private final MoneyMapper moneyMapper;
     private final EmailTemplateLoader templateLoader;
 
+    private final ProductCodeEncryptor productCodeEncryptor;
+
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+    // Eslóganes mostrados debajo del logo en el header del layout base
+    // (ver layout-base.html / EmailTemplateLoader). Solo se pasan explícitamente
+    // en los correos con audiencia consumer/commercial conocida; el resto
+    // (admin, auth, PQRS, etc.) no lleva eslogan por defecto.
+    private static final String SLOGAN_CONSUMER = buildSloganSection("La Alegría de ganar");
+    private static final String SLOGAN_COMMERCIAL = buildSloganSection("Activación de ventas");
+
+    private static String buildSloganSection(String text) {
+        return "<p class=\"slogan\">" + text + "</p>";
+    }
 
     // ===== COMERCIO =====
 
@@ -72,7 +86,8 @@ public class SendGridEmailService implements EmailService {
                     "date", purchase.getCreatedAt().format(DATE_FORMATTER),
                     "total", String.format("%,.0f", moneyMapper.fromCents(purchase.getTotalCents())),
                     "itemsHtml", buildItemsHtml(purchase),
-                    "supportEmail", supportEmail));
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_CONSUMER));
 
             sendEmail(recipientEmail, "✅ Confirmación de Compra - Orden #" + purchase.getId(), html);
         } catch (Exception e) {
@@ -81,6 +96,7 @@ public class SendGridEmailService implements EmailService {
     }
 
     @Override
+    @Async
     public void sendCommercialSaleNotification(Purchase purchase) {
         log.info("Sending commercial sale notification for purchase ID: {}", purchase.getId());
         purchase.getItems().stream()
@@ -90,7 +106,8 @@ public class SendGridEmailService implements EmailService {
                     try {
                         String html = templateLoader.render("purchase-commercial-notification.html", Map.of(
                                 "orderId", String.valueOf(purchase.getId()),
-                                "supportEmail", supportEmail));
+                                "supportEmail", supportEmail,
+                                "sloganSection", SLOGAN_COMMERCIAL));
                         sendEmail(commercial.getUser().getEmail(), "🎉 Nueva Venta - Orden #" + purchase.getId(), html);
                     } catch (Exception e) {
                         log.error("Error sending commercial notification to commercial ID: {}", commercial.getId(), e);
@@ -417,7 +434,9 @@ public class SendGridEmailService implements EmailService {
                 }
                 sb.append("<div class='code-section'>");
                 sb.append("<div class='code-label'>Tu Código</div>");
-                sb.append("<div class='code-value'>").append(escapeHtml(item.getDeliveredCode())).append("</div>");
+                sb.append("<div class='code-value'>")
+                        .append(escapeHtml(productCodeEncryptor.decrypt(item.getDeliveredCode())))
+                        .append("</div>");
                 sb.append("</div>");
                 sb.append("</div>");
             }

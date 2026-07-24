@@ -38,8 +38,6 @@ import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.UserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
-import com.verygana2.utils.audit.AuditLevel;
-import com.verygana2.utils.audit.Auditable;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -81,7 +79,6 @@ public class AuthController {
      * Login: Autentica al usuario y genera un par de tokens (access + refresh)
      */
     @PostMapping("/login")
-    @Auditable(action = "LOGIN", level = AuditLevel.INFO, description = "Usuario se loguea")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody AuthRequest request,
             @RequestHeader(value = "X-Client-Type", defaultValue = "web") String clientType,
             HttpServletRequest httpRequest
@@ -120,6 +117,10 @@ public class AuthController {
         }
 
         accountLockService.registerSuccessfulLogin(request.getIdentifier());
+        securityAuditService.logLoginSuccess(
+                request.getIdentifier(),
+                RequestClientInfo.resolveIp(httpRequest),
+                RequestClientInfo.resolveUserAgent(httpRequest));
 
         TokenPairDTO tokens = tokenService.generateTokenPair(authentication);
 
@@ -276,10 +277,11 @@ public class AuthController {
     @PostMapping("/register/commercial")
     public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
         userService.registerCommercial(dto);
-        String message = Boolean.TRUE.equals(dto.getIsPEP())
-                ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
-                : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
-        return ResponseEntity.status(HttpStatus.CREATED).body(message);
+        // La declaración de PEP y el screening SAGRILAFT ahora ocurren en el paso 3
+        // (identificación jurídica), no en el registro básico — por eso el mensaje ya
+        // no depende de isPEP aquí.
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body("Registro exitoso. Revisa tu correo para activar tu cuenta.");
     }
 
     @PostMapping("/verify-email")

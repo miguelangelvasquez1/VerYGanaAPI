@@ -32,7 +32,6 @@ class ConsumerDetails {
   name
   lastName
   adsWatched
-  totalWithdraws
   dailyAdCount
   referralCode
   department

@@ -2,8 +2,10 @@ package com.verygana2.dtos.raffle.requests;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.dtos.targeting.OptionalTargetAudienceDTO;
 import com.verygana2.models.enums.raffles.RaffleType;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -38,5 +40,9 @@ public class UpdateRaffleRequestDTO {
 
     @NotNull(message = "Raffle draw date cannot be null")
     private ZonedDateTime drawDate;
+
+    /** Localidades/edad/género permitidos para participar. null = sin restricciones. */
+    @Valid
+    private OptionalTargetAudienceDTO targeting;
 
 }

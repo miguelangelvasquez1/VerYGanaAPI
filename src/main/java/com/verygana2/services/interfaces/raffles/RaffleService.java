@@ -14,7 +14,6 @@ import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
-import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
@@ -43,11 +42,10 @@ public interface RaffleService {
     RaffleResponseDTO getRaffleResponseDTOById(Long raffleId);
     PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status, String search, LocalDate drawDate, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
-    List<ParticipantLeaderboardDTO> getRaffleLeaderBoard(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);
     Long countRafflesByStatus(RaffleStatus status);
-    List<RaffleSummaryResponseDTO> getLiveRaffles();
-    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, int pageNumber);
+    List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode);
+    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode, int pageNumber);
     PagedResponse<UserRaffleSummaryResponseDTO> getMyRafflesByStatus (Long consumerId, RaffleStatus status, Pageable pageable);
     Long countMyRafflesByStatus (Long consumerId, RaffleStatus status);
 }

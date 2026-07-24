@@ -17,7 +17,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -159,36 +158,6 @@ public class ProductController {
     }
 
     /**
-     * Agregar un nuevo código de stock
-     */
-    @PostMapping("/{productId}/stock")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<ProductStockResponseDTO> addStockItem(
-            @PathVariable Long productId,
-            @RequestBody @Valid ProductStockRequestDTO request,
-            @AuthenticationPrincipal Jwt jwt) {
-        Long commercialId = jwt.getClaim("userId");
-        ProductStockResponseDTO created = productStockService.addStockItem(productId, commercialId, request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
-    }
-
-    /**
-     * Editar un código de stock específico
-     */
-    @PutMapping("/{productId}/stock/{stockId}")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<ProductStockResponseDTO> updateStockItem(
-            @PathVariable Long productId,
-            @PathVariable Long stockId,
-            @RequestBody @Valid ProductStockRequestDTO request,
-            @AuthenticationPrincipal Jwt jwt) {
-        Long commercialId = jwt.getClaim("userId");
-        ProductStockResponseDTO updated = productStockService.updateStockItem(productId, stockId, commercialId,
-                request);
-        return ResponseEntity.ok(updated);
-    }
-
-    /**
      * Eliminar un código de stock específico
      */
     @DeleteMapping("/{productId}/stock/{stockId}")
@@ -217,27 +186,20 @@ public class ProductController {
     }
 
     /**
-     * Cargar productos
-     */
-    @GetMapping
-    public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> loadProducts(
-            @RequestParam(defaultValue = "0") Integer page) {
-        PagedResponse<ProductSummaryResponseDTO> response = productService.getAllProducts(page);
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Buscar productos con filtros
      */
     @GetMapping("/filter")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> searchProducts(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long categoryId, @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) BigDecimal maxPrice, @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDirection) {
 
-        PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(searchQuery, categoryId,
+        Long consumerId = jwt.getClaim("userId");
+        PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(consumerId, searchQuery,
+                categoryId,
                 minRating,
                 maxPrice, page, sortBy, sortDirection);
         return ResponseEntity.ok(response);
@@ -369,5 +331,12 @@ public class ProductController {
         }
 
         productService.streamPrivateProductImage(productId, response);
+    }
+
+    @GetMapping("/{productId}/stock/{stockId}/code")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<String> getProductStockCode (@AuthenticationPrincipal Jwt jwt, @PathVariable Long stockId, @PathVariable Long productId){
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(productStockService.getStockCode(stockId, productId, commercialId));
     }
 }

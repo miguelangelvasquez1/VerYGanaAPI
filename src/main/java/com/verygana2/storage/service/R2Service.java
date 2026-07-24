@@ -19,6 +19,7 @@ import com.verygana2.storage.config.R2Config;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.Delete;
@@ -172,6 +173,27 @@ public class R2Service {
         } catch (S3Exception e) {
             log.error("Error validando objeto {}: {}", objectKey, e.awsErrorDetails().errorMessage());
             throw new StorageException("Error accediendo a storage", e);
+        }
+    }
+
+    /**
+     * Sube directamente un objeto generado en el servidor (ej. un PDF) sin pasar
+     * por una URL pre-firmada — para archivos que el backend produce, no el cliente.
+     */
+    public void putPrivateObject(String objectKey, byte[] content, String contentType) {
+        try {
+            validateObjectKey(objectKey);
+            r2Client.putObject(
+                    PutObjectRequest.builder()
+                            .bucket(r2Config.getBucketName())
+                            .key(PRIVATE_PREFIX + objectKey)
+                            .contentType(contentType)
+                            .build(),
+                    RequestBody.fromBytes(content));
+            log.info("Objeto privado subido directamente: {}", objectKey);
+        } catch (Exception e) {
+            log.error("Error subiendo objeto privado {}: {}", objectKey, e.getMessage());
+            throw new StorageException("Error subiendo objeto a storage", e);
         }
     }
 

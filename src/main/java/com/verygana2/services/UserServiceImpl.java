@@ -8,7 +8,7 @@ import com.verygana2.models.enums.UserState;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
-import com.verygana2.services.interfaces.PasswordSetupService;
+
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -25,6 +25,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ComplianceOfficerDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
+import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
@@ -96,39 +97,35 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
+    /**
+     * Registro básico (paso 1): solo email/password/phoneNumber.
+     * La identificación jurídica (razón social, NIT, representante legal, municipio, etc.) y el
+     * screening SAGRILAFT correspondiente se completan en el paso 3 del onboarding
+     * (ver {@link com.verygana2.services.commercial.CommercialOnboardingServiceImpl#submitLegalIdentification}),
+     * una vez esos datos existen — por eso aquí no hay lógica de PEP ni de screening.
+     */
     public User registerCommercial(CommercialRegisterDTO dto) {
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
 
-        if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            user.setUserState(UserState.PENDING_KYC_REVIEW);
-        }
-
         CommercialDetails details = userMapper.toCommercialDetails(dto);
         details.setUser(user);
 
-        if (dto.getMunicipalityCode() != null) {
-            Municipality municipality = locationService.getMunicipalityEntityByCode(dto.getMunicipalityCode());
-            details.setMunicipality(municipality);
-            details.setMunicipalityName(municipality.getName());
-            details.setDepartmentName(municipality.getDepartment().getName());
-        }
-
         user.setUserDetails(details);
 
+        CommercialOnboarding onboarding = new CommercialOnboarding();
+        onboarding.setCommercialDetails(details);
+        details.setOnboarding(onboarding);
+
+        // user -> details -> onboarding se persisten en cascada (CascadeType.ALL en
+        // ambos saltos), por eso un solo save alcanza; guardar onboarding aparte antes
+        // de esto fallaba con TransientPropertyValueException porque details todavía
+        // no tenía id asignado.
         User savedUser = userRepository.save(user);
 
-        // Screening empresa y representante legal
-        screeningService.screenOrThrow(savedUser.getId(), dto.getCompanyName(), dto.getNit());
-        screeningService.screenOrThrow(savedUser.getId(), dto.getRepresentanteDocNumero(), dto.getRepresentanteDocNumero());
-
-        if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            log.info("Comercial {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", savedUser.getEmail());
-        } else {
-            sendVerificationEmail(savedUser);
-        }
+        sendVerificationEmail(savedUser);
         return savedUser;
     }
 

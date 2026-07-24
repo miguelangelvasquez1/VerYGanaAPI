@@ -35,7 +35,7 @@ public class PasswordSetupServiceImpl implements PasswordSetupService {
     @Value("${app.frontend-url}")
     private String frontendUrl;
 
-    @Value("${app.password-setup-token.expiration-hours:24}")
+    @Value("${app.password-setup-token.expiration-hours:72}")
     private int expirationHours;
 
     @Override

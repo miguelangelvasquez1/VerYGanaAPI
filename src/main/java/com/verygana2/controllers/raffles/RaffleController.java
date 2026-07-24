@@ -19,12 +19,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.DrawStatusResponseDTO;
-import com.verygana2.dtos.raffle.responses.ParticipantLeaderboardDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
-import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
@@ -61,26 +58,19 @@ public class RaffleController {
         return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId));
     }
 
-    @GetMapping("/{raffleId}/stats")
-    public ResponseEntity<RaffleStatsResponseDTO> getRaffleStats(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleStats(raffleId));
-    }
-
-    @GetMapping("/{raffleId}/leaderboard")
-    public ResponseEntity<List<ParticipantLeaderboardDTO>> getRaffleLeaderboard(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleLeaderBoard(raffleId));
-    }
-
     // Para usuarios
     @GetMapping("/lives")
-    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles() {
-        return ResponseEntity.ok(raffleService.getLiveRaffles());
+    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(
+            @RequestParam(required = false) String municipalityCode) {
+        return ResponseEntity.ok(raffleService.getLiveRaffles(municipalityCode));
     }
 
     @GetMapping("/actives")
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(
-            @RequestParam(name = "type", required = false) RaffleType type, @RequestParam("pageNumber") int pageNumber) {
-        return ResponseEntity.ok(raffleService.getActiveRaffles(type, pageNumber));
+            @RequestParam(name = "type", required = false) RaffleType type,
+            @RequestParam(required = false) String municipalityCode,
+            @RequestParam("pageNumber") int pageNumber) {
+        return ResponseEntity.ok(raffleService.getActiveRaffles(type, municipalityCode, pageNumber));
     }
 
     @GetMapping("/{raffleId}/draw-status")

@@ -12,4 +12,6 @@ public interface CommercialDetailsRepository extends JpaRepository<CommercialDet
     Optional<CommercialDetails> findByCompanyName(String companyName);
     Optional<CommercialDetails> findByUser_Id(Long userId);
     boolean existsByUser_Id(Long userId);
+    boolean existsByNit(String nit);
+    boolean existsByMercantileRegistration(String mercantileRegistration);
 }

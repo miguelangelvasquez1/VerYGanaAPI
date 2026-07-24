@@ -14,12 +14,13 @@ import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleRuleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketEarningRuleResponseDTO;
+import com.verygana2.mappers.TargetAudienceMapper;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = { TargetAudienceMapper.class })
 public interface RaffleMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -35,6 +36,7 @@ public interface RaffleMapper {
     @Mapping(target = "imageAsset", ignore = true)
     @Mapping(target = "prizes", ignore = true)
     @Mapping(target = "raffleResult", ignore = true)
+    @Mapping(target = "targetAudience", ignore = true)
     Raffle toRaffle(CreateRaffleRequestDTO request);
 
     @AfterMapping
@@ -62,6 +64,7 @@ public interface RaffleMapper {
 
     @Mapping(target = "rules", source = "raffleRules")
     @Mapping(target = "imageUrl", ignore = true)
+    @Mapping(target = "targeting", source = "targetAudience")
     RaffleResponseDTO toRaffleResponseDTO(Raffle raffle);
 
     @Mapping(target = "imageUrl", source = "imageAsset.objectKey")
@@ -75,8 +78,7 @@ public interface RaffleMapper {
 
     @Mapping(target = "ticketsBySource", ignore = true)
     @Mapping(target = "maxTicketsFromPurchases", ignore = true)
-    @Mapping(target = "maxTicketsFromAds", ignore = true)
-    @Mapping(target = "maxTicketsFromGames", ignore = true)
+    @Mapping(target = "maxTicketsFromDailyLogin", ignore = true)
     @Mapping(target = "maxTicketsFromReferrals", ignore = true)
     @Mapping(target = "totalPrizesValue", ignore = true)
     RaffleStatsResponseDTO toRaffleStatsResponseDTO(Raffle raffle);

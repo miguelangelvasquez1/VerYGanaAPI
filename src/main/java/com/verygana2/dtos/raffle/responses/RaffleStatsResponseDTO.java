@@ -15,8 +15,7 @@ import lombok.NoArgsConstructor;
 public class RaffleStatsResponseDTO {
     private Long id;
     private Long maxTicketsFromPurchases;
-    private Long maxTicketsFromAds;
-    private Long maxTicketsFromGames;
+    private Long maxTicketsFromDailyLogin;
     private Long maxTicketsFromReferrals;
     private BigDecimal totalPrizesValue;
     private Map<RaffleTicketSource, Long> ticketsBySource;

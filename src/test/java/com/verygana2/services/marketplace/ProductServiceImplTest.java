@@ -40,13 +40,14 @@ import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
@@ -87,7 +88,8 @@ class ProductServiceImplTest {
     @Mock private ProductImageAssetRepository productImageAssetRepository;
     @Mock private R2Service r2Service;
     @Mock private AssetOrphanedService assetOrphanedService;
-    @Mock private CodeEncryptor productCodeEncryptor;
+    @Mock private ProductCodeEncryptor productCodeEncryptor;
+    @Mock private TargetAudienceAssembler targetAudienceAssembler;
 
     private ProductServiceImpl service;
 
@@ -96,7 +98,7 @@ class ProductServiceImplTest {
         service = new ProductServiceImpl(productRepository, adminDetailsService, notificationService,
                 favoriteProductRepository, productCategoryService, productMapper, commercialDetailsRepository,
                 consumerDetailsService, productStockRepository, productImageAssetRepository, r2Service,
-                assetOrphanedService, productCodeEncryptor);
+                assetOrphanedService, productCodeEncryptor, targetAudienceAssembler);
 
         ReflectionTestUtils.setField(service, "maxProductPriceCents", 50_000_000L);
         ReflectionTestUtils.setField(service, "minProductPriceCents", 100_000L);

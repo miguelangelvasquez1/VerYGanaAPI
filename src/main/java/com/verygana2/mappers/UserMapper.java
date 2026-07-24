@@ -51,7 +51,6 @@ public abstract class UserMapper {
     @Mapping(target = "adsWatched", ignore = true)
     @Mapping(target = "dailyAdCount", ignore = true)
     @Mapping(target = "referralCode", ignore = true)
-    @Mapping(target = "totalWithdraws", ignore = true)
     @Mapping(target = "favoriteProducts", ignore = true)
     @Mapping(target = "raffleTickets", ignore = true)
     @Mapping(target = "age", ignore = true)
@@ -94,7 +93,6 @@ public abstract class UserMapper {
     @Mapping(target = "name", ignore = true)
     @Mapping(target = "lastName", ignore = true)
     @Mapping(target = "adsWatched", ignore = true)
-    @Mapping(target = "totalWithdraws", ignore = true)
     @Mapping(target = "dailyAdCount", ignore = true)
     @Mapping(target = "referralCode", ignore = true)
     @Mapping(target = "categories", ignore = true)
@@ -135,6 +133,9 @@ public abstract class UserMapper {
     @Mapping(target = "failedLoginAttempts", ignore = true)
     public abstract User toUser(CommercialRegisterDTO dto);
 
+    // El registro básico (paso 1) solo trae email/password/phoneNumber:
+    // toda la identificación jurídica (companyName, nit, ciiuCode, municipio, etc.) se completa
+    // después en el paso 3 (submitLegalIdentification), por eso se ignora aquí.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "notifications", ignore = true)
@@ -146,15 +147,19 @@ public abstract class UserMapper {
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "municipalityName", ignore = true)
     @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "companyName", ignore = true)
+    @Mapping(target = "nit", ignore = true)
     @Mapping(target = "ciiuCode", ignore = true)
     @Mapping(target = "mercantileRegistration", ignore = true)
     @Mapping(target = "legalRepDocType", ignore = true)
     @Mapping(target = "legalRepDocNumber", ignore = true)
     @Mapping(target = "pep", ignore = true)
     @Mapping(target = "annualIncomeRange", ignore = true)
+    @Mapping(target = "onboarding", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")
+    @Mapping(target = "onboardingStatus", source = "details.onboarding.currentStep")
     public abstract CommercialInitialDataResponseDTO toCommercialInitialDataResponseDTO(CommercialDetails details);
 
     @Mapping(target = "registeredDate", source = "commercial.user.registeredDate")

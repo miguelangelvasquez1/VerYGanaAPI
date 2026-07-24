@@ -30,6 +30,14 @@ public class CustomUserDetails implements UserDetails {
         return id;
     }
 
+    public UserState getUserState() {
+        return userState;
+    }
+
+    public boolean isPasswordConfigured() {
+        return passwordConfigured;
+    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
@@ -56,7 +64,7 @@ public class CustomUserDetails implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return userState != UserState.PENDING_EMAIL 
+        return userState != UserState.PENDING_EMAIL
         && userState != UserState.PENDING_KYC_REVIEW
         && passwordConfigured;
     }

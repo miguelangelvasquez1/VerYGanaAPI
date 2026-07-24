@@ -3,6 +3,9 @@ package com.verygana2.dtos.product.requests;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.verygana2.dtos.targeting.OptionalTargetAudienceDTO;
+
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -37,5 +40,14 @@ public class CreateProductRequestDTO {
     // Para cargar stock digital
     @NotEmpty(message = "Product must have at least one stock item")
     private List<ProductStockRequestDTO> stockItems;
+
+    /**
+     * Localidades/edad/género de interés para este producto. No es una
+     * restricción de acceso (nunca bloquea búsqueda ni compra): solo se usa
+     * para priorizar el producto en el catálogo de consumidores afines.
+     * null = sin preferencia.
+     */
+    @Valid
+    private OptionalTargetAudienceDTO targeting;
 
 }

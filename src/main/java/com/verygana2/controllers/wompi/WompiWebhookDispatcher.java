@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import com.verygana2.dtos.wompi.WompiWebhookEvent.WompiTransactionPayload;
 import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.finance.WompiTransaction;
+import com.verygana2.services.interfaces.finance.PayoutService;
 import com.verygana2.services.interfaces.finance.PlanService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
 
@@ -34,6 +35,7 @@ public class WompiWebhookDispatcher {
 
     private final PlanService planService;
     private final CopaymentService copaymentService;
+    private final PayoutService payoutService;
 
     @Async
     public void dispatch(WompiTransaction wompiTx, WompiTransactionPayload payload) {
@@ -54,10 +56,7 @@ public class WompiWebhookDispatcher {
 
                 case CHARGE_COPAYMENT -> copaymentService.handleWompiResult(wompiTxId);
 
-                case TRANSFER_PAYOUT -> {
-                    log.info("[DISPATCHER] TRANSFER_PAYOUT recibido: reference={}", reference);
-                    // payoutService.handleWompiResult(wompiTxId); // Fase 5
-                }
+                case TRANSFER_PAYOUT -> payoutService.handleWompiResult(wompiTxId);
 
                 default -> log.warn("[DISPATCHER] Tipo no manejado: {}", type);
             }

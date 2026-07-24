@@ -12,7 +12,6 @@ import com.verygana2.models.enums.raffles.PrizeStatus;
 
 public interface RaffleWinnerService {
 
-    List<WinnerSummaryResponseDTO> getRaffleWinnersByRaffleId (Long raffleId);
     PagedResponse<PrizeWonResponseDTO> getWonPrizesList (Long consumerId, PrizeStatus status, Pageable pageable);
     List<WinnerSummaryResponseDTO> getLastRaffleWinners();
     void claimPrize (Long consumerId, ClaimPrizeRequestDTO request);

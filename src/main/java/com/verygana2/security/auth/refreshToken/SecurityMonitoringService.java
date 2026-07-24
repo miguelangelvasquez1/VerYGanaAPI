@@ -105,10 +105,6 @@ public class SecurityMonitoringService {
     }
 
     private void detectTokenFarmingPatterns() {
-        // checkWindowHours (no un valor fijo menor) para que la ventana cubra todo
-        // el intervalo entre corridas del scheduler (1h por defecto) — con 15 min
-        // fijos quedaban 45 min de cada hora sin revisar. Las ráfagas extremas ya
-        // las agarra checkRapidCycling en tiempo real; esto cubre abuso sostenido.
         Instant since = Instant.now().minus(checkWindowHours, ChronoUnit.HOURS);
 
         Map<String, List<RefreshToken>> recentTokensByUser = refreshTokenRepository

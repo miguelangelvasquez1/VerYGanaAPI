@@ -5,7 +5,6 @@ import java.util.List;
 
 import javax.sql.DataSource;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.io.ClassPathResource;
@@ -18,7 +17,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
-import com.verygana2.security.CodeEncryptor;
+import com.verygana2.security.ProductCodeEncryptor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,8 +31,7 @@ public class DataSeeder implements CommandLineRunner {
     private final DataSource dataSource;
     private final ProductRepository productRepository;
     private final ProductStockRepository productStockRepository;
-    @Qualifier("productCodeEncryptor")
-    private final CodeEncryptor productCodeEncryptor;
+    private final ProductCodeEncryptor productCodeEncryptor;
 
     @Override
     public void run(String... args) throws Exception {
@@ -107,6 +105,7 @@ public class DataSeeder implements CommandLineRunner {
         populator.addScript(new ClassPathResource("db/seed/categories.sql"));
         populator.addScript(new ClassPathResource("db/seed/system-features.sql"));
         populator.addScript(new ClassPathResource("db/seed/pricing-config.sql"));
+        populator.addScript(new ClassPathResource("db/seed/legal-documents.sql"));
         populator.addScript(new ClassPathResource("db/seed/avatars.sql"));
         populator.addScript(new ClassPathResource("db/seed/departments.sql"));
         populator.addScript(new ClassPathResource("db/seed/municipalities.sql")); // depende de departamentos
@@ -116,13 +115,13 @@ public class DataSeeder implements CommandLineRunner {
     private void loadTestEntities(ResourceDatabasePopulator populator) {
         populator.addScript(new ClassPathResource("db/seed/test/test-users.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-level-users.sql"));
-        populator.addScript(new ClassPathResource("db/seed/test/test-surveys.sql"));
+        // populator.addScript(new ClassPathResource("db/seed/test/test-surveys.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-campaigns.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-products.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-productCategoryImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-productImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-raffle-referral-rule.sql")); // depende de test-users (admin)
-        populator.addScript(new ClassPathResource("db/seed/test/test-ads.sql")); // depende de test-users (comercial)
+        // populator.addScript(new ClassPathResource("db/seed/test/test-ads.sql")); // depende de test-users (comercial)
     }
 
     private void loadGames(ResourceDatabasePopulator populator) {

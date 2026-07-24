@@ -41,18 +41,6 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
     @Transactional(readOnly = true)
     @Override
-    public Double getProductAvgRating(Long productId) {
-        if (productId == null || productId <= 0) {
-            throw new IllegalArgumentException("Product id must be positive");
-        }
-
-        Double avg = productReviewRepository.productAvgRating(productId);
-
-        return (avg != null) ? avg : 0.0;
-    }
-
-    @Transactional(readOnly = true)
-    @Override
     public Double getCommercialAvgRating(Long commercialId) {
         if (commercialId == null || commercialId <= 0) {
             throw new IllegalArgumentException("Commercial id must be positive");

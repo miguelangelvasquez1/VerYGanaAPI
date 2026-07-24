@@ -1,7 +1,5 @@
 package com.verygana2.controllers.raffles;
 
-import java.util.List;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -15,7 +13,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.requests.ClaimPrizeRequestDTO;
 import com.verygana2.dtos.raffle.responses.PrizeWonResponseDTO;
-import com.verygana2.dtos.raffle.responses.WinnerSummaryResponseDTO;
 import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
@@ -45,15 +42,6 @@ class RaffleWinnerControllerTest {
         Jwt jwt = mock(Jwt.class);
         when(jwt.getClaim("userId")).thenReturn(userId);
         return jwt;
-    }
-
-    @Test
-    @DisplayName("getRaffleWinners: delega en el service con el raffleId del path")
-    void getRaffleWinners_delegates() {
-        List<WinnerSummaryResponseDTO> expected = List.of(WinnerSummaryResponseDTO.builder().build());
-        when(raffleWinnerService.getRaffleWinnersByRaffleId(1L)).thenReturn(expected);
-
-        assertThat(controller.getRaffleWinners(1L).getBody()).isSameAs(expected);
     }
 
     @Test

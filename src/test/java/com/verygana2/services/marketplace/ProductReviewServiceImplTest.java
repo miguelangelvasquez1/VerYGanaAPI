@@ -167,24 +167,6 @@ class ProductReviewServiceImplTest {
     }
 
     @Nested
-    @DisplayName("getProductAvgRating / getCommercialAvgRating")
-    class AvgRating {
-
-        @Test
-        @DisplayName("sin reviews aún (repositorio retorna null): el promedio por defecto es 0.0, no null")
-        void noReviewsYet_defaultsToZero() {
-            when(productReviewRepository.productAvgRating(1L)).thenReturn(null);
-            assertThat(service.getProductAvgRating(1L)).isEqualTo(0.0);
-        }
-
-        @Test
-        @DisplayName("id de producto inválido: lanza IllegalArgumentException")
-        void invalidProductId_throwsIllegalArgumentException() {
-            assertThatThrownBy(() -> service.getProductAvgRating(0L)).isInstanceOf(IllegalArgumentException.class);
-        }
-    }
-
-    @Nested
     @DisplayName("canBeReviewed")
     class CanBeReviewed {
 

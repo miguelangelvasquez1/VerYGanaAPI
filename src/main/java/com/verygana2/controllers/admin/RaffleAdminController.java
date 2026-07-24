@@ -32,6 +32,7 @@ import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
 import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
+import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleStatus;
@@ -147,6 +148,11 @@ public class RaffleAdminController {
             @RequestParam LocalDate since,
             @RequestParam(defaultValue = "5") long threshold) {
         return ResponseEntity.ok(raffleTicketService.getSuspiciousActivity(since, threshold));
+    }
+
+    @GetMapping("/{raffleId}/stats")
+    public ResponseEntity<RaffleStatsResponseDTO> getRaffleStats(@PathVariable Long raffleId) {
+        return ResponseEntity.ok(raffleService.getRaffleStats(raffleId));
     }
 
 }

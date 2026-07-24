@@ -1,7 +1,6 @@
 package com.verygana2.services.interfaces.raffles;
 
 import java.time.LocalDate;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
@@ -10,9 +9,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.raffle.responses.RaffleTicketResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
-import com.verygana2.dtos.raffle.responses.TicketBalanceResponseDTO;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
-import com.verygana2.models.enums.raffles.RaffleTicketStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 
 public interface RaffleTicketService {
@@ -21,22 +18,11 @@ public interface RaffleTicketService {
 
     boolean canUserReceiveTickets(Long consumerId, RaffleType raffleType);
 
-    Long getUserTicketBalanceInRaffle(Long consumerId, Long raffleId, RaffleTicketStatus status);
-
-    Long getUserTotalTickets(Long consumerId, RaffleTicketStatus status);
-
     Long getUserWinnerTotalTickets (Long consumerId);
-
-    List<TicketBalanceResponseDTO> getUserTicketBalanceByRaffle(Long consumerId);
 
     PagedResponse<RaffleTicketResponseDTO> getUserTicketsByRaffle(Long consumerId, Long raffleId, Pageable pageable);
 
     PagedResponse<RaffleTicketResponseDTO> getUserWinnerTickets(Long consumerId, Pageable pageable);
-
-    PagedResponse<RaffleTicketResponseDTO> getTicketsByRaffle(Long raffleId, RaffleTicketStatus status,
-            RaffleTicketSource source,ZonedDateTime issuedAt, Pageable pageable);
-
-    boolean validateTicket(String ticketNumber, Long raffleId);
 
     void expireTickets(Long raffleId);
 

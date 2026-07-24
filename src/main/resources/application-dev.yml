@@ -42,9 +42,7 @@ rsa:
 
 jwt:
   access-token:
-    expiration: 900        # 15 min (in seconds) — corto a propósito: es un JWT stateless sin
-                            # chequeo de revocación por request, así que su vida útil es la
-                            # ventana de exposición si se filtra. La sesión larga la maneja el refresh token.
+    expiration: 900
   refresh-token:
     expiration: 604800     # 7 days (in seconds)
 
@@ -99,6 +97,11 @@ logging:
     com.verygana2.services.storage: DEBUG
     #org.hibernate.SQL: DEBUG
     org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    # PDFBox construye su FontMapper una sola vez por JVM escaneando C:\Windows\Fonts;
+    # algunas fuentes CJK preinstaladas en Windows (NotoSansTC-*.ttf) traen un formato
+    # que su TTFParser no soporta y lanza EOFException — inofensivo (PDFBox salta esa
+    # fuente y sigue), pero genera ruido de stacktraces largos al primer PDF generado.
+    org.apache.pdfbox.pdmodel.font.FileSystemFontProvider: ERROR
     org.springframework.security: DEBUG
     org.springframework.security.authentication: WARN
     org.springframework.security.authorization.method: WARN
@@ -190,20 +193,7 @@ twilio:
   phone-number: ${TWILIO_PHONE_NUMBER}
 
 # ============================================
-# KUSHKI CONFIG
-# ============================================
-kushki:
-  private-key: ${KUSHKI_PRIVATE_KEY}
-  public-key: ${KUSHKI_PUBLIC_KEY}
-  api-base-url: https://api-uat.kushkipagos.com  # sandbox
-  # api-base-url: https://api.kushkipagos.com    # producción
-  payout:
-    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
-    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
-    min-balance-alert-cents: 5000000  # alerta si Kushki balance < $50.000 COP
-
-# ============================================
-# WOMPI CONFIG
+# WOMPI CONFIG (cobros + Pagos a Terceros)
 # ============================================
 # Configuración de Wompi (Produccion)
 # wompi:
@@ -213,6 +203,14 @@ kushki:
 #   events-key: ${WOMPI_EVENTS_KEY}
 #   checkout-base-url: https://checkout.wompi.co/p/
 #   api-base-url: https://production.wompi.co/v1
+#   payout:
+#     api-key: ${WOMPI_PAYOUTS_API_KEY}
+#     principal-user-id: ${WOMPI_PAYOUTS_USER_ID}
+#     events-key: ${WOMPI_PAYOUTS_SECRET}
+#     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
+#     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
+#     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
+#     api-base-url: https://api.payouts.wompi.co/v1
 
 wompi:
   public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
@@ -221,7 +219,19 @@ wompi:
   events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
   checkout-base-url: https://checkout.wompi.co/p/
   api-base-url: https://sandbox.wompi.co/v1
-  
+  payout:
+    api-key: ${WOMPI_SANDBOX_PAYOUTS_API_KEY}
+    principal-user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    events-key: ${WOMPI_SANDBOX_PAYOUTS_SECRET}
+    account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
+    nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
+    daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
+    api-base-url: https://api.sandbox.payouts.wompi.co/v1  # sandbox
+    # api-base-url: https://api.payouts.wompi.co/v1        # producción
+    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
+    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
+
 payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP
@@ -234,7 +244,7 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
-    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:24}
+    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
@@ -326,6 +336,21 @@ randomOrg:
   timeout: 30000 # 30 segundos
 
 # ============================================
+# ONBOARDING COMERCIAL — RESUMEN ECONÓMICO Y CONTRATO
+# ============================================
+commercial:
+  onboarding:
+    economic-summary:
+      tax-note: "Los valores anteriores no incluyen IVA (19%). El IVA aplicable se liquidará según la normativa vigente al momento de cada transacción."
+      liquidation-conditions: "Los pagos se liquidan de forma mensual, dentro de los primeros 5 días hábiles del mes siguiente, previa deducción de la comisión de VERYGANA, a la cuenta bancaria certificada por el comerciante."
+    documents:
+      max-size-bytes: 10485760 # 10 MB
+
+legal:
+  documents:
+    max-size-bytes: 10485760 # 10 MB
+
+# ============================================
 # SCREENING / SAGRILAFT CONFIG
 # ============================================
 screening:
@@ -335,3 +360,10 @@ screening:
     api-key: ${TRUORA_API_KEY:}
     base-url: https://api.truora.com/v1
     timeout-seconds: 5
+
+# ============================================
+# E-SIGNATURE CONFIG
+# ============================================
+esignature:
+  # 'noop' hasta elegir un proveedor real (DocuSign, HelloSign, etc.)
+  provider: noop
