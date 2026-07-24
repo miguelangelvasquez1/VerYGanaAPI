@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import com.verygana2.services.interfaces.levels.LevelService;
+import jakarta.annotation.PostConstruct;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +19,6 @@ import com.verygana2.dtos.levels.LevelProfileResponse;
 import com.verygana2.dtos.levels.TransactionLogResponse;
 import com.verygana2.models.enums.UserLevel;
 
-
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -27,6 +27,21 @@ import lombok.RequiredArgsConstructor;
 public class LevelController {
 
     private final LevelService levelService;
+
+    private List<LevelConfigResponse> levelConfigCache;
+
+    @PostConstruct
+    public void initLevelConfig() {
+        levelConfigCache = Arrays.stream(UserLevel.values())
+                .map(l -> new LevelConfigResponse(
+                        l,
+                        l.getXpMin(),
+                        l.getXpMax() == Long.MAX_VALUE ? "∞" : String.valueOf(l.getXpMax()),
+                        l.getMultiplier(),
+                        l.getReferralTickets()
+                ))
+                .toList();
+    }
 
     @GetMapping("/me")
     public ResponseEntity<LevelProfileResponse> getMyProfile(
@@ -45,18 +60,8 @@ public class LevelController {
         return ResponseEntity.ok(levelService.getTransactionHistory(consumerId, pageable));
     }
 
-    /** Tabla de niveles estática para el frontend — sin BD, sin auth */
     @GetMapping("/config")
     public ResponseEntity<List<LevelConfigResponse>> getLevelsConfig() {
-        List<LevelConfigResponse> config = Arrays.stream(UserLevel.values())
-                .map(l -> new LevelConfigResponse(
-                        l,
-                        l.getXpMin(),
-                        l.getXpMax() == Long.MAX_VALUE ? "∞" : String.valueOf(l.getXpMax()),
-                        l.getMultiplier(),
-                        l.getReferralTickets()
-                ))
-                .toList();
-        return ResponseEntity.ok(config);
+        return ResponseEntity.ok(levelConfigCache);
     }
 }

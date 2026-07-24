@@ -1,13 +1,16 @@
 package com.verygana2.services;
 
+import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.enums.UserState;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.services.interfaces.PasswordSetupService;
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -56,6 +59,7 @@ public class UserServiceImpl implements UserService {
     private final ScreeningService screeningService;
     private final TwilioSmsService twilioSmsService;
     private final com.verygana2.security.auth.refreshToken.RefreshTokenRepository refreshTokenRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Override
     public User registerGameDesigner(GameDesignerRegisterDTO dto) {
@@ -175,13 +179,6 @@ public class UserServiceImpl implements UserService {
         keyWalletService.createFor(user.getId());
         levelService.initializeProfile(user.getId());
 
-        if (details.getReferredBy() != null) {
-            outboxService.saveReferralEvent(
-                    details.getReferredBy().getId(),
-                    details.getId()
-            );
-        }
-
         if (Boolean.TRUE.equals(dto.getIsPEP())) {
             log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", user.getEmail());
         } else {
@@ -203,6 +200,7 @@ public class UserServiceImpl implements UserService {
 
         user.setUserState(UserState.ACTIVE);
         userRepository.save(user);
+        triggerReferralRewardsIfApplicable(user);
 
         log.info("Email verified for user {}", user.getEmail());
     }
@@ -245,7 +243,20 @@ public class UserServiceImpl implements UserService {
 
         user.setUserState(UserState.ACTIVE);
         userRepository.save(user);
+        triggerReferralRewardsIfApplicable(user);
         log.info("Account {} activated via SMS verification", email);
+    }
+
+    private void triggerReferralRewardsIfApplicable(User user) {
+        if (!(user.getUserDetails() instanceof ConsumerDetails consumer)) return;
+        ConsumerDetails referrer = consumer.getReferredBy();
+        if (referrer == null) return;
+
+        eventPublisher.publishEvent(
+                new XpAwardRequestedEvent(this, referrer.getId(), ActivityType.REFERRAL_ACTIVE));
+        outboxService.saveReferralEvent(referrer.getId(), consumer.getId());
+        log.info("Referral rewards triggered for referrer {} upon account confirmation of {}",
+                referrer.getId(), consumer.getId());
     }
 
     private User requirePendingEmailUser(String email) {
@@ -279,8 +290,9 @@ public class UserServiceImpl implements UserService {
         user.setPasswordConfigured(true);
         userRepository.save(user);
 
-        // Cerrar todas las sesiones activas: la contraseña cambió
-        refreshTokenRepository.deleteByUsername(user);
+        // Cerrar todas las sesiones activas: la contraseña cambió.
+        // RefreshToken.username guarda el email (authentication.getName())
+        refreshTokenRepository.deleteByUsername(user.getEmail());
 
         log.info("Password reset completed for user {}", email);
     }
