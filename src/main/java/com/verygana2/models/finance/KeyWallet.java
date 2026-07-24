@@ -42,9 +42,12 @@ public class KeyWallet {
      * Relación 1-a-1 con el consumidor. Se crea automáticamente cuando
      * el usuario se registra. La relación inversa se accede vía consumer.getKeyWallet().
      */
+    // Excluida del toString: ConsumerDetails.keyWallet apunta de vuelta aquí
+    // y el toString de Lombok entraría en recursión infinita (StackOverflow)
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "consumer_id", nullable = false, unique = true)
     @NotNull
+    @lombok.ToString.Exclude
     private ConsumerDetails consumer;
 
     /**

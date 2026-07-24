@@ -20,7 +20,8 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     Boolean existsByToken(String token);
 
-    void deleteByUsername(User user);
+    // username es el String de authentication.getName() (email), no la entidad User
+    void deleteByUsername(String username);
 
     Optional<RefreshToken> findByJti(String jti);
 
