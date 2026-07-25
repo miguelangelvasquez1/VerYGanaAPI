@@ -29,12 +29,15 @@ public abstract class UserDetails {
     private Long id;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @lombok.ToString.Exclude
     private List<Notification> notifications = new ArrayList<>();
 
+    // Excluida del toString: User.userDetails apunta de vuelta aquí (recursión)
     @OneToOne
     @MapsId
     @JoinColumn(name = "user_id")
     @JsonBackReference
+    @lombok.ToString.Exclude
     private User user;
 
 }

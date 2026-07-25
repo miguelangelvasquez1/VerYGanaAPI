@@ -31,8 +31,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class User{
 
+    // Excluida del toString: UserDetails.user apunta de vuelta aquí (recursión)
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true, optional = true)
     @JsonManagedReference
+    @lombok.ToString.Exclude
     private UserDetails userDetails;
 
     @Enumerated(EnumType.STRING)
@@ -62,6 +64,7 @@ public class User{
     private boolean passwordConfigured = true;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL)
+    @lombok.ToString.Exclude
     private UserVerification verification;
 
     // ── Bloqueo por intentos fallidos ───────────────────────────────────────

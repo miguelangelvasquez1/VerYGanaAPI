@@ -38,9 +38,13 @@ public class ConsumerDetails extends UserDetails {
     @NotNull(message = "Avatar is required")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "avatar_id")
+    @lombok.ToString.Exclude
     private Avatar avatar;
 
+    // Excluida del toString: KeyWallet.consumer apunta de vuelta aquí
+    // y el toString de Lombok entraría en recursión infinita (StackOverflow)
     @OneToOne(mappedBy = "consumer", fetch = FetchType.LAZY)
+    @lombok.ToString.Exclude
     private KeyWallet keyWallet;
 
     @NotBlank(message = "the name cannot be empty")
@@ -67,6 +71,7 @@ public class ConsumerDetails extends UserDetails {
 
     @ManyToOne(optional = false)
     @JoinColumn(name = "municipality_code", nullable = false)
+    @lombok.ToString.Exclude
     private Municipality municipality;
 
     private Integer age;
@@ -80,12 +85,15 @@ public class ConsumerDetails extends UserDetails {
     @JoinTable(name = "consumer_preferences", joinColumns = @JoinColumn(name = "user_id"), inverseJoinColumns = @JoinColumn(name = "category_id"))
     @NotNull(message = "Preferences are required")
     @Size(min = 1, message = "At least one category must be selected")
+    @lombok.ToString.Exclude
     private List<Category> categories = new ArrayList<>();
 
     @OneToMany(mappedBy = "consumer", cascade = CascadeType.ALL, orphanRemoval = true)
+    @lombok.ToString.Exclude
     private List<FavoriteProduct> favoriteProducts = new ArrayList<>();
 
     @OneToMany(mappedBy = "ticketOwner", cascade = CascadeType.ALL, orphanRemoval = true)
+    @lombok.ToString.Exclude
     private List<RaffleTicket> raffleTickets = new ArrayList<>();
 
     @Column(name = "referral_code", nullable = false, length = 16, updatable = false)
@@ -96,9 +104,11 @@ public class ConsumerDetails extends UserDetails {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "referred_by_consumer_id")
+    @lombok.ToString.Exclude
     private ConsumerDetails referredBy;
 
     @OneToMany(mappedBy = "referredBy")
+    @lombok.ToString.Exclude
     private List<ConsumerDetails> referrals = new ArrayList<>();
 
     // ==================== KYC / SAGRILAFT ====================

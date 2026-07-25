@@ -22,12 +22,18 @@ SET @commercial_id = (SELECT cd.user_id FROM commercial_details cd
 -- AD 900 — video corto de prueba
 -- ============================================================
 
+-- Target audience del anuncio (sin edad/género); la categoría Tecnología se
+-- enlaza más abajo. Id fijo = id del anuncio para mantener el seed idempotente.
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 900, NULL, NULL, NULL
+WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 900);
+
 INSERT INTO ads (
     id, version, title, description,
     reward_per_like, max_likes, current_likes, max_likes_per_user_per_day,
     status, created_at, updated_at,
     start_date, end_date, commercial_id, target_url,
-    min_age, max_age, target_gender
+    target_audience_id
 )
 SELECT
     900, 1,
@@ -37,7 +43,7 @@ SELECT
     100, 0, NULL,
     'ACTIVE', NOW(), NOW(),
     NULL, NULL, @commercial_id, 'https://verygana.com',
-    NULL, NULL, NULL
+    900
 WHERE NOT EXISTS (SELECT 1 FROM ads WHERE id = 900);
 
 INSERT INTO ad_assets (
@@ -54,12 +60,16 @@ WHERE NOT EXISTS (SELECT 1 FROM ad_assets WHERE id = 900);
 -- sin esperar el cooldown del primero)
 -- ============================================================
 
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 901, NULL, NULL, NULL
+WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 901);
+
 INSERT INTO ads (
     id, version, title, description,
     reward_per_like, max_likes, current_likes, max_likes_per_user_per_day,
     status, created_at, updated_at,
     start_date, end_date, commercial_id, target_url,
-    min_age, max_age, target_gender
+    target_audience_id
 )
 SELECT
     901, 1,
@@ -69,7 +79,7 @@ SELECT
     100, 0, NULL,
     'ACTIVE', NOW(), NOW(),
     NULL, NULL, @commercial_id, 'https://verygana.com',
-    NULL, NULL, NULL
+    901
 WHERE NOT EXISTS (SELECT 1 FROM ads WHERE id = 901);
 
 INSERT INTO ad_assets (
@@ -82,17 +92,19 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM ad_assets WHERE id = 901);
 
 -- ============================================================
--- CATEGORÍAS de los anuncios
--- (REQUERIDO: Ad valida min 1 categoría y se re-valida en cada
---  flush, ej. al incrementar likes)
+-- CATEGORÍAS de los anuncios (vía target_audience_categories)
+-- La segmentación por categoría vive ahora en el TargetAudience
+-- del anuncio (target_audiences 900/901 creados arriba).
 -- ============================================================
 
-INSERT INTO ad_categories (ad_id, category_id)
+INSERT INTO target_audience_categories (target_audience_id, category_id)
 SELECT 900, c.id FROM categories c
 WHERE c.name = 'Tecnología'
-AND NOT EXISTS (SELECT 1 FROM ad_categories WHERE ad_id = 900);
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac
+                WHERE tac.target_audience_id = 900 AND tac.category_id = c.id);
 
-INSERT INTO ad_categories (ad_id, category_id)
+INSERT INTO target_audience_categories (target_audience_id, category_id)
 SELECT 901, c.id FROM categories c
 WHERE c.name = 'Tecnología'
-AND NOT EXISTS (SELECT 1 FROM ad_categories WHERE ad_id = 901);
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac
+                WHERE tac.target_audience_id = 901 AND tac.category_id = c.id);

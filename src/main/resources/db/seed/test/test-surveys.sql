@@ -19,54 +19,65 @@ JOIN survey_answers sa ON sa.id = aso.answer_id
 JOIN survey_sessions ss ON ss.id = sa.session_id
 JOIN surveys s ON s.id = ss.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
 -- 2. Respuestas
 DELETE sa FROM survey_answers sa
 JOIN survey_sessions ss ON ss.id = sa.session_id
 JOIN surveys s ON s.id = ss.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
 -- 3. Recompensas de sesiones
 DELETE sr FROM survey_rewards sr
 JOIN survey_sessions ss ON ss.id = sr.session_id
 JOIN surveys s ON s.id = ss.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
 -- 4. Sesiones
 DELETE ss FROM survey_sessions ss
 JOIN surveys s ON s.id = ss.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
 -- 5. Opciones de preguntas
 DELETE qo FROM question_options qo
 JOIN survey_questions sq ON sq.id = qo.question_id
 JOIN surveys s ON s.id = sq.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
 -- 6. Preguntas
 DELETE sq FROM survey_questions sq
 JOIN surveys s ON s.id = sq.survey_id
 WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
+    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia',
+    'Hábitos de alimentación');
 
--- 7. Categorías (tabla de unión)
-DELETE sc FROM survey_categories sc
-JOIN surveys s ON s.id = sc.survey_id
-WHERE s.title IN ('Hábitos digitales', 'Tendencias de moda femenina',
-    'Preferencias de entretenimiento', 'Experiencia de compra', 'Videojuegos en Colombia');
-
--- 8. Encuestas
+-- 7. Encuestas. Sus target_audiences usan ids fijos (950-954), son idempotentes
+--    y persisten entre corridas: abajo se re-enlazan con NOT EXISTS, por eso no
+--    hace falta borrarlos aquí (evita romper/recrear la FK).
 DELETE FROM surveys WHERE title IN (
     'Hábitos digitales',
     'Tendencias de moda femenina',
     'Preferencias de entretenimiento',
     'Experiencia de compra',
-    'Videojuegos en Colombia'
+    'Videojuegos en Colombia',
+    'Hábitos de alimentación'
+);
+
+-- surveys.creator_id es NOT NULL. Usamos el comercial de prueba como creador
+-- (sembrado en test-users.sql, que corre antes que este script).
+SET @commercial_id = (
+    SELECT cd.user_id FROM commercial_details cd
+    JOIN users u ON u.id = cd.user_id
+    WHERE u.email = 'comercial@verygana.com'
 );
 
 
@@ -87,12 +98,16 @@ INSERT INTO surveys (
     '¿Cómo usas la tecnología en tu día a día? Queremos conocerte mejor.',
     500, 200, 0,
     'ACTIVE', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY),
-    NULL
+    @commercial_id
 );
 
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Tecnología'
-WHERE s.title = 'Hábitos digitales';
+-- Segmentación: categoría Tecnología, sin filtro de edad/género
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 950, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 950);
+UPDATE surveys SET target_audience_id = 950 WHERE title = 'Hábitos digitales';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 950, c.id FROM categories c WHERE c.name = 'Tecnología'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 950 AND tac.category_id = c.id);
 
 -- Q1: SINGLE_CHOICE
 INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
@@ -142,20 +157,22 @@ INSERT INTO surveys (
     reward_amount_per_question_cents,
     max_responses, response_count,
     status, starts_at, ends_at,
-    min_age, max_age, target_gender,
     creator_id
 ) VALUES (
     'Tendencias de moda femenina',
     'Ayúdanos a entender las preferencias de moda de las mujeres colombianas.',
     800, 150, 0,
     'ACTIVE', NOW(), DATE_ADD(NOW(), INTERVAL 21 DAY),
-    18, 35, 'FEMALE',
-    NULL
+    @commercial_id
 );
 
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Moda'
-WHERE s.title = 'Tendencias de moda femenina';
+-- Segmentación: mujeres 18-35, categoría Moda
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 951, 18, 35, 'FEMALE' WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 951);
+UPDATE surveys SET target_audience_id = 951 WHERE title = 'Tendencias de moda femenina';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 951, c.id FROM categories c WHERE c.name = 'Moda'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 951 AND tac.category_id = c.id);
 
 -- Q1: SINGLE_CHOICE
 INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
@@ -226,16 +243,19 @@ INSERT INTO surveys (
     '¿Qué haces en tu tiempo libre? Tu opinión nos ayuda a mejorar la experiencia.',
     300, 500, 0,
     'ACTIVE', NOW(), DATE_ADD(NOW(), INTERVAL 45 DAY),
-    NULL
+    @commercial_id
 );
 
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Cine y Series'
-WHERE s.title = 'Preferencias de entretenimiento';
-
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Música'
-WHERE s.title = 'Preferencias de entretenimiento';
+-- Segmentación: categorías Cine y Series + Música
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 952, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 952);
+UPDATE surveys SET target_audience_id = 952 WHERE title = 'Preferencias de entretenimiento';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 952, c.id FROM categories c WHERE c.name = 'Cine y Series'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 952 AND tac.category_id = c.id);
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 952, c.id FROM categories c WHERE c.name = 'Música'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 952 AND tac.category_id = c.id);
 
 -- Q1: MULTIPLE_CHOICE
 INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
@@ -312,12 +332,16 @@ INSERT INTO surveys (
     'Cuéntanos sobre tu última compra en línea.',
     600, 100, 0,
     'PAUSED', NOW(), DATE_ADD(NOW(), INTERVAL 15 DAY),
-    NULL
+    @commercial_id
 );
 
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Tecnología'
-WHERE s.title = 'Experiencia de compra';
+-- Segmentación: categoría Tecnología
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 953, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 953);
+UPDATE surveys SET target_audience_id = 953 WHERE title = 'Experiencia de compra';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 953, c.id FROM categories c WHERE c.name = 'Tecnología'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 953 AND tac.category_id = c.id);
 
 INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
 SELECT id, '¿Qué tan seguido compras en línea?', 'SINGLE_CHOICE', 0, true
@@ -355,12 +379,16 @@ INSERT INTO surveys (
     'Encuesta sobre hábitos de gaming en Colombia. Próximamente activa.',
     1000, 300, 0,
     'DRAFT', DATE_ADD(NOW(), INTERVAL 7 DAY), DATE_ADD(NOW(), INTERVAL 60 DAY),
-    NULL
+    @commercial_id
 );
 
-INSERT INTO survey_categories (survey_id, category_id)
-SELECT s.id, c.id FROM surveys s JOIN categories c ON c.name = 'Videojuegos'
-WHERE s.title = 'Videojuegos en Colombia';
+-- Segmentación: categoría Videojuegos
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 954, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 954);
+UPDATE surveys SET target_audience_id = 954 WHERE title = 'Videojuegos en Colombia';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 954, c.id FROM categories c WHERE c.name = 'Videojuegos'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 954 AND tac.category_id = c.id);
 
 INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
 SELECT id, '¿Con qué frecuencia juegas videojuegos?', 'SINGLE_CHOICE', 0, true
@@ -381,3 +409,93 @@ WHERE s.title = 'Videojuegos en Colombia' AND q.order_index = 0;
 INSERT INTO question_options (question_id, text, order_index)
 SELECT q.id, 'No juego', 3 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
 WHERE s.title = 'Videojuegos en Colombia' AND q.order_index = 0;
+
+
+-- ============================================================
+-- SURVEY 6 — "Hábitos de alimentación" (ACTIVE)
+--   Cubre: SINGLE_CHOICE, MULTIPLE_CHOICE, YES_NO, RATING, TEXT
+--   Recompensa: 700 centavos por pregunta
+-- ============================================================
+
+INSERT INTO surveys (
+    title, description,
+    reward_amount_per_question_cents,
+    max_responses, response_count,
+    status, starts_at, ends_at,
+    creator_id
+) VALUES (
+    'Hábitos de alimentación',
+    'Queremos conocer cómo comes en tu día a día para ofrecerte mejores recompensas.',
+    700, 400, 0,
+    'ACTIVE', NOW(), DATE_ADD(NOW(), INTERVAL 30 DAY),
+    @commercial_id
+);
+
+-- Segmentación: categoría Gastronomía, sin filtro de edad/género
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+SELECT 955, NULL, NULL, NULL WHERE NOT EXISTS (SELECT 1 FROM target_audiences WHERE id = 955);
+UPDATE surveys SET target_audience_id = 955 WHERE title = 'Hábitos de alimentación';
+INSERT INTO target_audience_categories (target_audience_id, category_id)
+SELECT 955, c.id FROM categories c WHERE c.name = 'Gastronomía'
+AND NOT EXISTS (SELECT 1 FROM target_audience_categories tac WHERE tac.target_audience_id = 955 AND tac.category_id = c.id);
+
+-- Q1: SINGLE_CHOICE
+INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
+SELECT id, '¿Cuántas comidas haces al día normalmente?', 'SINGLE_CHOICE', 0, true
+FROM surveys WHERE title = 'Hábitos de alimentación';
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, '1 o 2', 0 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 0;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, '3 comidas', 1 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 0;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, '3 comidas + snacks', 2 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 0;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Como a cualquier hora', 3 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 0;
+
+-- Q2: MULTIPLE_CHOICE
+INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
+SELECT id, '¿Dónde sueles conseguir tu comida? (puedes elegir varios)', 'MULTIPLE_CHOICE', 1, true
+FROM surveys WHERE title = 'Hábitos de alimentación';
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Cocino en casa', 0 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 1;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Domicilios (Rappi, iFood, etc.)', 1 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 1;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Restaurantes', 2 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 1;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Comida rápida', 3 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 1;
+
+INSERT INTO question_options (question_id, text, order_index)
+SELECT q.id, 'Tiendas de barrio / mercado', 4 FROM survey_questions q JOIN surveys s ON s.id = q.survey_id
+WHERE s.title = 'Hábitos de alimentación' AND q.order_index = 1;
+
+-- Q3: YES_NO
+INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
+SELECT id, '¿Lees la información nutricional antes de comprar un producto?', 'YES_NO', 2, true
+FROM surveys WHERE title = 'Hábitos de alimentación';
+
+-- Q4: RATING
+INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
+SELECT id, '¿Qué tan saludable consideras tu alimentación? (1 = nada, 5 = muy saludable)', 'RATING', 3, true
+FROM surveys WHERE title = 'Hábitos de alimentación';
+
+-- Q5: TEXT
+INSERT INTO survey_questions (survey_id, text, type, order_index, is_required)
+SELECT id, '¿Cuál es tu plato favorito?', 'TEXT', 4, false
+FROM surveys WHERE title = 'Hábitos de alimentación';
