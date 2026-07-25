@@ -29,16 +29,16 @@ import com.verygana2.controllers.gameAssetsBorrar.TicTacToeAssets;
 import com.verygana2.controllers.gameAssetsBorrar.TilePuzzleAssets;
 import com.verygana2.controllers.gameAssetsBorrar.TriviaQuizAssets;
 import com.verygana2.controllers.gameAssetsBorrar.WordSearchAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.AvoidTheBombAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.BallBounceAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.BalloonLiftAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.CatchItAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.HangmanAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.Match3Assets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.MemoryAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.SudokuAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.TapToRotateAssets;
-// import com.verygana2.controllers.gameAssetsBorrar.cali.WhackAMoleAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.AvoidTheBombAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.BallBounceAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.BalloonLiftAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.CatchItAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.HangmanAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.Match3Assets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.MemoryAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.SudokuAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.TapToRotateAssets;
+import com.verygana2.controllers.gameAssetsBorrar.cali.WhackAMoleAssets;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
@@ -61,10 +61,11 @@ public class GameController {
 
     private final GameService gameService;
     private final ObjectMapper objectMapper;
-    
+
     // Devuelve la url del juego armada con los parametros necesarios
     @PostMapping("/init")
-    public ResponseEntity<Map<String, String>> initGame(@Valid @RequestBody InitGameRequestDTO request, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Map<String, String>> initGame(@Valid @RequestBody InitGameRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
 
         // Init sponsored game
         if (request.getSponsored() != null && request.getSponsored()) {
@@ -83,9 +84,11 @@ public class GameController {
     @PostMapping("/assets")
     public ResponseEntity<ObjectNode> getGameAssets(@RequestBody GameEventDTO<Void> req) {
 
-        // Preview mode: session_token=preview siempre identifica un BrandingRequest, nunca una campaña real
+        // Preview mode: session_token=preview siempre identifica un BrandingRequest,
+        // nunca una campaña real
         if ("preview".equals(req.getSessionToken())) {
-            if (req.getCampaignId() == null) return ResponseEntity.badRequest().body(null);
+            if (req.getCampaignId() == null)
+                return ResponseEntity.badRequest().body(null);
             try {
                 ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
                 return ResponseEntity.ok(node);
@@ -95,72 +98,78 @@ public class GameController {
             }
         }
 
-        // if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-        //     return ResponseEntity.ok(TapToRotateAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-        //     return ResponseEntity.ok(MemoryAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
-        //     return ResponseEntity.ok(HangmanAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
-        //     return ResponseEntity.ok(SudokuAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
-        //     return ResponseEntity.ok(Match3Assets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
-        //     return ResponseEntity.ok(BalloonLiftAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
-        //     return ResponseEntity.ok(AvoidTheBombAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
-        //     return ResponseEntity.ok(BallBounceAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
-        //     return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
-        // } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
-        //     return ResponseEntity.ok(CatchItAssets.ASSETS);
-            
-        // ==================== NUEVOS JUEGOS (11 al 20) ====================
-        
-         if (req.getCampaignId() != null && req.getCampaignId() == 11L) {
+        if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
+            return ResponseEntity.ok(TapToRotateAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
+            return ResponseEntity.ok(MemoryAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
+            return ResponseEntity.ok(HangmanAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
+            return ResponseEntity.ok(SudokuAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
+            return ResponseEntity.ok(Match3Assets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
+            return ResponseEntity.ok(BalloonLiftAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
+            return ResponseEntity.ok(AvoidTheBombAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
+            return ResponseEntity.ok(BallBounceAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
+            return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
+            return ResponseEntity.ok(CatchItAssets.ASSETS);
+        }
+
+            // ==================== NUEVOS JUEGOS (11 al 20) ====================
+
+          else if (req.getCampaignId() != null && req.getCampaignId() == 11L) {
             return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 12L) {
             return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 13L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 13L) { // minimo 10 preguntas
             return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 14L) {
             return ResponseEntity.ok(StackTowerAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 15L) {
             return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 16L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 16L) { // minimo 10-16 palabras
             return ResponseEntity.ok(WordSearchAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 17L) {
             return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) { // minimo 8-16 palabras intermedias
+                                                                                    // de longitud
             return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) { 
             return ResponseEntity.ok(TicTacToeAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 20L) {
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 20L) { // imagen jpg cuadrada 1200x1200
             return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
+            }
+        
+        return ResponseEntity.badRequest().body(null);
         }
 
-        return ResponseEntity.badRequest().body(null);
-    }
-
     @PostMapping("/metrics")
-    public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event,
+            @AuthenticationPrincipal Jwt jwt) {
         // Long userId = jwt.getClaim("userId");
-        if (event.getIsBrandedMode() == false) return ResponseEntity.ok().build();
+        if (event.getIsBrandedMode() == false)
+            return ResponseEntity.ok().build();
         System.out.println(event.toString());
         // gameService.submitGameMetrics(event);
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/end-session")
-    public ResponseEntity<Void> endSession(@RequestBody GameEventDTO<EndSessionDTO> event, @AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<Void> endSession(@RequestBody GameEventDTO<EndSessionDTO> event,
+            @AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         gameService.completeSession(event, userId);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping
-    public PagedResponse<GameDTO> getAvailableGamesPage (@PageableDefault(size = 20, sort = "title", direction = Sort.Direction.ASC ) Pageable pageable) {
+    public PagedResponse<GameDTO> getAvailableGamesPage(
+            @PageableDefault(size = 20, sort = "title", direction = Sort.Direction.ASC) Pageable pageable) {
         return gameService.getAvailableGamesPage(pageable);
     }
 
@@ -168,17 +177,18 @@ public class GameController {
      * Get JSON Schema for a specific game
      * 
      * GET /api/games/{id}/schema
-     * Response: { "gameId": 1, "version": "1.0.0", "jsonSchema": {...}, "uiSchema": {...} }
+     * Response: { "gameId": 1, "version": "1.0.0", "jsonSchema": {...}, "uiSchema":
+     * {...} }
      */
     @GetMapping("/{id}/schema")
     public ResponseEntity<GameSchemaResponse> getGameSchema(@PathVariable Long id) {
         log.info("Getting schema for game: {}", id);
-        
+
         GameSchemaResponse response = gameService.getLatestGameSchema(id);
         return ResponseEntity.ok(response);
     }
 
-    //GetMetrics by sessionId
+    // GetMetrics by sessionId
 
-    //GetSession details
+    // GetSession details
 }

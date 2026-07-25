@@ -26,6 +26,9 @@ public class CampaignScoringConfig {
     /** Peso para ratio de oportunidad comercial (presupuesto restante / presupuesto total). */
     private double budgetOpportunity = 20.0;
 
+    /** Peso para el boost de prioridad en visibilidad del plan del comercial (VISIBILITY_BOOST). */
+    private double visibilityBoost = 15.0;
+
     /** Magnitud de la penalización por repetición reciente (siempre positivo, se aplica como negativo). */
     private double recencyPenalty = 20.0;
 

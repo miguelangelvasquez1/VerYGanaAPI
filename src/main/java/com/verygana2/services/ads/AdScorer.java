@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import com.verygana2.models.ads.Ad;
 import com.verygana2.services.scoring.EntityScorer;
+import com.verygana2.services.scoring.PlanScoringFactors;
 import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.services.scoring.ScoringFactor;
 import com.verygana2.services.scoring.TargetAudienceScoringFactors;
@@ -33,6 +34,7 @@ public class AdScorer {
             TargetAudienceScoringFactors.ageMatch(Ad::getTargetAudience, config.getAgeMatch()),
             TargetAudienceScoringFactors.genderMatch(Ad::getTargetAudience, config.getGenderMatch()),
             opportunityRatio(config.getOpportunityRatio()),
+            PlanScoringFactors.visibilityBoost(Ad::getCommercial, config.getVisibilityBoost()),
             TargetAudienceScoringFactors.recencyPenalty(
                 Ad::getId, config.getRecencyPenalty(), config.getRecencyDecayWindowMinutes())
         );

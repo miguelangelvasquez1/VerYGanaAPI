@@ -68,6 +68,13 @@ public class ProductReviewServiceImpl implements ProductReviewService {
 
         PurchaseItem purchaseItem = purchaseItemService.getByIdAndConsumerId(request.getPurchaseItemId(), consumerId);
 
+        // El producto pudo haber sido purgado permanentemente (ver
+        // ProductServiceImpl.purgeProduct) si nadie lo reseñó dentro del
+        // período de gracia tras salir de la plataforma.
+        if (purchaseItem.getProduct() == null) {
+            throw new ObjectNotFoundException("Product is no longer available for review", Product.class);
+        }
+
         boolean alreadyReviewed = productReviewRepository.existsByConsumerIdAndProductId(consumerId,
                 purchaseItem.getProduct().getId());
 

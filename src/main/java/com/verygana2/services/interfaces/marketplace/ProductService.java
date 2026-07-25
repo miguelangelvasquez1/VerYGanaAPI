@@ -2,6 +2,7 @@ package com.verygana2.services.interfaces.marketplace;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 
@@ -29,6 +30,8 @@ public interface ProductService {
     Product getByIdAndCommercialId (Long productId, Long commercialId);
 
     void delete (Long productId, Long commercialId);
+    
+    void deleteForAdmin(Long productId, Long adminId, String reason);
 
     EntityUpdatedResponseDTO edit (Long productId, Long commercialId, UpdateProductRequestDTO request);
 
@@ -69,4 +72,22 @@ public interface ProductService {
     void markProductAsReward (Long commercialId, Long productId);
 
     void streamPrivateProductImage(Long productId, jakarta.servlet.http.HttpServletResponse response) throws IOException;
+
+    /**
+     * Ids de productos REJECTED/INACTIVE elegibles para purga permanente:
+     * llevan al menos {@code gracePeriodDays} en ese estado. Incluye
+     * productos con compras reales asociadas — ver {@link #purgeProduct}.
+     */
+    List<Long> findPurgeableProductIds(int gracePeriodDays);
+
+    /**
+     * Elimina permanentemente un producto (imagen en R2, stock, favoritos,
+     * reseñas y el producto mismo). Si tiene PurchaseItem asociados (compras
+     * reales), estos NUNCA se borran: se desvinculan (product = null) porque
+     * son historial financiero/auditable (comisiones, payouts, soporte de
+     * venta). Solo debe invocarse sobre ids devueltos por
+     * {@link #findPurgeableProductIds}. Corre en su propia transacción para
+     * que la falla de un producto no afecte al resto del lote.
+     */
+    void purgeProduct(Long productId);
 }

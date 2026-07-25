@@ -50,9 +50,34 @@ public class PurchaseItem {
     @JoinColumn(name = "purchase_id", nullable = false)
     private Purchase purchase;
 
+    /**
+     * Nullable a propósito: cuando el producto se purga permanentemente (ver
+     * ProductServiceImpl.purgeProduct), este PurchaseItem NUNCA se borra —solo
+     * pierde la referencia— porque es un registro financiero/auditable
+     * (comisiones, payouts, soporte de venta). productNameSnapshot y
+     * commercialId quedan como respaldo para que el historial siga siendo
+     * legible aunque el producto ya no exista.
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "product_id", nullable = false)
+    @JoinColumn(name = "product_id")
     private Product product;
+
+    /**
+     * Snapshot del nombre del producto al momento de la compra. Se usa como
+     * fallback en "mis compras" cuando el producto ya fue purgado y `product`
+     * es null (ver PurchaseMapper).
+     */
+    @Column(name = "product_name_snapshot", length = 255)
+    private String productNameSnapshot;
+
+    /**
+     * Snapshot del id del comercial dueño del producto al momento de la
+     * compra. Permite que los reportes de ventas/comisiones por comercial
+     * (PurchaseItemRepository) sigan siendo correctos aunque el producto se
+     * purgue después —no dependen de navegar product.commercial.id—.
+     */
+    @Column(name = "commercial_id")
+    private Long commercialId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "product_stock_id")

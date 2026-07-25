@@ -200,6 +200,15 @@ prize:
   expiry:
     cron: "0 0/30 * * * *"  # cada 30 minutos
 
+# ============================================
+# PRODUCT CLEANUP (REJECTED / INACTIVE)
+# ============================================
+marketplace:
+  product:
+    cleanup:
+      cron: "0 30 3 * * SUN"   # domingos 3:30 AM
+      grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
+
 
 # ============================================
 # AUDIT CONFIG
