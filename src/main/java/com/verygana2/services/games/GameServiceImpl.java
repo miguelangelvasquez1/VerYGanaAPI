@@ -51,6 +51,7 @@ import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
+import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.scoring.ScoringContext;
@@ -87,6 +88,7 @@ public class GameServiceImpl implements GameService {
     private final MetricValidator metricValidator;
     private final GameSessionMetricRepository gameSessionMetricRepository;
     private final ProductRepository productRepository;
+    private final AllyProductPromotionRepository allyProductPromotionRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CampaignScorer campaignScorer;
     private final CampaignScoringConfig campaignScoringConfig;
@@ -156,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 15L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
     }
 
     @Transactional(readOnly = true)
@@ -297,9 +299,8 @@ public class GameServiceImpl implements GameService {
             );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
-            baseUrl = String.format("https://%s/%s/?game_title=%s&",
-                    cdnUrl,
-                    "builds/build-cali",
+            baseUrl = String.format("https://%s/?game_title=%s&",
+                    "https://minijuegos.rtainor.com",
                     game.getUrl());
         } else {
             throw new ValidationException("Unsupported routing type");
@@ -397,8 +398,20 @@ public class GameServiceImpl implements GameService {
 
     private List<RewardCardResponseDTO> getGameRewards(Campaign campaign) {
 
-        List<Product> gameRewards = productRepository
-                .findGameRewardsProducts(campaign.getCommercial().getId());
+        Long commercialId = campaign.getCommercial().getId();
+
+        List<Product> gameRewards = new java.util.ArrayList<>(
+                productRepository.findGameRewardsProducts(commercialId));
+
+        // Comerciales Premium no venden productos propios (CAN_SELL_DIRECTLY=false),
+        // así que su popup de recompensas se completa con productos de aliados que
+        // hayan elegido promocionar (ver CAN_PROMOTE_ALLY_PRODUCTS / AllyPromotionService).
+        boolean canPromoteAllyProducts = campaign.getCommercial().getCurrentPlan() != null
+                && campaign.getCommercial().getCurrentPlan().getBoolFeature("CAN_PROMOTE_ALLY_PRODUCTS", false);
+
+        if (canPromoteAllyProducts) {
+            gameRewards.addAll(allyProductPromotionRepository.findPromotedActiveProducts(commercialId));
+        }
 
         if (gameRewards.isEmpty()) {
             return List.of();

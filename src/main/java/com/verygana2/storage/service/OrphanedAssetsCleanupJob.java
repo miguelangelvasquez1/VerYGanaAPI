@@ -13,9 +13,13 @@ import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.branding.Asset;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.marketplace.ProductCategoryImageAsset;
+import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
+import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
+import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +42,8 @@ public class OrphanedAssetsCleanupJob {
     private final AdAssetRepository adAssetRepository;
     private final AssetRepository assetRepository;
     private final StoryMediaAssetRepository storyMediaAssetRepository;
+    private final ProductImageAssetRepository productImageAssetRepository;
+    private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
     private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
@@ -117,6 +123,60 @@ public class OrphanedAssetsCleanupJob {
                     asset.getObjectKey(),
                     e.getMessage()
                 );
+            }
+        }
+    }
+
+    // For product images
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupProductImageAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<ProductImageAsset> assets = productImageAssetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} candidate product image assets", assets.size());
+
+        for (ProductImageAsset asset : assets) {
+            try {
+                // El asset ya perdió la referencia al producto al orfanarse, así que
+                // no sabemos si alcanzó a copiarse a "public/" (aprobación) o seguía
+                // en "private/" (nunca aprobado). Borrar ambos es seguro: un delete
+                // de una key inexistente en S3/R2 no falla.
+                r2Service.deleteObject("private/" + asset.getObjectKey());
+                r2Service.deleteObject("public/" + asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                productImageAssetRepository.save(asset);
+
+                log.info("Product Image Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    }
+
+    // For product category images
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupProductCategoryImageAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<ProductCategoryImageAsset> assets = productCategoryImageAssetRepository
+                .findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} candidate product category image assets", assets.size());
+
+        for (ProductCategoryImageAsset asset : assets) {
+            try {
+                r2Service.deleteObject("public/" + asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                productCategoryImageAssetRepository.save(asset);
+
+                log.info("Product Category Image Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
             }
         }
     }

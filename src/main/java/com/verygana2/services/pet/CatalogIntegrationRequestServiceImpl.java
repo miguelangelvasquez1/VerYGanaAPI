@@ -4,6 +4,7 @@ import com.verygana2.dtos.pet.CatalogIntegrationRequestDTO;
 import com.verygana2.dtos.pet.CatalogIntegrationResponseDTO;
 import com.verygana2.dtos.pet.PetCatalogItemRequestDTO;
 import com.verygana2.models.enums.CatalogRequestStatus;
+import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.pets.CatalogIntegrationRequest;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
@@ -36,6 +37,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     private final PetCatalogService catalogService;
 
     @Override
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
     public CatalogIntegrationResponseDTO submit(Long userId, CatalogIntegrationRequestDTO dto) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));

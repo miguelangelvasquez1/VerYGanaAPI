@@ -64,8 +64,8 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .monthlyPriceCents(20_000_000L)  // $200.000 COP
                 .minInvestmentCents(null)
                 .maxInvestmentCents(null)
-                .saleCommissionPct(15)            // 15% por venta 
-                .maxKeysPct(20) // 20% del precio de cada producto se puede pagar con llaves 
+                .saleCommissionPct(20)            // 20% por venta
+                .maxKeysPct(20) // 20% del precio de cada producto se puede pagar con llaves
                 .build());
 
         Plan standard = planRepository.save(Plan.builder()
@@ -78,8 +78,8 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .monthlyPriceCents(null)
                 .minInvestmentCents(100_000_000L)   // $1.000.000 COP
                 .maxInvestmentCents(999_999_900L)   // $9.999.999 COP
-                .saleCommissionPct(10)              // 10% por venta 
-                .maxKeysPct(35) // 35% del precio de cada producto se puede pagar con llaves 
+                .saleCommissionPct(10)              // 10% por venta
+                .maxKeysPct(50) // 50% del precio de cada producto se puede pagar con llaves
                 .build());
 
         Plan premium = planRepository.save(Plan.builder()
@@ -88,12 +88,13 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .active(true)
                 .name("Premium")
                 .description("Depósito desde $10.000.000 COP. " +
-                             "Acceso completo a todas las funcionalidades.")
+                             "Acceso completo a todas las funcionalidades. No vende productos " +
+                             "propios en el marketplace (ver CAN_SELL_DIRECTLY).")
                 .monthlyPriceCents(null)
                 .minInvestmentCents(1_000_000_000L) // $10.000.000 COP
                 .maxInvestmentCents(null)            // sin techo
-                .saleCommissionPct(5)              // 5% por venta 
-                .maxKeysPct(50) // 50% del precio de cada producto se puede pagar con llaves 
+                .saleCommissionPct(0)              // no aplica: Premium no vende
+                .maxKeysPct(0) // no aplica: Premium no vende
                 .build());
 
         // ── 2. Crear catálogo de features ─────────────────────────────────────
@@ -113,6 +114,12 @@ public class PlanDataInitializer implements ApplicationRunner {
         Feature canUseSurveys = featureRepository.save(Feature.builder()
                 .code("CAN_USE_SURVEYS")
                 .name("Puede usar encuestas")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
+        Feature canSellDirectly = featureRepository.save(Feature.builder()
+                .code("CAN_SELL_DIRECTLY")
+                .name("Puede vender productos propios en el marketplace")
                 .type(FeatureType.BOOLEAN)
                 .build());
 
@@ -152,6 +159,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.BOOLEAN)
                 .build());
 
+        Feature canPromoteAllyProducts = featureRepository.save(Feature.builder()
+                .code("CAN_PROMOTE_ALLY_PRODUCTS")
+                .name("Puede promocionar productos de aliados en el popup final de sus juegos")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -159,34 +172,40 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, canAdvertise,    null, false, null),
             pf(basic, canUseGames,     null, false, null),
             pf(basic, canUseSurveys,   null, false, null),
+            pf(basic, canSellDirectly, null, true,  null),
             pf(basic, maxProducts,     10,   null,  null),
             pf(basic, maxAds,          0,    null,  null),
             pf(basic, maxBrandedGames, 0,    null,  null),
             pf(basic, maxSurveys,      0,    null,  null),
             pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
             pf(basic, canHavePets,     null, false, null),
+            pf(basic, canPromoteAllyProducts, null, false, null),
 
             // ── STANDARD ──────────────────────────────────────────────────────
             pf(standard, canAdvertise,    null, true,  null),
             pf(standard, canUseGames,     null, true,  null),
             pf(standard, canUseSurveys,   null, true,  null),
-            pf(standard, maxProducts,     100,  null,  null),
-            pf(standard, maxAds,          20,   null,  null),
+            pf(standard, canSellDirectly, null, true,  null),
+            pf(standard, maxProducts,     50,   null,  null),
+            pf(standard, maxAds,          10,   null,  null),
             pf(standard, maxBrandedGames, 5,    null,  null),
             pf(standard, maxSurveys,      10,   null,  null),
-            pf(standard, visibilityBoost, null, null,  new BigDecimal("20.00")),
+            pf(standard, visibilityBoost, null, null,  new BigDecimal("30.00")),
             pf(standard, canHavePets,     null, false, null),
+            pf(standard, canPromoteAllyProducts, null, false, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
             pf(premium, canUseGames,     null, true,  null),
             pf(premium, canUseSurveys,   null, true,  null),
-            pf(premium, maxProducts,     -1,   null,  null),  // -1 = ilimitado
-            pf(premium, maxAds,          100,  null,  null),
+            pf(premium, canSellDirectly, null, false, null),  // Premium no vende
+            pf(premium, maxProducts,     0,    null,  null),  // no aplica: no vende
+            pf(premium, maxAds,          50,   null,  null),
             pf(premium, maxBrandedGames, 20,   null,  null),
             pf(premium, maxSurveys,      50,   null,  null),
-            pf(premium, visibilityBoost, null, null,  new BigDecimal("50.00")),
-            pf(premium, canHavePets,     null, true,  null)
+            pf(premium, visibilityBoost, null, null,  new BigDecimal("70.00")),
+            pf(premium, canHavePets,     null, true,  null),
+            pf(premium, canPromoteAllyProducts, null, true, null)
         );
 
         planFeatureRepository.saveAll(planFeatures);

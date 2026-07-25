@@ -94,51 +94,35 @@ public final class MemoryMatchAssets {
 
         // Producto 1
         ObjectNode prod1 = MAPPER.createObjectNode();
-        prod1.put("id", "prod_001");
-        prod1.put("name", "Combo doble con papas");
-        prod1.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
+        prod1.put("id", 1);
+        prod1.put("name", "Membresia de 3 meses PlayStation plus");
+        prod1.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779407655456-52126342.png");
         prod1.put("image_message", "SUPER DESCUENTO");
-        prod1.put("commercial", "BurgerMax");
-        prod1.put("regular_price", 32000);
-        prod1.put("keys_message", "Con [[1.600]] llaves pagas [[SOLO 16.000 COP]]");
-        prod1.put("rating", 4.3);
-        prod1.put("max_keys_allowed", 1600);
-        prod1.put("min_cash_cents", 160000);
+        prod1.put("commercial", "CommercialTest");
+        prod1.put("regular_price", 89900);
+        prod1.put("keys_message", "Con [[4.495]] llaves pagas [[SOLO 44.495 COP]]");
+        prod1.put("rating", 0.0);
+        prod1.put("max_keys_allowed", 4495);
+        prod1.put("min_cash_cents", 4449500);
         prod1.put("stock", 10);
-        prod1.put("category_name", "Food");
+        prod1.put("category_name", "Videojuegos");
         products.add(prod1);
 
-        // Producto 2
+// Producto 2
         ObjectNode prod2 = MAPPER.createObjectNode();
-        prod2.put("id", "prod_002");
-        prod2.put("name", "Delux Truffle Combo");
-        prod2.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
-        prod2.put("image_message", "SUPER DESCUENTO");
-        prod2.put("commercial", "BurgerMax");
-        prod2.put("regular_price", 45000);
-        prod2.put("keys_message", "Con [[2.250]] llaves pagas [[SOLO 22.500 COP]]");
-        prod2.put("rating", 4.3);
-        prod2.put("max_keys_allowed", 1600);
-        prod2.put("min_cash_cents", 160000);
+        prod2.put("id", 2);
+        prod2.put("name", "Membresia de spotify");
+        prod2.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779412957370-daaebe1b.jpg");
+        prod2.put("image_message", "SUPER DESCUENTO 50%");
+        prod2.put("commercial", "CommercialTest");
+        prod2.put("regular_price", 31900);
+        prod2.put("keys_message", "Con [[1.595]] llaves pagas [[SOLO 15.595 COP]]");
+        prod2.put("rating", 4.4);
+        prod2.put("max_keys_allowed", 1595);
+        prod2.put("min_cash_cents", 1559500);
         prod2.put("stock", 10);
-        prod2.put("category_name", "Food");
+        prod2.put("category_name", "Musica");
         products.add(prod2);
-
-        // Producto 3
-        ObjectNode prod3 = MAPPER.createObjectNode();
-        prod3.put("id", "prod_003");
-        prod3.put("name", "Combo doble con papas");
-        prod3.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
-        prod3.put("image_message", "SUPER DESCUENTO");
-        prod3.put("commercial", "BurgerMax");
-        prod3.put("regular_price", 38000);
-        prod3.put("keys_message", "Con [[1.900]] llaves pagas [[SOLO 19.000 COP]]");
-        prod3.put("rating", 4.3);
-        prod3.put("max_keys_allowed", 1600);
-        prod3.put("min_cash_cents", 160000);
-        prod3.put("stock", 10);
-        prod3.put("category_name", "Food");
-        products.add(prod3);
 
         rewardPopup.set("products", products);
         root.set("reward_popup", rewardPopup);

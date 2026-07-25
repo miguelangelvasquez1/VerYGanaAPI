@@ -290,6 +290,8 @@ public class PurchaseServiceImpl implements PurchaseService {
 
                 PurchaseItem item = PurchaseItem.builder()
                         .product(product)
+                        .productNameSnapshot(product.getName())
+                        .commercialId(commercial.getId())
                         .assignedProductStock(stock)
                         .unitPriceCents(unitPriceCents)
                         .subtotalCents(unitPriceCents)

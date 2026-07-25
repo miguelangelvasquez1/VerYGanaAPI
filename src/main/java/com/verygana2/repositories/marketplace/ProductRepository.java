@@ -1,5 +1,6 @@
 package com.verygana2.repositories.marketplace;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -127,5 +128,21 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         ORDER BY p.createdAt DESC
                                 """)
         Page<Product> findAllProductsForAdmin(@Param("status") ProductStatus status, @Param("search") String search, Pageable pageable);
+
+        /**
+         * Candidatos a purga semanal: productos REJECTED/INACTIVE que llevan al
+         * menos {@code threshold} sin cambiar de estado (updatedAt). Se purgan
+         * incluso si tuvieron compras reales: ProductServiceImpl.purgeProduct
+         * desvincula (nunca borra) los PurchaseItem asociados antes de borrar
+         * el producto, así que el historial financiero nunca se pierde.
+         */
+        @Query("""
+                        SELECT p FROM Product p
+                        WHERE p.status IN (
+                                com.verygana2.models.enums.marketplace.ProductStatus.REJECTED,
+                                com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
+                        AND p.updatedAt < :threshold
+                                """)
+        List<Product> findPurgeableProducts(@Param("threshold") ZonedDateTime threshold);
 
 }

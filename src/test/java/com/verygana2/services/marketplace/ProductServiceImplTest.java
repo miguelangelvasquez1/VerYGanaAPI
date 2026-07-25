@@ -40,6 +40,7 @@ import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
@@ -86,6 +87,7 @@ class ProductServiceImplTest {
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private ProductStockRepository productStockRepository;
     @Mock private ProductImageAssetRepository productImageAssetRepository;
+    @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private R2Service r2Service;
     @Mock private AssetOrphanedService assetOrphanedService;
     @Mock private ProductCodeEncryptor productCodeEncryptor;
@@ -97,8 +99,8 @@ class ProductServiceImplTest {
     void setUp() {
         service = new ProductServiceImpl(productRepository, adminDetailsService, notificationService,
                 favoriteProductRepository, productCategoryService, productMapper, commercialDetailsRepository,
-                consumerDetailsService, productStockRepository, productImageAssetRepository, r2Service,
-                assetOrphanedService, productCodeEncryptor, targetAudienceAssembler);
+                consumerDetailsService, productStockRepository, productImageAssetRepository, purchaseItemRepository,
+                r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler);
 
         ReflectionTestUtils.setField(service, "maxProductPriceCents", 50_000_000L);
         ReflectionTestUtils.setField(service, "minProductPriceCents", 100_000L);
@@ -225,7 +227,7 @@ class ProductServiceImplTest {
 
             assertThat(response.getId()).isEqualTo(77L);
             verify(productImageAssetRepository, times(1)).save(asset); // guarda el asset ya vinculado al producto
-            verify(assetOrphanedService, never()).markAdAssetsAsOrphanedByIds(any());
+            verify(assetOrphanedService, never()).markProductImageAssetsAsOrphanedByIds(any());
         }
 
         @Test
@@ -247,7 +249,7 @@ class ProductServiceImplTest {
             assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(500))))
                     .isInstanceOf(ValidationException.class);
 
-            verify(assetOrphanedService).markAdAssetsAsOrphanedByIds(List.of(500L));
+            verify(assetOrphanedService).markProductImageAssetsAsOrphanedByIds(List.of(500L));
             verify(productRepository, never()).save(any());
         }
 
@@ -264,7 +266,7 @@ class ProductServiceImplTest {
             assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000))))
                     .isInstanceOf(ValidationException.class);
 
-            verify(assetOrphanedService).markAdAssetsAsOrphanedByIds(List.of(500L));
+            verify(assetOrphanedService).markProductImageAssetsAsOrphanedByIds(List.of(500L));
         }
     }
 

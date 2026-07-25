@@ -51,7 +51,7 @@ class KeyWalletServiceImplTest {
 
     private void setUpWithClock(Clock clock) {
         service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository, consumerDetailsService);
-        ReflectionTestUtils.setField(service, " _PERCENTAGE", 75L);
+        ReflectionTestUtils.setField(service, "PURCHASE_KEYS_PERCENTAGE", 75L);
         ReflectionTestUtils.setField(service, "keyValueCents", KEY_VALUE_CENTS);
     }
 

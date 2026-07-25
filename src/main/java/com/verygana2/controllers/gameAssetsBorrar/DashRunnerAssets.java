@@ -20,16 +20,18 @@ public final class DashRunnerAssets {
         branding.put("main_logo_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
         root.set("branding", branding);
 
+        root.set("game_config", MAPPER.createObjectNode());
+
         ObjectNode game = MAPPER.createObjectNode();
-        game.put("character_color", "#FFFFFF");
-        game.put("key_spawn_probability", 0.18);
         game.set("background_phrases", MAPPER.createArrayNode().add("¡Sigue intentándolo!").add("¡No te rindas!").add("¡Tú puedes!"));
         game.put("character_image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
+        game.put("character_color", "#FFFFFF");
+        game.put("key_spawn_probability", 0.18);
         root.set("game", game);
 
         ObjectNode audio = MAPPER.createObjectNode();
-        audio.put("key_win_url", "https://games.verygana.com/asset_tests/slash.mp3");
-        audio.put("lose_url", "https://games.verygana.com/asset_tests/slash.mp3");
+        audio.put("key_win_url", "");
+        audio.put("lose_url", "");
         root.set("audio", audio);
 
         ObjectNode texts = MAPPER.createObjectNode();
@@ -41,47 +43,46 @@ public final class DashRunnerAssets {
         rewards.put("keys_on_completion", 5);
         root.set("rewards", rewards);
 
-        // ==================== NUEVO NODO ====================
-        ArrayNode productsData = MAPPER.createArrayNode();
+        // reward_popup
+        ObjectNode rewardPopup = MAPPER.createObjectNode();
+        rewardPopup.put("popup_title", "Recompensas desbloqueadas");
+
+        ArrayNode products = MAPPER.createArrayNode();
 
         // Producto 1
         ObjectNode prod1 = MAPPER.createObjectNode();
-        prod1.put("id", "prod_001");
-        prod1.put("name", "Combo doble con papas");
-        prod1.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
-        prod1.put("image_message", "50% Descuento");
-        prod1.put("commercial", "BurgerMax");
-        prod1.put("regular_price", 32000);
-        prod1.put("keys_message", "Con [[1.600]] llaves pagas [[SOLO 16.000 COP]]");
+        prod1.put("id", 1);
+        prod1.put("name", "Membresia de 3 meses PlayStation plus");
+        prod1.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779407655456-52126342.png");
+        prod1.put("image_message", "SUPER DESCUENTO");
+        prod1.put("commercial", "CommercialTest");
+        prod1.put("regular_price", 89900);
+        prod1.put("keys_message", "Con [[4.495]] llaves pagas [[SOLO 44.495 COP]]");
         prod1.put("rating", 4.3);
-        productsData.add(prod1);
+        prod1.put("max_keys_allowed", 4495);
+        prod1.put("min_cash_cents", 4449500);
+        prod1.put("stock", 10);
+        prod1.put("category_name", "Videojuegos");
+        products.add(prod1);
 
         // Producto 2
         ObjectNode prod2 = MAPPER.createObjectNode();
-        prod2.put("id", "prod_002");
-        prod2.put("name", "Combo doble con papas 2");
-        prod2.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
-        prod2.put("image_message", "50% Descuento");
-        prod2.put("commercial", "BurgerMax");
-        prod2.put("regular_price", 38000);
-        prod2.put("keys_message", "Con [[1.900]] llaves pagas [[SOLO 19.000 COP]]");
-        prod2.put("rating", 4.7);
-        productsData.add(prod2);
+        prod2.put("id", 2);
+        prod2.put("name", "Membresia de spotify");
+        prod2.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779412957370-daaebe1b.jpg");
+        prod2.put("image_message", "SUPER DESCUENTO 50%");
+        prod2.put("commercial", "CommercialTest");
+        prod2.put("regular_price", 31900);
+        prod2.put("keys_message", "Con [[1.595]] llaves pagas [[SOLO 15.595 COP]]");
+        prod2.put("rating", 4.4);
+        prod2.put("max_keys_allowed", 1595);
+        prod2.put("min_cash_cents", 1559500);
+        prod2.put("stock", 10);
+        prod2.put("category_name", "Musica");
+        products.add(prod2);
 
-        // Producto 3
-        ObjectNode prod3 = MAPPER.createObjectNode();
-        prod3.put("id", "prod_003");
-        prod3.put("name", "Combo doble con papas 3");
-        prod3.put("image_url", "https://games.verygana.com/asset_tests/redbull/redbull-logo.png");
-        prod3.put("image_message", "50% Descuento");
-        prod3.put("commercial", "BurgerMax");
-        prod3.put("regular_price", 24000);
-        prod3.put("keys_message", "Con [[1.200]] llaves pagas [[SOLO 12.000 COP]]");
-        prod3.put("rating", 3.9);
-        productsData.add(prod3);
-
-        root.set("reward_popup", productsData);
-        // ====================================================
+        rewardPopup.set("products", products);
+        root.set("reward_popup", rewardPopup);
 
         ASSETS = root;
     }

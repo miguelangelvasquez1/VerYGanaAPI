@@ -36,10 +36,14 @@ public class EffectivePlanResolver {
     private static final String FEAT_CAN_ADVERTISE     = "CAN_ADVERTISE";
     private static final String FEAT_CAN_USE_GAMES     = "CAN_USE_GAMES";
     private static final String FEAT_CAN_USE_SURVEYS   = "CAN_USE_SURVEYS";
+    private static final String FEAT_CAN_SELL_DIRECTLY = "CAN_SELL_DIRECTLY";
+    private static final String FEAT_CAN_HAVE_PETS     = "CAN_HAVE_PETS";
+    private static final String FEAT_CAN_PROMOTE_ALLY_PRODUCTS = "CAN_PROMOTE_ALLY_PRODUCTS";
     private static final String FEAT_MAX_PRODUCTS      = "MAX_PRODUCTS";
     private static final String FEAT_MAX_ADS           = "MAX_ADS";
     private static final String FEAT_MAX_BRANDED_GAMES = "MAX_BRANDED_GAMES";
     private static final String FEAT_MAX_SURVEYS       = "MAX_SURVEYS";
+    private static final String FEAT_VISIBILITY_BOOST  = "VISIBILITY_BOOST";
 
     private static final BigDecimal CENTS_PER_COP = BigDecimal.valueOf(100);
 
@@ -90,10 +94,14 @@ public class EffectivePlanResolver {
                 .canAdvertise(getFeatureBool(code, FEAT_CAN_ADVERTISE, false))
                 .canUseGames(getFeatureBool(code, FEAT_CAN_USE_GAMES, false))
                 .canUseSurveys(getFeatureBool(code, FEAT_CAN_USE_SURVEYS, false))
+                .canSellDirectly(getFeatureBool(code, FEAT_CAN_SELL_DIRECTLY, false))
+                .canHavePets(getFeatureBool(code, FEAT_CAN_HAVE_PETS, false))
+                .canPromoteAllyProducts(getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false))
                 .maxProducts(getFeatureInt(code, FEAT_MAX_PRODUCTS, 0))
                 .maxAds(getFeatureInt(code, FEAT_MAX_ADS, 0))
                 .maxBrandedGames(getFeatureInt(code, FEAT_MAX_BRANDED_GAMES, 0))
                 .maxSurveys(getFeatureInt(code, FEAT_MAX_SURVEYS, 0))
+                .visibilityBoostPct(getFeatureDecimal(code, FEAT_VISIBILITY_BOOST, BigDecimal.ZERO))
                 .build();
     }
 
@@ -108,6 +116,12 @@ public class EffectivePlanResolver {
     private int getFeatureInt(PlanCode planCode, String featureCode, int defaultVal) {
         return planFeatureRepository.findByPlanCodeAndFeatureCode(planCode, featureCode)
                 .map(pf -> pf.getIntOrDefault(defaultVal))
+                .orElse(defaultVal);
+    }
+
+    private BigDecimal getFeatureDecimal(PlanCode planCode, String featureCode, BigDecimal defaultVal) {
+        return planFeatureRepository.findByPlanCodeAndFeatureCode(planCode, featureCode)
+                .map(pf -> pf.getDecimalOrDefault(defaultVal))
                 .orElse(defaultVal);
     }
 }

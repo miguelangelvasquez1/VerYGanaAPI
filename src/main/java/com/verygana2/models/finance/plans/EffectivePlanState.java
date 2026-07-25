@@ -38,6 +38,12 @@ public class EffectivePlanState {
 
     boolean canUseSurveys;
 
+    boolean canSellDirectly;
+
+    boolean canHavePets;
+
+    boolean canPromoteAllyProducts;
+
     int maxProducts;
 
     int maxAds;
@@ -45,6 +51,9 @@ public class EffectivePlanState {
     int maxBrandedGames;
 
     int maxSurveys;
+
+    /** Boost de prioridad en visibilidad de ads/campañas, en porcentaje (0-100). */
+    BigDecimal visibilityBoostPct;
 
     public static EffectivePlanState noPlanMode() {
         return EffectivePlanState.builder()
@@ -55,10 +64,14 @@ public class EffectivePlanState {
                 .canAdvertise(false)
                 .canUseGames(false)
                 .canUseSurveys(false)
+                .canSellDirectly(false)
+                .canHavePets(false)
+                .canPromoteAllyProducts(false)
                 .maxProducts(0)
                 .maxAds(0)
                 .maxBrandedGames(0)
                 .maxSurveys(0)
+                .visibilityBoostPct(BigDecimal.ZERO)
                 .build();
     }
 }

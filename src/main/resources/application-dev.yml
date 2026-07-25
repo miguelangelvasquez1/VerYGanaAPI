@@ -158,6 +158,10 @@ financial:
 marketplace:
   min-product-price-cents: 100000      # $1.000 COP
   max-product-price-cents: 50000000    # $500.000 COP
+  product:
+    cleanup:
+      cron: "0 30 3 * * SUN"   # domingos 3:30 AM
+      grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
 
 # ============================================
 # PURCHASE EXPIRY

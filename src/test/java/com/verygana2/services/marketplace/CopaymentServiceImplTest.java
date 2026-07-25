@@ -29,6 +29,7 @@ import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
+import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.EmailService;
@@ -64,6 +65,7 @@ class CopaymentServiceImplTest {
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private KeyTransactionRepository keyTransactionRepository;
     @Mock private ProductStockRepository productStockRepository;
+    @Mock private ProductRepository productRepository;
     @Mock private TreasuryService treasuryService;
     @Mock private EmailService emailService;
     @Mock private ApplicationEventPublisher eventPublisher;
@@ -75,11 +77,12 @@ class CopaymentServiceImplTest {
     void setUp() {
         service = new CopaymentServiceImpl(copaymentRepository, ticketDeliveryService, wompiTransactionRepository,
                 purchaseRepository, keyWalletRepository, keyTransactionRepository, productStockRepository,
-                treasuryService, emailService, eventPublisher, wompiService);
+                productRepository, treasuryService, emailService, eventPublisher, wompiService);
     }
 
     private PurchaseItem itemWithStock(Product product) {
-        ProductStock stock = ProductStock.builder().status(com.verygana2.models.enums.marketplace.StockStatus.RESERVED).build();
+        ProductStock stock = ProductStock.builder().product(product)
+                .status(com.verygana2.models.enums.marketplace.StockStatus.RESERVED).build();
         return PurchaseItem.builder().product(product).assignedProductStock(stock).status(PurchaseItemStatus.PENDING).build();
     }
 
