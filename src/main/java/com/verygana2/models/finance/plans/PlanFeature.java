@@ -61,4 +61,8 @@ public class PlanFeature {
         return intValue != null ? intValue : defaultValue;
     }
 
+    public BigDecimal getDecimalOrDefault(BigDecimal defaultValue) {
+        return decimalValue != null ? decimalValue : defaultValue;
+    }
+
 }

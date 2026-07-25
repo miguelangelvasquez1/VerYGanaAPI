@@ -123,7 +123,7 @@ class ProductCategoryServiceImplTest {
             assertThatThrownBy(() -> service.confirmProductCategoryCreation(1L, request))
                     .isInstanceOf(ValidationException.class);
 
-            verify(assetOrphanedService).markAdAssetsAsOrphanedByIds(List.of(20L));
+            verify(assetOrphanedService).markProductCategoryImageAssetsAsOrphanedByIds(List.of(20L));
         }
 
         @Test

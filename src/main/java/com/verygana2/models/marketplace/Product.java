@@ -142,9 +142,7 @@ public class Product {
     @JoinColumn(name = "rejected_by")
     private AdminDetails rejectedBy;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "deleted_by")
-    private AdminDetails deletedBy;
+    private Long deletedBy;
 
     @Column(name = "created_at", nullable = false)
     private ZonedDateTime createdAt;

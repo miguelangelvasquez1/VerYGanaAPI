@@ -223,6 +223,15 @@ public class CommercialOnboarding {
     @Column(name = "can_use_surveys_override")
     private Boolean canUseSurveysOverride;
 
+    @Column(name = "can_sell_directly_override")
+    private Boolean canSellDirectlyOverride;
+
+    @Column(name = "can_have_pets_override")
+    private Boolean canHavePetsOverride;
+
+    @Column(name = "can_promote_ally_products_override")
+    private Boolean canPromoteAllyProductsOverride;
+
     @Column(name = "max_products_override")
     private Integer maxProductsOverride;
 
@@ -234,6 +243,9 @@ public class CommercialOnboarding {
 
     @Column(name = "max_surveys_override")
     private Integer maxSurveysOverride;
+
+    @Column(name = "visibility_boost_pct_override")
+    private java.math.BigDecimal visibilityBoostPctOverride;
 
     // ==================== PASO 8: CARGA DOCUMENTAL ====================
 

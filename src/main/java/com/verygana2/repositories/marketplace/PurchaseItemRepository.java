@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -53,14 +54,16 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             @Param("consumerId") Long consumerId);
 
     // Bug fix: PurchaseItem has no quantity field — each item = 1 unit
-    @Query("SELECT COUNT(p) FROM PurchaseItem p WHERE p.product.commercial.id = :commercialId")
+    // Usa el snapshot commercialId (no p.product.commercial.id): el producto puede
+    // haberse purgado y este conteo histórico debe seguir siendo correcto.
+    @Query("SELECT COUNT(p) FROM PurchaseItem p WHERE p.commercialId = :commercialId")
     Long countTotalSalesByCommercialId(@Param("commercialId") Long commercialId);
 
     // Internal query returns Long cents; public default method converts to BigDecimal pesos
     @Query("""
             SELECT SUM(p.subtotalCents)
             FROM PurchaseItem p
-            WHERE p.product.commercial.id = :commercialId
+            WHERE p.commercialId = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
@@ -79,7 +82,7 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
     @Query("""
             SELECT COUNT(p)
             FROM PurchaseItem p
-            WHERE p.product.commercial.id = :commercialId
+            WHERE p.commercialId = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
@@ -92,7 +95,7 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
     @Query("""
             SELECT SUM(p.commissionCents)
             FROM PurchaseItem p
-            WHERE p.product.commercial.id = :commercialId
+            WHERE p.commercialId = :commercialId
             AND p.deliveredAt >= :startDate
             AND p.deliveredAt < :endDate
             """)
@@ -126,5 +129,20 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
     Page<FeaturedProductResponseDTO> findTopSellingProducts(
             @Param("commercialId") Long commercialId,
             Pageable pageable);
+
+    /**
+     * Desvincula (nunca borra) los PurchaseItem de un producto que se va a
+     * purgar permanentemente. product y assignedProductStock quedan en null;
+     * unitPriceCents, commissionCents, productNameSnapshot, commercialId,
+     * etc. se conservan intactos como historial financiero/auditable.
+     * Ver ProductServiceImpl.purgeProduct.
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE PurchaseItem pi
+            SET pi.product = NULL, pi.assignedProductStock = NULL
+            WHERE pi.product.id = :productId
+            """)
+    void detachProductReferences(@Param("productId") Long productId);
 
 }

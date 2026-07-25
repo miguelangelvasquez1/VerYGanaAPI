@@ -149,7 +149,7 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
             if (asset != null) {
                 log.error("[PRODUCT CATEGORY SERVICE] product category creation error, marking asset as orphan: {}",
                         asset.getId());
-                assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
+                assetOrphanedService.markProductCategoryImageAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
         }

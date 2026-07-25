@@ -67,6 +67,24 @@ public class PlanFeatureGuard {
                         "Encuestas no disponibles en el plan: " + state.getEffectivePlan().name());
                 }
             }
+            case CAN_SELL_DIRECTLY -> {
+                if (!state.isCanSellDirectly()) {
+                    throw new PlanCapabilityException(
+                        "El plan " + state.getEffectivePlan().name() + " no permite vender productos propios en el marketplace");
+                }
+            }
+            case CAN_HAVE_PETS -> {
+                if (!state.isCanHavePets()) {
+                    throw new PlanCapabilityException(
+                        "El módulo de mascotas no está disponible en el plan: " + state.getEffectivePlan().name());
+                }
+            }
+            case CAN_PROMOTE_ALLY_PRODUCTS -> {
+                if (!state.isCanPromoteAllyProducts()) {
+                    throw new PlanCapabilityException(
+                        "El plan " + state.getEffectivePlan().name() + " no permite promocionar productos de aliados");
+                }
+            }
             case MAX_PRODUCTS -> {
                 long current = productRepository.countByCommercialIdAndIsActive(commercialId);
                 if (current >= state.getMaxProducts()) {

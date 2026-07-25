@@ -1,5 +1,6 @@
 package com.verygana2.models.finance.plans;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -164,6 +165,15 @@ public class Plan {
     public int getIntFeature(String code, int defaultValue) {
         return getFeatureValue(code)
                 .map(pf -> pf.getIntOrDefault(defaultValue))
+                .orElse(defaultValue);
+    }
+
+    /**
+     * Shortcut para leer un feature de porcentaje (tipo PERCENTAGE).
+     */
+    public BigDecimal getDecimalFeature(String code, BigDecimal defaultValue) {
+        return getFeatureValue(code)
+                .map(pf -> pf.getDecimalOrDefault(defaultValue))
                 .orElse(defaultValue);
     }
 

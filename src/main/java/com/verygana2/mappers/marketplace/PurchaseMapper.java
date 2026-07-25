@@ -27,7 +27,7 @@ public abstract class PurchaseMapper {
     public abstract PurchaseResponseDTO toPurchaseResponseDTO(Purchase purchase);
 
     @Mapping(target = "productId", source = "product.id")
-    @Mapping(target = "productName", source = "product.name")
+    @Mapping(target = "productName", expression = "java(resolveProductName(purchaseItem))")
     @Mapping(target = "imageUrl", source = "product.imageUrl")
     public abstract PurchaseItemResponseDTO toPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
@@ -35,12 +35,32 @@ public abstract class PurchaseMapper {
     public abstract ConsumerPurchaseResponseDTO toConsumerPurchaseResponseDTO(Purchase purchase);
 
     @Mapping(target = "productId", source = "product.id")
-    @Mapping(target = "productName", source = "product.name")
+    @Mapping(target = "productName", expression = "java(resolveProductName(purchaseItem))")
     @Mapping(target = "imageUrl", source = "product.imageUrl")
-    @Mapping(target = "canBeReviewed", expression = "java(productReviewService.canBeReviewed(purchaseItem.getProduct().getId(), purchaseItem.getPurchase().getConsumer().getId()))")
+    @Mapping(target = "canBeReviewed", expression = "java(resolveCanBeReviewed(purchaseItem))")
     public abstract ConsumerPurchaseItemResponseDTO toConsumerPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
     protected Integer getTotalItems(Purchase purchase) {
         return purchase.getItems().size();
+    }
+
+    /**
+     * El producto puede haber sido purgado permanentemente (ver
+     * ProductServiceImpl.purgeProduct), quedando product = null. En ese caso
+     * usamos el snapshot tomado al momento de la compra.
+     */
+    protected String resolveProductName(PurchaseItem purchaseItem) {
+        return purchaseItem.getProduct() != null
+                ? purchaseItem.getProduct().getName()
+                : purchaseItem.getProductNameSnapshot();
+    }
+
+    protected boolean resolveCanBeReviewed(PurchaseItem purchaseItem) {
+        if (purchaseItem.getProduct() == null) {
+            return false;
+        }
+        return productReviewService.canBeReviewed(
+                purchaseItem.getProduct().getId(),
+                purchaseItem.getPurchase().getConsumer().getId());
     }
 }

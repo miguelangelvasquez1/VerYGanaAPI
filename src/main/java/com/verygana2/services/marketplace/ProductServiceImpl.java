@@ -16,6 +16,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
@@ -54,6 +55,7 @@ import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.NotificationService;
@@ -96,6 +98,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductStockRepository productStockRepository;
 
     private final ProductImageAssetRepository productImageAssetRepository;
+
+    private final PurchaseItemRepository purchaseItemRepository;
 
     private final R2Service r2Service;
 
@@ -156,6 +160,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @RequirePlanCapability({
+        RequirePlanCapability.Capability.CAN_SELL_DIRECTLY,
+        RequirePlanCapability.Capability.MAX_PRODUCTS
+    })
     public EntityCreatedResponseDTO confirmProductCreation(Long commercialId,
             ConfirmProductCreationRequestDTO request) {
 
@@ -220,7 +228,7 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             if (asset != null) {
                 log.error("product creation error, marking asset as orphan: {}", asset.getId());
-                assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(asset.getId()));
+                assetOrphanedService.markProductImageAssetsAsOrphanedByIds(List.of(asset.getId()));
             }
             throw e;
         }
@@ -295,6 +303,22 @@ public class ProductServiceImpl implements ProductService {
     @Override
     public void delete(Long productId, Long commercialId) {
         Product product = getByIdAndCommercialId(productId, commercialId);
+        product.setDeletedBy(commercialId);
+        product.setStatus(ProductStatus.INACTIVE);
+        product.setDeletedAt(ZonedDateTime.now(ZoneOffset.UTC));
+        productRepository.save(Objects.requireNonNull(product));
+    }
+
+    @Override
+    public void deleteForAdmin(Long productId, Long adminId, String reason){
+        Product product = getById(productId);
+        product.setDeletedBy(adminId);
+        product.setDeletionReason(reason);
+        product.setStatus(ProductStatus.INACTIVE);
+        product.setDeletedAt(ZonedDateTime.now(ZoneOffset.UTC));
+
+        notificationService.createInternalNotification(product.getCommercial().getId(), "Producto eliminado", reason, Instant.now());
+        
         productRepository.save(Objects.requireNonNull(product));
     }
 
@@ -392,7 +416,7 @@ public class ProductServiceImpl implements ProductService {
                     .ifPresent(oldAsset -> {
                         oldAsset.setProduct(null);
                         productImageAssetRepository.save(oldAsset);
-                        assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(oldAsset.getId()));
+                        assetOrphanedService.markProductImageAssetsAsOrphanedByIds(List.of(oldAsset.getId()));
                     });
 
             newAsset.setProduct(product);
@@ -403,7 +427,7 @@ public class ProductServiceImpl implements ProductService {
         } catch (Exception e) {
             if (newAsset != null) {
                 log.error("Error actualizando imagen, marcando nuevo asset como huérfano: {}", newAsset.getId());
-                assetOrphanedService.markAdAssetsAsOrphanedByIds(List.of(newAsset.getId()));
+                assetOrphanedService.markProductImageAssetsAsOrphanedByIds(List.of(newAsset.getId()));
             }
             throw e;
         }
@@ -699,6 +723,54 @@ public class ProductServiceImpl implements ProductService {
         product.setIsGameReward(true);
         product.setGameRewardAutoDisabled(false);
         productRepository.save(product);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Long> findPurgeableProductIds(int gracePeriodDays) {
+        ZonedDateTime threshold = ZonedDateTime.now(ZoneOffset.UTC).minusDays(gracePeriodDays);
+        return productRepository.findPurgeableProducts(threshold).stream()
+                .map(Product::getId)
+                .toList();
+    }
+
+    @Override
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void purgeProduct(Long productId) {
+        if (!productRepository.existsById(productId)) {
+            return;
+        }
+
+        // Desvincular (nunca borrar) los PurchaseItem reales antes de tocar el
+        // producto: son historial financiero/auditable (comisiones, payouts,
+        // soporte de venta). product y assignedProductStock quedan en null;
+        // productNameSnapshot/commercialId/unitPriceCents etc. se conservan
+        // intactos para que "mis compras" y los reportes de ventas sigan
+        // siendo correctos. clearAutomatically=true refresca el contexto de
+        // persistencia para que el findById de abajo lea el estado ya limpio.
+        purchaseItemRepository.detachProductReferences(productId);
+
+        Product product = productRepository.findById(productId).orElse(null);
+        if (product == null) {
+            return;
+        }
+
+        ProductImageAsset image = product.getImageAsset();
+        if (image != null) {
+            // approvedAt marca si la imagen ya se copió a "public/" (ver
+            // approveProductForAdmin); si nunca se aprobó, sigue solo en "private/".
+            String objectKey = (product.getApprovedAt() != null ? "public/" : "private/") + image.getObjectKey();
+            try {
+                r2Service.deleteObject(objectKey);
+            } catch (Exception e) {
+                log.warn("No se pudo eliminar de R2 la imagen del producto {} ({}): {}",
+                        productId, objectKey, e.getMessage());
+            }
+            productImageAssetRepository.delete(image);
+        }
+
+        productRepository.delete(product);
+        log.info("Producto {} ({}) purgado permanentemente", productId, product.getStatus());
     }
 
 }

@@ -2,6 +2,7 @@ package com.verygana2.services.raffles;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
@@ -41,6 +42,8 @@ import lombok.extern.slf4j.Slf4j;
 @Transactional
 @Slf4j
 public class TicketDeliveryServiceImpl implements TicketDeliveryService {
+
+    private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
 
     private final RaffleTicketService raffleTicketService;
     private final RaffleTicketRepository raffleTicketRepository;
@@ -382,7 +385,11 @@ public class TicketDeliveryServiceImpl implements TicketDeliveryService {
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
         ZonedDateTime last = consumer.getLastDailyLoginDate();
 
-        if (last != null && last.toLocalDate().equals(now.toLocalDate())) {
+        // "Mismo día" se define en hora Colombia (no UTC): comparar instantes en
+        // zonas distintas rompe cerca de medianoche Colombia, donde UTC ya está
+        // en el día siguiente (ver PayoutScheduler, mismo criterio).
+        if (last != null && last.withZoneSameInstant(COLOMBIA_ZONE).toLocalDate()
+                .equals(now.withZoneSameInstant(COLOMBIA_ZONE).toLocalDate())) {
             log.debug("Daily login ticket already awarded today for consumer {}", consumerId);
             return;
         }
