@@ -40,8 +40,24 @@ public class PlanSummaryResponseDTO {
     private String taxNote;
     private String liquidationConditions;
 
-    /** true para rutas D/E: el catálogo estándar es orientativo, un asesor debe confirmar condiciones. */
-    private boolean requiresAdvisorContact;
+    /**
+     * true mientras la negociación esté PENDIENTE (rutas D/E, sin resolver todavía por
+     * compliance) — bloquea la generación del contrato. Una vez resuelta (ver
+     * specialNegotiationResolvedAt) pasa a false, aunque la cuenta haya requerido
+     * negociación especial: en ese punto ya no bloquea nada, solo queda prohibido
+     * volver a cambiar de plan (ver acceptPlan()).
+     */
+    private boolean requiresSpecialNegotiation;
+
+    /**
+     * Cuándo compliance resolvió la negociación. null = nunca tuvo negociación especial
+     * O sigue pendiente (distinguir con requiresSpecialNegotiation). No-null = ya se
+     * resolvió: solo queda generar el contrato, no se puede volver a elegir plan.
+     */
+    private ZonedDateTime specialNegotiationResolvedAt;
+
+    /** Qué necesita, cuando requiresSpecialNegotiation es true (solo aplica a Ruta E). */
+    private String specialNegotiationDetails;
 
     private boolean accepted;
     private ZonedDateTime acceptedAt;

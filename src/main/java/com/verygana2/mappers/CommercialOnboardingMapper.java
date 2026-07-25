@@ -12,7 +12,6 @@ import org.mapstruct.ReportingPolicy;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentsStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
-import com.verygana2.dtos.user.commercial.onboarding.DiagnosticSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
@@ -38,7 +37,14 @@ public interface CommercialOnboardingMapper {
 
     // ===== Paso 1: Términos y condiciones =====
 
+    // id/createdAt se ignoran explícitamente: LegalDocument también tiene esos campos, y por
+    // ser mapping multi-fuente MapStruct los auto-mapea por nombre igual bajo IGNORE (ese
+    // policy solo silencia el warning de destinos sin mapear, no evita el automatch) —
+    // pisaba el id y el createdAt del onboarding con los del LegalDocument (bug real:
+    // "identifier of an instance of CommercialOnboarding was altered from X to Y").
     @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "termsVersion", source = "terms.version")
     @Mapping(target = "termsDocumentUrl", source = "terms.documentUrl")
     @Mapping(target = "termsPublishedDate", source = "terms.publishedDate")
@@ -55,7 +61,11 @@ public interface CommercialOnboardingMapper {
     @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
     void applyLegalIdentificationToOnboarding(LegalIdentificationRequestDTO dto, @MappingTarget CommercialOnboarding onboarding);
 
+    // companyName se ignora porque ya se resuelve manualmente en el servicio (fallback al
+    // nombre del representante legal para persona natural) antes de llamar a este método;
+    // sin el ignore, MapStruct lo automapea por nombre y pisa ese valor con el dto crudo.
     @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
+    @Mapping(target = "companyName", ignore = true)
     @Mapping(target = "pep", expression = "java(Boolean.TRUE.equals(dto.getLegalRepPepDeclaration()))")
     void applyLegalIdentificationToDetails(LegalIdentificationRequestDTO dto, @MappingTarget CommercialDetails details);
 
@@ -70,8 +80,6 @@ public interface CommercialOnboardingMapper {
 
     @Mapping(target = "legalRepPepDeclaration", source = "details.pep")
     LegalIdentificationSummaryDTO toLegalIdentificationSummary(CommercialOnboarding onboarding, CommercialDetails details);
-
-    DiagnosticSummaryDTO toDiagnosticSummary(CommercialOnboarding onboarding);
 
     @Mapping(target = "explanation", source = "routeExplanation")
     @Mapping(target = "confirmed", source = "routeConfirmed")
@@ -101,8 +109,6 @@ public interface CommercialOnboardingMapper {
     CommercialOnboardingSummaryResponseDTO toSummaryDTO(
             CommercialOnboarding onboarding,
             LegalIdentificationSummaryDTO legalIdentification,
-            DiagnosticSummaryDTO diagnostic,
-            RouteClassificationResponseDTO classification,
             PlanSummaryResponseDTO plan,
             CommercialDocumentsStatusResponseDTO documentsStatus);
 }

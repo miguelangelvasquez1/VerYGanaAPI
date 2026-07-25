@@ -16,7 +16,6 @@ import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
-import com.verygana2.dtos.user.commercial.onboarding.DiagnosticSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
@@ -91,17 +90,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         LegalIdentificationSummaryDTO legalIdentification = onboarding.getLegalIdentificationCompletedAt() == null ? null
                 : commercialOnboardingMapper.toLegalIdentificationSummary(onboarding, details);
 
-        DiagnosticSummaryDTO diagnostic = onboarding.getDiagnosticCompletedAt() == null ? null
-                : commercialOnboardingMapper.toDiagnosticSummary(onboarding);
-
-        RouteClassificationResponseDTO classification = onboarding.getRoute() == null ? null
-                : commercialOnboardingMapper.toRouteClassification(onboarding);
-
         PlanSummaryResponseDTO plan = onboarding.getSelectedPlan() == null ? null
                 : buildPlanSummary(onboarding, onboarding.getSelectedPlan());
 
         return commercialOnboardingMapper.toSummaryDTO(
-                onboarding, legalIdentification, diagnostic, classification, plan, documentService.getStatus(userId));
+                onboarding, legalIdentification, plan, documentService.getStatus(userId));
     }
 
     // 1. ACEPTACIÓN DE TÉRMINOS Y CONDICIONES
@@ -221,18 +214,23 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         onboarding.setRouteExplanation(classification.getExplanation());
         onboarding.setClassifiedAt(ZonedDateTime.now());
 
-        // La ruta pudo cambiar: cualquier plan ya aceptado queda invalidado y debe re-aceptarse.
+        // La ruta pudo cambiar: cualquier plan ya aceptado queda invalidado y debe re-aceptarse,
+        // y cualquier negociación especial previa (de un ciclo D/E anterior) queda obsoleta.
         onboarding.setSelectedPlan(null);
         onboarding.setPlanAcceptedAt(null);
+        onboarding.setRequiresSpecialNegotiation(false);
+        onboarding.setSpecialNegotiationResolvedAt(null);
+        onboarding.setSpecialNegotiationDetails(null);
 
         if (classification.getRoute() == CommercialRoute.D) {
             // Ruta D (integración técnica): no hay clasificación que confirmar ni plan que
-            // aceptar, se resuelve por negociación directa con un asesor. Se salta derecho
-            // a la carga documental.
+            // aceptar, y tampoco continúa por documentos/contrato/pago dentro de la
+            // plataforma — todo eso se coordina manualmente por fuera con un asesor.
+            // Queda en ADVISOR_CONTACT_PENDING, terminal para el wizard de onboarding.
             onboarding.setRouteConfirmed(true);
             onboarding.setRouteConfirmedAt(ZonedDateTime.now());
-            onboarding.setRequiresAdvisorContact(true);
-            onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
+            onboarding.setRequiresSpecialNegotiation(true);
+            onboarding.setCurrentStep(OnboardingStep.ADVISOR_CONTACT_PENDING);
         } else {
             onboarding.setRouteConfirmed(false);
             onboarding.setRouteConfirmedAt(null);
@@ -288,6 +286,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     public PlanComparisonResponseDTO getRecommendedPlan(Long userId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         requireRouteConfirmed(onboarding);
+        requireRouteSupportsPlan(onboarding);
 
         Plan.PlanCode recommendedCode = resolvePlanForRoute(onboarding.getRoute()).getCode();
 
@@ -298,7 +297,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         return new PlanComparisonResponseDTO(
                 recommendedCode,
-                requiresAdvisor(onboarding),
+                isSpecialNegotiationPending(onboarding),
                 taxNote,
                 liquidationConditions,
                 plans);
@@ -309,7 +308,24 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     public PlanSummaryResponseDTO acceptPlan(Long userId, AcceptPlanRequestDTO dto) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         requireRouteConfirmed(onboarding);
+        requireRouteSupportsPlan(onboarding);
         requireNotInBusinessReviewOrLater(onboarding);
+
+        // El bloqueo es permanente, no solo mientras está pendiente: una vez que hubo
+        // negociación especial (D o E), el plan queda fijo con lo que el asesor ya
+        // confirmó — cambiarlo después de resuelto invalidaría ese acuerdo en silencio.
+        if (Boolean.TRUE.equals(onboarding.getRequiresSpecialNegotiation())) {
+            throw new OnboardingStepException(onboarding.getSpecialNegotiationResolvedAt() == null
+                    ? "Su cuenta está en negociación con un asesor de VERYGANA; no puede cambiar de plan hasta que se resuelva."
+                    : "Su cuenta ya tuvo una negociación especial resuelta por un asesor; no puede volver a cambiar de plan. Continúe generando el contrato.");
+        }
+
+        boolean specialNegotiation = Boolean.TRUE.equals(dto.getRequiresSpecialNegotiation());
+        if (specialNegotiation
+                && (dto.getSpecialNegotiationDetails() == null || dto.getSpecialNegotiationDetails().isBlank())) {
+            throw new OnboardingStepException(
+                    "Debe describir la negociación especial que necesita para que un asesor la evalúe.");
+        }
 
         Plan plan = planRepository.findByCodeAndActiveTrue(dto.getPlanCode())
                 .orElseThrow(() -> new ObjectNotFoundException(
@@ -319,8 +335,19 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         Long investmentAmountCents = resolveInvestmentAmount(plan, dto.getInvestmentAmountCents());
         Integer contractDurationMonths = resolveContractDuration(plan, dto.getContractDurationMonths());
 
+        if (specialNegotiation) {
+            // Igual eligió un plan (el que más se ajuste), pero además necesita condiciones
+            // a la medida: reclasifica a Ruta E y un asesor ajusta a partir de los detalles.
+            onboarding.setRoute(CommercialRoute.E);
+            onboarding.setRouteExplanation(
+                    "Ruta E: su solicitud requiere negociación corporativa especial o aprobación previa. "
+                            + "Un asesor comercial de VERYGANA se pondrá en contacto para definir condiciones a la medida.");
+            onboarding.setClassifiedAt(ZonedDateTime.now());
+        }
+        onboarding.setRequiresSpecialNegotiation(specialNegotiation);
+        onboarding.setSpecialNegotiationDetails(specialNegotiation ? dto.getSpecialNegotiationDetails() : null);
+
         onboarding.setSelectedPlan(plan);
-        onboarding.setRequiresAdvisorContact(requiresAdvisor(onboarding));
         onboarding.setMonthlyFeeCentsSnapshot(plan.getMonthlyPriceCents());
         onboarding.setMinInvestmentCentsSnapshot(plan.getMinInvestmentCents());
         onboarding.setMaxInvestmentCentsSnapshot(plan.getMaxInvestmentCents());
@@ -339,10 +366,12 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         publishAudit(userId, "COMMERCIAL_PLAN_ACCEPTED",
                 "Comercial aceptó el plan " + plan.getCode() + " y sus condiciones económicas"
-                        + (isRecommended ? " (recomendado)." : " (distinto al recomendado)."),
+                        + (isRecommended ? " (recomendado)." : " (distinto al recomendado).")
+                        + (specialNegotiation ? " Solicitó negociación especial (Ruta E)." : ""),
                 null, null, Map.of("planCode", plan.getCode().name(),
                         "saleCommissionPct", plan.getSaleCommissionPct(),
-                        "wasRecommended", isRecommended));
+                        "wasRecommended", isRecommended,
+                        "requiresSpecialNegotiation", specialNegotiation));
 
         return buildPlanSummary(onboarding, plan);
     }
@@ -357,18 +386,18 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 .orElseThrow(() -> new ObjectNotFoundException("No hay un plan activo configurado para: " + code, Plan.class));
     }
 
-    /** Rutas D/E siempre requieren asesor; sector regulado también, por la validación de cumplimiento adicional. */
-    private boolean requiresAdvisor(CommercialOnboarding onboarding) {
-        return onboarding.getRoute() == CommercialRoute.D
-                || onboarding.getRoute() == CommercialRoute.E
-                || Boolean.TRUE.equals(onboarding.getRegulatedSector());
+    /**
+     * true si compliance todavía no resolvió la negociación (integración técnica en
+     * Ruta D, condiciones a la medida en Ruta E — ver resolveAdvisorNegotiation). Sin
+     * el chequeo de specialNegotiationResolvedAt, esto mostraría "pendiente" para
+     * siempre incluso ya resuelto: requiresSpecialNegotiation queda en true como
+     * registro histórico de que la cuenta lo necesitó, no se resetea al resolver.
+     */
+    private boolean isSpecialNegotiationPending(CommercialOnboarding onboarding) {
+        return Boolean.TRUE.equals(onboarding.getRequiresSpecialNegotiation())
+                && onboarding.getSpecialNegotiationResolvedAt() == null;
     }
 
-    /**
-     * BASIC es suscripción mensual fija: el monto a invertir no aplica y se ignora
-     * si se envía. STANDARD/PREMIUM sí lo requieren, y debe caer dentro del rango
-     * de inversión del plan (PREMIUM no tiene techo, así que ahí solo se valida el mínimo).
-     */
     private Long resolveInvestmentAmount(Plan plan, Long requestedAmountCents) {
         if (plan.getCode() == Plan.PlanCode.BASIC) {
             return null;
@@ -419,17 +448,13 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 accepted ? onboarding.getMaxKeysPctSnapshot() : plan.getMaxKeysPct(),
                 accepted ? onboarding.getTaxNoteSnapshot() : taxNote,
                 accepted ? onboarding.getLiquidationConditionsSnapshot() : liquidationConditions,
-                requiresAdvisor(onboarding),
+                isSpecialNegotiationPending(onboarding),
+                onboarding.getSpecialNegotiationResolvedAt(),
+                onboarding.getSpecialNegotiationDetails(),
                 accepted,
                 onboarding.getPlanAcceptedAt());
     }
 
-    /**
-     * Q9 (techIntegrationNeeds) es una pregunta de bifurcación: si viene marcada, el resto
-     * del diagnóstico es irrelevante (la ruta D se resuelve por negociación directa con un
-     * asesor, sin plan), así que solo se exige integrationDetails. Si no viene marcada, se
-     * exige el resto de las preguntas como antes.
-     */
     private void validateDiagnostic(CommercialDiagnosticRequestDTO dto) {
         boolean needsTechIntegration = dto.getTechIntegrationNeeds() != null && !dto.getTechIntegrationNeeds().isEmpty();
 
@@ -450,56 +475,47 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         if (dto.getRequiresCustomGames() == null) {
             throw new OnboardingStepException("Debe indicar si requiere juegos personalizados");
         }
-        if (dto.getRegulatedSector() == null) {
-            throw new OnboardingStepException("Debe indicar si la actividad pertenece a un sector regulado");
+        if (dto.getRequiresPets() == null) {
+            throw new OnboardingStepException("Debe indicar si requiere mascotas");
         }
-        if (dto.getRequiresSpecialNegotiation() == null) {
-            throw new OnboardingStepException(
-                    "Debe indicar si requiere negociación especial o aprobación corporativa previa");
+        if (dto.getRequiresSurveys() == null) {
+            throw new OnboardingStepException("Debe indicar si requiere encuestas");
         }
     }
 
-    // ==================== CLASIFICACIÓN AUTOMÁTICA (RUTA A-E) ====================
+    // ==================== CLASIFICACIÓN AUTOMÁTICA (RUTA A-D; E SE DECIDE EN EL PASO DE PLAN) ====================
 
     /**
-     * Motor de reglas de clasificación. Evaluado en orden de prioridad: negociación
-     * especial > integración técnica > personalización (Básico no soporta juegos:
-     * CAN_USE_GAMES=false en PlanDataInitializer, así que quien los pide siempre va
-     * a un plan de inversión con esa capacidad) > tarifa fija (solo Básico tiene una
-     * tarifa fija real) > objetivo de venta > caso por defecto. Sector regulado no
-     * cambia la ruta pero sí exige asesor y el permiso sectorial (ver requiresAdvisor
-     * y CommercialDocumentServiceImpl).
+     * Motor de reglas de clasificación. Evaluado en orden de prioridad: integración
+     * técnica > personalización (juegos/mascotas — Básico no soporta ninguna de las
+     * dos, CAN_USE_GAMES/CAN_HAVE_PETS=false en PlanDataInitializer, así que siempre
+     * va a un plan de inversión con esa capacidad) > tarifa fija (solo Básico tiene
+     * una tarifa fija real, y tampoco soporta encuestas: CAN_USE_SURVEYS=false) >
+     * objetivo de venta > caso por defecto. La Ruta E (negociación especial) no se
+     * calcula aquí: el empresario la solicita en acceptPlan(), junto con el plan que
+     * elija, una vez ve el detalle de cada uno.
      */
     private RouteClassificationResponseDTO classify(CommercialOnboarding o) {
-        boolean specialNegotiation = Boolean.TRUE.equals(o.getRequiresSpecialNegotiation());
         boolean needsTechIntegration = o.getTechIntegrationNeeds() != null && !o.getTechIntegrationNeeds().isEmpty();
         boolean sells = o.getPrimaryGoal() == PrimaryGoal.VENDER || o.getPrimaryGoal() == PrimaryGoal.AMBAS;
         boolean visibilityGoal = o.getPrimaryGoal() == PrimaryGoal.PUBLICIDAD;
         boolean fixedFee = Boolean.TRUE.equals(o.getWantsFixedFee());
         boolean customGames = Boolean.TRUE.equals(o.getRequiresCustomGames());
-        boolean regulated = Boolean.TRUE.equals(o.getRegulatedSector());
+        boolean pets = Boolean.TRUE.equals(o.getRequiresPets());
+        boolean surveys = Boolean.TRUE.equals(o.getRequiresSurveys());
 
         CommercialRoute route;
         String explanation;
 
-        if (specialNegotiation) {
-            route = CommercialRoute.E;
-            explanation = "Ruta E: su solicitud requiere negociación corporativa especial o aprobación previa. "
-                    + "Un asesor comercial de VERYGANA se pondrá en contacto para definir condiciones a la medida. "
-                    + "Por ahora, selecciona el plan que mas se ajuste a tus necesidades.";
-        } else if (needsTechIntegration) {
+        if (needsTechIntegration) {
             route = CommercialRoute.D;
-            explanation = "Ruta D: es un proveedor o aliado de servicios que requiere integración técnica "
-                    + "(API, conciliación o activación automática). El equipo técnico de VERYGANA coordinará "
-                    + "la implementación y las condiciones económicas se definirán según el tipo de integración.";
-        } else if (customGames) {
-            // El plan Básico no soporta juegos (CAN_USE_GAMES=false): quien los necesita
-            // siempre se asigna a un plan de inversión con esa capacidad, venda o no.
+            explanation = "El equipo técnico de VERYGANA coordinará la implementación y las "
+                    + "condiciones económicas se definirán según el tipo de integración.";
+        } else if (customGames || pets) {
             route = CommercialRoute.B;
-            explanation = "Ruta B: requiere juegos personalizados en su operación. El plan Básico no incluye "
-                    + "esta función, así que se asigna un plan de inversión con soporte completo de gamificación.";
-        } else if (fixedFee && sells) {
-            // Plan Básico: única opción con tarifa fija mensual real (ver PlanDataInitializer).
+            explanation = "Ruta B: requiere juegos personalizados y/o mascotas en su operación, así que se "
+                    + "asigna un plan de inversión con soporte completo de gamificación.";
+        } else if (fixedFee && sells && !surveys) {
             route = CommercialRoute.A;
             explanation = "Ruta A: paga una tarifa fija y vende directamente en la plataforma. "
                     + "Es el camino de activación más simple y rápido.";
@@ -511,14 +527,9 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                     : "Ruta C: su objetivo principal no es la venta directa, por lo que se clasifica como "
                             + "marca de visibilidad.";
         } else {
-            route = CommercialRoute.B;
-            explanation = "Ruta B: vende en la plataforma bajo el modelo estándar de VERYGANA, sin tarifa "
+            route = CommercialRoute.C;
+            explanation = "Ruta C: vende en la plataforma bajo el modelo estándar de VERYGANA, sin tarifa "
                     + "fija ni requisitos técnicos especiales.";
-        }
-
-        if (regulated) {
-            explanation += " Al pertenecer a un sector regulado, deberá cargar el permiso sectorial "
-                    + "correspondiente y su cuenta pasará por una validación de cumplimiento adicional.";
         }
 
         return new RouteClassificationResponseDTO(route, route.name(), explanation, false);
@@ -547,6 +558,18 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private void requireRouteConfirmed(CommercialOnboarding onboarding) {
         if (!onboarding.isRouteConfirmed()) {
             throw new OnboardingStepException("Debe confirmar su clasificación de ruta antes de continuar.");
+        }
+    }
+
+    /**
+     * Ruta D (integración técnica) no selecciona plan dentro de la plataforma: todo
+     * se coordina manualmente con un asesor de VERYGANA (ver submitDiagnostic).
+     */
+    private void requireRouteSupportsPlan(CommercialOnboarding onboarding) {
+        if (onboarding.getRoute() == CommercialRoute.D) {
+            throw new OnboardingStepException(
+                    "Su ruta de integración técnica no requiere seleccionar un plan; un asesor de VERYGANA "
+                            + "se pondrá en contacto para coordinar las condiciones directamente.");
         }
     }
 
@@ -583,6 +606,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 o.isRouteConfirmed(),
                 classification,
                 o.getPlanAcceptedAt() != null,
+                isSpecialNegotiationPending(o),
                 o.getDocumentsCompletedAt() != null,
                 contract != null,
                 contract != null ? contract.getStatus() : null,

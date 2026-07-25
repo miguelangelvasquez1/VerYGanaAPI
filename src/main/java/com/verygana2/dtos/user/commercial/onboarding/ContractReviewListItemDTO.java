@@ -18,6 +18,10 @@ public class ContractReviewListItemDTO {
     private Long userId;
     private String companyName;
     private String email;
+
+    /** true si el representante legal está declarado como Persona Expuesta Políticamente. */
+    private boolean pep;
+
     private CommercialRoute route;
     private int version;
     private ContractStatus status;

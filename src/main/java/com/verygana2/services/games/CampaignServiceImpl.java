@@ -75,7 +75,6 @@ public class CampaignServiceImpl implements CampaignService {
         // 3. Aplicar transición
         campaign.setStatus(newStatus);
 
-
         // 4. Reglas laterales según estado
         handleSideEffects(campaign, newStatus);
 

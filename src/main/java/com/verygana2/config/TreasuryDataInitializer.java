@@ -85,7 +85,6 @@ public class TreasuryDataInitializer implements ApplicationRunner {
 
         for (AccountDefinition def : ACCOUNTS) {
             if (treasuryAccountRepository.existsByCode(def.code())) {
-                log.debug("Cuenta [{}] ya existe — omitiendo", def.code());
                 skipped++;
             } else {
                 TreasuryAccount account = TreasuryAccount.builder()

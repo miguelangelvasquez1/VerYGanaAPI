@@ -11,8 +11,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.models.User;
-
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 

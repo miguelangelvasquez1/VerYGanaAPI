@@ -25,6 +25,9 @@ public interface EmailService {
     void sendBrandingReadyToLaunchEmail(String toEmail, String brandName, String gameName);
     void sendBrandingRejectedEmail(String toEmail, String commercialName, String brandName, String rejectionNotes);
 
+    // ===== ONBOARDING COMERCIAL =====
+    void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason, boolean documentsIssue);
+
     // ===== PQRS =====
     void sendPqrsReceivedConfirmation(String toEmail, String requesterName, String based, PqrsType type, ZonedDateTime dueDate);
     void sendPqrsAssignedToAdmin(String adminEmail, String adminName, String based, String subject, ZonedDateTime dueDate);

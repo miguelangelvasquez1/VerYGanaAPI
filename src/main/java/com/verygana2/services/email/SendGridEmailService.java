@@ -285,6 +285,34 @@ public class SendGridEmailService implements EmailService {
         }
     }
 
+    // ===== ONBOARDING COMERCIAL =====
+
+    @Override
+    @Async
+    public void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason,
+            boolean documentsIssue) {
+        log.info("Sending commercial contract rejected email to: {}", toEmail);
+        try {
+            String actionSection = documentsIssue
+                    ? "<div class='action-box'>Ingresa a la plataforma para corregir tus documentos y "
+                            + "generar el contrato nuevamente.</div>"
+                    : "<div class='contact-box'>Un asesor de VerYGana se pondrá en contacto contigo directamente "
+                            + "para resolver este punto — no es necesario que hagas nada por ahora.</div>";
+
+            String html = templateLoader.render("commercial-contract-rejected.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "rejectionReason", escapeHtml(reason),
+                    "actionSection", actionSection,
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+
+            sendEmail(toEmail, "Tu Contrato Marco requiere ajustes — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending commercial contract rejected email to: {}", toEmail, e);
+        }
+    }
+
     // ===== PQRS =====
 
     @Override

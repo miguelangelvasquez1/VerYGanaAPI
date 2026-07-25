@@ -2,6 +2,7 @@ package com.verygana2.services.interfaces.commercial;
 
 import java.util.List;
 
+import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.models.enums.commercial.ContractStatus;
@@ -52,4 +53,17 @@ public interface CommercialContractService {
      * llamará compliance manualmente); en producción lo reemplaza el webhook del proveedor.
      */
     ContractSummaryResponseDTO markSigned(Long contractId);
+
+    /**
+     * Onboardings de Rutas D/E bloqueados en requireGenerationReady() esperando que un
+     * asesor confirme condiciones. Puede no existir contrato todavía, por eso no vive
+     * en listContracts().
+     */
+    List<AdvisorNegotiationListItemDTO> listPendingAdvisorNegotiations();
+
+    /**
+     * Compliance confirma que ya negoció condiciones con el empresario (por fuera de la
+     * plataforma: llamada, email, etc.) y desbloquea la generación del contrato.
+     */
+    void resolveAdvisorNegotiation(Long onboardingId, Long reviewerUserId);
 }
