@@ -10,6 +10,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.user.commercial.onboarding.SignatureRequest;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialOnboarding;

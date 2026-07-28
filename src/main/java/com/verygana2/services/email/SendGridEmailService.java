@@ -289,6 +289,22 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
+    public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version) {
+        log.info("Sending commercial contract approved email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("commercial-contract-approved.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "version", String.valueOf(version),
+                    "sloganSection", SLOGAN_COMMERCIAL));
+
+            sendEmail(toEmail, "Tu Contrato Marco fue aprobado — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending commercial contract approved email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason,
             boolean documentsIssue) {
         log.info("Sending commercial contract rejected email to: {}", toEmail);

@@ -26,6 +26,7 @@ public interface EmailService {
     void sendBrandingRejectedEmail(String toEmail, String commercialName, String brandName, String rejectionNotes);
 
     // ===== ONBOARDING COMERCIAL =====
+    void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version);
     void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason, boolean documentsIssue);
 
     // ===== PQRS =====

@@ -210,7 +210,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes("Aprobado");
         contractRepository.save(contract);
 
-        publishAudit(contract.getOnboarding().getCommercialDetails().getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
+        CommercialDetails details = contract.getOnboarding().getCommercialDetails();
+        emailService.sendCommercialContractApprovedEmail(
+                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion());
+
+        publishAudit(details.getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
                 "VERYGANA aprobó el Contrato Marco v" + contract.getVersion() + ". Se envía a firma electrónica.",
                 Map.of("contractId", contract.getId(), "reviewerUserId", reviewerUserId));
 

@@ -6,7 +6,20 @@
       "Bash(grep -E \"\\\\.java$\")",
       "Bash(mvnw.cmd compile *)",
       "Bash(./mvnw.cmd -q compile)",
-      "Bash(mvn -q compile -Dmaven.resources.skip=true)"
+      "Bash(mvn -q compile -Dmaven.resources.skip=true)",
+      "Bash(command -v pandoc)",
+      "Bash(command -v wkhtmltopdf)",
+      "Bash(command -v weasyprint)",
+      "Bash(command -v chrome)",
+      "Bash(command -v msedge)",
+      "Bash(cp \"/c/Users/Usuario/AppData/Local/Temp/claude/c--Users-Usuario-Projects-verygana-VerYGanaAPI/11cd59b1-c084-4d59-a8f7-1e245070e7d6/scratchpad/Plan-Planes-Comerciales-VerYGana.pdf\" \"/c/Users/Usuario/Desktop/Plan-Planes-Comerciales-VerYGana.pdf\" && echo copied)",
+      "Bash(ls \"/c/Users/Usuario/\" 2>/dev/null)",
+      "Read(//c/Users/Usuario//**)",
+      "Read(//c/Users/Usuario/OneDrive/**)",
+      "Read(//c/Users/Usuario/Documents/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\Usuario\\AppData\\Local\\Temp\\claude\\c--Users-Usuario-Projects-verygana-VerYGanaAPI\\11cd59b1-c084-4d59-a8f7-1e245070e7d6\\scratchpad"
     ]
   }
 }

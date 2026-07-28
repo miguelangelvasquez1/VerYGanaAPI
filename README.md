@@ -1,19 +1,10 @@
-## Dependencies:
-- Spring web
-- Spring Data JPA
-- MySQL Connector
-- Spring security
-- oauth2 resource server
-- configuration processor
-- Lombok
-
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
 - Si se introducen refresh tokens, los self-signed JWTs pueden no ser lo mejor
 - Article for JWTs: https://www.danvega.dev/blog/spring-security-jwt
-
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
+
 - Usar swagger para pruebas
 - logs,
 - Ver los preauthorize
@@ -50,8 +41,7 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 - ver lo de firmas, correo.
 - que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc.
-- si un commercial cambia a plan mas bajo que no se devuelva lo creado
-- ver todo despues de haber preguntado a nestor(contratos).
+- si un commercial cambia a plan mas bajo que no se devuelva lo creado?
 
 - probar max_ads, flujo de sesiones y recompensa bien revisar.
 
@@ -61,7 +51,7 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 - actuator (backend metrics)?
 
-
+C:\Users\Usuario\.claude\plans\1-antes-de-eso-jaunty-harbor.md
 Backend — Flujo de registro comercial extendido
 Nueva entidad CommercialOnboarding (1:1 con User, tabla commercial_onboarding) que registra el progreso a través de 5 pasos, más los enums de soporte en models/enums/commercial/.
 
