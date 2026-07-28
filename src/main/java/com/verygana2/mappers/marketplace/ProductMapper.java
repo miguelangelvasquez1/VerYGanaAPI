@@ -52,6 +52,7 @@ public interface ProductMapper {
     @Mapping(target = "priceCents", source = "price")
     @Mapping(target = "isGameReward", ignore = true)
     @Mapping(target = "targetAudience", ignore = true)
+    @Mapping(target = "gameRewardAutoDisabled", ignore = true)
     Product toProduct(CreateProductRequestDTO request);
 
     List<ProductStock> toProductStockList(List<ProductStockRequestDTO> stockRequests);
@@ -96,6 +97,7 @@ public interface ProductMapper {
     @Mapping(target = "priceCents", source = "price")
     @Mapping(target = "isGameReward", ignore = true)
     @Mapping(target = "targetAudience", ignore = true)
+    @Mapping(target = "gameRewardAutoDisabled", ignore = true)
     void updateProductFromRequest(UpdateProductRequestDTO request, @MappingTarget Product product);
 
     // ===== MAPPING to ProductResponseDTO (completed) =====
