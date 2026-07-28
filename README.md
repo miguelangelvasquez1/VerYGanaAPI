@@ -1,19 +1,10 @@
-## Dependencies:
-- Spring web
-- Spring Data JPA
-- MySQL Connector
-- Spring security
-- oauth2 resource server
-- configuration processor
-- Lombok
-
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
 - Si se introducen refresh tokens, los self-signed JWTs pueden no ser lo mejor
 - Article for JWTs: https://www.danvega.dev/blog/spring-security-jwt
-
 - Se usa: configuración de seguridad basada en recursos (Resource Server) de Spring Boot
+
 - Usar swagger para pruebas
 - logs,
 - Ver los preauthorize
@@ -47,13 +38,10 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 - si state devulve que ya tiene max ads bloquear el creacion de ads
 
 
-
-- ver campo por campo del diagnostico, ver lo de firmas.
-- ajustar como se clasifica al usuario y a que plan se asigna, ruta especial para proveedores y E y PEP(bandera para el compliance). se requiere contacto? ver campos de diagnostico, mensualidades? etc. archivos requeridos?(preguntar a nestor), ver documentos en el compliance -> correo y mensaje especial.
+- ver lo de firmas, correo.
 - que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc.
-- si un commercial cambia a plan mas bajo que no se devuelva lo creado
-- ver todo despues de haber preguntado a nestor(contratos).
+- si un commercial cambia a plan mas bajo que no se devuelva lo creado?
 
 - probar max_ads, flujo de sesiones y recompensa bien revisar.
 
@@ -63,7 +51,7 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 - actuator (backend metrics)?
 
-
+C:\Users\Usuario\.claude\plans\1-antes-de-eso-jaunty-harbor.md
 Backend — Flujo de registro comercial extendido
 Nueva entidad CommercialOnboarding (1:1 con User, tabla commercial_onboarding) que registra el progreso a través de 5 pasos, más los enums de soporte en models/enums/commercial/.
 
@@ -90,7 +78,7 @@ Generación real de PDF: agregué la dependencia openhtmltopdf-pdfbox (no exist�
 ComplianceContractController (/compliance/contracts, rol ROLE_COMPLIANCE_OFFICER) para el paso 11, calcado del patrón ya usado en ComplianceKycController.
 Decisiones de negocio que tomé por ti (documentadas y fácilmente ajustables):
 
-Mapeo Ruta → Plan: A→BASIC, B→STANDARD, C/D/E→PREMIUM, con un flag requiresAdvisorContact=true en D/E (aislado en resolvePlanForRoute()).
+Mapeo Ruta → Plan: A→BASIC, C→STANDARD, B/D/E→PREMIUM (resolvePlanForRoute()), con requiresSpecialNegotiation=true en D/E — un único flag para "requiere que un asesor confirme condiciones antes del contrato", resuelto desde el panel de compliance (specialNegotiationResolvedAt).
 El "aceptar el plan" no activa el pago real — sigue existiendo el flujo actual de Wompi (checkout/webhook) para activar CommercialDetails.currentPlan; aceptar el plan en el onboarding solo congela un snapshot de las condiciones para el contrato. Evité tocar la lógica de pagos existente.
 La plantilla del contrato es un esqueleto, no texto legal validado — está marcada explícitamente como "[Placeholder legal — pendiente de validación jurídica]" en el propio PDF. Necesita revisión de tu equipo jurídico antes de producción.
 Campos jurídicos (paso 3) quedan bloqueados tras el primer envío; diagnóstico/plan/documentos (pasos 4, 6-8) se pueden corregir hasta que el contrato entra en revisión del empresario, punto desde el cual solo se reabren vía POST /contract/request-changes.

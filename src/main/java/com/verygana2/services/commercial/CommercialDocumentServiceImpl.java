@@ -181,8 +181,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         return switch (type) {
             case RUT, CEDULA_REPRESENTANTE, CERTIFICACION_BANCARIA -> true;
             case CAMARA_COMERCIO -> onboarding.getPersonType() == PersonType.JURIDICA;
-            case PERMISO_SECTORIAL -> Boolean.TRUE.equals(onboarding.getRegulatedSector());
-            case MARCA_REGISTRADA, OTRO -> false;
+            case PERMISO_SECTORIAL, MARCA_REGISTRADA, OTRO -> false;
         };
     }
 

@@ -5,6 +5,7 @@ import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
+import com.verygana2.dtos.user.commercial.onboarding.SignatureRequest;
 import com.verygana2.services.interfaces.commercial.ESignaturePort;
 
 import lombok.extern.slf4j.Slf4j;

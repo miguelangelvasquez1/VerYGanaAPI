@@ -12,6 +12,10 @@ import lombok.NoArgsConstructor;
  * (POST /commercials/onboarding/contract/generate), así el comercial revisa
  * los datos sin necesitar un PDF nuevo cada vez que quiere corregir algo.
  *
+ * Diagnóstico y clasificación no se incluyen aquí a propósito: para esta revisión
+ * final solo importan el plan y los documentos, ya reflejan el resultado de esas
+ * respuestas. Siguen disponibles por separado en GET /commercials/onboarding/classification.
+ *
  * Cada bloque viene null si el paso correspondiente aún no se completó.
  */
 @Data
@@ -22,8 +26,6 @@ public class CommercialOnboardingSummaryResponseDTO {
     private ZonedDateTime termsAcceptedAt;
 
     private LegalIdentificationSummaryDTO legalIdentification;
-    private DiagnosticSummaryDTO diagnostic;
-    private RouteClassificationResponseDTO classification;
     private PlanSummaryResponseDTO plan;
     private CommercialDocumentsStatusResponseDTO documents;
 }

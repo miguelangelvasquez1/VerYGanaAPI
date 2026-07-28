@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractRejectRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
@@ -70,5 +71,28 @@ public class ComplianceContractController {
     @PostMapping("/{contractId}/esignature/mark-signed")
     public ResponseEntity<ContractSummaryResponseDTO> markSigned(@PathVariable Long contractId) {
         return ResponseEntity.ok(contractService.markSigned(contractId));
+    }
+
+    /**
+     * Onboardings de Rutas D/E bloqueados esperando que un asesor confirme condiciones
+     * antes de poder generar el contrato. Puede no existir contrato todavía, por eso es
+     * un listado aparte de listContracts().
+     */
+    @GetMapping("/negotiations")
+    public ResponseEntity<List<AdvisorNegotiationListItemDTO>> listPendingAdvisorNegotiations() {
+        return ResponseEntity.ok(contractService.listPendingAdvisorNegotiations());
+    }
+
+    /**
+     * Compliance confirma que ya negoció condiciones con el empresario (por fuera de la
+     * plataforma) y desbloquea la generación del contrato. Sin body: lo acordado ya
+     * quedó registrado por los canales de comunicación usados para la negociación.
+     */
+    @PostMapping("/negotiations/{onboardingId}/resolve")
+    public ResponseEntity<Void> resolveAdvisorNegotiation(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long onboardingId) {
+        Long reviewerUserId = jwt.getClaim("userId");
+        contractService.resolveAdvisorNegotiation(onboardingId, reviewerUserId);
+        return ResponseEntity.ok().build();
     }
 }

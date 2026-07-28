@@ -21,7 +21,7 @@ public class PlanComparisonResponseDTO {
     private PlanCode recommendedPlanCode;
 
     /** true para rutas D/E: el catálogo estándar es orientativo, un asesor debe confirmar condiciones. */
-    private boolean requiresAdvisorContact;
+    private boolean requiresSpecialNegotiation;
 
     /** Notas económicas comunes a todos los planes (no varían por plan). */
     private String taxNote;

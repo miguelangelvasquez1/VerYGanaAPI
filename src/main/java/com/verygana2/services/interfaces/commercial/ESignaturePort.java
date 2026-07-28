@@ -1,7 +1,7 @@
 package com.verygana2.services.interfaces.commercial;
 
+import com.verygana2.dtos.user.commercial.onboarding.SignatureRequest;
 import com.verygana2.services.commercial.EsignatureEnvelope;
-import com.verygana2.services.commercial.SignatureRequest;
 
 public interface ESignaturePort {
 

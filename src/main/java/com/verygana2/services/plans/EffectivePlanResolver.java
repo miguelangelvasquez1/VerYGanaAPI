@@ -6,6 +6,7 @@ import java.math.RoundingMode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.models.finance.plans.Plan;
@@ -75,12 +76,12 @@ public class EffectivePlanResolver {
         log.debug("Comercial {} → {} (saldo: {} centavos)", commercialId,
                 currentPlan.getCode(), balanceCents);
 
-        return buildStateForPlan(currentPlan, balanceCents);
+        return buildStateForPlan(currentPlan, balanceCents, commercial.getOnboarding());
     }
 
     // ── Builder de estado ─────────────────────────────────────────────────────
 
-    private EffectivePlanState buildStateForPlan(Plan plan, long balanceCents) {
+    private EffectivePlanState buildStateForPlan(Plan plan, long balanceCents, CommercialOnboarding onboarding) {
         PlanCode code = plan.getCode();
         BigDecimal remainingCOP = BigDecimal.valueOf(balanceCents)
                 .divide(CENTS_PER_COP, 2, RoundingMode.HALF_UP);
@@ -91,18 +92,45 @@ public class EffectivePlanResolver {
                 .commissionActive(plan.getSaleCommissionPct() > 0)
                 .commissionRate(BigDecimal.valueOf(plan.getSaleCommissionPct()))
                 .remainingBudget(remainingCOP)
-                .canAdvertise(getFeatureBool(code, FEAT_CAN_ADVERTISE, false))
-                .canUseGames(getFeatureBool(code, FEAT_CAN_USE_GAMES, false))
-                .canUseSurveys(getFeatureBool(code, FEAT_CAN_USE_SURVEYS, false))
-                .canSellDirectly(getFeatureBool(code, FEAT_CAN_SELL_DIRECTLY, false))
-                .canHavePets(getFeatureBool(code, FEAT_CAN_HAVE_PETS, false))
-                .canPromoteAllyProducts(getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false))
-                .maxProducts(getFeatureInt(code, FEAT_MAX_PRODUCTS, 0))
-                .maxAds(getFeatureInt(code, FEAT_MAX_ADS, 0))
-                .maxBrandedGames(getFeatureInt(code, FEAT_MAX_BRANDED_GAMES, 0))
-                .maxSurveys(getFeatureInt(code, FEAT_MAX_SURVEYS, 0))
-                .visibilityBoostPct(getFeatureDecimal(code, FEAT_VISIBILITY_BOOST, BigDecimal.ZERO))
+                .canAdvertise(resolveBool(onboarding == null ? null : onboarding.getCanAdvertiseOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_ADVERTISE, false)))
+                .canUseGames(resolveBool(onboarding == null ? null : onboarding.getCanUseGamesOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_USE_GAMES, false)))
+                .canUseSurveys(resolveBool(onboarding == null ? null : onboarding.getCanUseSurveysOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_USE_SURVEYS, false)))
+                .canSellDirectly(resolveBool(onboarding == null ? null : onboarding.getCanSellDirectlyOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_SELL_DIRECTLY, false)))
+                .canHavePets(resolveBool(onboarding == null ? null : onboarding.getCanHavePetsOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_HAVE_PETS, false)))
+                .canPromoteAllyProducts(resolveBool(onboarding == null ? null : onboarding.getCanPromoteAllyProductsOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false)))
+                .maxProducts(resolveInt(onboarding == null ? null : onboarding.getMaxProductsOverride(),
+                        () -> getFeatureInt(code, FEAT_MAX_PRODUCTS, 0)))
+                .maxAds(resolveInt(onboarding == null ? null : onboarding.getMaxAdsOverride(),
+                        () -> getFeatureInt(code, FEAT_MAX_ADS, 0)))
+                .maxBrandedGames(resolveInt(onboarding == null ? null : onboarding.getMaxBrandedGamesOverride(),
+                        () -> getFeatureInt(code, FEAT_MAX_BRANDED_GAMES, 0)))
+                .maxSurveys(resolveInt(onboarding == null ? null : onboarding.getMaxSurveysOverride(),
+                        () -> getFeatureInt(code, FEAT_MAX_SURVEYS, 0)))
+                .visibilityBoostPct(resolveDecimal(onboarding == null ? null : onboarding.getVisibilityBoostPctOverride(),
+                        () -> getFeatureDecimal(code, FEAT_VISIBILITY_BOOST, BigDecimal.ZERO)))
                 .build();
+    }
+
+    /**
+     * Un override del onboarding (negociación Ruta E) pisa el valor del Plan
+     * para ese empresario en particular; null = sin override, se usa el Plan.
+     */
+    private boolean resolveBool(Boolean override, java.util.function.BooleanSupplier planValue) {
+        return override != null ? override : planValue.getAsBoolean();
+    }
+
+    private int resolveInt(Integer override, java.util.function.IntSupplier planValue) {
+        return override != null ? override : planValue.getAsInt();
+    }
+
+    private BigDecimal resolveDecimal(BigDecimal override, java.util.function.Supplier<BigDecimal> planValue) {
+        return override != null ? override : planValue.get();
     }
 
     // ── Helpers de feature ────────────────────────────────────────────────────

@@ -21,6 +21,14 @@ public class CommercialOnboardingStatusResponseDTO {
     private boolean routeConfirmed;
     private RouteClassificationResponseDTO classification; // null si aún no hay clasificación
     private boolean planAccepted;
+
+    /**
+     * true si su ruta (D/E) requiere que un asesor de VERYGANA confirme condiciones
+     * antes de poder generar el contrato — ver requireGenerationReady(). Se resuelve
+     * desde el panel de compliance (POST /compliance/contracts/negotiations/{id}/resolve).
+     */
+    private boolean requiresSpecialNegotiation;
+
     private boolean documentsCompleted;
     private boolean contractGenerated;
     private ContractStatus contractStatus; // null si aún no se ha generado un contrato

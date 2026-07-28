@@ -12,10 +12,13 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
+import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialDocument;
 import com.verygana2.models.commercial.CommercialOnboarding;
@@ -23,11 +26,13 @@ import com.verygana2.models.enums.commercial.CommercialDocumentStatus;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
+import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialDocumentRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
+import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.commercial.ESignatureService;
 import com.verygana2.storage.service.R2Service;
@@ -53,11 +58,13 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     private final CommercialContractRepository contractRepository;
     private final CommercialDocumentRepository documentRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
+    private final CommercialOnboardingMapper commercialOnboardingMapper;
     private final ContractTemplateLoader templateLoader;
     private final ContractPdfRenderer pdfRenderer;
     private final R2Service r2Service;
     private final ApplicationEventPublisher eventPublisher;
     private final ESignatureService esignatureService;
+    private final EmailService emailService;
 
     // ==================== LADO COMERCIAL (PASOS 7-10) ====================
 
@@ -174,6 +181,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                             details.getId(),
                             details.getCompanyName(),
                             details.getUser().getEmail(),
+                            details.isPep(),
                             onboarding.getRoute(),
                             c.getVersion(),
                             c.getStatus(),
@@ -202,7 +210,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes("Aprobado");
         contractRepository.save(contract);
 
-        publishAudit(contract.getOnboarding().getCommercialDetails().getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
+        CommercialDetails details = contract.getOnboarding().getCommercialDetails();
+        emailService.sendCommercialContractApprovedEmail(
+                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion());
+
+        publishAudit(details.getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
                 "VERYGANA aprobó el Contrato Marco v" + contract.getVersion() + ". Se envía a firma electrónica.",
                 Map.of("contractId", contract.getId(), "reviewerUserId", reviewerUserId));
 
@@ -218,6 +230,81 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     public ContractSummaryResponseDTO markSigned(Long contractId) {
         esignatureService.markSigned(contractId, ZonedDateTime.now());
         return toSummary(getContractOrThrow(contractId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<AdvisorNegotiationListItemDTO> listPendingAdvisorNegotiations() {
+        return onboardingRepository.findByRequiresSpecialNegotiationTrueAndSpecialNegotiationResolvedAtIsNull().stream()
+                .map(o -> {
+                    CommercialDetails details = o.getCommercialDetails();
+                    return new AdvisorNegotiationListItemDTO(
+                            o.getId(),
+                            details.getId(),
+                            details.getCompanyName(),
+                            details.getUser().getEmail(),
+                            details.getUser().getPhoneNumber(),
+                            details.isPep(),
+                            commercialOnboardingMapper.toLegalIdentificationSummary(o, details),
+                            toPlanSummary(o),
+                            o.getRoute(),
+                            o.getRouteExplanation(),
+                            o.getIntegrationDetails(),
+                            o.getSpecialNegotiationDetails(),
+                            o.getCurrentStep(),
+                            o.getClassifiedAt());
+                })
+                .toList();
+    }
+
+    /**
+     * Plan que el empresario eligió, con los valores ya congelados (snapshot) en
+     * acceptPlan(). Null en Ruta D, que nunca pasa por selección de plan.
+     */
+    private PlanSummaryResponseDTO toPlanSummary(CommercialOnboarding o) {
+        Plan plan = o.getSelectedPlan();
+        if (plan == null) {
+            return null;
+        }
+        return new PlanSummaryResponseDTO(
+                plan.getCode(),
+                plan.getName(),
+                plan.getDescription(),
+                o.getMonthlyFeeCentsSnapshot(),
+                o.getMinInvestmentCentsSnapshot(),
+                o.getMaxInvestmentCentsSnapshot(),
+                o.getInvestmentAmountCentsSnapshot(),
+                o.getContractDurationMonths(),
+                o.getSaleCommissionPctSnapshot(),
+                o.getMaxKeysPctSnapshot(),
+                o.getTaxNoteSnapshot(),
+                o.getLiquidationConditionsSnapshot(),
+                Boolean.TRUE.equals(o.getRequiresSpecialNegotiation()),
+                o.getSpecialNegotiationResolvedAt(),
+                o.getSpecialNegotiationDetails(),
+                o.getPlanAcceptedAt() != null,
+                o.getPlanAcceptedAt());
+    }
+
+    @Override
+    public void resolveAdvisorNegotiation(Long onboardingId, Long reviewerUserId) {
+        CommercialOnboarding onboarding = onboardingRepository.findById(onboardingId)
+                .orElseThrow(() -> new ObjectNotFoundException(
+                        "No existe un proceso de onboarding comercial con id: " + onboardingId, CommercialOnboarding.class));
+
+        if (!Boolean.TRUE.equals(onboarding.getRequiresSpecialNegotiation()) || onboarding.getSpecialNegotiationResolvedAt() != null) {
+            throw new OnboardingStepException("Este onboarding no tiene una negociación pendiente de resolver.");
+        }
+
+        onboarding.setSpecialNegotiationResolvedAt(ZonedDateTime.now());
+        onboardingRepository.save(onboarding);
+
+        publishAudit(onboarding.getCommercialDetails().getId(), "COMMERCIAL_ADVISOR_NEGOTIATION_RESOLVED",
+                "Compliance resolvió la negociación con el empresario (Ruta " + onboarding.getRoute() + "), "
+                        + "acordada previamente por fuera de la plataforma.",
+                Map.of("onboardingId", onboardingId, "reviewerUserId", reviewerUserId, "route", onboarding.getRoute().name()));
+
+        log.info("Compliance userId={} resolvió la negociación del onboarding id={}", reviewerUserId, onboardingId);
     }
 
     @Override
@@ -238,7 +325,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
             onboardingRepository.save(onboarding);
         }
 
-        publishAudit(onboarding.getCommercialDetails().getId(), "COMMERCIAL_CONTRACT_REJECTED_BY_VERYGANA",
+        CommercialDetails details = onboarding.getCommercialDetails();
+        emailService.sendCommercialContractRejectedEmail(
+                details.getUser().getEmail(), details.getCompanyName(), reason, documentsIssue);
+
+        publishAudit(details.getId(), "COMMERCIAL_CONTRACT_REJECTED_BY_VERYGANA",
                 "VERYGANA rechazó el Contrato Marco v" + contract.getVersion() + ": " + reason,
                 Map.of("contractId", contract.getId(), "reviewerUserId", reviewerUserId, "documentsIssue", documentsIssue));
 
@@ -319,6 +410,13 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     // ==================== HELPERS ====================
 
     private void requireGenerationReady(CommercialOnboarding onboarding) {
+        // Rutas D/E: un asesor de VERYGANA debe confirmar condiciones antes de generar
+        // el contrato. Se resuelve desde el panel de compliance (resolveAdvisorNegotiation).
+        if (Boolean.TRUE.equals(onboarding.getRequiresSpecialNegotiation()) && onboarding.getSpecialNegotiationResolvedAt() == null) {
+            throw new OnboardingStepException(
+                    "Su cuenta requiere que un asesor de VERYGANA confirme condiciones especiales antes de "
+                            + "generar el contrato. Nos pondremos en contacto pronto.");
+        }
         // Ruta D (integración técnica) no pasa por selección de plan: se negocia
         // directamente con un asesor, así que no se exige planAcceptedAt.
         if (onboarding.getRoute() != CommercialRoute.D && onboarding.getPlanAcceptedAt() == null) {

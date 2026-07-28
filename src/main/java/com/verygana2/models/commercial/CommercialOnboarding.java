@@ -110,7 +110,13 @@ public class CommercialOnboarding {
     private Boolean wantsFixedFee; // Q4
 
     @Column(name = "requires_custom_games")
-    private Boolean requiresCustomGames; // Q8
+    private Boolean requiresCustomGames; // Q8: ¿requiere juegos personalizados?
+
+    @Column(name = "requires_pets")
+    private Boolean requiresPets; // ¿requiere mascotas?
+
+    @Column(name = "requires_surveys")
+    private Boolean requiresSurveys; // ¿requiere encuestas?
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "commercial_onboarding_tech_needs", joinColumns = @JoinColumn(name = "commercial_onboarding_id"))
@@ -121,12 +127,6 @@ public class CommercialOnboarding {
     /** Descripción libre de la integración requerida. Requerida cuando hay techIntegrationNeeds. */
     @Column(name = "integration_details", length = 1000)
     private String integrationDetails;
-
-    @Column(name = "regulated_sector")
-    private Boolean regulatedSector; // Q10
-
-    @Column(name = "requires_special_negotiation")
-    private Boolean requiresSpecialNegotiation; // Q11
 
     @Column(name = "diagnostic_completed_at")
     private ZonedDateTime diagnosticCompletedAt;
@@ -149,6 +149,23 @@ public class CommercialOnboarding {
     @Column(name = "route_confirmed_at")
     private ZonedDateTime routeConfirmedAt;
 
+    /**
+     * true para Rutas D (integración técnica, seteado en submitDiagnostic) y E
+     * (negociación especial, seteado en acceptPlan) — un único campo para "esta
+     * cuenta necesita que un asesor de VERYGANA confirme condiciones antes de
+     * generar el contrato" (ver requireGenerationReady). El motivo específico vive
+     * en integrationDetails (D) o specialNegotiationDetails (E).
+     */
+    @Column(name = "requires_special_negotiation")
+    private Boolean requiresSpecialNegotiation;
+
+    /** Cuándo compliance resolvió la negociación y desbloqueó la generación del contrato. */
+    @Column(name = "special_negotiation_resolved_at")
+    private ZonedDateTime specialNegotiationResolvedAt;
+
+    @Column(name = "special_negotiation_details", length = 1000)
+    private String specialNegotiationDetails;
+
     // ==================== PASO 6-7: PLAN Y RESUMEN ECONÓMICO ====================
     // Snapshot de las condiciones económicas en el momento de la aceptación: el
     // Plan puede cambiar después, pero lo que el comercial aceptó queda fijo aquí
@@ -157,9 +174,6 @@ public class CommercialOnboarding {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "selected_plan_id")
     private Plan selectedPlan;
-
-    @Column(name = "requires_advisor_contact")
-    private Boolean requiresAdvisorContact;
 
     @Column(name = "monthly_fee_cents_snapshot")
     private Long monthlyFeeCentsSnapshot;
@@ -192,6 +206,46 @@ public class CommercialOnboarding {
 
     @Column(name = "plan_accepted_at")
     private ZonedDateTime planAcceptedAt;
+
+    // ==================== OVERRIDES DE CAPACIDADES (NEGOCIACIÓN RUTA E) ====================
+    // Ajustes a la medida para ESTE empresario en particular, por fuera de lo que su
+    // Plan otorga por defecto — resultado de una negociación especial (ver
+    // requiresSpecialNegotiation / resolveAdvisorNegotiation). null = sin override, se
+    // usa el valor del Plan/PlanFeature (ver EffectivePlanResolver). -1 en los límites
+    // enteros significa ilimitado, igual que en PlanFeature.
+
+    @Column(name = "can_advertise_override")
+    private Boolean canAdvertiseOverride;
+
+    @Column(name = "can_use_games_override")
+    private Boolean canUseGamesOverride;
+
+    @Column(name = "can_use_surveys_override")
+    private Boolean canUseSurveysOverride;
+
+    @Column(name = "can_sell_directly_override")
+    private Boolean canSellDirectlyOverride;
+
+    @Column(name = "can_have_pets_override")
+    private Boolean canHavePetsOverride;
+
+    @Column(name = "can_promote_ally_products_override")
+    private Boolean canPromoteAllyProductsOverride;
+
+    @Column(name = "max_products_override")
+    private Integer maxProductsOverride;
+
+    @Column(name = "max_ads_override")
+    private Integer maxAdsOverride;
+
+    @Column(name = "max_branded_games_override")
+    private Integer maxBrandedGamesOverride;
+
+    @Column(name = "max_surveys_override")
+    private Integer maxSurveysOverride;
+
+    @Column(name = "visibility_boost_pct_override")
+    private java.math.BigDecimal visibilityBoostPctOverride;
 
     // ==================== PASO 8: CARGA DOCUMENTAL ====================
 
