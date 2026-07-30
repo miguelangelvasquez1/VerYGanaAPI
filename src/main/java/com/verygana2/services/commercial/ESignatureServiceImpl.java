@@ -10,6 +10,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.user.commercial.onboarding.EsignatureEnvelope;
 import com.verygana2.dtos.user.commercial.onboarding.SignatureRequest;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.models.commercial.CommercialContract;
@@ -50,16 +51,16 @@ public class ESignatureServiceImpl implements ESignatureService {
         try (var stream = r2Service.getPrivateObjectStream(contract.getObjectKey())) {
             pdfBytes = stream.readAllBytes();
         } catch (IOException e) {
-            throw new UncheckedIOException(
-                    "No se pudo leer el PDF del contrato para enviarlo a firma: " + contractId, e);
+            throw new UncheckedIOException("No se pudo leer el PDF del contrato para enviarlo a firma: " + contractId, e);
         }
 
         String signerEmail = details.getUser().getEmail();
+        String signerPhoneNumber = details.getUser().getPhoneNumber();
         String signerName = (nullSafe(onboarding.getLegalRepFirstName()) + " " + nullSafe(onboarding.getLegalRepLastName())).trim();
 
         EsignatureEnvelope envelope = esignaturePort.sendForSignature(new SignatureRequest(
-                contractId, signerName, signerEmail, pdfBytes,
-                "contrato-marco-v" + contract.getVersion() + ".pdf"));
+                contractId, details.getId(), signerName, signerEmail, signerPhoneNumber, pdfBytes,
+                "contrato-marco-v" + contract.getVersion() + details.getLegalRepDocNumber() +".pdf"));
 
         contract.setStatus(ContractStatus.PENDING_SIGNATURE);
         contract.setEsignatureProvider(envelope.provider());

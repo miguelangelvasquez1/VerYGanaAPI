@@ -45,6 +45,7 @@ import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.esignature.ESignatureApiException;
 import com.verygana2.exceptions.wompi.WompiApiException;
+import com.verygana2.exceptions.zapsign.ZapSignApiException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidRaffleStatusException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
@@ -454,6 +455,13 @@ public class GlobalExceptionHandler {
             ESignatureApiException ex, WebRequest request) {
         log.error("E-signature provider error: {}", ex.getMessage(), ex);
         return buildError(HttpStatus.BAD_GATEWAY, "E-signature provider error", request);
+    }
+
+    @ExceptionHandler(ZapSignApiException.class)
+    public ResponseEntity<ErrorResponse> handleZapSignApiException(
+            ZapSignApiException ex, WebRequest request) {
+        log.error("ZapSign background check API error: {}", ex.getMessage(), ex);
+        return buildError(HttpStatus.BAD_GATEWAY, "Background check provider error", request);
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)

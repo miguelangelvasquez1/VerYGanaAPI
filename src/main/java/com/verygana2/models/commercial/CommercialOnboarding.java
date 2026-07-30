@@ -198,12 +198,6 @@ public class CommercialOnboarding {
     @Column(name = "max_keys_pct_snapshot")
     private Integer maxKeysPctSnapshot;
 
-    @Column(name = "tax_note_snapshot", length = 1000)
-    private String taxNoteSnapshot;
-
-    @Column(name = "liquidation_conditions_snapshot", length = 1000)
-    private String liquidationConditionsSnapshot;
-
     @Column(name = "plan_accepted_at")
     private ZonedDateTime planAcceptedAt;
 

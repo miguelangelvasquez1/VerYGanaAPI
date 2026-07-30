@@ -218,9 +218,6 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 "VERYGANA aprobó el Contrato Marco v" + contract.getVersion() + ". Se envía a firma electrónica.",
                 Map.of("contractId", contract.getId(), "reviewerUserId", reviewerUserId));
 
-        // Misma transacción -> misma persistence context: requestSignature() recarga este
-        // mismo `contract` (identity map de Hibernate), así que sus cambios (status
-        // PENDING_SIGNATURE, envelopeId, etc.) ya quedan reflejados aquí sin recargarlo.
         esignatureService.requestSignature(contract.getId());
 
         return toSummary(contract);
@@ -277,8 +274,6 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 o.getContractDurationMonths(),
                 o.getSaleCommissionPctSnapshot(),
                 o.getMaxKeysPctSnapshot(),
-                o.getTaxNoteSnapshot(),
-                o.getLiquidationConditionsSnapshot(),
                 Boolean.TRUE.equals(o.getRequiresSpecialNegotiation()),
                 o.getSpecialNegotiationResolvedAt(),
                 o.getSpecialNegotiationDetails(),
@@ -363,8 +358,6 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("investmentAmountFormatted", formatMoney(o.getInvestmentAmountCentsSnapshot()));
         vars.put("saleCommissionPct", String.valueOf(o.getSaleCommissionPctSnapshot()));
         vars.put("maxKeysPct", String.valueOf(o.getMaxKeysPctSnapshot()));
-        vars.put("taxNote", nullSafe(o.getTaxNoteSnapshot()));
-        vars.put("liquidationConditions", nullSafe(o.getLiquidationConditionsSnapshot()));
 
         vars.put("contractDurationMonths", o.getContractDurationMonths() != null
                 ? o.getContractDurationMonths() + " meses" : "No aplica");

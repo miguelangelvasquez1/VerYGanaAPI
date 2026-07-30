@@ -14,6 +14,7 @@ public class PublicPaths {
         "/api/webhooks/**",
         "/wompi/events",
         "/wompi/payouts/events",
+        "/zapsign/events",
         "/test/wompi/**",
         "/ads/assets/orphan/**",
         "/games/assets",

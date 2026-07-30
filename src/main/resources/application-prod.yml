@@ -297,3 +297,20 @@ wompi:
     cron: "0 0 4 * * *"
     retry-cron: "0 30 4 * * *"
     min-balance-alert-cents: 5000000
+
+zapsign:
+  api-token: ${ZAPSIGN_API_TOKEN:}
+  # false => usa https://api.zapsign.com.br (URL derivada en ZapSignWebClientConfig).
+  # ZAPSIGN_API_TOKEN debe ser el token de PRODUCCIÓN de ZapSign, no el de sandbox.
+  sandbox: false
+  default-auth-mode: assinaturaTela
+  default-phone-country-code: "57"
+  signer-custom-message: "VERYGANA te invita a firmar electrónicamente el Contrato Marco de Vinculación Comercial."
+  lang: es
+  brand-logo: ${EMAIL_LOGO_URL:https://cdn.verygana.com/public/logos/logoDorado.png}
+  brand-name: ${ZAPSIGN_BRAND_NAME:VERyGANA}
+  require-selfie-validation: ${ZAPSIGN_REQUIRE_SELFIE_VALIDATION:false}
+  selfie-validation-type: liveness-document-match
+  background-check-country: CO
+  webhook-header-name: X-VeryGana-Secret
+  webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
