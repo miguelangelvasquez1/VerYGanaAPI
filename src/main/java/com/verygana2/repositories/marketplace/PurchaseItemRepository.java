@@ -130,6 +130,29 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             @Param("commercialId") Long commercialId,
             Pageable pageable);
 
+    // A diferencia de findTopSellingProducts (catálogo actual), este reporte es histórico:
+    // no filtra por p.status = ACTIVE porque un producto ya inactivo/descontinuado debe
+    // seguir apareciendo en el reporte del período en que sí vendió.
+    @Query("""
+            SELECT new com.verygana2.dtos.product.responses.FeaturedProductResponseDTO(
+                p.id, p.name, ia.objectKey, p.priceCents,
+                COALESCE(p.averageRate, 0.0),
+                COUNT(pi.id))
+            FROM PurchaseItem pi
+            JOIN pi.product p
+            JOIN p.imageAsset ia
+            WHERE p.commercial.id = :commercialId
+            AND pi.deliveredAt >= :startDate
+            AND pi.deliveredAt < :endDate
+            GROUP BY p.id, p.name, ia.objectKey, p.priceCents, p.averageRate
+            ORDER BY COUNT(pi.id) DESC
+            """)
+    Page<FeaturedProductResponseDTO> findTopSellingProductsByDateRange(
+            @Param("commercialId") Long commercialId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate,
+            Pageable pageable);
+
     /**
      * Desvincula (nunca borra) los PurchaseItem de un producto que se va a
      * purgar permanentemente. product y assignedProductStock quedan en null;

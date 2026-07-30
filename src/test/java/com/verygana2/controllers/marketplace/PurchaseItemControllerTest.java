@@ -49,16 +49,6 @@ class PurchaseItemControllerTest {
     }
 
     @Test
-    @DisplayName("getTotalCommercialSalesByMonth: pasa year/month recibidos como query params")
-    void getTotalCommercialSalesByMonth_delegates() {
-        when(purchaseItemService.getTotalCommercialSalesByMonth(9L, 2026, 3)).thenReturn(10);
-
-        var response = controller.getTotalCommercialSalesByMonth(jwtWithUserId(9L), 2026, 3);
-
-        assertThat(response.getBody()).isEqualTo(10);
-    }
-
-    @Test
     @DisplayName("getTopSellingProductsPage: delega con el commercialId del JWT y el pageable")
     void getTopSellingProductsPage_delegates() {
         var pageable = PageRequest.of(0, 5);

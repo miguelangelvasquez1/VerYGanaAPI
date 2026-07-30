@@ -1,7 +1,6 @@
 package com.verygana2.services.marketplace;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -81,70 +80,10 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
                 .orElseThrow(() -> new ObjectNotFoundException("Purchase item with id:" + purchaseItemId + " not found",
                         PurchaseItem.class));
     }
-
-    @Override
-    public BigDecimal getTotalCommercialSalesAmountByMonth(Long commercialId, Integer year, Integer month) {
-        if (commercialId == null || commercialId <= 0) {
-            throw new IllegalArgumentException("Commercial id must be positive");
-        }
-
-        if (year == null || year <= 0) {
-            throw new IllegalArgumentException("The year must be positive");
-        }
-
-        if (month == null || month <= 0 || month > 12) {
-            throw new IllegalArgumentException("The month number must be between 1 and 12");
-        }
-
-        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
-        ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.sumTotalCommercialSalesAmountByMonth(commercialId, startDate, endDate);
-    }
-
-    @Override
-    public Integer getTotalCommercialSalesByMonth(Long commercialId, Integer year, Integer month) {
-
-        if (commercialId == null || commercialId <= 0) {
-            throw new IllegalArgumentException("Commercial id must be positive");
-        }
-
-        if (year == null || year <= 0) {
-            throw new IllegalArgumentException("The year must be positive");
-        }
-
-        if (month == null || month <= 0 || month > 12) {
-            throw new IllegalArgumentException("The month number must be between 1 and 12");
-        }
-
-        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
-        ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.findTotalCommercialSalesByMonth(commercialId, startDate, endDate);
-    }
-
-    @Override
-    public BigDecimal getTotalPlatformComissionsByMonth(Long commercialId, Integer year, Integer month) {
-
-        if (commercialId == null || commercialId <= 0) {
-            throw new IllegalArgumentException("Commercial id must be positive");
-        }
-
-        if (year == null || year <= 0) {
-            throw new IllegalArgumentException("The year must be positive");
-        }
-
-        if (month == null || month <= 0 || month > 12) {
-            throw new IllegalArgumentException("The month number must be between 1 and 12");
-        }
-
-        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota"));
-        ZonedDateTime endDate = startDate.plusMonths(1);
-        return purchaseItemRepository.sumTotalPlatformCommissionsByMonth(commercialId, startDate, endDate);
-
-    }
-
+    
     @Override
     public PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsPage(Long commercialId, Pageable pageable) {
-        
+
         if (commercialId == null || commercialId <= 0) {
             throw new IllegalArgumentException("Commercial id must be positive");
         }
@@ -152,6 +91,48 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(commercialId, pageable);
         topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
         return PagedResponse.from(topSellingProducts);
+    }
+
+    @Override
+    public BigDecimal getTotalCommercialSalesAmountByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        validateDateRange(commercialId, startDate, endDate);
+        return purchaseItemRepository.sumTotalCommercialSalesAmountByMonth(commercialId, startDate, endDate);
+    }
+
+    @Override
+    public Integer getTotalCommercialSalesByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        validateDateRange(commercialId, startDate, endDate);
+        return purchaseItemRepository.findTotalCommercialSalesByMonth(commercialId, startDate, endDate);
+    }
+
+    @Override
+    public BigDecimal getTotalPlatformComissionsByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        validateDateRange(commercialId, startDate, endDate);
+        return purchaseItemRepository.sumTotalPlatformCommissionsByMonth(commercialId, startDate, endDate);
+    }
+
+    @Override
+    public PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsByDateRangePage(
+            Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable) {
+        validateDateRange(commercialId, startDate, endDate);
+        Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository
+                .findTopSellingProductsByDateRange(commercialId, startDate, endDate, pageable);
+        topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
+        return PagedResponse.from(topSellingProducts);
+    }
+
+    private void validateDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
+        }
+
+        if (startDate == null || endDate == null) {
+            throw new IllegalArgumentException("startDate and endDate are required");
+        }
+
+        if (!startDate.isBefore(endDate)) {
+            throw new IllegalArgumentException("startDate must be before endDate");
+        }
     }
 
     @Override
