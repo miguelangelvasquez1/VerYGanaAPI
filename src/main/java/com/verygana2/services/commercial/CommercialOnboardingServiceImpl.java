@@ -6,7 +6,6 @@ import java.util.List;
 import java.util.Map;
 
 import org.hibernate.ObjectNotFoundException;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -68,12 +67,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final ApplicationEventPublisher eventPublisher;
     private final CommercialDocumentService documentService;
     private final CommercialOnboardingMapper commercialOnboardingMapper;
-
-    @Value("${commercial.onboarding.economic-summary.tax-note}")
-    private String taxNote;
-
-    @Value("${commercial.onboarding.economic-summary.liquidation-conditions}")
-    private String liquidationConditions;
 
     @Override
     @Transactional(readOnly = true)
@@ -298,8 +291,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return new PlanComparisonResponseDTO(
                 recommendedCode,
                 isSpecialNegotiationPending(onboarding),
-                taxNote,
-                liquidationConditions,
                 plans);
     }
 
@@ -355,8 +346,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         onboarding.setContractDurationMonths(contractDurationMonths);
         onboarding.setSaleCommissionPctSnapshot(plan.getSaleCommissionPct());
         onboarding.setMaxKeysPctSnapshot(plan.getMaxKeysPct());
-        onboarding.setTaxNoteSnapshot(taxNote);
-        onboarding.setLiquidationConditionsSnapshot(liquidationConditions);
         onboarding.setPlanAcceptedAt(ZonedDateTime.now());
 
         if (onboarding.getCurrentStep() == OnboardingStep.PLAN_PENDING) {
@@ -446,8 +435,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 accepted ? onboarding.getContractDurationMonths() : null,
                 accepted ? onboarding.getSaleCommissionPctSnapshot() : plan.getSaleCommissionPct(),
                 accepted ? onboarding.getMaxKeysPctSnapshot() : plan.getMaxKeysPct(),
-                accepted ? onboarding.getTaxNoteSnapshot() : taxNote,
-                accepted ? onboarding.getLiquidationConditionsSnapshot() : liquidationConditions,
                 isSpecialNegotiationPending(onboarding),
                 onboarding.getSpecialNegotiationResolvedAt(),
                 onboarding.getSpecialNegotiationDetails(),

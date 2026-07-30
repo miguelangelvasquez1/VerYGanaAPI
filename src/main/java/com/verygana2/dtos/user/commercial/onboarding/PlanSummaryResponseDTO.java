@@ -37,9 +37,6 @@ public class PlanSummaryResponseDTO {
     private int saleCommissionPct;
     private int maxKeysPct;
 
-    private String taxNote;
-    private String liquidationConditions;
-
     /**
      * true mientras la negociación esté PENDIENTE (rutas D/E, sin resolver todavía por
      * compliance) — bloquea la generación del contrato. Una vez resuelta (ver
