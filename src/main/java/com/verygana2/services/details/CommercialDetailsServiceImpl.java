@@ -7,11 +7,14 @@ import java.time.ZonedDateTime;
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
 import com.verygana2.mappers.UserMapper;
@@ -94,6 +97,16 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
 
     @Override
     @Transactional(readOnly = true)
+    public PayoutReportResponseDTO[] getPayoutReports(Long commercialId, Integer year) {
+        PayoutReportResponseDTO[] reports = new PayoutReportResponseDTO[12];
+        for (int month = 1; month <= 12; month++) {
+            reports[month - 1] = getPayoutReport(commercialId, year, month);
+        }
+        return reports;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SalesReportResponseDTO getSalesReport(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
 
         BigDecimal salesAmount = purchaseItemService.getTotalCommercialSalesAmountByDateRange(commercialId, startDate, endDate);
@@ -112,6 +125,13 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
                 .totalPlatformCommissionsAmount(commissionsAmount)
                 .topSellingProducts(topSellingProducts)
                 .build();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public PagedResponse<DailySaleResponseDTO> getDailySales(
+            Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable) {
+        return purchaseItemService.getDailySalesPage(commercialId, startDate, endDate, pageable);
     }
 
     @Override

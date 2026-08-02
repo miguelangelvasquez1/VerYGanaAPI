@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
@@ -119,6 +120,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
                 .findTopSellingProductsByDateRange(commercialId, startDate, endDate, pageable);
         topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
         return PagedResponse.from(topSellingProducts);
+    }
+
+    @Override
+    public PagedResponse<DailySaleResponseDTO> getDailySalesPage(
+            Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable) {
+        validateDateRange(commercialId, startDate, endDate);
+        return PagedResponse.from(purchaseItemRepository
+                .findDailySalesByCommercialAndDateRange(commercialId, startDate, endDate, pageable));
     }
 
     private void validateDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.models.marketplace.PurchaseItem;
 
 public interface PurchaseItemService {
@@ -23,5 +24,9 @@ public interface PurchaseItemService {
     Integer getTotalCommercialSalesByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
     BigDecimal getTotalPlatformComissionsByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
     PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsByDateRangePage(
+            Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
+
+    /** Listado transaccional día a día (ventas individuales) del panel de ventas. */
+    PagedResponse<DailySaleResponseDTO> getDailySalesPage(
             Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
 }
