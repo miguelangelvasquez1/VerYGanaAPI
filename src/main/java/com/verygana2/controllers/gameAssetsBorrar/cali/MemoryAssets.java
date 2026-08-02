@@ -16,7 +16,7 @@ public final class MemoryAssets {
         ObjectNode gameConfig = MAPPER.createObjectNode();
         gameConfig.put("start_pairs", 2);
         gameConfig.put("final_pairs", 10);
-        gameConfig.put("game_duration", 120);
+        gameConfig.put("game_duration", 10);
         gameConfig.put("bonus_per_pair", 5);
         gameConfig.put("preview_duration", 2);
         gameConfig.put("enable_lives", true);
