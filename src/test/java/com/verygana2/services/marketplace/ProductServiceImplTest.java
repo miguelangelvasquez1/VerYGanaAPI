@@ -48,6 +48,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -92,6 +93,7 @@ class ProductServiceImplTest {
     @Mock private AssetOrphanedService assetOrphanedService;
     @Mock private ProductCodeEncryptor productCodeEncryptor;
     @Mock private TargetAudienceAssembler targetAudienceAssembler;
+    @Mock private AssetDurationService assetDurationService;
 
     private ProductServiceImpl service;
 
@@ -100,7 +102,7 @@ class ProductServiceImplTest {
         service = new ProductServiceImpl(productRepository, adminDetailsService, notificationService,
                 favoriteProductRepository, productCategoryService, productMapper, commercialDetailsRepository,
                 consumerDetailsService, productStockRepository, productImageAssetRepository, purchaseItemRepository,
-                r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler);
+                r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler, assetDurationService);
 
         ReflectionTestUtils.setField(service, "maxProductPriceCents", 50_000_000L);
         ReflectionTestUtils.setField(service, "minProductPriceCents", 100_000L);

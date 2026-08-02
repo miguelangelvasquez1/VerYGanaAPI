@@ -40,6 +40,7 @@ public class EffectivePlanResolver {
     private static final String FEAT_CAN_SELL_DIRECTLY = "CAN_SELL_DIRECTLY";
     private static final String FEAT_CAN_HAVE_PETS     = "CAN_HAVE_PETS";
     private static final String FEAT_CAN_PROMOTE_ALLY_PRODUCTS = "CAN_PROMOTE_ALLY_PRODUCTS";
+    private static final String FEAT_CAN_EXPORT_REPORT = "CAN_EXPORT_REPORT";
     private static final String FEAT_MAX_PRODUCTS      = "MAX_PRODUCTS";
     private static final String FEAT_MAX_ADS           = "MAX_ADS";
     private static final String FEAT_MAX_BRANDED_GAMES = "MAX_BRANDED_GAMES";
@@ -104,6 +105,8 @@ public class EffectivePlanResolver {
                         () -> getFeatureBool(code, FEAT_CAN_HAVE_PETS, false)))
                 .canPromoteAllyProducts(resolveBool(onboarding == null ? null : onboarding.getCanPromoteAllyProductsOverride(),
                         () -> getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false)))
+                // Sin override de onboarding todavía — solo depende del feature del Plan.
+                .canExportReport(getFeatureBool(code, FEAT_CAN_EXPORT_REPORT, false))
                 .maxProducts(resolveInt(onboarding == null ? null : onboarding.getMaxProductsOverride(),
                         () -> getFeatureInt(code, FEAT_MAX_PRODUCTS, 0)))
                 .maxAds(resolveInt(onboarding == null ? null : onboarding.getMaxAdsOverride(),

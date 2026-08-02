@@ -23,4 +23,5 @@ public interface CommercialDocumentService {
      * más recalcula el avance de paso.
      */
     CommercialDocumentsStatusResponseDTO continueToContract(Long userId);
+    
 }

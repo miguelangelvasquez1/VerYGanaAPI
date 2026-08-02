@@ -1,7 +1,7 @@
 package com.verygana2.services.marketplace;
 
 import java.math.BigDecimal;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -12,7 +12,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -29,9 +28,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests de {@link PurchaseItemServiceImpl}: consultas de ventas/comisiones
- * por comercial y mes, y la validación de argumentos que se repite en
- * prácticamente todos sus métodos (ids positivos, mes entre 1 y 12).
+ * Tests de {@link PurchaseItemServiceImpl}: consultas de ventas/comisiones por
+ * comercial y rango de fechas arbitrario, y la validación de argumentos que se
+ * repite en prácticamente todos sus métodos (ids positivos, rango de fechas válido).
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PurchaseItemServiceImpl")
@@ -42,18 +41,21 @@ class PurchaseItemServiceImplTest {
 
     private PurchaseItemServiceImpl service;
 
+    private static final ZonedDateTime START = ZonedDateTime.of(2026, 3, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+    private static final ZonedDateTime END = ZonedDateTime.of(2026, 4, 1, 0, 0, 0, 0, ZoneOffset.UTC);
+
     @BeforeEach
     void setUp() {
         service = new PurchaseItemServiceImpl(purchaseItemRepository, codeEncryptor);
     }
 
     @Nested
-    @DisplayName("getTotalCommercialSalesAmountByMonth")
-    class SalesAmountByMonth {
+    @DisplayName("getTotalCommercialSalesAmountByDateRange")
+    class SalesAmountByDateRange {
 
         @Test
-        @DisplayName("delega en el método default del repositorio (que ya convierte a pesos) con el rango correcto del mes en zona Colombia")
-        void delegatesToRepositoryWithCorrectMonthRange() {
+        @DisplayName("delega en el método default del repositorio (que ya convierte a pesos) con el rango recibido")
+        void delegatesToRepositoryWithGivenRange() {
             // sumTotalCommercialSalesAmountByMonth es un método `default` de la interfaz del
             // repositorio: como el repositorio está mockeado, Mockito NO ejecuta su cuerpo real
             // (que llama a la variante ...Cents y convierte), así que hay que stubearlo
@@ -61,51 +63,53 @@ class PurchaseItemServiceImplTest {
             when(purchaseItemRepository.sumTotalCommercialSalesAmountByMonth(
                     org.mockito.ArgumentMatchers.eq(9L), any(), any())).thenReturn(BigDecimal.valueOf(15_000));
 
-            BigDecimal result = service.getTotalCommercialSalesAmountByMonth(9L, 2026, 3);
+            BigDecimal result = service.getTotalCommercialSalesAmountByDateRange(9L, START, END);
 
             assertThat(result).isEqualByComparingTo("15000");
-
-            ArgumentCaptor<ZonedDateTime> startCaptor = ArgumentCaptor.forClass(ZonedDateTime.class);
-            ArgumentCaptor<ZonedDateTime> endCaptor = ArgumentCaptor.forClass(ZonedDateTime.class);
-            org.mockito.Mockito.verify(purchaseItemRepository).sumTotalCommercialSalesAmountByMonth(
-                    org.mockito.ArgumentMatchers.eq(9L), startCaptor.capture(), endCaptor.capture());
-            assertThat(startCaptor.getValue()).isEqualTo(
-                    ZonedDateTime.of(2026, 3, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota")));
-            assertThat(endCaptor.getValue()).isEqualTo(
-                    ZonedDateTime.of(2026, 4, 1, 0, 0, 0, 0, ZoneId.of("America/Bogota")));
+            org.mockito.Mockito.verify(purchaseItemRepository)
+                    .sumTotalCommercialSalesAmountByMonth(9L, START, END);
         }
 
         @Test
-        @DisplayName("sin ventas ese mes: el servicio retorna tal cual lo que responda el repositorio (BigDecimal.ZERO)")
+        @DisplayName("sin ventas en el rango: el servicio retorna tal cual lo que responda el repositorio (BigDecimal.ZERO)")
         void noSales_passesThroughRepositoryZero() {
             when(purchaseItemRepository.sumTotalCommercialSalesAmountByMonth(any(), any(), any()))
                     .thenReturn(BigDecimal.ZERO);
 
-            assertThat(service.getTotalCommercialSalesAmountByMonth(9L, 2026, 3)).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(service.getTotalCommercialSalesAmountByDateRange(9L, START, END)).isEqualByComparingTo(BigDecimal.ZERO);
         }
 
         @Test
-        @DisplayName("mes fuera de rango (13): lanza IllegalArgumentException")
-        void invalidMonth_throwsIllegalArgumentException() {
-            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByMonth(9L, 2026, 13))
+        @DisplayName("startDate no anterior a endDate: lanza IllegalArgumentException")
+        void startNotBeforeEnd_throwsIllegalArgumentException() {
+            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByDateRange(9L, END, START))
                     .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
         @DisplayName("commercialId inválido (<=0): lanza IllegalArgumentException")
         void invalidCommercialId_throwsIllegalArgumentException() {
-            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByMonth(0L, 2026, 3))
+            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByDateRange(0L, START, END))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("startDate o endDate null: lanza IllegalArgumentException")
+        void nullDates_throwIllegalArgumentException() {
+            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByDateRange(9L, null, END))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> service.getTotalCommercialSalesAmountByDateRange(9L, START, null))
                     .isInstanceOf(IllegalArgumentException.class);
         }
     }
 
     @Test
-    @DisplayName("getTotalPlatformComissionsByMonth: delega en el método default del repositorio")
-    void getTotalPlatformComissionsByMonth_delegatesToRepository() {
+    @DisplayName("getTotalPlatformComissionsByDateRange: delega en el método default del repositorio")
+    void getTotalPlatformComissionsByDateRange_delegatesToRepository() {
         when(purchaseItemRepository.sumTotalPlatformCommissionsByMonth(
                 org.mockito.ArgumentMatchers.eq(9L), any(), any())).thenReturn(BigDecimal.valueOf(2_500));
 
-        assertThat(service.getTotalPlatformComissionsByMonth(9L, 2026, 3)).isEqualByComparingTo("2500");
+        assertThat(service.getTotalPlatformComissionsByDateRange(9L, START, END)).isEqualByComparingTo("2500");
     }
 
     @Test

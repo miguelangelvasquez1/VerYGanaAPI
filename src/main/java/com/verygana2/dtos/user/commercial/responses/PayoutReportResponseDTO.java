@@ -11,10 +11,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class MonthlyReportResponseDTO {
+public class PayoutReportResponseDTO {
     private Long commercialId;
     private Integer month;
-    private BigDecimal totalSalesAmount;
     private BigDecimal earnings;
     private BigDecimal totalPlatformCommissionsAmount;
     private Integer year;

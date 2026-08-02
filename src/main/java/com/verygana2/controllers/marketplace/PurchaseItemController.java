@@ -10,7 +10,6 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
@@ -31,13 +30,6 @@ public class PurchaseItemController {
     public ResponseEntity<Long> getTotalCommercialSales(@AuthenticationPrincipal Jwt jwt){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseItemService.getTotalSalesbyCommercial(commercialId));
-    }
-
-    @GetMapping("/totalSales/monthly")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<Integer> getTotalCommercialSalesByMonth(@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month){
-        Long commercialId = jwt.getClaim("userId");
-        return ResponseEntity.ok(purchaseItemService.getTotalCommercialSalesByMonth(commercialId, year, month));
     }
 
     @GetMapping("/topSelling")
