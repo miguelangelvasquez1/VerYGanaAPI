@@ -158,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 1L); //"none", false
     }
 
     @Transactional(readOnly = true)
