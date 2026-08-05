@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "container_colors": [
+      "#FF5722",
+      "#4CAF50",
+      "#2196F3"
+    ],
+    "container_images": [
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" }
+    ],
+    "containers_per_key": 3
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "game_over_messages": [
+      "¡Buen intento!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 5,
+    "keys_on_completion": 60
+  }
+}

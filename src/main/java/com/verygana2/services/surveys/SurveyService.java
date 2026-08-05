@@ -83,6 +83,7 @@ public class SurveyService {
     private final PricingConfigService pricingConfigService;
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
+    private final SurveyScoringConfig scoringConfig;
 
     @Transactional
     @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS})
@@ -335,7 +336,8 @@ public class SurveyService {
         String  gender = user.getGender() != null ? user.getGender().name() : null;
 
         Page<AvailableSurveyDTO> page = surveyRepository
-                .findActiveSurveysRankedForUser(userId, age, gender, LocalDateTime.now(), pageable)
+                .findActiveSurveysRankedForUser(userId, age, gender, LocalDateTime.now(),
+                        scoringConfig.getVisibilityBoost(), pageable)
                 .map(mapper::toAvailableSurvey);
         return PagedResponse.from(page);
     }

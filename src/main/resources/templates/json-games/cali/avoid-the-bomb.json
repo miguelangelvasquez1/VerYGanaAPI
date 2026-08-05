@@ -1,0 +1,83 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "branding": {
+    "images": {
+      "main_image_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK"
+    },
+    "shader_background_config": {
+      "Back": {
+        "Enabled": true,
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+        "ColorHex": "#FFFFFFFF",
+        "ScrollSpeedX": 0.05,
+        "ScrollSpeedY": 0.0,
+        "TilingX": 1.0,
+        "TilingY": 1.0,
+        "WaveSpeed": 0.0,
+        "WaveFrequency": 0.0,
+        "WaveAmplitude": 0.0
+      },
+      "Front": {
+        "Enabled": false,
+        "SpriteUrl": "",
+        "ColorHex": "#FFFFFF00",
+        "ScrollSpeedX": 0.1,
+        "ScrollSpeedY": 0.0,
+        "TilingX": 1.0,
+        "TilingY": 1.0
+      }
+    }
+  },
+  "game_config": {
+    "duration": 30,
+    "lives": 4,
+    "spawn_interval": 1.0,
+    "min_spawn_interval": 0.4,
+    "difficulty_decrease_step": 0.02,
+    "min_up_force": 13.0,
+    "max_up_force": 17.0,
+    "side_force": 2.5,
+    "gravity_multiplier": 1.0,
+    "actions_to_complete": 30,
+    "freeze_duration": 5.0,
+    "freeze_overlay_color_hex": "#0000FF4D",
+    "good_model_scale": 1.0,
+    "bad_model_scale": 1.0,
+    "bonus_model_scale": 0.5
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "win_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "bomb_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "normal_item_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "bonus_item_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "click_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "VICTORY test",
+    "victory_phrase": "You made it! test",
+    "defeat_title": "GAME OVER test",
+    "defeat_phrase": "Try again! test"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200,
+    "combo_multiplier": 0.0
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/500x500/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  },
+  "particleEffects": [
+    { "id": "ex", "effect_type": "Explosion", "color_hex": "#FF5500", "count": 30, "start_size": 0.4, "lifetime": 0.8, "speed": 8.0, "sprite_url": "" },
+    { "id": "sh", "effect_type": "Expand", "color_hex": "#00FFFF", "count": 10, "start_size": 0.3, "lifetime": 0.8, "speed": 5.0, "sprite_url": "https://static.vecteezy.com/system/resources/thumbnails/048/301/774/small/white-star-decoration-on-christmas-tree-classic-ornament-for-winter-holiday-and-trendy-interior-png.png" },
+    { "id": "ft", "effect_type": "Fountain", "color_hex": "#FFD700", "count": 10, "start_size": 0.5, "lifetime": 2.5, "speed": 5.0, "sprite_url": "https://www.pngall.com/wp-content/uploads/5/Plain-Game-Gold-Coin-PNG-File.png" },
+    { "id": "ob", "effect_type": "Orbital", "color_hex": "#00FF00", "count": 10, "start_size": 0.2, "lifetime": 1.0, "speed": 2.0, "sprite_url": "" },
+    { "id": "im", "effect_type": "Implosion", "color_hex": "#FF00FF", "count": 50, "start_size": 0.3, "lifetime": 0.8, "speed": 12.0, "sprite_url": "" },
+    { "id": "rs", "effect_type": "Rising", "color_hex": "#AAAAAA", "count": 25, "start_size": 0.6, "lifetime": 2.2, "speed": 2.5, "sprite_url": "" }
+  ]
+}

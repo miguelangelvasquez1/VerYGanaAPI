@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+    "watermark_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "round_win_phrases": [
+      "¡Ronda ganada!",
+      "¡Buena jugada!",
+      "¡Vas ganando!"
+    ],
+    "piece_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": "",
+    "game_over_url": ""
+  },
+  "texts": {
+    "game_over_messages": [
+      "¡Buena partida!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 3,
+    "keys_on_completion": 40
+  }
+}

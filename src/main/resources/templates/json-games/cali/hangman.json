@@ -1,0 +1,85 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "branding": {
+    "images": {
+      "main_image_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "main_image_offset_y": 0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
+      "logo_watermark_offset_y": 0,
+      "keyboard_sprite_url": "https://placehold.co/64x64/00FF00/000000.png?text=KEY"
+    },
+    "shader_background_config": {
+      "Back": {
+        "ColorHex": "#FFFFFF",
+        "Speed": 0.2,
+        "Rotation": 0,
+        "Alpha": 1,
+        "Tiling": { "x": 1, "y": 1 },
+        "Direction": { "x": 1, "y": 0 },
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG"
+      },
+      "Front": {
+        "ColorHex": "#FFFFFF00",
+        "Speed": 0.5,
+        "Rotation": 0,
+        "Alpha": 0,
+        "Tiling": { "x": 1, "y": 1 },
+        "Direction": { "x": 1, "y": 0 },
+        "SpriteUrl": ""
+      }
+    },
+    "parallax_config": null
+  },
+  "game_config": {
+    "time_limit": 60,
+    "difficulty": "normal",
+    "max_attempts": 6
+  },
+  "game": {
+    "font_color_hex": "#FFFFFF",
+    "words": [
+      { "word": "ABC", "hint": "Celestial Bodies", "score": 50 },
+      { "word": "ABC", "hint": "Natural Satellite", "score": 50 },
+      { "word": "ABC", "hint": "Above Us", "score": 50 }
+    ],
+    "power_ups_config": [
+      { "type": "RevealLetter", "display_name": "Hint", "color_hex": "#ffffffff", "cost": 50, "icon_url": "https://placehold.co/64x64/FFFF00/000000.png?text=HINT" },
+      { "type": "ZapOptions", "display_name": "Zap", "color_hex": "#ffffffff", "cost": 30, "icon_url": "https://placehold.co/64x64/00FFFF/000000.png?text=ZAP" },
+      { "type": "ExtraLife", "display_name": "Life", "color_hex": "#ffffffff", "cost": 100, "icon_url": "https://placehold.co/64x64/FF00FF/FFFFFF.png?text=LIFE" }
+    ],
+    "hangman_progress_urls": [
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_1",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_2",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_3",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_4",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_5",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_6",
+      "https://placehold.co/256x256/333333/FFFFFF.png?text=HANG_7"
+    ]
+  },
+  "audio": {
+    "victory_sound_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "defeat_sound_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "click_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "reveal_sound_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "zap_sound_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "life_sound_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_phrase": "Congratulations! You Won!",
+    "victory_title": "VICTORY!",
+    "defeat_phrase": "Try Again",
+    "defeat_title": "GAME OVER"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 100
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  }
+}

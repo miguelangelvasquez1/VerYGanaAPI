@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "plane_words": [
+      "¡Vuela alto!",
+      "¡Sigue volando!",
+      "¡Casi llegas!"
+    ],
+    "rock_logos": [
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" }
+    ],
+    "character_id": 3,
+    "character_colors": [
+      "#FF0000",
+      "#00FF00",
+      "#0000FF"
+    ],
+    "key_spawn_probability": 0.15
+  },
+  "audio": {
+    "key_win_url": "",
+    "lose_url": ""
+  },
+  "texts": {
+    "game_over_messages": [
+      "¡Casi lo logras!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 5,
+    "keys_on_completion": 60
+  }
+}

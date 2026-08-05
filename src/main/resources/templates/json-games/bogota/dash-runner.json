@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "17"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "background_phrases": [
+      "¡Sigue intentándolo!",
+      "¡No te rindas!",
+      "¡Tú puedes!"
+    ],
+    "character_image_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+    "character_color": "#FFFFFF",
+    "key_spawn_probability": 0.18
+  },
+  "audio": {
+    "key_win_url": "",
+    "lose_url": ""
+  },
+  "texts": {
+    "game_over_messages": [
+      "¡Sigue intentándolo!",
+      "Hola"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 5,
+    "keys_on_completion": 5
+  }
+}
