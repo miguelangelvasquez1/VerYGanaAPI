@@ -1,6 +1,7 @@
 package com.verygana2.services.details;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 
@@ -107,6 +108,22 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
 
     @Override
     @Transactional(readOnly = true)
+    public SalesReportResponseDTO[] getSalesReports(Long commercialId, Integer year) {
+        ZoneId zone = ZoneId.of("America/Bogota");
+        SalesReportResponseDTO[] reports = new SalesReportResponseDTO[12];
+        for (int month = 1; month <= 12; month++) {
+            ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, zone);
+            ZonedDateTime endDate = startDate.plusMonths(1);
+            SalesReportResponseDTO monthlyReport = getSalesReport(commercialId, startDate, endDate);
+            monthlyReport.setMonth(month);
+            monthlyReport.setYear(year);
+            reports[month - 1] = monthlyReport;
+        }
+        return reports;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SalesReportResponseDTO getSalesReport(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
 
         BigDecimal salesAmount = purchaseItemService.getTotalCommercialSalesAmountByDateRange(commercialId, startDate, endDate);
@@ -125,6 +142,12 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
                 .totalPlatformCommissionsAmount(commissionsAmount)
                 .topSellingProducts(topSellingProducts)
                 .build();
+    }
+
+    @Override
+    public Integer getSalesCount(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        getCommercialById(commercialId);
+        return purchaseItemService.getTotalCommercialSalesByDateRange(commercialId, startDate, endDate);
     }
 
     @Override

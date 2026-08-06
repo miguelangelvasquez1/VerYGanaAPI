@@ -158,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 1L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 8L); //"none", false
     }
 
     @Transactional(readOnly = true)
@@ -306,7 +306,7 @@ public class GameServiceImpl implements GameService {
             baseUrl = String.format("https://%s/%s/%s/?game_title=%s&",
                 cdnUrl,
                 "builds/build-cali",
-                "27-07-2026",
+                "build-04-08-2026",
                 game.getUrl());
 
         } else {

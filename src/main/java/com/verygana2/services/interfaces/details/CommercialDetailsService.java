@@ -22,8 +22,10 @@ public interface CommercialDetailsService {
     PayoutReportResponseDTO getPayoutReport (Long commercialId, Integer year, Integer month);
     /** Los 12 meses del año dado, para graficar el payout mensual (ej. bar chart). */
     PayoutReportResponseDTO[] getPayoutReports (Long commercialId, Integer year);
-    /** Reporte de ventas por rango de fechas arbitrario, con top productos vendidos incluido. */
+    /** Los 12 meses del año dado, para graficar las ventas mensuales (ej. bar chart). */
+    SalesReportResponseDTO[] getSalesReports(Long commercialId, Integer year);
     SalesReportResponseDTO getSalesReport(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
+    Integer getSalesCount (Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
     /** Listado transaccional día a día (ventas individuales) dentro del rango. */
     PagedResponse<DailySaleResponseDTO> getDailySales(
             Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);

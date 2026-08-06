@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "brand_id": "",
+    "campaign_id": ""
+  },
+  "branding": {
+    "main_logo_url": "",
+    "watermark_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "card_images": [
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" }
+    ]
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "victory_messages": [
+      "¡Felicidades! Bancolombia te saluda¡"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 1,
+    "keys_on_completion": 1
+  }
+}

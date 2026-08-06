@@ -38,7 +38,8 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
     private final CommercialDetailsRepository commercialDetailsRepository;
 
     @Override
-    @RequirePlanCapability(RequirePlanCapability.Capability.CAN_PROMOTE_ALLY_PRODUCTS)
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_PROMOTE_ALLY_PRODUCTS,
+            commercialIdParam = "premiumCommercialId")
     public void toggleAllyPromotion(Long premiumCommercialId, Long productId) {
 
         Product product = productRepository.findById(productId)
@@ -54,13 +55,9 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
 
         CommercialDetails allyCommercial = product.getCommercial();
 
-        if (allyCommercial.getId().equals(premiumCommercialId)) {
-            throw new InvalidRequestException("No puedes promocionar tus propios productos");
-        }
-
         if (!isEligibleAlly(allyCommercial)) {
             throw new InvalidRequestException(
-                    "El comercial dueño del producto no es elegible como aliado (debe tener plan Básico o Estándar activo)");
+                    "El empresario dueño del producto no es elegible como aliado (debe tener plan Básico o Estándar activo)");
         }
 
         if (product.getStatus() != ProductStatus.ACTIVE) {

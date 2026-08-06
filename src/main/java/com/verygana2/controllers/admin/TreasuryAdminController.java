@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.treasury.TreasuryBalanceResponseDTO;
 import com.verygana2.dtos.treasury.TreasuryMovementResponseDTO;
@@ -24,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 public class TreasuryAdminController {
 
     private final TreasuryService treasuryService;
+    private final TreasuryConfig treasuryConfig;
 
     /**
      * Saldos actuales de las 4 cuentas virtuales con estado de salud.
@@ -46,5 +48,16 @@ public class TreasuryAdminController {
             @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
 
         return ResponseEntity.ok(PagedResponse.from(treasuryService.getMovements(code, pageable)));
+    }
+
+    /**
+     * Porcentaje configurado de distribución hacia KEYS_RESERVE.
+     *
+     * GET /admin/treasury/config/keys-reserve-pct
+     */
+    @GetMapping("/config/keys-reserve-pct")
+    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_COMMERCIAL')")
+    public ResponseEntity<Integer> getKeysReservePct() {
+        return ResponseEntity.ok(treasuryConfig.getKeysReservePct());
     }
 }

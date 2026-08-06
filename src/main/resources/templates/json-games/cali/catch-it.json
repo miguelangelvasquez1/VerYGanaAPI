@@ -1,0 +1,74 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "branding": {
+    "images": {
+      "main_image_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK"
+    },
+    "shader_background_config": {
+      "Front": {
+        "Tiling": { "x": 1.0, "y": 1.0 },
+        "Direction": { "x": 1.0, "y": 0.0 },
+        "Speed": 0.2,
+        "Rotation": 0.0,
+        "Alpha": 0.0,
+        "ColorHex": "#FFFFFF",
+        "SpriteUrl": "",
+        "Enabled": false
+      },
+      "Back": {
+        "Tiling": { "x": 1.0, "y": 1.0 },
+        "Direction": { "x": 0.0, "y": 0.0 },
+        "Speed": 0.0,
+        "Rotation": 0.0,
+        "Alpha": 1.0,
+        "ColorHex": "#FFFFFF",
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG"
+      }
+    }
+  },
+  "texts": {
+    "victory_title": "¡HAS GANADO!",
+    "victory_phrase": "¡Has recogido todos los objetos de la lista!",
+    "defeat_title": "HAS PERDIDO",
+    "defeat_phrase": "Inténtalo de nuevo."
+  },
+  "game_config": {
+    "duration": 40.0,
+    "spawn_rate": 1.2,
+    "lives": 3
+  },
+  "game": {
+    "fall_speed_min": 2.0,
+    "fall_speed_max": 4.0,
+    "basket_speed": 15.0,
+    "shopping_list_size": 4,
+    "min_quantity": 2,
+    "max_quantity": 5,
+    "list_bg_image_url": "https://placehold.co/256x256/FFFFFF/000000.png?text=LISTSDADASDASDASDASDAD",
+    "basket_sprite_url": "https://placehold.co/256x128/00FF00/000000.png?text=BASKET",
+    "objects": [
+      { "id": "item_1", "sprite_url": "https://placehold.co/128x128/FF0000/FFFFFF.png?text=ITEM_1", "score": 10, "scale": 1.0 },
+      { "id": "item_2", "sprite_url": "https://placehold.co/128x128/00FF00/FFFFFF.png?text=ITEM_2", "score": 5, "scale": 0.8 },
+      { "id": "item_3", "sprite_url": "https://placehold.co/128x128/0000FF/FFFFFF.png?text=ITEM_3", "score": 15, "scale": 1.2 },
+      { "id": "item_4", "sprite_url": "https://games.verygana.com/asset_tests/wp9751809-meme-pc-wallpapers.png", "score": 20, "scale": 1.5 },
+      { "id": "trash", "sprite_url": "https://placehold.co/128x128/333333/FFFFFF.png?text=BOMB", "score": 0, "scale": 1.0, "is_obstacle": true }
+    ]
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "positive_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "negative_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "spawn_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  }
+}

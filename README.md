@@ -39,12 +39,13 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 
 
+- 1. corrige los bugs de schema. 2. agrega todos los campos comentados a los jsons y para initial_types quitalo del script. preguntar a nestor, flujo juegos full
 - ver lo de antecedentes.
 - que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc.
 - si un commercial cambia a plan mas bajo que no se devuelva lo creado?
 
-- probar max_ads, flujo de sesiones y recompensa bien revisar.
+- probar max_ads(state del plan lo devuelve), flujo de sesiones y recompensa bien revisar.
 
 - ver que los asstes se borren del cdn.
 - ver que se puede editar o no despues de los contratos
@@ -52,6 +53,7 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 
 - actuator (backend metrics)?
 
+cambio de plan:
 C:\Users\Usuario\.claude\plans\1-antes-de-eso-jaunty-harbor.md
 
 

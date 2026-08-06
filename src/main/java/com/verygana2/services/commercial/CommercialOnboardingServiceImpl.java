@@ -409,11 +409,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return requestedAmountCents;
     }
 
-    /**
-     * BASIC es suscripción con tarifa fija recurrente: la duración del contrato aplica
-     * y es requerida. STANDARD/PREMIUM no la piden — el monto invertido se consume vía
-     * comisión a un ritmo que depende de las ventas, no de un plazo fijo — así que se ignora.
-     */
     private Integer resolveContractDuration(Plan plan, Integer requestedMonths) {
         if (plan.getCode() != Plan.PlanCode.BASIC) {
             return null;
@@ -637,8 +632,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         CommercialOnboarding onboarding = getOnboardingOrThrow(commercialId);
 
         if (onboarding.getCurrentStep() != OnboardingStep.PAYMENT_PENDING) {
-            throw new OnboardingStepException(
-                    "Debe completar y firmar el Contrato Marco antes de realizar el pago de activación.");
+            throw new OnboardingStepException("Debe completar y firmar el Contrato Marco antes de realizar el pago de activación.");
         }
 
         Plan plan = onboarding.getSelectedPlan();

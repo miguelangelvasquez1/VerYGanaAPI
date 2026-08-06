@@ -186,7 +186,11 @@ public class ProductController {
     }
 
     /**
-     * Buscar productos con filtros
+     * Buscar productos con filtros. Accesible sin autenticación (marketplace
+     * público); si el request viene de un consumer autenticado, el orden
+     * prioriza su municipio (ver ProductServiceImpl.filterProducts). Otros
+     * roles autenticados (ej. commercial) o requests anónimos reciben orden
+     * genérico, sin intentar resolver un ConsumerDetails inexistente.
      */
     @GetMapping("/filter")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> searchProducts(
@@ -194,10 +198,15 @@ public class ProductController {
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long categoryId, @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) BigDecimal maxPrice, @RequestParam(defaultValue = "0") Integer page,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection) {
 
-        Long consumerId = jwt.getClaim("userId");
+        Long consumerId = null;
+        if (jwt != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONSUMER"))) {
+            consumerId = jwt.getClaim("userId");
+        }
+
         PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(consumerId, searchQuery,
                 categoryId,
                 minRating,

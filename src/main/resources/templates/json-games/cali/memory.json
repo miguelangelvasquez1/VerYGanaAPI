@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "game_config": {
+    "start_pairs": 2,
+    "final_pairs": 10,
+    "game_duration": 10,
+    "bonus_per_pair": 5,
+    "preview_duration": 2,
+    "enable_lives": true,
+    "max_lives": 4,
+    "enable_powerups": true,
+    "power_up_chance": 0.3,
+    "bonus_time_amount": 15,
+    "levels": [
+      { "id": 1, "stage_name": "Nivel 1", "pair_count": 3, "power_up_chance": 0.3, "weight_life": 1.0, "weight_time": 1.0, "weight_hint": 1.0 },
+      { "id": 2, "stage_name": "Nivel 2", "pair_count": 6, "power_up_chance": 0.3, "weight_life": 1.0, "weight_time": 1.0, "weight_hint": 1.0 }
+    ]
+  },
+  "branding": {
+    "images": {
+      "main_logo_url": "https://games.verygana.com/asset_tests/fritolay/fritolay-logo.png",
+      "main_logo_offset_y": 0.0,
+      "logo_watermark_offset_y": 0.0,
+      "card_back_url": "https://placehold.co/256x256/3498db/ffffff.png?text=?",
+      "icon_life_url": "https://placehold.co/64x64/FF0000/FFFFFF.png?text=LIFE",
+      "icon_hint_url": "https://placehold.co/64x64/FFFF00/000000.png?text=HINT",
+      "icon_time_url": "https://placehold.co/64x64/00FF00/FFFFFF.png?text=TIME"
+    },
+    "background_config": {
+      "Front": {
+        "SpriteUrl": "https://games.verygana.com/asset_tests/fritolay/fritolay-fondo.jpeg",
+        "ColorHex": "#FFFFFF",
+        "Enabled": true,
+        "Speed": 0.2,
+        "Rotation": 0.0,
+        "LayoutMode": "TiledSquare",
+        "AspectRatio": 1.0
+      },
+      "Back": {
+        "SpriteUrl": "https://games.verygana.com/asset_tests/fritolay/fritolay-fondo.jpeg",
+        "ColorHex": "",
+        "Enabled": false,
+        "Speed": 0.05,
+        "Rotation": 0.0,
+        "LayoutMode": "TiledSquare",
+        "AspectRatio": 1.77
+      }
+    }
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "flip_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "success_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "error_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "powerup_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "victory_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "¡EXCELENTE!",
+    "victory_phrase": "Has completado todos los niveles.",
+    "defeat_title": "GAME OVER",
+    "defeat_phrase": "¡Inténtalo de nuevo!",
+    "label_time": "Tiempo",
+    "label_attempts": "Intentos",
+    "label_score": "Llaves",
+    "label_level": "Nivel"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  },
+  "game": {
+    "card_images": [
+      { "url": "https://games.verygana.com/asset_tests/fritolay/margarita-negras-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/cheesetris-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/cheetos-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/choclitos-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/choclitos-picante-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/detodito-bbq-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/detodito-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/doritos-flamin-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/doritos-fondo.jpg" },
+      { "url": "https://games.verygana.com/asset_tests/fritolay/margarita-fondo.jpg" }
+    ]
+  }
+}

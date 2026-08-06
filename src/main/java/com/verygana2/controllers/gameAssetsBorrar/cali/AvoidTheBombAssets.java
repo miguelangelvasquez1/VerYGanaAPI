@@ -64,40 +64,40 @@ public final class AvoidTheBombAssets {
         root.set("game_config", gameConfig);
 
         // game
-        // ObjectNode game = MAPPER.createObjectNode();
-        // ArrayNode goodObjects = MAPPER.createArrayNode();
-        // ObjectNode duck = MAPPER.createObjectNode();
-        // duck.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb");
-        // duck.put("scale", 1.0);
-        // goodObjects.add(duck);
-        // ObjectNode avocado = MAPPER.createObjectNode();
-        // avocado.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb");
-        // avocado.put("scale", 25.0);
-        // goodObjects.add(avocado);
-        // game.set("good_objects", goodObjects);
+        ObjectNode game = MAPPER.createObjectNode();
+        ArrayNode goodObjects = MAPPER.createArrayNode();
+        ObjectNode duck = MAPPER.createObjectNode();
+        duck.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb");
+        duck.put("scale", 1.0);
+        goodObjects.add(duck);
+        ObjectNode avocado = MAPPER.createObjectNode();
+        avocado.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb");
+        avocado.put("scale", 25.0);
+        goodObjects.add(avocado);
+        game.set("good_objects", goodObjects);
 
-        // ArrayNode bombObjects = MAPPER.createArrayNode();
-        // ObjectNode bottle = MAPPER.createObjectNode();
-        // bottle.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb");
-        // bottle.put("scale", 5);
-        // bombObjects.add(bottle);
-        // game.set("bomb_objects", bombObjects);
+        ArrayNode bombObjects = MAPPER.createArrayNode();
+        ObjectNode bottle = MAPPER.createObjectNode();
+        bottle.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb");
+        bottle.put("scale", 5);
+        bombObjects.add(bottle);
+        game.set("bomb_objects", bombObjects);
 
-        // ArrayNode bonusItems = MAPPER.createArrayNode();
-        // int[] effectIds = {1, 2, 3};
-        // double[] weights = {0.4, 0.3, 0.3};
-        // for (int i = 0; i < 3; i++) {
-        //     ObjectNode bonus = MAPPER.createObjectNode();
-        //     bonus.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb");
-        //     bonus.put("effect_id", effectIds[i]);
-        //     bonus.put("weight", weights[i]);
-        //     bonus.put("scale", 2.0);
-        //     bonusItems.add(bonus);
-        // }
-        // game.set("bonus_items", bonusItems);
-        // game.put("click_effect_url", "");
-        // game.put("explosion_effect_url", "");
-        // root.set("game", game);
+        ArrayNode bonusItems = MAPPER.createArrayNode();
+        int[] effectIds = {1, 2, 3};
+        double[] weights = {0.4, 0.3, 0.3};
+        for (int i = 0; i < 3; i++) {
+            ObjectNode bonus = MAPPER.createObjectNode();
+            bonus.put("url", "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb");
+            bonus.put("effect_id", effectIds[i]);
+            bonus.put("weight", weights[i]);
+            bonus.put("scale", 2.0);
+            bonusItems.add(bonus);
+        }
+        game.set("bonus_items", bonusItems);
+        game.put("click_effect_url", "");
+        game.put("explosion_effect_url", "");
+        root.set("game", game);
 
         // audio
         ObjectNode audio = MAPPER.createObjectNode();

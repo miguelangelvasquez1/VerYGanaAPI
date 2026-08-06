@@ -1,0 +1,104 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "game_config": {
+    "time_limit": 300,
+    "difficulty": "normal",
+    "max_errors": 3,
+    "empty_cells": 2,
+    "warning_threshold": 0.15,
+    "use_countdown": true,
+    "enable_powerups": true,
+    "levels": [
+      { "id": 1, "empty_cells": 2, "time_limit": 300, "max_errors": 5, "use_countdown": true, "enable_powerups": true },
+      { "id": 2, "empty_cells": 2, "time_limit": 600, "max_errors": 5, "use_countdown": true, "enable_powerups": true }
+    ]
+  },
+  "branding": {
+    "images": {
+      "main_logo_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "main_logo_offset_y": 0.0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
+      "logo_watermark_offset_y": 0.0,
+      "background_url": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+      "background_color_hex": "#1a1a2e",
+      "cell_background_url": "https://placehold.co/128x128/FFFFFF/000000.png?text=CELL",
+      "button_background_url": "https://placehold.co/128x128/FFFFFF/000000.png?text=BTN",
+      "bomb_url": "https://placehold.co/128x128/FF0000/FFFFFF.png?text=BOMB",
+      "horizontal_url": "https://placehold.co/256x32/00FF00/000000.png?text=HORIZ",
+      "vertical_url": "https://placehold.co/32x256/00FF00/000000.png?text=VERT"
+    },
+    "background_config": {
+      "Front": {
+        "SpriteUrl": "",
+        "ColorHex": "#FFFFFF",
+        "Enabled": false,
+        "Speed": 0.2,
+        "Rotation": 0.0,
+        "LayoutMode": "TiledSquare",
+        "AspectRatio": 1.0
+      },
+      "Back": {
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+        "ColorHex": "#FFFFFF",
+        "Enabled": true,
+        "Speed": 0.05,
+        "Rotation": 0.0,
+        "LayoutMode": "Stretched",
+        "AspectRatio": 1.77
+      }
+    },
+    "colors": {
+      "selected_hex": "#FFD700",
+      "unselected_hex": "#FFFFFF",
+      "text_normal_hex": "#000000",
+      "text_fixed_hex": "#000080",
+      "grid_bg_hex": "#FFFFFF",
+      "cell_bg_hex": "#FFFFFF",
+      "btn_bg_hex": "#EEE"
+    }
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "click_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "error_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "rocket_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "whoosh_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "bomb_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "victory_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "win_game_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "¡EXCELENTE!",
+    "victory_phrase": "Has resuelto el Sudoku correctamente.",
+    "defeat_title": "GAME OVER",
+    "defeat_phrase": "Se acabaron los intentos.",
+    "label_difficulty": "Nivel",
+    "label_time": "Tiempo",
+    "label_errors": "Fallos",
+    "label_score": "Llaves"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  },
+  "game": {
+    "tiles": [
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=1" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=2" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=3" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=4" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=5" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=6" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=7" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=8" },
+      { "url": "https://placehold.co/128x128/FFFFFF/000000.png?text=9" }
+    ]
+  }
+}

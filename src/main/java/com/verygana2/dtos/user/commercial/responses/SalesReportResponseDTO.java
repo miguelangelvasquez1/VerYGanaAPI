@@ -21,6 +21,10 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class SalesReportResponseDTO {
     private Long commercialId;
+    /** Presente solo cuando el reporte proviene de {@code getSalesReports} (reporte mensual). */
+    private Integer month;
+    /** Presente solo cuando el reporte proviene de {@code getSalesReports} (reporte mensual). */
+    private Integer year;
     private ZonedDateTime startDate;
     private ZonedDateTime endDate;
     private BigDecimal totalSalesAmount;

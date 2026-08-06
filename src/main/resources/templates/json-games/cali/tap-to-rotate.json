@@ -1,0 +1,92 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "game_config": {
+    "scroll_speed": 1.0,
+    "max_scroll_speed": 1.0,
+    "acceleration": 0.0,
+    "jump_force": 12.0,
+    "gravity_scale": 3.0,
+    "game_duration": 30,
+    "use_countdown": true,
+    "max_lives": 3
+  },
+  "branding": {
+    "images": {
+      "main_logo_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "main_logo_offset_y": 50.0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
+      "logo_watermark_offset_y": -50.0
+    },
+    "visuals": {
+      "player_url": "https://placehold.co/128x128/00FF00/000000.png?text=PLAYER",
+      "ground_url": "https://placehold.co/128x128/654321/FFFFFF.png?text=GROUND",
+      "ground_trap_url": "https://placehold.co/128x128/FF0000/FFFFFF.png?text=TRAP",
+      "coin_url": "https://placehold.co/128x128/FFFF00/000000.png?text=COIN",
+      "air_trap_url": "https://placehold.co/128x128/FF00FF/FFFFFF.png?text=MINE",
+      "bg_image_url": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+      "death_wall_url": "https://placehold.co/512x512/660000/FFFFFF.png?text=DEATH",
+      "coin_scale": 1.2,
+      "air_trap_scale": 1.0,
+      "ground_trap_scale": 0.9,
+      "ground_texture_scale": 1.0,
+      "bg_texture_scale": 1.0,
+      "bg_solid_color": "#1a0b2e",
+      "ground_color": "#ffffff",
+      "dw_primary_color": "#ff0000",
+      "dw_secondary_color": "#550000",
+      "dw_bg_color": "#220000",
+      "dw_scroll_x": 0.5,
+      "dw_scroll_y": 0.5,
+      "dw_desphase_x": 0.1,
+      "dw_desphase_y": 0.1
+    },
+    "background_config": {
+      "Front": {
+        "SpriteUrl": "https://placehold.co/512x512/FFFFFF/000000.png?text=PATTERN",
+        "ColorHex": "#FFFFFF80",
+        "Enabled": true,
+        "Speed": 0.1,
+        "Rotation": 0.0,
+        "LayoutMode": "TiledSquare",
+        "AspectRatio": 1.0
+      },
+      "Back": {
+        "SpriteUrl": "",
+        "ColorHex": "#0A0A1E",
+        "Enabled": true,
+        "Speed": 0.0,
+        "Rotation": 0.0,
+        "LayoutMode": "Stretched",
+        "AspectRatio": 1.77
+      }
+    }
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "jump_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "land_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "coin_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "death_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "victory_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "¡MISIÓN CUMPLIDA!",
+    "victory_phrase": "Excelente trabajo, sobreviviste.",
+    "defeat_title": "¡CUIDADO AHI!",
+    "defeat_phrase": "Mejor suerte la próxima vez.",
+    "label_score": "LLAVES",
+    "label_time": "TIEMPO",
+    "label_record": "RÉCORD"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  }
+}

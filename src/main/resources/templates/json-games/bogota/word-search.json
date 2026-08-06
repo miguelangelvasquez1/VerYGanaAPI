@@ -1,0 +1,38 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+    "watermark_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "words": [
+      { "word": "GANAR", "color": "#FF5722" },
+      { "word": "LLAVE", "color": "#4CAF50" },
+      { "word": "FUTBOL", "color": "#2196F3" },
+      { "word": "TENIS", "color": "#FF5722" },
+      { "word": "MICRO", "color": "#4CAF50" },
+      { "word": "TABLA", "color": "#2196F3" },
+      { "word": "GASTO", "color": "#FF5722" },
+      { "word": "MANSO", "color": "#4CAF50" },
+      { "word": "GANSO", "color": "#2196F3" },
+      { "word": "LEON", "color": "#4CAF50" }
+    ]
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "victory_messages": [
+      "¡Muy bien! Encontraste todas las palabras"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 3,
+    "keys_on_completion": 60
+  }
+}

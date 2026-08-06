@@ -30,47 +30,56 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/commercials")
 @RequiredArgsConstructor
 public class CommercialDetailsController {
-    
+
     private final CommercialDetailsService commercialDetailsService;
 
     @GetMapping("/initialData")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<CommercialInitialDataResponseDTO> getCommercialInitialData (@AuthenticationPrincipal Jwt jwt){
+    public ResponseEntity<CommercialInitialDataResponseDTO> getCommercialInitialData(@AuthenticationPrincipal Jwt jwt) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(commercialDetailsService.getCommercialInitialData(commercialId));
     }
 
     @GetMapping("/report/payout")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<PayoutReportResponseDTO> getPayoutReport (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year, @RequestParam Integer month){
+    public ResponseEntity<PayoutReportResponseDTO> getPayoutReport(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam Integer year, @RequestParam Integer month) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(commercialDetailsService.getPayoutReport(commercialId, year, month));
-        
+
     }
 
     @GetMapping("/report/payouts")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<PayoutReportResponseDTO[]> getPayoutReports (@AuthenticationPrincipal Jwt jwt, @RequestParam Integer year){
+    public ResponseEntity<PayoutReportResponseDTO[]> getPayoutReports(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam Integer year) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(commercialDetailsService.getPayoutReports(commercialId, year));
-        
+
     }
 
     /**
-     * Reporte de ventas por rango de fechas arbitrario (no limitado a mes calendario).
-     * endDate es inclusivo: internamente se filtra hasta el final de ese día.
+     * Los 12 meses del año dado, para graficar las ventas mensuales
+     * (ej. bar chart de ventas mes a mes).
      */
-    @GetMapping("/report/sales")
+    @GetMapping("/report/sales/anually")
     @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
-    public ResponseEntity<SalesReportResponseDTO> getSalesReport(
-            @AuthenticationPrincipal Jwt jwt,
+    public ResponseEntity<SalesReportResponseDTO[]> getAnuallySalesReports(@AuthenticationPrincipal Jwt jwt,
+            @RequestParam Integer year) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(commercialDetailsService.getSalesReports(commercialId, year));
+    }
+
+    @GetMapping("/report/sales/count")
+    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    public ResponseEntity<Integer> getSalesCountByDateRange(@AuthenticationPrincipal Jwt jwt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
         Long commercialId = jwt.getClaim("userId");
         ZoneId zone = ZoneId.of("America/Bogota");
         ZonedDateTime start = startDate.atStartOfDay(zone);
         ZonedDateTime end = endDate.plusDays(1).atStartOfDay(zone);
-        return ResponseEntity.ok(commercialDetailsService.getSalesReport(commercialId, start, end));
+        return ResponseEntity.ok(commercialDetailsService.getSalesCount(commercialId, start, end));
     }
 
     /**
@@ -92,7 +101,7 @@ public class CommercialDetailsController {
     }
 
     @GetMapping("/{commercialId}/profile")
-    public ResponseEntity<CommercialProfileResponseDTO> getCommercialProfile (@PathVariable Long commercialId){
+    public ResponseEntity<CommercialProfileResponseDTO> getCommercialProfile(@PathVariable Long commercialId) {
         return ResponseEntity.ok(commercialDetailsService.getCommercialProfile(commercialId));
     }
 }

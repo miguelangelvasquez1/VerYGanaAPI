@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "branding": {
+    "images": {
+      "main_image_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "main_image_offset_y": 0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
+      "logo_watermark_offset_y": 0
+    },
+    "shader_background_config": {
+      "PrimaryColorHex": "#001F5B",
+      "SecondaryColorHex": "#D00027",
+      "ParticleColorHex": "#FFD700",
+      "Speed": 1.2,
+      "Difficulty": 1.5,
+      "UseShader": true,
+      "Front": {
+        "Enabled": false
+      },
+      "Back": {
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+        "Enabled": true
+      }
+    }
+  },
+  "game_config": {
+    "difficulty": "Medium",
+    "game_duration_sec": 40,
+    "score_per_hit": 0
+  },
+  "game": {
+    "ball_speed": 500.0,
+    "paddle_speed": 600.0,
+    "brick_rows": 5,
+    "brick_columns": 9,
+    "url_ball_texture": "https://placehold.co/64x64/FFFFFF/000000.png?text=BALL",
+    "url_paddle_texture": "https://placehold.co/256x64/00FF00/000000.png?text=PADDLE",
+    "levels": [
+      {
+        "level_difficulty": "Easy",
+        "ball_speed_override": 450.0,
+        "timer_sec": 40,
+        "brick_rows": 2,
+        "brick_columns": 1,
+        "url_image": "https://games.verygana.com/asset_tests/wp9751809-meme-pc-wallpapers.png",
+        "power_ups": [
+          { "type": "MultiBall", "drop_chance": 0.1, "duration": 0, "color_hex": "#FFFFFF", "url_icon": "https://placehold.co/64x64/FFFFFF/000000.png?text=MULTIBALL" },
+          { "type": "PaddleGrow", "drop_chance": 0.1, "duration": 8, "color_hex": "#00FF00", "url_icon": "https://placehold.co/64x64/00FF00/000000.png?text=GROW" }
+        ]
+      },
+      {
+        "level_difficulty": "Medium",
+        "ball_speed_override": 550.0,
+        "timer_sec": 55,
+        "brick_rows": 2,
+        "brick_columns": 1,
+        "url_image": "https://games.verygana.com/asset_tests/wp9751809-meme-pc-wallpapers.png",
+        "power_ups": [
+          { "type": "MultiBall", "drop_chance": 0.08, "duration": 0, "color_hex": "#FFFFFF", "url_icon": "https://placehold.co/64x64/FFFFFF/000000.png?text=MULTIBALL" },
+          { "type": "Laser", "drop_chance": 0.1, "duration": 7, "color_hex": "#FF0000", "url_icon": "https://placehold.co/64x64/FF0000/FFFFFF.png?text=LASER" },
+          { "type": "Life", "drop_chance": 0.05, "duration": 0, "color_hex": "#FF00FF", "url_icon": "https://placehold.co/64x64/FF00FF/FFFFFF.png?text=LIFE" }
+        ]
+      },
+      {
+        "level_difficulty": "Hard",
+        "ball_speed_override": 650.0,
+        "timer_sec": 80,
+        "brick_rows": 2,
+        "brick_columns": 1,
+        "url_image": "https://games.verygana.com/asset_tests/wp9751809-meme-pc-wallpapers.png",
+        "power_ups": [
+          { "type": "MultiBall", "drop_chance": 0.08, "duration": 0, "color_hex": "#FFFFFF", "url_icon": "https://placehold.co/64x64/FFFFFF/000000.png?text=MULTIBALL" },
+          { "type": "Laser", "drop_chance": 0.12, "duration": 10, "color_hex": "#FF0000", "url_icon": "https://placehold.co/64x64/FF0000/FFFFFF.png?text=LASER" },
+          { "type": "SlowMotion", "drop_chance": 0.1, "duration": 6, "color_hex": "#00FFFF", "url_icon": "https://placehold.co/64x64/00FFFF/000000.png?text=SLOW" },
+          { "type": "Life", "drop_chance": 0.05, "duration": 0, "color_hex": "#FF00FF", "url_icon": "https://placehold.co/64x64/FF00FF/FFFFFF.png?text=LIFE" },
+          { "type": "PaddleGrow", "drop_chance": 0.08, "duration": 10, "color_hex": "#00FF00", "url_icon": "https://placehold.co/64x64/00FF00/000000.png?text=GROW" }
+        ]
+      }
+    ],
+    "power_ups": [
+      { "type": "MultiBall", "drop_chance": 0.1, "duration": 0, "color_hex": "#FFFFFF", "url_icon": "https://placehold.co/64x64/FFFFFF/000000.png?text=MULTIBALL" },
+      { "type": "PaddleGrow", "drop_chance": 0.1, "duration": 10, "color_hex": "#00FF00", "url_icon": "https://placehold.co/64x64/00FF00/000000.png?text=GROW" }
+    ]
+  },
+  "audio": {
+    "hit_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "brick_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "win_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "laser_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "powerup_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_phrase": "¡Felicidades!\nHas completado el nivel.",
+    "defeat_phrase": "¡No te rindas!\nInténtalo de nuevo.",
+    "victory_title": "¡VICTORIA!",
+    "defeat_title": "DERROTA",
+    "floating_words": [
+      "¡GENIAL!",
+      "¡ASOMBROSO!",
+      "¡TOMA YA!",
+      "¡BRUTAL!",
+      "¡IMPARABLE!",
+      "¡BOOM!"
+    ],
+    "floating_color_hex": "#00FFFF",
+    "floating_font_size": 42,
+    "show_particles_with_words": false
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  }
+}

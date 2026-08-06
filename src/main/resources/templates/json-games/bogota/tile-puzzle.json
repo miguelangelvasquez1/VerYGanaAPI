@@ -1,0 +1,27 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+    "watermark_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "puzzle_image_url": "https://cdn.verygana.com/public/insp-cuadradas-5.jpg"
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "victory_messages": [
+      "¡Puzzle completado!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 5,
+    "keys_on_completion": 80
+  }
+}
