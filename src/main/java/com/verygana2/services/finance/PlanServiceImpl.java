@@ -17,6 +17,7 @@ import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.enums.finance.plans.SubscriptionStatus;
 import com.verygana2.models.finance.Wallet;
@@ -27,6 +28,7 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.finance.plans.Subscription;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
+import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.finance.plans.InvestmentRepository;
@@ -55,6 +57,7 @@ public class PlanServiceImpl implements PlanService {
         private final PlanRepository planRepository;
         private final WalletRepository walletRepository;
         private final WalletService walletService;
+        private final CommercialOnboardingRepository onboardingRepository;
 
         // =========================================================================
         // PASO 1: INICIAR PAGO
@@ -283,6 +286,8 @@ public class PlanServiceImpl implements PlanService {
                                 wompiTx.getAmountInCents(),
                                 subscription.getCommercial(),
                                 wompiTx.getId());
+
+                completeOnboardingIfPending(commercial);
         }
 
         // =========================================================================
@@ -352,6 +357,8 @@ public class PlanServiceImpl implements PlanService {
                 Plan correctPlan = resolvePlanByTotalInvested(totalInvestedCents);
                 commercial.setCurrentPlan(correctPlan);
 
+                completeOnboardingIfPending(commercial);
+
                 log.info("[PLAN] Inversión activada: commercialId={}, amount={}, " +
                                 "totalInvested={}, plan={}, walletStatus={}",
                                 commercial.getId(), wompiTx.getAmountInCents(),
@@ -405,6 +412,23 @@ public class PlanServiceImpl implements PlanService {
                 // ya garantizó que el monto mínimo fue respetado en el primer depósito
                 throw new IllegalStateException(
                                 "No se encontró plan para totalInvested=" + totalInvestedCents);
+        }
+
+        /**
+         * Si este pago era el de activación del registro comercial (onboarding en
+         * PAYMENT_PENDING), lo completa. Para pagos posteriores — renovación de BASIC,
+         * recarga de inversión — el onboarding ya está COMPLETED y esto no hace nada.
+         */
+        private void completeOnboardingIfPending(CommercialDetails commercial) {
+                onboardingRepository.findByCommercialDetails_Id(commercial.getId())
+                                .filter(o -> o.getCurrentStep() == OnboardingStep.PAYMENT_PENDING)
+                                .ifPresent(onboarding -> {
+                                        onboarding.setCurrentStep(OnboardingStep.COMPLETED);
+                                        onboarding.setCompletedAt(ZonedDateTime.now());
+                                        onboardingRepository.save(onboarding);
+                                        log.info("[PLAN] Onboarding completado tras pago de activación: commercialId={}",
+                                                        commercial.getId());
+                                });
         }
 
         // =========================================================================

@@ -1,0 +1,62 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "branding": {
+    "images": {
+      "main_image_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+    },
+    "shader_background_config": {
+      "Front": {
+        "Enabled": false,
+        "SpriteUrl": ""
+      },
+      "Back": {
+        "Alpha": 1.0,
+        "ColorHex": "#FFFFFF",
+        "SpriteUrl": "https://games.verygana.com/asset_tests/redbull/fondo/azul.jpg"
+      }
+    }
+  },
+  "texts": {
+    "victory_title": "¡EXCELENTE!",
+    "victory_phrase": "¡Has machacado a todos los topos!",
+    "defeat_title": "INTÉNTALO DE NUEVO",
+    "defeat_phrase": "¡No te rindas, sigue practicando!"
+  },
+  "game_config": {
+    "duration": 60.0,
+    "gridRows": 3,
+    "gridCols": 2,
+    "audioDivisions": 6,
+    "spawnInterval": 0.8,
+    "moleLifetime": 2.0,
+    "pointsPerHit": 10,
+    "maxLives": 3
+  },
+  "game": {
+    "holeSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbull-latacerrada.png",
+    "moleSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbull-lataabierta.png",
+    "hitSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbull-lataabierta.png",
+    "errorSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbull-latarota.png",
+    "holeColorHex": "#FFFFFF",
+    "moleColorHex": "#FFFFFF",
+    "hitColorHex": "#FFFFFF",
+    "errorColorHex": "#FFFFFF",
+    "showPreviewButtons": true,
+    "previewButtonSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbbull-playbutton.png",
+    "previewButtonColorHex": "#FFFFFF"
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/redbull/redbull-tedaalas.mp3",
+    "main_audio_url": "https://games.verygana.com/asset_tests/redbull/redbull-tedaalas.mp3",
+    "hit_sfx_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "miss_sfx_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "win_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200
+  }
+}

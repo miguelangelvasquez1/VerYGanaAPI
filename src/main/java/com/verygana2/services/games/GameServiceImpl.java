@@ -158,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 6L); //"none", false
     }
 
     @Transactional(readOnly = true)
@@ -292,16 +292,23 @@ public class GameServiceImpl implements GameService {
         //             game.getUrl());
 
             baseUrl = String.format("https://%s/%s/%s/%s/?",
-            cdnUrl,
-            "builds/build-bogota",
-            "18-07-2026", // Cambia segun version
-            game.getUrl()
-            );
+                cdnUrl,
+                "builds/build-bogota",
+                "18-07-2026", // Cambia segun version
+                game.getUrl()
+                );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
 
-            baseUrl = String.format("https://%s/?game_title=%s&",
-                    "https://minijuegos.rtainor.com",
-                    game.getUrl());
+            // baseUrl = String.format("https://%s/?game_title=%s&",
+            //         "https://minijuegos.rtainor.com",
+            //         game.getUrl());
+
+            baseUrl = String.format("https://%s/%s/%s/?game_title=%s&",
+                cdnUrl,
+                "builds/build-cali",
+                "27-07-2026",
+                game.getUrl());
+
         } else {
             throw new ValidationException("Unsupported routing type");
         }

@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "character_id": 2,
+    "wood_sign_phrases": [
+      "¡Sigue corriendo!",
+      "¡No mires atrás!",
+      "¡Vas muy bien!"
+    ],
+    "wood_sign_images": [
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" },
+      { "url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png" }
+    ],
+    "key_spawn_probability": 0.12
+  },
+  "audio": {
+    "key_win_url": "",
+    "lose_url": ""
+  },
+  "texts": {
+    "game_over_messages": [
+      "¡Sigue corriendo!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 5,
+    "keys_on_completion": 60
+  }
+}

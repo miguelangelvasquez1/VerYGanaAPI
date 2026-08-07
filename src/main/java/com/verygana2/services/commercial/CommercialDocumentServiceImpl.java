@@ -91,7 +91,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
         return new DocumentUploadPermissionDTO(saved.getId(), permission);
     }
 
-    // 6. CARGAR DOCUMENTOS. El avance de paso NO es automático — ver continueToContract().
+    // 6. CARGAR DOCUMENTOS.
     @Override
     public CommercialDocumentsStatusResponseDTO confirmUpload(Long userId, Long documentId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);

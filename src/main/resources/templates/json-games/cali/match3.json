@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "brand_id": "default"
+  },
+  "game_config": {
+    "time_limit": 60,
+    "difficulty": "normal",
+    "max_attempts": 3,
+    "target_tiles": 10,
+    "total_levels": 1
+  },
+  "branding": {
+    "images": {
+      "main_logo_url": "https://placehold.co/400x200/FF5733/FFFFFF.png?text=LOGO",
+      "main_logo_offset_y": 0.0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
+      "logo_watermark_offset_y": 0.0,
+      "background_url": "",
+      "background_color_hex": "#FFFFFF",
+      "grid_background_url": "https://placehold.co/400x400/222222/444444.png?text=Grid+BG",
+      "grid_background_color_hex": "#FFFFFF"
+    },
+    "background_config": {
+      "Front": {
+        "SpriteUrl": "",
+        "ColorHex": "#FFFFFF",
+        "Enabled": true,
+        "Speed": 0.2,
+        "Rotation": 0.0,
+        "LayoutMode": "TiledSquare",
+        "AspectRatio": 1.0
+      },
+      "Back": {
+        "SpriteUrl": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG",
+        "ColorHex": "#FFFFFF",
+        "Enabled": true,
+        "Speed": 0.05,
+        "Rotation": 0.0,
+        "LayoutMode": "Stretched",
+        "AspectRatio": 1.77
+      }
+    }
+  },
+  "audio": {
+    "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
+    "victory_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "lose_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "match_url": "https://games.verygana.com/asset_tests/slash.mp3",
+    "swap_url": "https://games.verygana.com/asset_tests/slash.mp3"
+  },
+  "texts": {
+    "victory_title": "¡VICTORIA!",
+    "victory_phrase": "¡Nivel Completado!",
+    "defeat_title": "¡INTÉNTALO DE NUEVO!",
+    "defeat_phrase": "Se acabó el tiempo."
+  },
+  "rewards": {
+    "coins_per_action": 20,
+    "coins_on_completion": 200,
+    "combo_multiplier": 0.0
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  },
+  "game": {
+    "tiles": [
+      { "id": 1, "sprite_url": "https://placehold.co/128x128/FF0000/FFFFFF.png?text=1", "score": 10 },
+      { "id": 2, "sprite_url": "https://placehold.co/128x128/00FF00/FFFFFF.png?text=2", "score": 10 },
+      { "id": 3, "sprite_url": "https://placehold.co/128x128/0000FF/FFFFFF.png?text=3", "score": 10 },
+      { "id": 4, "sprite_url": "https://placehold.co/128x128/FFFF00/000000.png?text=4", "score": 10 },
+      { "id": 5, "sprite_url": "https://placehold.co/128x128/FF00FF/FFFFFF.png?text=5+Star", "score": 15 },
+      { "id": 6, "sprite_url": "https://placehold.co/128x128/00FFFF/000000.png?text=6+Star", "score": 15 }
+    ]
+  }
+}

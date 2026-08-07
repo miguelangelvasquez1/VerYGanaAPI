@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<style>
+    @page { size: letter; margin: 2.5cm 2cm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.5; }
+    h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; }
+    h2 { font-size: 12.5pt; margin-top: 22px; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+    .subtitle { text-align: center; color: #555; margin-bottom: 20px; font-size: 9.5pt; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 14px; }
+    td, th { border: 1px solid #ddd; padding: 6px 8px; font-size: 10pt; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; }
+    .rows-table th { width: 45%; }
+    .empty-section { color: #777; font-style: italic; font-size: 9.5pt; }
+    .footer { margin-top: 30px; font-size: 8.5pt; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Reporte Ejecutivo</h1>
+<p class="subtitle">
+    {{companyName}} · Plan {{planCode}} · Período {{periodLabel}} · Generado el {{generatedAt}}
+</p>
+
+{{sectionsHtml}}
+
+<div class="footer">VERYGANA — Reporte generado automáticamente a partir de las métricas disponibles al momento de la solicitud.</div>
+
+</body>
+</html>

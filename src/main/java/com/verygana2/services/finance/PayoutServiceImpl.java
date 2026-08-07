@@ -58,9 +58,7 @@ public class PayoutServiceImpl implements PayoutService {
     private final PayoutMethodRepository payoutMethodRepository;
 
     @Override
-    public BigDecimal getCommercialEarningsForPeriod(Long commercialId, Integer year, Integer month) {
-        ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, ZoneOffset.UTC);
-        ZonedDateTime endDate = startDate.plusMonths(1);
+    public BigDecimal getCommercialEarningsForDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
         return payoutRepository.sumTotalByCommercialIdAndPeriod(commercialId, startDate, endDate);
     }
 

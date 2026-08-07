@@ -165,6 +165,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.BOOLEAN)
                 .build());
 
+        Feature canExportReport = featureRepository.save(Feature.builder()
+                .code("CAN_EXPORT_REPORT")
+                .name("Puede exportar el reporte ejecutivo en PDF")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -180,6 +186,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
             pf(basic, canHavePets,     null, false, null),
             pf(basic, canPromoteAllyProducts, null, false, null),
+            pf(basic, canExportReport, null, false, null),
 
             // ── STANDARD ──────────────────────────────────────────────────────
             pf(standard, canAdvertise,    null, true,  null),
@@ -193,6 +200,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, visibilityBoost, null, null,  new BigDecimal("30.00")),
             pf(standard, canHavePets,     null, false, null),
             pf(standard, canPromoteAllyProducts, null, false, null),
+            pf(standard, canExportReport, null, false, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
@@ -205,7 +213,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, maxSurveys,      50,   null,  null),
             pf(premium, visibilityBoost, null, null,  new BigDecimal("70.00")),
             pf(premium, canHavePets,     null, true,  null),
-            pf(premium, canPromoteAllyProducts, null, true, null)
+            pf(premium, canPromoteAllyProducts, null, true, null),
+            pf(premium, canExportReport, null, true, null)
         );
 
         planFeatureRepository.saveAll(planFeatures);

@@ -144,6 +144,13 @@ ads:
     candidate-limit: 50
 
 # ============================================
+# SURVEYS CONFIG
+# ============================================
+surveys:
+  scoring:
+    visibility-boost: 1.0
+
+# ============================================
 # TREASURY DISTRIBUTION
 # ============================================
 treasury:
@@ -248,7 +255,7 @@ app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
-    expiration-hours: ${PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
+    expiration-hours: ${GD_PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
   base-url: ${APP_BASE_URL:http://localhost:8080}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}

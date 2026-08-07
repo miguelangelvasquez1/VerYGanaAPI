@@ -46,6 +46,9 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
      *
      * Score (ranking only):
      *   - Number of survey categories that match the user's preferences
+     *   - Plan VISIBILITY_BOOST of the survey's creator (see PlanDataInitializer), scaled to
+     *     [0, visibilityBoostWeight] and added to match_score — analogous to
+     *     PlanScoringFactors.visibilityBoost used by AdScorer/CampaignScorer
      */
     @Query(value = """
         SELECT s.*,
@@ -54,7 +57,15 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
                 FROM target_audience_categories tac
                 JOIN consumer_preferences ucp ON ucp.category_id = tac.category_id
                 WHERE tac.target_audience_id = s.target_audience_id AND ucp.user_id = ?1
-            ) AS match_score
+            ) AS match_score,
+            COALESCE((
+                SELECT pf.decimal_value
+                FROM commercial_details cd
+                JOIN plans p ON p.id = cd.current_plan_id
+                JOIN plan_features pf ON pf.plan_id = p.id
+                JOIN features f ON f.id = pf.feature_id AND f.code = 'VISIBILITY_BOOST'
+                WHERE cd.user_id = s.creator_id
+            ), 0) AS visibility_boost_pct
         FROM surveys s
         LEFT JOIN target_audiences ta ON ta.id = s.target_audience_id
         WHERE s.status = 'ACTIVE'
@@ -85,7 +96,7 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
               AND ss.consumer_id = ?1
               AND ss.status = 'COMPLETED'
         )
-        ORDER BY match_score DESC, s.created_at DESC
+        ORDER BY match_score + (visibility_boost_pct / 100.0) * ?5 DESC, s.created_at DESC
         """,
             countQuery = """
         SELECT COUNT(*) FROM surveys s
@@ -121,10 +132,11 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
         """,
             nativeQuery = true)
     Page<Survey> findActiveSurveysRankedForUser(
-        @Param("userId")     Long userId,
-        @Param("userAge")    Integer userAge,
-        @Param("userGender") String userGender,
-        @Param("now")        LocalDateTime now,
+        @Param("userId")               Long userId,
+        @Param("userAge")              Integer userAge,
+        @Param("userGender")           String userGender,
+        @Param("now")                  LocalDateTime now,
+        @Param("visibilityBoostWeight") double visibilityBoostWeight,
         Pageable pageable
     );
 

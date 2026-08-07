@@ -22,6 +22,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
+import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.Municipality;
@@ -45,6 +46,7 @@ import com.verygana2.services.LocationService;
 import com.verygana2.services.interfaces.commercial.CommercialDocumentService;
 import com.verygana2.services.interfaces.commercial.CommercialOnboardingService;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
+import com.verygana2.services.interfaces.finance.PlanService;
 import com.verygana2.utils.audit.AuditEvent;
 import com.verygana2.utils.audit.AuditLevel;
 
@@ -67,6 +69,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final ApplicationEventPublisher eventPublisher;
     private final CommercialDocumentService documentService;
     private final CommercialOnboardingMapper commercialOnboardingMapper;
+    private final PlanService planService;
 
     @Override
     @Transactional(readOnly = true)
@@ -406,11 +409,6 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return requestedAmountCents;
     }
 
-    /**
-     * BASIC es suscripción con tarifa fija recurrente: la duración del contrato aplica
-     * y es requerida. STANDARD/PREMIUM no la piden — el monto invertido se consume vía
-     * comisión a un ritmo que depende de las ventas, no de un plazo fijo — así que se ignora.
-     */
     private Integer resolveContractDuration(Plan plan, Integer requestedMonths) {
         if (plan.getCode() != Plan.PlanCode.BASIC) {
             return null;
@@ -626,5 +624,37 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         } catch (Exception e) {
             log.error("No se pudo publicar el evento de auditoría para la acción: {}", action, e);
         }
+    }
+
+    // 8. PASO 12: PAGO DE ACTIVACIÓN
+    @Override
+    public WompiCheckoutResponseDTO initiatePayment(Long commercialId) {
+        CommercialOnboarding onboarding = getOnboardingOrThrow(commercialId);
+
+        if (onboarding.getCurrentStep() != OnboardingStep.PAYMENT_PENDING) {
+            throw new OnboardingStepException("Debe completar y firmar el Contrato Marco antes de realizar el pago de activación.");
+        }
+
+        Plan plan = onboarding.getSelectedPlan();
+        if (plan == null) {
+            throw new OnboardingStepException("No hay un plan aceptado para procesar el pago.");
+        }
+
+        // El monto sale de lo que el comercial ya aceptó y firmó, nunca del cliente:
+        // BASIC tiene tarifa fija (PlanService la resuelve solo); STANDARD/PREMIUM usan
+        // el monto de inversión congelado en acceptPlan().
+        Long amountCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? null
+                : onboarding.getInvestmentAmountCentsSnapshot();
+
+        WompiCheckoutResponseDTO checkout = planService.initiatePlanPayment(
+                onboarding.getCommercialDetails(), plan.getCode(), amountCents);
+
+        publishAudit(commercialId, "COMMERCIAL_ONBOARDING_PAYMENT_INITIATED",
+                "Comercial inició el pago de activación de su registro (plan " + plan.getCode() + ").",
+                null, null, Map.of("planCode", plan.getCode().name()));
+
+        log.info("Comercial userId={} inició el pago de activación (plan {})", commercialId, plan.getCode());
+        return checkout;
     }
 }

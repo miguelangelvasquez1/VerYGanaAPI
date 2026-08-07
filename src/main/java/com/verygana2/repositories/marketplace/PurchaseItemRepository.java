@@ -14,6 +14,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.models.marketplace.PurchaseItem;
 
 @Repository
@@ -128,6 +129,54 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             """)
     Page<FeaturedProductResponseDTO> findTopSellingProducts(
             @Param("commercialId") Long commercialId,
+            Pageable pageable);
+
+    // A diferencia de findTopSellingProducts (catálogo actual), este reporte es histórico:
+    // no filtra por p.status = ACTIVE porque un producto ya inactivo/descontinuado debe
+    // seguir apareciendo en el reporte del período en que sí vendió.
+    @Query("""
+            SELECT new com.verygana2.dtos.product.responses.FeaturedProductResponseDTO(
+                p.id, p.name, ia.objectKey, p.priceCents,
+                COALESCE(p.averageRate, 0.0),
+                COUNT(pi.id))
+            FROM PurchaseItem pi
+            JOIN pi.product p
+            JOIN p.imageAsset ia
+            WHERE p.commercial.id = :commercialId
+            AND pi.deliveredAt >= :startDate
+            AND pi.deliveredAt < :endDate
+            GROUP BY p.id, p.name, ia.objectKey, p.priceCents, p.averageRate
+            ORDER BY COUNT(pi.id) DESC
+            """)
+    Page<FeaturedProductResponseDTO> findTopSellingProductsByDateRange(
+            @Param("commercialId") Long commercialId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate,
+            Pageable pageable);
+
+    // Listado transaccional día a día (no agregado) para el panel de ventas.
+    // Usa pi.commercialId (snapshot) y COALESCE con productNameSnapshot por la misma
+    // razón que el resto de reportes históricos de este repositorio: debe seguir
+    // siendo legible aunque el producto ya se haya purgado.
+    @Query("""
+            SELECT new com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO(
+                pi.id,
+                COALESCE(p.name, pi.productNameSnapshot),
+                pi.deliveredAt,
+                pi.subtotalCents,
+                pi.commissionCents,
+                pi.netToCommercialCents)
+            FROM PurchaseItem pi
+            LEFT JOIN pi.product p
+            WHERE pi.commercialId = :commercialId
+            AND pi.deliveredAt >= :startDate
+            AND pi.deliveredAt < :endDate
+            ORDER BY pi.deliveredAt DESC
+            """)
+    Page<DailySaleResponseDTO> findDailySalesByCommercialAndDateRange(
+            @Param("commercialId") Long commercialId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate,
             Pageable pageable);
 
     /**

@@ -19,6 +19,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
+import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.security.auth.RequestClientInfo;
 import com.verygana2.services.interfaces.commercial.CommercialOnboardingService;
 
@@ -101,7 +102,7 @@ public class CommercialOnboardingController {
         return ResponseEntity.ok(onboardingService.confirmClassification(userId));
     }
 
-    /** Paso 6-7: catálogo completo de planes (para tabla comparativa), marcando el recomendado según la ruta. */
+    /** Paso 6: catálogo completo de planes (para tabla comparativa), marcando el recomendado según la ruta. */
     @GetMapping("/plan")
     public ResponseEntity<PlanComparisonResponseDTO> getRecommendedPlan(@AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
@@ -115,5 +116,12 @@ public class CommercialOnboardingController {
             @Valid @RequestBody AcceptPlanRequestDTO dto) {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.ok(onboardingService.acceptPlan(userId, dto));
+    }
+
+    /** Paso 12: el empresario ya firmó el contrato y realiza el pago de activación. */
+    @PostMapping("/pay")
+    public ResponseEntity<WompiCheckoutResponseDTO> initiatePayment(@AuthenticationPrincipal Jwt jwt) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(onboardingService.initiatePayment(commercialId));
     }
 }

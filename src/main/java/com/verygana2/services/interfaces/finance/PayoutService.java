@@ -10,7 +10,7 @@ import com.verygana2.dtos.payout.PayoutResponseDTO;
 
 public interface PayoutService {
 
-    BigDecimal getCommercialEarningsForPeriod(Long commercialId, Integer year, Integer month);
+    BigDecimal getCommercialEarningsForDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
 
     /** Agrupa copayments COMPLETED del período y crea un Payout por empresario. */
     void scheduleDailyPayouts(ZonedDateTime periodStart, ZonedDateTime periodEnd);

@@ -85,6 +85,12 @@ public class PlanFeatureGuard {
                         "El plan " + state.getEffectivePlan().name() + " no permite promocionar productos de aliados");
                 }
             }
+            case CAN_EXPORT_REPORT -> {
+                if (!state.isCanExportReport()) {
+                    throw new PlanCapabilityException(
+                        "El plan " + state.getEffectivePlan().name() + " no permite exportar el reporte ejecutivo en PDF");
+                }
+            }
             case MAX_PRODUCTS -> {
                 long current = productRepository.countByCommercialIdAndIsActive(commercialId);
                 if (current >= state.getMaxProducts()) {

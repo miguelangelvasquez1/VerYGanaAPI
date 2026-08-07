@@ -44,6 +44,8 @@ public class EffectivePlanState {
 
     boolean canPromoteAllyProducts;
 
+    boolean canExportReport;
+
     int maxProducts;
 
     int maxAds;
@@ -67,6 +69,7 @@ public class EffectivePlanState {
                 .canSellDirectly(false)
                 .canHavePets(false)
                 .canPromoteAllyProducts(false)
+                .canExportReport(false)
                 .maxProducts(0)
                 .maxAds(0)
                 .maxBrandedGames(0)

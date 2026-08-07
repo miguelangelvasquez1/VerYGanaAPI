@@ -20,6 +20,7 @@ public @interface RequirePlanCapability {
         CAN_SELL_DIRECTLY,
         CAN_HAVE_PETS,
         CAN_PROMOTE_ALLY_PRODUCTS,
+        CAN_EXPORT_REPORT,
         MAX_PRODUCTS,
         MAX_ADS,
         MAX_BRANDED_GAMES,

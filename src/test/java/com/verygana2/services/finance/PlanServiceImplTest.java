@@ -25,6 +25,7 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.finance.plans.Subscription;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
+import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.finance.plans.InvestmentRepository;
@@ -62,6 +63,7 @@ class PlanServiceImplTest {
     @Mock private PlanRepository planRepository;
     @Mock private WalletRepository walletRepository;
     @Mock private WalletService walletService;
+    @Mock private CommercialOnboardingRepository onboardingRepository;
 
     private PlanServiceImpl service;
 
@@ -69,7 +71,7 @@ class PlanServiceImplTest {
     void setUp() {
         service = new PlanServiceImpl(wompiService, wompiTransactionRepository, commercialDetailsRepository,
                 treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
-                walletRepository, walletService);
+                walletRepository, walletService, onboardingRepository);
     }
 
     private CommercialDetails commercial(Long id) {

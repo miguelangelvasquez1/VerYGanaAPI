@@ -9,6 +9,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.TermsAcceptanceRequestDTO;
+import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 
 public interface CommercialOnboardingService {
 
@@ -43,4 +44,13 @@ public interface CommercialOnboardingService {
      * que generar un PDF nuevo solo para verificarlos.
      */
     CommercialOnboardingSummaryResponseDTO getSummary(Long userId);
+
+    /**
+     * Paso 12: el comercial en registro (onboarding, ya con el Contrato Marco firmado)
+     * genera el checkout de Wompi para el pago de activación. El monto y el tipo de
+     * cobro (suscripción BASIC vs. depósito STANDARD/PREMIUM) se derivan del plan que
+     * ya aceptó y firmó — nunca del cliente — para que no pueda pagar un monto distinto
+     * al negociado. La confirmación del pago (webhook) completa el onboarding.
+     */
+    WompiCheckoutResponseDTO initiatePayment(Long commercialId);
 }

@@ -65,6 +65,7 @@ import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -108,6 +109,8 @@ public class ProductServiceImpl implements ProductService {
     private final ProductCodeEncryptor productCodeEncryptor;
 
     private final TargetAudienceAssembler targetAudienceAssembler;
+
+    private final AssetDurationService assetDurationService;
 
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
@@ -194,6 +197,14 @@ public class ProductServiceImpl implements ProductService {
                     asset.getSizeBytes(),
                     maxSizeBytesForImages,
                     allowedImageMimeTypes);
+
+            AssetDurationService.ImageDimensions dimensions = assetDurationService
+                    .getImageDimensions(asset.getObjectKey());
+            if (dimensions.width() != dimensions.height()) {
+                throw new ValidationException(
+                        "La imagen debe tener formato cuadrado (1:1). Recibida: " + dimensions.width() + "x"
+                                + dimensions.height());
+            }
 
             asset.setMimeType(realMimeType);
             asset.setStatus(AssetStatus.VALIDATED);
@@ -307,6 +318,7 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.INACTIVE);
         product.setDeletedAt(ZonedDateTime.now(ZoneOffset.UTC));
         productRepository.save(Objects.requireNonNull(product));
+        notificationService.createInternalNotification(commercialId, "Producto eliminado", "Tu producto (" + product.getName() + ") ha sido eliminado correctamente", Instant.now());
     }
 
     @Override
@@ -317,7 +329,7 @@ public class ProductServiceImpl implements ProductService {
         product.setStatus(ProductStatus.INACTIVE);
         product.setDeletedAt(ZonedDateTime.now(ZoneOffset.UTC));
 
-        notificationService.createInternalNotification(product.getCommercial().getId(), "Producto eliminado", reason, Instant.now());
+        notificationService.createInternalNotification(product.getCommercial().getId(), "Producto eliminado", "Razón: " + reason, Instant.now());
         
         productRepository.save(Objects.requireNonNull(product));
     }
@@ -635,6 +647,8 @@ public class ProductServiceImpl implements ProductService {
 
         log.info("Product {} approved and image moved to public", productId);
 
+        notificationService.createInternalNotification(product.getCommercial().getId(), "Producto aprobado", "Tu producto (" + product.getName() + ") ha sido aprobado por uno de nuestros administradores", Instant.now());
+
         return productMapper.toProductResponseDTO(product);
     }
 
@@ -658,7 +672,7 @@ public class ProductServiceImpl implements ProductService {
         log.info("Product {} rejected succesfully", productId);
 
         notificationService.createInternalNotification(product.getCommercial().getId(),
-                "Solicitud de creacion de producto rechazada", reason, Instant.now());
+                "Producto rechazado", "Razón: " + reason, Instant.now());
         return productMapper.toProductResponseDTO(product);
     }
 

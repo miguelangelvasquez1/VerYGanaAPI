@@ -55,4 +55,32 @@ public class AssetDurationService {
             throw new StorageException("Error obteniendo duración del video", e);
         }
     }
+
+    public ImageDimensions getImageDimensions(String objectKey) {
+        try {
+            String presignedUrl = r2Service.getPrivateObject(objectKey, 60);
+
+            FFprobeResult result = FFprobe.atPath()
+                .setShowStreams(true)
+                .setLogLevel(LogLevel.ERROR)
+                .setInput(presignedUrl)
+                .execute();
+
+            Stream stream = result.getStreams().stream()
+                .filter(s -> s.getWidth() != null && s.getHeight() != null)
+                .findFirst()
+                .orElseThrow(() -> new ValidationException("No se pudieron leer las dimensiones de la imagen"));
+
+            return new ImageDimensions(stream.getWidth(), stream.getHeight());
+
+        } catch (ValidationException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error obteniendo dimensiones via presigned URL: {}: {}", objectKey, e.getMessage(), e);
+            throw new StorageException("Error obteniendo dimensiones de la imagen", e);
+        }
+    }
+
+    public record ImageDimensions(int width, int height) {
+    }
 }

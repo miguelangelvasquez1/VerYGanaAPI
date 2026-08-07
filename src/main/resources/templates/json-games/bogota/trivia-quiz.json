@@ -1,0 +1,88 @@
+{
+  "meta": {
+    "brand_id": "default",
+    "campaign_id": "23"
+  },
+  "branding": {
+    "main_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+    "watermark_logo_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+  },
+  "game_config": {},
+  "game": {
+    "questions": [
+      {
+        "id": 1,
+        "question": "¿Cuál es la capital de Colombia?",
+        "options": ["Bogotá", "Medellín", "Cali", "Barranquilla"],
+        "correct_answer_index": 0
+      },
+      {
+        "id": 2,
+        "question": "¿Cuántos jugadores tiene un equipo de fútbol en cancha?",
+        "options": ["9", "10", "11", "12"],
+        "correct_answer_index": 2
+      },
+      {
+        "id": 3,
+        "question": "¿Cuál es el río más largo del mundo?",
+        "options": ["Nilo", "Amazonas", "Yangtsé", "Misisipi"],
+        "correct_answer_index": 1
+      },
+      {
+        "id": 4,
+        "question": "¿En qué año llegó el ser humano a la Luna?",
+        "options": ["1965", "1969", "1972", "1959"],
+        "correct_answer_index": 1
+      },
+      {
+        "id": 5,
+        "question": "¿Cuál es el planeta más grande del sistema solar?",
+        "options": ["Saturno", "Tierra", "Júpiter", "Neptuno"],
+        "correct_answer_index": 2
+      },
+      {
+        "id": 6,
+        "question": "¿Quién pintó la Mona Lisa?",
+        "options": ["Pablo Picasso", "Leonardo da Vinci", "Vincent van Gogh", "Miguel Ángel"],
+        "correct_answer_index": 1
+      },
+      {
+        "id": 7,
+        "question": "¿Cuántos continentes hay en el mundo?",
+        "options": ["5", "6", "7", "8"],
+        "correct_answer_index": 2
+      },
+      {
+        "id": 8,
+        "question": "¿Cuál es el metal más abundante en la corteza terrestre?",
+        "options": ["Hierro", "Aluminio", "Cobre", "Zinc"],
+        "correct_answer_index": 1
+      },
+      {
+        "id": 9,
+        "question": "¿En qué país se originaron los Juegos Olímpicos?",
+        "options": ["Italia", "Grecia", "Egipto", "Francia"],
+        "correct_answer_index": 1
+      },
+      {
+        "id": 10,
+        "question": "¿Cuál es el idioma más hablado del mundo por número de hablantes nativos?",
+        "options": ["Inglés", "Español", "Mandarín", "Hindi"],
+        "correct_answer_index": 2
+      }
+    ]
+  },
+  "audio": {
+    "key_win_url": "",
+    "victory_url": ""
+  },
+  "texts": {
+    "victory_messages": [
+      "¡Excelente conocimiento!"
+    ]
+  },
+  "rewards": {
+    "keys_per_action": 3,
+    "keys_on_completion": 50
+  }
+}
