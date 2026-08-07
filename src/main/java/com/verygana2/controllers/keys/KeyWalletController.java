@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/consumer/wallet/keys")
-@PreAuthorize("hasRole('ROLE_CONSUMER')")
+@PreAuthorize("hasRole('CONSUMER')")
 @RequiredArgsConstructor
 public class KeyWalletController {
 

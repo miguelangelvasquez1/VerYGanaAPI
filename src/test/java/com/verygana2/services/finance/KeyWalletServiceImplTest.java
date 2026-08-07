@@ -168,5 +168,41 @@ class KeyWalletServiceImplTest {
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(10L * KEY_VALUE_CENTS); // sin cambios
             verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
         }
+
+        @Test
+        @DisplayName("el juego manda 'amount' en llaves y se convierte a centavos")
+        void amountInKeys_isConvertedToCents() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+
+            // Payload tal como lo serializa Unity: {"amount": 30, ...}
+            SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
+                    new SpendKeysRequestDTO(null, 30L, 1, "Sombrero"));
+
+            assertThat(response.success()).isTrue();
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(70L * KEY_VALUE_CENTS);
+        }
+    }
+
+    @Nested
+    @DisplayName("getBalance")
+    class GetBalance {
+
+        /**
+         * Regresión: getBalance sumaba conectividad pero spendKeysForPetGame solo
+         * puede debitar llaves de compra, así que el juego mostraba saldo gastable
+         * que al usarse daba "saldo insuficiente".
+         */
+        @Test
+        @DisplayName("solo cuenta llaves de compra, no las de conectividad")
+        void countsOnlyPurchaseKeys() {
+            KeyWallet wallet = KeyWallet.builder()
+                    .purchaseKeysCents(401L)        // 0,401 llaves
+                    .connectivityKeysCents(799L)    // 0,799 llaves
+                    .build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+
+            assertThat(service.getBalance(9L).balance()).isZero();
+        }
     }
 }
