@@ -352,6 +352,14 @@ legal:
     max-size-bytes: 10485760 # 10 MB
 
 # ============================================
+# OBSERVABILIDAD (dev)
+# ============================================
+observability:
+  # Token fijo solo para local: curl -H "Authorization: Bearer dev-scrape-token" \
+  #   http://localhost:8080/actuator/prometheus
+  scrape-token: ${METRICS_SCRAPE_TOKEN:dev-scrape-token}
+
+# ============================================
 # SCREENING / SAGRILAFT CONFIG
 # ============================================
 screening:
