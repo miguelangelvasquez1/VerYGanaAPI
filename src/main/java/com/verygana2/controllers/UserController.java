@@ -24,6 +24,7 @@ public class UserController {
 
     //Borrrar
     @GetMapping
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<String> getAllUsers() {
         return ResponseEntity.ok("Hello, Users! This endpoint is under construction.");
     }
@@ -36,15 +37,18 @@ public class UserController {
         return "User: " + subject + ", Roles: " + scope + " Id: " + id;
     }
 
-    // Obtener usuario por id
+    // Obtener usuario por id. Devuelve la entidad completa (documento, teléfono,
+    // dirección...), por eso queda restringido a administradores.
     @GetMapping("/id/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<User> getUserById(@PathVariable Long id) {
         User foundUser = userService.getUserById(id);
         return ResponseEntity.ok(foundUser);
     }
 
-    // Obtener usuario por email
+    // Obtener usuario por email. Misma exposición de PII que getUserById.
     @GetMapping("/email/{email}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
         User foundUser = userService.getUserByEmail(email);
         return ResponseEntity.ok(foundUser);
@@ -64,6 +68,7 @@ public class UserController {
 
     // Borrar un usuario por id
     @DeleteMapping("/delete/id/{id}")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public void deleteById(@PathVariable Long id){
         userService.deleteById(id);
     }

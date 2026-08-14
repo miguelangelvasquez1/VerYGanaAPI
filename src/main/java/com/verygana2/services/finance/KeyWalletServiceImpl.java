@@ -102,7 +102,10 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     @Transactional(readOnly = true)
     public KeyBalanceResponseDTO getBalance(Long consumerId) {
         KeyWallet wallet = getByConsumerId(consumerId);
-        return new KeyBalanceResponseDTO(wallet.getAvailableKeysCents() / keyValueCents, "keys");
+        // Solo llaves de compra: son las únicas que spendKeysForPetGame puede debitar.
+        // Sumar las de conectividad (getAvailableKeysCents) mostraba saldo que el juego
+        // no podía gastar — "tengo 1 llave" seguido de "saldo insuficiente".
+        return new KeyBalanceResponseDTO(wallet.getPurchaseKeysCents() / keyValueCents, "keys");
     }
 
     @Override
@@ -110,16 +113,21 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
         KeyWallet wallet = getByConsumerId(consumerId);
 
-        if (!wallet.hasSufficientPurchaseKeysCents(request.amountCents())) {
+        // El juego manda llaves y el resto de clientes centavos; acá ya es centavos.
+        long amountCents = request.resolveAmountCents(keyValueCents);
+
+        if (!wallet.hasSufficientPurchaseKeysCents(amountCents)) {
             return SpendKeysResponseDTO.fail("Saldo insuficiente");
         }
 
-        wallet.expirePurchaseKeysCents(request.amountCents());
+        wallet.expirePurchaseKeysCents(amountCents);
         keyWalletRepository.save(wallet);
 
         keyTransactionRepository.save(
-                KeyTransaction.forPetGame(wallet, request.amountCents(), request.itemName()));
+                KeyTransaction.forPetGame(wallet, amountCents, request.itemName()));
 
-        return SpendKeysResponseDTO.ok(wallet.getAvailableKeysCents() / keyValueCents);
+        // Mismo criterio que getBalance, para que el saldo que devuelve la compra
+        // coincida con el que el juego consulta después.
+        return SpendKeysResponseDTO.ok(wallet.getPurchaseKeysCents() / keyValueCents);
     }
 }

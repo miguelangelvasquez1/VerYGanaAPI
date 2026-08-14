@@ -9,9 +9,8 @@ public class PublicPaths {
         "/products/{id}",
         "/legal-documents/**",
         "/auth/**",
-        "/users/**",
+        "/users/exists/**",
         "/locations/**",
-        "/admin/import-locations",
         "/api/webhooks/**",
         "/wompi/events",
         "/wompi/payouts/events",
@@ -25,7 +24,10 @@ public class PublicPaths {
         "/api/raffles/**",
         "/ws/**",
         "/ws/info/**",
-            "/pet/**",
+            "/pet/catalog",
+            "/pet/scenes",
+            "/pet/notifications",
+            "/pet/notifications/*/read",
             "/api/levels/config"
         };
 }

@@ -101,6 +101,25 @@
             <optional>true</optional>
         </dependency>
 
+        <!-- Observabilidad: Actuator expone /actuator/prometheus, Micrometer instrumenta
+             JVM, HikariCP, HTTP y los @Scheduled (ver config/metrics). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <!-- Ya llegaba transitivamente por data-jpa (lo usa AuditAspect); se declara
+             explícito porque ScheduledJobMetricsAspect depende de AOP directamente. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-aop</artifactId>
+        </dependency>
+
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
