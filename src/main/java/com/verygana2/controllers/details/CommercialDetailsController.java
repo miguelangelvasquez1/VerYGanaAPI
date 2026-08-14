@@ -34,14 +34,14 @@ public class CommercialDetailsController {
     private final CommercialDetailsService commercialDetailsService;
 
     @GetMapping("/initialData")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<CommercialInitialDataResponseDTO> getCommercialInitialData(@AuthenticationPrincipal Jwt jwt) {
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(commercialDetailsService.getCommercialInitialData(commercialId));
     }
 
     @GetMapping("/report/payout")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PayoutReportResponseDTO> getPayoutReport(@AuthenticationPrincipal Jwt jwt,
             @RequestParam Integer year, @RequestParam Integer month) {
         Long commercialId = jwt.getClaim("userId");
@@ -50,7 +50,7 @@ public class CommercialDetailsController {
     }
 
     @GetMapping("/report/payouts")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PayoutReportResponseDTO[]> getPayoutReports(@AuthenticationPrincipal Jwt jwt,
             @RequestParam Integer year) {
         Long commercialId = jwt.getClaim("userId");
@@ -63,7 +63,7 @@ public class CommercialDetailsController {
      * (ej. bar chart de ventas mes a mes).
      */
     @GetMapping("/report/sales/anually")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<SalesReportResponseDTO[]> getAnuallySalesReports(@AuthenticationPrincipal Jwt jwt,
             @RequestParam Integer year) {
         Long commercialId = jwt.getClaim("userId");
@@ -71,7 +71,7 @@ public class CommercialDetailsController {
     }
 
     @GetMapping("/report/sales/count")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Integer> getSalesCountByDateRange(@AuthenticationPrincipal Jwt jwt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -87,7 +87,7 @@ public class CommercialDetailsController {
      * (a diferencia de /report/range, que solo trae agregados + top productos).
      */
     @GetMapping("/report/sales/daily")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PagedResponse<DailySaleResponseDTO>> getDailySales(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

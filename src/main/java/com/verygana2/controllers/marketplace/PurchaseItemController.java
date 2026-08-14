@@ -26,21 +26,21 @@ public class PurchaseItemController {
     private final PurchaseItemService purchaseItemService;
 
     @GetMapping("/totalSales")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Long> getTotalCommercialSales(@AuthenticationPrincipal Jwt jwt){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseItemService.getTotalSalesbyCommercial(commercialId));
     }
 
     @GetMapping("/topSelling")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PagedResponse<FeaturedProductResponseDTO>> getTopSellingProductsPage (@AuthenticationPrincipal Jwt jwt, @PageableDefault(size = 5, page = 0) Pageable pageable){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseItemService.getTopSellingProductsPage(commercialId, pageable));
     }
 
     @GetMapping("/{purchaseItemId}/delivered-code")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<String> getDeliveredCode (@AuthenticationPrincipal Jwt jwt,
             @PathVariable("purchaseItemId") Long purchaseItemId){
         Long consumerId = jwt.getClaim("userId");

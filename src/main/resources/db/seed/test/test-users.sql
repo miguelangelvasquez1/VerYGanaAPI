@@ -188,8 +188,6 @@ INSERT INTO commercial_onboarding (
     contract_duration_months,
     sale_commission_pct_snapshot,
     max_keys_pct_snapshot,
-    tax_note_snapshot,
-    liquidation_conditions_snapshot,
     plan_accepted_at,
     -- Paso 8: Carga documental
     documents_completed_at
@@ -236,8 +234,6 @@ SELECT
     NULL, -- contract_duration_months: solo aplica a BASIC, este seed usa STANDARD
     p.sale_commission_pct,
     p.max_keys_pct,
-    'Los valores anteriores no incluyen IVA (19%). El IVA aplicable se liquidará según la normativa vigente al momento de cada transacción.',
-    'Los pagos se liquidan de forma mensual, dentro de los primeros 5 días hábiles del mes siguiente, previa deducción de la comisión de VERYGANA, a la cuenta bancaria certificada por el comerciante.',
     NOW(),
     -- Documentos
     NOW()
@@ -277,8 +273,6 @@ ON DUPLICATE KEY UPDATE
     contract_duration_months = VALUES(contract_duration_months),
     sale_commission_pct_snapshot = VALUES(sale_commission_pct_snapshot),
     max_keys_pct_snapshot = VALUES(max_keys_pct_snapshot),
-    tax_note_snapshot = VALUES(tax_note_snapshot),
-    liquidation_conditions_snapshot = VALUES(liquidation_conditions_snapshot),
     plan_accepted_at = VALUES(plan_accepted_at),
     documents_completed_at = VALUES(documents_completed_at);
 

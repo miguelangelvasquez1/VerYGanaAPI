@@ -11,11 +11,25 @@ import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ComplianceOfficerRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.dtos.user.GameDesignerRegisterDTO;
+import com.verygana2.dtos.user.admin.AdminResponseDTO;
+import com.verygana2.dtos.user.admin.AdminSummaryResponseDTO;
+import com.verygana2.dtos.user.admin.UserSummaryResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialSummaryResponseDTO;
+import com.verygana2.dtos.user.admin.complianceOfficers.ComplianceOfficerResponseDTO;
+import com.verygana2.dtos.user.admin.complianceOfficers.ComplianceOfficerSummaryResponseDTO;
+import com.verygana2.dtos.user.admin.consumers.ConsumerResponseDTO;
+import com.verygana2.dtos.user.admin.consumers.ConsumerSummaryResponseDTO;
+import com.verygana2.dtos.user.admin.gameDesigners.GameDesignerResponseDTO;
+import com.verygana2.dtos.user.admin.gameDesigners.GameDesignerSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.models.User;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ComplianceOfficerDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -71,6 +85,24 @@ public abstract class UserMapper {
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "pep", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    public abstract ConsumerSummaryResponseDTO toConsumerSummaryResponseDTO (ConsumerDetails consumerDetails);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "phoneNumber", source = "user.phoneNumber")
+    @Mapping(target = "registeredDate", source = "user.registeredDate")
+    @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
+    @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
+    @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
+    @Mapping(target = "referredBy", source = "referredBy.user.id")
+    public abstract ConsumerResponseDTO toConsumerResponseDTO (ConsumerDetails consumerDetails);
 
     @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeysCents", qualifiedByName = "centsToKeys")
     @Mapping(target = "purchaseKeys", source = "keyWallet.purchaseKeysCents", qualifiedByName = "centsToKeys")
@@ -170,6 +202,34 @@ public abstract class UserMapper {
     @Mapping(target = "activeProducts", ignore = true)
     public abstract CommercialProfileResponseDTO toCommercialProfileResponseDTO(CommercialDetails commercial);
 
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    public abstract CommercialSummaryResponseDTO toCommercialSummaryResponseDTO (CommercialDetails commercial);
+
+    @Mapping(target = "planCode", source = "code")
+    @Mapping(target = "planName", source = "name")
+    @Mapping(target = "monthlyFeeCents", source = "monthlyPriceCents")
+    @Mapping(target = "investmentAmountCents", ignore = true)
+    @Mapping(target = "contractDurationMonths", ignore = true)
+    @Mapping(target = "requiresSpecialNegotiation", ignore = true)
+    @Mapping(target = "specialNegotiationResolvedAt", ignore = true)
+    @Mapping(target = "specialNegotiationDetails", ignore = true)
+    @Mapping(target = "accepted", ignore = true)
+    @Mapping(target = "acceptedAt", ignore = true)
+    public abstract PlanSummaryResponseDTO toPlanSummaryResponseDTO (Plan plan);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "phoneNumber", source = "user.phoneNumber")
+    @Mapping(target = "registeredDate", source = "user.registeredDate")
+    @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
+    @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
+    public abstract CommercialResponseDTO toCommercialResponseDTO (CommercialDetails commercial);
+
     // ---- GAME DESIGNER ----
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "role", constant = "GAME_DESIGNER")
@@ -193,6 +253,22 @@ public abstract class UserMapper {
     @Mapping(target = "active", expression = "java(true)")
     public abstract GameDesignerDetails toGameDesignerDetails(GameDesignerRegisterDTO dto);
 
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    public abstract GameDesignerSummaryResponseDTO toGameDesignerSummaryResponseDTO (GameDesignerDetails gameDesigner);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "phoneNumber", source = "user.phoneNumber")
+    @Mapping(target = "registeredDate", source = "user.registeredDate")
+    @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
+    @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
+    public abstract GameDesignerResponseDTO toGameDesignerResponseDTO (GameDesignerDetails gameDesigner);
+
     // ---- COMPLIANCE OFFICER ----
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "role", constant = "COMPLIANCE_OFFICER")
@@ -211,4 +287,40 @@ public abstract class UserMapper {
     @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "badgeNumber", ignore = true)
     public abstract ComplianceOfficerDetails toComplianceOfficerDetails(ComplianceOfficerRegisterDTO dto);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    public abstract ComplianceOfficerSummaryResponseDTO toComplianceOfficerSummaryResponseDTO (ComplianceOfficerDetails complianceOfficer);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "phoneNumber", source = "user.phoneNumber")
+    @Mapping(target = "registeredDate", source = "user.registeredDate")
+    @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
+    @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
+    public abstract ComplianceOfficerResponseDTO toComplianceOfficerResponseDTO (ComplianceOfficerDetails complianceOfficer);
+
+    // ---- ADMIN ----
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    public abstract AdminSummaryResponseDTO toAdminSummaryResponseDTO (AdminDetails adminDetails);
+
+    @Mapping(target = "publicId", source = "user.publicId")
+    @Mapping(target = "role", source = "user.role")
+    @Mapping(target = "email", source = "user.email")
+    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "phoneNumber", source = "user.phoneNumber")
+    @Mapping(target = "registeredDate", source = "user.registeredDate")
+    @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
+    @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
+    public abstract AdminResponseDTO toAdminResponseDTO (AdminDetails adminDetails);
+
+    // ---- USER (genérico, sin subtipo) ----
+    public abstract UserSummaryResponseDTO toUserSummaryResponseDTO (User user);
 }

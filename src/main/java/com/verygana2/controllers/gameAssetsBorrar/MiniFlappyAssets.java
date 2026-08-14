@@ -94,6 +94,22 @@ public final class MiniFlappyAssets {
         prod2.put("category_name", "Musica");
         products.add(prod2);
 
+        // Producto 3
+        ObjectNode prod3 = MAPPER.createObjectNode();
+        prod3.put("id", 3);
+        prod3.put("name", "Membresia Netflix");
+        prod3.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779413069127-850ba6b4.png");
+        prod3.put("image_message", "SUPER DESCUENTO 50%");
+        prod3.put("commercial", "CommercialTest");
+        prod3.put("regular_price", 47900);
+        prod3.put("keys_message", "Con [[2.395]] llaves pagas [[SOLO 23.950 COP]]");
+        prod3.put("rating", 4.4);
+        prod3.put("max_keys_allowed", 2395);
+        prod3.put("min_cash_cents", 2395000);
+        prod3.put("stock", 10);
+        prod3.put("category_name", "Entretenimiento");
+        products.add(prod3);
+
         rewardPopup.set("products", products);
         root.set("reward_popup", rewardPopup);
 

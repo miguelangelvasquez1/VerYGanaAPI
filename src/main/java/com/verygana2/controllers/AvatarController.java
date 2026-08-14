@@ -42,7 +42,7 @@ public class AvatarController {
     }
 
     @PatchMapping("/me")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<EntityUpdatedResponseDTO> updateMyAvatar(
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody UpdateAvatarRequestDTO request) {

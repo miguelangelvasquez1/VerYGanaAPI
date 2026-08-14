@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 /** Paso 11: revisión de VERYGANA sobre los Contratos Marco generados por comerciantes. */
 @RestController
 @RequestMapping("/compliance/contracts")
-@PreAuthorize("hasRole('ROLE_COMPLIANCE_OFFICER')")
+@PreAuthorize("hasRole('COMPLIANCE_OFFICER')")
 @RequiredArgsConstructor
 public class ComplianceContractController {
 

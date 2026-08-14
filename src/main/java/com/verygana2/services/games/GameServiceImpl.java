@@ -158,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 8L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
     }
 
     @Transactional(readOnly = true)
@@ -294,7 +294,7 @@ public class GameServiceImpl implements GameService {
             baseUrl = String.format("https://%s/%s/%s/%s/?",
                 cdnUrl,
                 "builds/build-bogota",
-                "18-07-2026", // Cambia segun version
+                "08-08-2026", // Cambia segun version
                 game.getUrl()
                 );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {

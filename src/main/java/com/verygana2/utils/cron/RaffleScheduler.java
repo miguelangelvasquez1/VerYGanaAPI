@@ -188,9 +188,12 @@ public class RaffleScheduler {
         List<Raffle> missed = raffleRepository.findMissedDrawRaffles(now);
 
         for (Raffle raffle : missed) {
+            raffle.setRaffleStatus(RaffleStatus.MISSED_DRAW);
             log.warn("Raffle {} missed its draw window (drawDate={}, status=CLOSED). Manual review required.",
                     raffle.getId(), raffle.getDrawDate());
         }
+
+        raffleRepository.saveAll(missed);
     }
 
     /**

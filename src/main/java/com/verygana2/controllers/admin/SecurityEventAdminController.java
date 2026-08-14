@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequestMapping("/admin/security-events")
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class SecurityEventAdminController {
 

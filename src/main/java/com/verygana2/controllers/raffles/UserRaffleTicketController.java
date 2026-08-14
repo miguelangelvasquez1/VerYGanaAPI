@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/my/raffle-tickets")
-@PreAuthorize("hasRole('ROLE_CONSUMER')")
+@PreAuthorize("hasRole('CONSUMER')")
 @RequiredArgsConstructor
 public class UserRaffleTicketController {
 

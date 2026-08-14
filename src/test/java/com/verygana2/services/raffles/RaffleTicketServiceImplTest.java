@@ -33,7 +33,6 @@ import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketAuditLogRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleRuleService;
-import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.utils.audit.AuditContextService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -57,7 +56,6 @@ class RaffleTicketServiceImplTest {
     @Mock private RaffleRepository raffleRepository;
     @Mock private RaffleRuleRespository raffleRuleRespository;
     @Mock private RaffleRuleService raffleRuleService;
-    @Mock private RaffleService raffleService;
     @Mock private RaffleTicketMapper raffleTicketMapper;
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private RaffleParticipationRepository participationRepository;
@@ -71,7 +69,7 @@ class RaffleTicketServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new RaffleTicketServiceImpl(raffleTicketRepository, raffleRepository, raffleRuleRespository,
-                raffleRuleService, raffleService, raffleTicketMapper, consumerDetailsService, participationRepository,
+                raffleRuleService, raffleTicketMapper, consumerDetailsService, participationRepository,
                 auditLogRepository, auditContextService, new ObjectMapper(), ticketAuditLogMapper,
                 targetAudienceAssembler);
     }
@@ -113,7 +111,7 @@ class RaffleTicketServiceImplTest {
         @DisplayName("rifa activa, usuario elegible, sin límites: emite los tickets solicitados")
         void happyPath_issuesTickets() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
             when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
             when(raffleRuleService.getByRaffleIdAndRuleType(1L, com.verygana2.models.enums.raffles.TicketEarningRuleType.PURCHASE))
                     .thenReturn(openRule());
@@ -140,7 +138,7 @@ class RaffleTicketServiceImplTest {
         void raffleNotActive_throwsInvalidRequestException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setRaffleStatus(RaffleStatus.DRAFT);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
 
             assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
                     .isInstanceOf(InvalidRequestException.class);
@@ -151,7 +149,7 @@ class RaffleTicketServiceImplTest {
         void raffleEnded_throwsInvalidRequestException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setEndDate(ZonedDateTime.now().minusDays(1));
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
 
             assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
                     .isInstanceOf(InvalidRequestException.class);
@@ -161,7 +159,7 @@ class RaffleTicketServiceImplTest {
         @DisplayName("rifa PREMIUM y usuario sin mascota registrada: lanza InvalidRequestException")
         void premiumRaffleWithoutPet_throwsInvalidRequestException() {
             Raffle raffle = activeRaffle(RaffleType.PREMIUM);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
             when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
 
             assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
@@ -174,7 +172,7 @@ class RaffleTicketServiceImplTest {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setMaxTotalTickets(10);
             raffle.setTotalTicketsIssued(10);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
             when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
 
             assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
@@ -185,7 +183,7 @@ class RaffleTicketServiceImplTest {
         @DisplayName("la fuente ya alcanzó su límite específico: lanza LimitReachedException")
         void sourceLimitReached_throwsLimitReachedException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
             when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
 
             RaffleRule exhaustedRule = openRule();
@@ -203,7 +201,7 @@ class RaffleTicketServiceImplTest {
         void perUserLimitReached_throwsLimitReachedException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setMaxTicketsPerUser(3);
-            when(raffleService.getRaffleById(1L)).thenReturn(raffle);
+            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
             when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
             when(raffleRuleService.getByRaffleIdAndRuleType(1L, com.verygana2.models.enums.raffles.TicketEarningRuleType.PURCHASE))
                     .thenReturn(openRule());

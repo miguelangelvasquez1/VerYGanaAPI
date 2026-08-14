@@ -32,14 +32,14 @@ public class ProductReviewController {
     private final ProductReviewService productReviewService;
 
     @GetMapping("/commercial/avg")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Double> getCommercialAvgRating (@AuthenticationPrincipal Jwt jwt){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(productReviewService.getCommercialAvgRating(commercialId));
     }
 
     @PostMapping("/create")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<EntityCreatedResponseDTO> createProductReview (@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CreateProductReviewRequestDTO request){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productReviewService.createProductReview(consumerId, request));
@@ -51,7 +51,7 @@ public class ProductReviewController {
     }
 
     @PatchMapping("/{reviewId}/hide")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> hideProductReview (@PathVariable Long reviewId){
         productReviewService.hideProductReview(reviewId);
         return ResponseEntity.noContent().build();

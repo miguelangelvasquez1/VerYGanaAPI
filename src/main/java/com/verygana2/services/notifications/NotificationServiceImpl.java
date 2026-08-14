@@ -15,8 +15,8 @@ import com.verygana2.models.Notification;
 import com.verygana2.models.enums.NotificationType;
 import com.verygana2.models.userDetails.UserDetails;
 import com.verygana2.repositories.NotificationRepository;
+import com.verygana2.repositories.details.UserDetailsRepository;
 import com.verygana2.services.interfaces.NotificationService;
-import com.verygana2.services.interfaces.details.UserDetailsService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,7 +28,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final NotificationMapper notificationMapper;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsRepository userDetailsRepository;
     private final NotificationEmitterRegistry emitterRegistry;
 
     @Override
@@ -61,7 +61,8 @@ public class NotificationServiceImpl implements NotificationService {
         validateNotificationInput(userId, title, message, dateSent);
 
         try {
-            UserDetails user = userDetailsService.getUserById(userId);
+            UserDetails user = userDetailsRepository.findById(userId)
+                    .orElseThrow(() -> new NotificationException("User with id: " + userId + " not found"));
 
             Notification notification = Notification.builder()
                     .type(NotificationType.IN_APP_NOTIFICATION)

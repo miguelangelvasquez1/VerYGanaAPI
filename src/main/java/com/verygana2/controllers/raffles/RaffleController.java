@@ -12,6 +12,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -95,12 +96,17 @@ public class RaffleController {
         return ResponseEntity.ok(status);
     }
 
+    // /api/raffles/** es público (PublicPaths), así que sin esta anotación un
+    // request sin token llega aquí con un Jwt null y revienta con NPE (500) en
+    // vez de un 401/403 limpio.
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
     public ResponseEntity<PagedResponse<UserRaffleSummaryResponseDTO>> getMyRafflesByStatus (@AuthenticationPrincipal Jwt jwt, @RequestParam RaffleStatus status, @PageableDefault(size = 10, page = 0) Pageable pageable){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleService.getMyRafflesByStatus(consumerId, status, pageable));
     }
 
+    @PreAuthorize("isAuthenticated()")
     @GetMapping("/me/count")
     public ResponseEntity<Long> countMyRafflesByStatus (@AuthenticationPrincipal Jwt jwt, @RequestParam RaffleStatus status) {
         Long consumerId = jwt.getClaim("userId");
