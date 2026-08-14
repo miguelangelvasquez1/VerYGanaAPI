@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/commercial/reports")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class ExecutiveReportController {
 
     private final ExecutiveReportService executiveReportService;

@@ -91,7 +91,7 @@ public final class WhackAMoleAssets {
         // Producto 1
         ObjectNode prod1 = MAPPER.createObjectNode();
         prod1.put("id", 1);
-        prod1.put("name", "Membresia de 3 meses PlayStation plus");
+        prod1.put("name", "Membresia de 3 meses");
         prod1.put("image_url", "https://cdn.verygana.com/public/products/commercial-2/1779407655456-52126342.png");
         prod1.put("image_message", "SUPER DESCUENTO 50%");
         prod1.put("commercial", "CommercialTest");

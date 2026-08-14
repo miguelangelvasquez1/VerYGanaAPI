@@ -1,9 +1,12 @@
 package com.verygana2.services.interfaces.finance;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.finance.requests.CreatePayoutMethodRequestDTO;
+import com.verygana2.dtos.finance.responses.PayoutBankResponseDTO;
 import com.verygana2.dtos.finance.responses.PayoutMethodResponseDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 
@@ -11,6 +14,9 @@ public interface PayoutMethodService {
 
     /** Registra un nuevo método de pago. Dispara OTP automáticamente para NEQUI/DAVIPLATA. */
     EntityCreatedResponseDTO createPayoutMethod(Long commercialId, CreatePayoutMethodRequestDTO request);
+
+    /** Catálogo de bancos/canales de Wompi Payouts, para elegir el bankCode al registrar BANK_TRANSFER. */
+    List<PayoutBankResponseDTO> getAvailableBanks();
 
     /** Verifica el código OTP recibido por SMS (solo NEQUI/DAVIPLATA). */
     void verifyOtp(Long commercialId, Long payoutMethodId, String code);

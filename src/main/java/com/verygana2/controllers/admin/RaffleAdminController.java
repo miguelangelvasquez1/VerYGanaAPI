@@ -31,7 +31,6 @@ import com.verygana2.dtos.raffle.requests.PrepareRaffleCreationRequestBodyDTO;
 import com.verygana2.dtos.raffle.requests.UpdateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.responses.DrawResultResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleAssetsUploadPermissionDTO;
-import com.verygana2.dtos.raffle.responses.RaffleResponseDTO;
 import com.verygana2.dtos.raffle.responses.RaffleStatsResponseDTO;
 import com.verygana2.dtos.raffle.responses.SuspiciousIpActivityResponseDTO;
 import com.verygana2.dtos.raffle.responses.TicketAuditLogResponseDTO;
@@ -46,7 +45,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin/raffles")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class RaffleAdminController {
 
     private final DrawingService drawingService;
@@ -79,7 +78,7 @@ public class RaffleAdminController {
     @PutMapping("/{raffleId}")
     public ResponseEntity<EntityUpdatedResponseDTO> updateRaffle(@AuthenticationPrincipal Jwt jwt,
             @PathVariable Long raffleId,
-            @RequestBody UpdateRaffleRequestDTO request) {
+            @Valid @RequestBody UpdateRaffleRequestDTO request) {
         Long adminId = jwt.getClaim("userId");
         return ResponseEntity.ok(raffleService.updateRaffle(adminId, raffleId, request));
     }
@@ -106,11 +105,6 @@ public class RaffleAdminController {
     public ResponseEntity<Void> deleteRaffle(@PathVariable Long raffleId) {
         raffleService.deleteRaffle(raffleId);
         return ResponseEntity.noContent().build();
-    }
-
-    @GetMapping("/{raffleId}")
-    public ResponseEntity<RaffleResponseDTO> getRaffleById(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId));
     }
 
     @PostMapping("/{raffleId}/draw")

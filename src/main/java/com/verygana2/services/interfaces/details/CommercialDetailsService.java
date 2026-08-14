@@ -2,15 +2,20 @@ package com.verygana2.services.interfaces.details;
 
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
+import com.verygana2.models.enums.UserState;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 public interface CommercialDetailsService {
@@ -22,10 +27,14 @@ public interface CommercialDetailsService {
     PayoutReportResponseDTO getPayoutReport (Long commercialId, Integer year, Integer month);
     /** Los 12 meses del año dado, para graficar el payout mensual (ej. bar chart). */
     PayoutReportResponseDTO[] getPayoutReports (Long commercialId, Integer year);
-    /** Reporte de ventas por rango de fechas arbitrario, con top productos vendidos incluido. */
+    /** Los 12 meses del año dado, para graficar las ventas mensuales (ej. bar chart). */
+    SalesReportResponseDTO[] getSalesReports(Long commercialId, Integer year);
     SalesReportResponseDTO getSalesReport(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
+    Integer getSalesCount (Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
     /** Listado transaccional día a día (ventas individuales) dentro del rango. */
     PagedResponse<DailySaleResponseDTO> getDailySales(
             Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
     CommercialProfileResponseDTO getCommercialProfile (Long commercialId);
+    PagedResponse<CommercialSummaryResponseDTO> getCommercials (String search, UserState userState, PlanCode currentPlan, Pageable pageable);
+    CommercialResponseDTO getCommercial (UUID publicId);
 }

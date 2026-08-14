@@ -286,6 +286,25 @@ class PlanServiceImplTest {
         }
 
         @Test
+        @DisplayName("DECLINED: marca el Investment asociado como fallido (failedAt) si existe")
+        void declined_marksInvestmentAsFailed() {
+            Investment investment = Investment.builder().confirmed(false).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.DECLINED)
+                    .reference("VG-DEP-404").build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(subscriptionRepository.findByWompiReference("VG-DEP-404")).thenReturn(Optional.empty());
+            when(investmentRepository.findByWompiReference("VG-DEP-404")).thenReturn(Optional.of(investment));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(investment.getFailedAt()).isNotNull();
+            assertThat(investment.getConfirmed()).isFalse();
+        }
+
+        @Test
         @DisplayName("WompiTransaction inexistente: lanza IllegalStateException")
         void unknownTransaction_throwsIllegalStateException() {
             UUID id = UUID.randomUUID();
@@ -321,6 +340,27 @@ class PlanServiceImplTest {
 
             assertThatThrownBy(() -> service.getPaymentStatus("XYZ", commercial(1L)))
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("Investment con failedAt: reporta planStatus PAYMENT_FAILED en vez de quedarse en PENDING_PAYMENT")
+        void failedInvestment_reportsPaymentFailed() {
+            CommercialDetails owner = commercial(1L);
+            Wallet wallet = new Wallet();
+            wallet.setCommercial(owner);
+            Investment investment = Investment.builder()
+                    .wallet(wallet)
+                    .confirmed(false)
+                    .planAtDeposit(Plan.builder().code(PlanCode.STANDARD).build())
+                    .build();
+            investment.fail(WompiTransaction.builder().status(WompiTransactionStatus.DECLINED).build());
+
+            when(subscriptionRepository.findByWompiReference("VG-DEP-404")).thenReturn(Optional.empty());
+            when(investmentRepository.findByWompiReference("VG-DEP-404")).thenReturn(Optional.of(investment));
+
+            var status = service.getPaymentStatus("VG-DEP-404", owner);
+
+            assertThat(status.getPlanStatus()).isEqualTo("PAYMENT_FAILED");
         }
     }
 

@@ -36,7 +36,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/commercials/onboarding")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class CommercialOnboardingController {
 
     private final CommercialOnboardingService onboardingService;

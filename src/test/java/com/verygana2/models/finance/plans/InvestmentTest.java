@@ -34,4 +34,17 @@ class InvestmentTest {
         assertThat(investment.getConfirmed()).isFalse();
         assertThat(investment.getCreatedAt()).isNotNull();
     }
+
+    @Test
+    @DisplayName("fail: sella failedAt, vincula la WompiTransaction y no toca confirmed")
+    void fail_marksFailedAtAndLinksTransaction() {
+        Investment investment = Investment.builder().confirmed(false).build();
+        WompiTransaction tx = WompiTransaction.builder().build();
+
+        investment.fail(tx);
+
+        assertThat(investment.getFailedAt()).isNotNull();
+        assertThat(investment.getWompiTransaction()).isSameAs(tx);
+        assertThat(investment.getConfirmed()).isFalse();
+    }
 }

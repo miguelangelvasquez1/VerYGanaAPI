@@ -1,8 +1,11 @@
 package com.verygana2.repositories;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -24,5 +27,14 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     @Query("SELECT u FROM User u WHERE u.userState = :state AND u.role IN :roles")
     List<User> findByUserStateAndRoleIn(@Param("state") UserState state, @Param("roles") List<Role> roles);
+
+    @Query("""
+            SELECT u FROM User u
+            WHERE (:startDate IS NULL OR u.registeredDate >= :startDate)
+            AND (:endDate IS NULL OR u.registeredDate < :endDate)
+            AND (:search IS NULL OR :search = '' OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%')))
+            ORDER BY u.registeredDate DESC
+            """)
+    Page<User> findNewUsers(@Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, @Param("search") String search, Pageable pageable);
 }
 

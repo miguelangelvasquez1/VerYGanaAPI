@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/compliance/audit-logs")
-@PreAuthorize("hasRole('ROLE_COMPLIANCE_OFFICER')")
+@PreAuthorize("hasRole('COMPLIANCE_OFFICER')")
 @RequiredArgsConstructor
 public class ComplianceAuditController {
 

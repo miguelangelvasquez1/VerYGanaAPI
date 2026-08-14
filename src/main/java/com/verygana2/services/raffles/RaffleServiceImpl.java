@@ -506,8 +506,8 @@ public class RaffleServiceImpl implements RaffleService {
 
         Raffle raffle = getRaffleById(raffleId);
 
-        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT && raffle.getRaffleStatus() != RaffleStatus.CANCELLED) {
-            throw new InvalidOperationException("Only 'DRAFT' or 'CANCELLED' raffles may be activated");
+        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT && raffle.getRaffleStatus() != RaffleStatus.CANCELLED && raffle.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
+            throw new InvalidOperationException("Only 'DRAFT', 'CANCELLED' or 'MISSED_DRAW' raffles may be activated");
         }
 
         if (raffle.getPrizes() == null || raffle.getPrizes().isEmpty()) {
@@ -538,8 +538,8 @@ public class RaffleServiceImpl implements RaffleService {
     public void cancelRaffle(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.ACTIVE) {
-            throw new InvalidOperationException("Raffle must be 'ACTIVE' to set status 'CANCELLED'");
+        if (raffle.getRaffleStatus() != RaffleStatus.ACTIVE && raffle.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
+            throw new InvalidOperationException("Raffle must be 'ACTIVE' or 'MISSED_DRAW' to set status 'CANCELLED'");
         }
 
         raffle.setRaffleStatus(RaffleStatus.CANCELLED);
@@ -550,8 +550,8 @@ public class RaffleServiceImpl implements RaffleService {
     public void deleteRaffle(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT) {
-            throw new InvalidOperationException("Only 'DRAFT' raffles may be deleted");
+        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT && raffle.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
+            throw new InvalidOperationException("Only 'DRAFT' or 'MISSED_DRAW' raffles may be deleted");
         }
 
         raffleRepository.delete(raffle);

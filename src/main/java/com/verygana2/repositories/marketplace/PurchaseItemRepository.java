@@ -60,6 +60,13 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
     @Query("SELECT COUNT(p) FROM PurchaseItem p WHERE p.commercialId = :commercialId")
     Long countTotalSalesByCommercialId(@Param("commercialId") Long commercialId);
 
+    @Query("""
+           SELECT COUNT(p) FROM PurchaseItem p WHERE p.commercialId = :commercialId
+           AND p.deliveredAt >= :startDate
+           AND p.deliveredAt < :endDate     
+                    """)
+    Integer countTotalSalesByCommercialIdAndDatesRange (@Param("commercialId") Long commercialId, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate);
+
     // Internal query returns Long cents; public default method converts to BigDecimal pesos
     @Query("""
             SELECT SUM(p.subtotalCents)

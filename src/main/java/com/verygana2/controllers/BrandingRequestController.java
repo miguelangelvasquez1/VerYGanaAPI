@@ -42,7 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/branding-requests")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class BrandingRequestController {
 
     private final BrandingRequestService brandingRequestService;

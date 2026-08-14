@@ -5,6 +5,7 @@ public class PublicPaths {
     public static final String [] PATHS = {
         "/avatars",
         "/categories/all",
+        "/products/filter",
         "/products/{id}",
         "/legal-documents/**",
         "/auth/**",

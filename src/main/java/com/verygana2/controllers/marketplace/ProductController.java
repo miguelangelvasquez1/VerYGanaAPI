@@ -58,7 +58,7 @@ public class ProductController {
      * Preparar la creacion de un producto
      */
     @PostMapping("/prepare")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AssetUploadPermissionDTO> prepareProductCreation(@AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody FileUploadRequestDTO productImageMetaData) {
         Long commercialId = jwt.getClaim("userId");
@@ -70,7 +70,7 @@ public class ProductController {
      */
 
     @PostMapping("/confirm")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<EntityCreatedResponseDTO> confirmProductCreation(@AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody ConfirmProductCreationRequestDTO request) {
         Long commercialId = jwt.getClaim("userId");
@@ -81,7 +81,7 @@ public class ProductController {
      * Eliminar un producto
      */
     @DeleteMapping("/{productId}")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Void> deleteProduct(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long commercialId = jwt.getClaim("userId");
         productService.delete(productId, commercialId);
@@ -93,7 +93,7 @@ public class ProductController {
      * obtener la informacion guardada de un producto para editarlo
      */
     @GetMapping("/edit/{productId}")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<ProductEditInfoResponseDTO> getProductEditInfo(@PathVariable Long productId,
             @AuthenticationPrincipal Jwt jwt) {
         Long commercialId = jwt.getClaim("userId");
@@ -104,7 +104,7 @@ public class ProductController {
      * Editar un producto
      */
     @PatchMapping("/{productId}")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<EntityUpdatedResponseDTO> editProduct(@AuthenticationPrincipal Jwt jwt,
             @PathVariable Long productId, @Valid @RequestBody UpdateProductRequestDTO request) {
         Long commercialId = jwt.getClaim("userId");
@@ -116,7 +116,7 @@ public class ProductController {
      */
 
     @PostMapping("/{productId}/image/prepare")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AssetUploadPermissionDTO> prepareProductImageUpdate(
             @PathVariable Long productId,
             @RequestBody @Valid FileUploadRequestDTO imageMetadata,
@@ -130,7 +130,7 @@ public class ProductController {
      */
 
     @PostMapping("/{productId}/image/confirm")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<EntityUpdatedResponseDTO> confirmProductImageUpdate(
             @PathVariable Long productId,
             @RequestBody @Valid ConfirmProductImageUpdateRequestDTO request,
@@ -144,7 +144,7 @@ public class ProductController {
      * Obtener el listado de codigos registrados de un producto
      */
     @GetMapping("/{productId}/stock")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PagedResponse<ProductStockResponseDTO>> getProductStock(
             @PathVariable Long productId,
             @RequestParam(required = false) StockStatus status,
@@ -161,7 +161,7 @@ public class ProductController {
      * Eliminar un código de stock específico
      */
     @DeleteMapping("/{productId}/stock/{stockId}")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Void> deleteStockItem(
             @PathVariable Long productId,
             @PathVariable Long stockId,
@@ -175,7 +175,7 @@ public class ProductController {
      * Agregar múltiples códigos de stock de una vez
      */
     @PostMapping("/{productId}/stock/bulk")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<BulkStockResponseDTO> addBulkStockItems(
             @PathVariable Long productId,
             @RequestBody @Valid List<ProductStockRequestDTO> requests,
@@ -186,7 +186,11 @@ public class ProductController {
     }
 
     /**
-     * Buscar productos con filtros
+     * Buscar productos con filtros. Accesible sin autenticación (marketplace
+     * público); si el request viene de un consumer autenticado, el orden
+     * prioriza su municipio (ver ProductServiceImpl.filterProducts). Otros
+     * roles autenticados (ej. commercial) o requests anónimos reciben orden
+     * genérico, sin intentar resolver un ConsumerDetails inexistente.
      */
     @GetMapping("/filter")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> searchProducts(
@@ -194,10 +198,15 @@ public class ProductController {
             @RequestParam(required = false) String searchQuery,
             @RequestParam(required = false) Long categoryId, @RequestParam(required = false) Double minRating,
             @RequestParam(required = false) BigDecimal maxPrice, @RequestParam(defaultValue = "0") Integer page,
-            @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDirection) {
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String sortDirection) {
 
-        Long consumerId = jwt.getClaim("userId");
+        Long consumerId = null;
+        if (jwt != null && SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONSUMER"))) {
+            consumerId = jwt.getClaim("userId");
+        }
+
         PagedResponse<ProductSummaryResponseDTO> response = productService.filterProducts(consumerId, searchQuery,
                 categoryId,
                 minRating,
@@ -227,7 +236,7 @@ public class ProductController {
      * Obtener los productos de un vendedor siendo el vendedor
      */
     @GetMapping("/my-products")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getMyProducts(@AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") Integer page) {
         Long commercialId = jwt.getClaim("userId");
@@ -239,7 +248,7 @@ public class ProductController {
      * PENDIENTES)
      */
     @GetMapping("/total-products")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Integer> getTotalCommercialProducts(@AuthenticationPrincipal Jwt jwt,
             @RequestParam("status") ProductStatus status) {
         Long commercialId = jwt.getClaim("userId");
@@ -250,7 +259,7 @@ public class ProductController {
      * Obtener la lista de productos favoritos de un usuario
      */
     @GetMapping("/favorites")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getFavorites(
             @RequestParam(defaultValue = "0") Integer page,
             @AuthenticationPrincipal Jwt jwt) {
@@ -264,7 +273,7 @@ public class ProductController {
      * Agregar un producto a la lista de favoritos
      */
     @PostMapping("/favorites/{productId}")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<Void> addToFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long consumerId = jwt.getClaim("userId");
         productService.addFavorite(consumerId, productId);
@@ -275,7 +284,7 @@ public class ProductController {
      * Remover un producto a la lista de favoritos
      */
     @DeleteMapping("/favorites/{productId}")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<Void> removeFromFavorites(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long consumerId = jwt.getClaim("userId");
         productService.removeFavorite(consumerId, productId);
@@ -287,7 +296,7 @@ public class ProductController {
      */
 
     @GetMapping("/favorites/count")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<Long> countFavorites(@AuthenticationPrincipal Jwt jwt) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(productService.countFavoriteProductsByConsumerId(consumerId));
@@ -299,7 +308,7 @@ public class ProductController {
      */
 
     @PatchMapping("{productId}/gameReward")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<Void> markProductAsReward(@AuthenticationPrincipal Jwt jwt, @PathVariable Long productId) {
         Long commercialId = jwt.getClaim("userId");
         productService.markProductAsReward(commercialId, productId);
@@ -313,7 +322,7 @@ public class ProductController {
      * Soporta JWT vía header Authorization o query param ?token= (para img tags).
      */
     @GetMapping("/{productId}/private-image")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_COMMERCIAL')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMMERCIAL')")
     public void getPrivateProductImage(
             @PathVariable Long productId,
             @AuthenticationPrincipal Jwt jwt,
@@ -334,7 +343,7 @@ public class ProductController {
     }
 
     @GetMapping("/{productId}/stock/{stockId}/code")
-    @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+    @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<String> getProductStockCode (@AuthenticationPrincipal Jwt jwt, @PathVariable Long stockId, @PathVariable Long productId){
         Long commercialId = jwt.getClaim("userId");
         return ResponseEntity.ok(productStockService.getStockCode(stockId, productId, commercialId));

@@ -378,7 +378,7 @@ public class AuthController {
     }
 
     @PostMapping("/register/compliance-officer")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> registerComplianceOfficer(@Valid @RequestBody ComplianceOfficerRegisterDTO dto) {
         userService.registerComplianceOfficer(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body("Oficial de cumplimiento registrado exitosamente.");

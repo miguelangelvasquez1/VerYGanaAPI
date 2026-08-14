@@ -29,7 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequestMapping("/admin/pqrs")
 @RequiredArgsConstructor
 @Slf4j
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class PqrsAdminController {
 
     private final PqrsService pqrsService;

@@ -453,8 +453,16 @@ public class ProductServiceImpl implements ProductService {
             BigDecimal maxPrice, Integer page,
             String sortBy, String sortDirection) {
 
-        String sortField = validateAndGetSortField(sortBy);
-        Sort.Direction direction = "asc".equalsIgnoreCase(sortDirection) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        // Sin consumer autenticado (anónimo u otro rol como commercial) no hay
+        // preferencias que aplicar: se usa un orden genérico (alfabético) en vez
+        // del "más reciente primero" personalizado.
+        boolean personalized = consumerId != null;
+        String effectiveSortBy = (sortBy != null) ? sortBy : (personalized ? "createdAt" : "name");
+        String effectiveSortDirection = (sortDirection != null) ? sortDirection : (personalized ? "DESC" : "ASC");
+
+        String sortField = validateAndGetSortField(effectiveSortBy);
+        Sort.Direction direction = "asc".equalsIgnoreCase(effectiveSortDirection) ? Sort.Direction.ASC
+                : Sort.Direction.DESC;
         Sort sort = Sort.by(direction, sortField);
 
         int indexPage = (page != null && page >= 0) ? page : 0;
@@ -464,8 +472,11 @@ public class ProductServiceImpl implements ProductService {
 
         // El municipio del consumidor solo prioriza el orden de resultados, nunca
         // excluye productos (ver TargetAudienceAssembler/plan de sectorización).
-        ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
-        Municipality municipality = consumer.getMunicipality();
+        Municipality municipality = null;
+        if (personalized) {
+            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            municipality = consumer.getMunicipality();
+        }
 
         PagedResponse<Product> productPage = PagedResponse
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
@@ -483,7 +494,8 @@ public class ProductServiceImpl implements ProductService {
         Set<String> allowedFields = Set.of(
                 "price",
                 "averageRate",
-                "createdAt");
+                "createdAt",
+                "name");
 
         if (sortBy != null && allowedFields.contains(sortBy)) {
             return sortBy;

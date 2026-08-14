@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequestMapping("/admin/legal-documents")
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class LegalDocumentAdminController {
 

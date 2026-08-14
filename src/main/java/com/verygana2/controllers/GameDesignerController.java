@@ -46,7 +46,7 @@ public class GameDesignerController {
      * GET /game-designers/me — perfil del diseñador autenticado.
      */
     @GetMapping("/me")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<GameDesignerProfileResponseDTO> getMyProfile(@AuthenticationPrincipal Jwt jwt) {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.ok(gameDesignerService.getMyProfile(userId));
@@ -56,7 +56,7 @@ public class GameDesignerController {
      * PATCH /game-designers/me — actualiza nombre, apellido y bio.
      */
     @PatchMapping("/me")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> updateProfile(
             @Valid @RequestBody UpdateGameDesignerProfileDTO dto,
             @AuthenticationPrincipal Jwt jwt) {
@@ -70,7 +70,7 @@ public class GameDesignerController {
      * PATCH /game-designers/me/password — cambia contraseña (requiere la actual).
      */
     @PatchMapping("/me/password")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> changePassword(
             @Valid @RequestBody ChangePasswordDTO dto,
             @AuthenticationPrincipal Jwt jwt) {
@@ -95,7 +95,7 @@ public class GameDesignerController {
      * GET /game-designers/me/branding-requests — lista de solicitudes asignadas al diseñador.
      */
     @GetMapping("/me/branding-requests")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<List<BrandingRequestSummaryDTO>> getAssignedBrandingRequests(
             @AuthenticationPrincipal Jwt jwt) {
 
@@ -107,7 +107,7 @@ public class GameDesignerController {
      * GET /game-designers/me/branding-requests/{id} — detalle de una solicitud asignada.
      */
     @GetMapping("/me/branding-requests/{id}")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<DesignerBrandingDetailDTO> getAssignedBrandingRequestDetail(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
@@ -117,7 +117,7 @@ public class GameDesignerController {
     }
 
     @PostMapping("/me/assets/upload-url")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<AssetUploadPermissionDTO> generateUploadUrl(
             @Valid @RequestBody FileUploadRequestDTO request,
             @AuthenticationPrincipal Jwt jwt) {
@@ -127,14 +127,14 @@ public class GameDesignerController {
     }
 
     @PostMapping("/me/assets/confirm")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> confirmUpload(@Valid @RequestBody AssetConfirmRequest request) {
         gameDesignerService.confirmUpload(request);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/me/branding-requests/{id}/preview-url")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Map<String, String>> getPreviewUrl(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
@@ -144,7 +144,7 @@ public class GameDesignerController {
     }
 
     @DeleteMapping("/me/assets/{assetId}")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> deleteAsset(
             @PathVariable Long assetId,
             @AuthenticationPrincipal Jwt jwt) {
@@ -154,7 +154,7 @@ public class GameDesignerController {
     }
 
     @PatchMapping("/me/branding-requests/{id}/draft")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> saveDraftFormData(
             @PathVariable Long id,
             @RequestBody Map<String, Object> formData,
@@ -167,7 +167,7 @@ public class GameDesignerController {
 
 
     @PostMapping("/me/branding-requests/{id}/submit-design")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<Void> submitDesignForReview(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
@@ -178,7 +178,7 @@ public class GameDesignerController {
     }
 
     @GetMapping("/me/branding-requests/{id}/comments")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<List<BrandingRequestCommentDTO>> getComments(
             @PathVariable Long id,
             @AuthenticationPrincipal Jwt jwt) {
@@ -187,7 +187,7 @@ public class GameDesignerController {
     }
 
     @PostMapping("/me/branding-requests/{id}/comments")
-    @PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+    @PreAuthorize("hasRole('GAME_DESIGNER')")
     public ResponseEntity<BrandingRequestCommentDTO> addComment(
             @PathVariable Long id,
             @Valid @RequestBody AddCommentDTO dto,

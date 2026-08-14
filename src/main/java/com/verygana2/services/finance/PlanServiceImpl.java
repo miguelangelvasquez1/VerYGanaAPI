@@ -213,17 +213,26 @@ public class PlanServiceImpl implements PlanService {
                                 throw new IllegalArgumentException("Referencia no encontrada");
                         }
 
-                        String message = inv.getConfirmed()
-                                        ? "Tu depósito fue acreditado. Plan " +
-                                                        inv.getPlanAtDeposit().getName() + " activo."
-                                        : "Tu pago está siendo procesado...";
+                        String planStatus;
+                        String message;
+                        if (inv.getConfirmed()) {
+                                planStatus = "ACTIVE";
+                                message = "Tu depósito fue acreditado. Plan " +
+                                                inv.getPlanAtDeposit().getName() + " activo.";
+                        } else if (inv.getFailedAt() != null) {
+                                planStatus = "PAYMENT_FAILED";
+                                message = "El pago fue rechazado. Intenta de nuevo.";
+                        } else {
+                                planStatus = "PENDING_PAYMENT";
+                                message = "Tu pago está siendo procesado...";
+                        }
 
                         return PlanPaymentStatusResponseDTO.builder()
                                         .reference(reference)
                                         .wompiStatus(inv.getWompiTransaction() != null
                                                         ? inv.getWompiTransaction().getStatus().name()
                                                         : "PENDING")
-                                        .planStatus(inv.getConfirmed() ? "ACTIVE" : "PENDING_PAYMENT")
+                                        .planStatus(planStatus)
                                         .planCode(inv.getPlanAtDeposit().getCode())
                                         .message(message)
                                         .build();
@@ -544,11 +553,17 @@ public class PlanServiceImpl implements PlanService {
                 log.warn("[PLAN] Pago fallido: reference={}, status={}",
                                 wompiTx.getReference(), wompiTx.getStatus());
 
-                // Intentar marcar la Subscription o Investment como PAYMENT_FAILED
+                // Intentar marcar la Subscription o Investment como fallida
                 subscriptionRepository.findByWompiReference(wompiTx.getReference())
                                 .ifPresent(sub -> {
                                         sub.setStatus(SubscriptionStatus.PAYMENT_FAILED);
                                         subscriptionRepository.save(sub);
+                                });
+
+                investmentRepository.findByWompiReference(wompiTx.getReference())
+                                .ifPresent(inv -> {
+                                        inv.fail(wompiTx);
+                                        investmentRepository.save(inv);
                                 });
 
                 // TODO: notificationService.sendPaymentFailedEmail(...)

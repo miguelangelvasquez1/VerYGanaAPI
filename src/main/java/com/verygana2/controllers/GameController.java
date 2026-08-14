@@ -96,7 +96,7 @@ public class GameController {
                 log.warn("Preview assets not found for brandingRequestId {}: {}", req.getCampaignId(), e.getMessage());
                 return ResponseEntity.badRequest().body(null);
             }
-        }
+      }
 
         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
             return ResponseEntity.ok(TapToRotateAssets.ASSETS);

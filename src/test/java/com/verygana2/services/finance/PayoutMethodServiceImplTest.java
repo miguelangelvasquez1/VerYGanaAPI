@@ -1,5 +1,6 @@
 package com.verygana2.services.finance;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -11,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.dtos.finance.requests.CreatePayoutMethodRequestDTO;
+import com.verygana2.dtos.wompi.WompiPayoutBankResponseDTO.Bank;
 import com.verygana2.exceptions.compliance.ScreeningHitException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
@@ -26,6 +28,7 @@ import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
+import com.verygana2.services.wompi.WompiPayoutClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,13 +54,29 @@ class PayoutMethodServiceImplTest {
     @Mock private PayoutMethodMapper payoutMethodMapper;
     @Mock private TwilioSmsService twilioSmsService;
     @Mock private ScreeningService screeningService;
+    @Mock private WompiPayoutClient wompiPayoutClient;
 
     private PayoutMethodServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new PayoutMethodServiceImpl(commercialDetailsService, payoutMethodRepository, payoutMethodMapper,
-                twilioSmsService, screeningService);
+                twilioSmsService, screeningService, wompiPayoutClient);
+    }
+
+    private static CommercialDetails commercialWithUser(long userId) {
+        CommercialDetails commercial = new CommercialDetails();
+        com.verygana2.models.User user = new com.verygana2.models.User();
+        user.setId(userId);
+        commercial.setUser(user);
+        return commercial;
+    }
+
+    private static Bank bank(String id, String name) {
+        Bank bank = new Bank();
+        bank.setId(id);
+        bank.setName(name);
+        return bank;
     }
 
     private CreatePayoutMethodRequestDTO nequiRequest() {
@@ -108,6 +127,7 @@ class PayoutMethodServiceImplTest {
 
             PayoutMethod mapped = PayoutMethod.builder().build();
             when(commercialDetailsService.getCommercialById(1L)).thenReturn(new CommercialDetails());
+            when(wompiPayoutClient.getBanks()).thenReturn(List.of(bank("1007", "Bancolombia")));
             when(payoutMethodMapper.toPayoutMethod(any())).thenReturn(mapped);
             when(payoutMethodRepository.save(any(PayoutMethod.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -115,6 +135,37 @@ class PayoutMethodServiceImplTest {
 
             assertThat(mapped.getVerificationStatus()).isEqualTo(VerificationStatus.UNDER_REVIEW);
             verify(twilioSmsService, never()).sendOtp(anyString());
+        }
+
+        @Test
+        @DisplayName("BANK_TRANSFER con bankCode fuera del catálogo de Wompi: lanza IllegalArgumentException")
+        void bankTransferWithUnknownBankCode_throwsIllegalArgumentException() {
+            CreatePayoutMethodRequestDTO request = new CreatePayoutMethodRequestDTO();
+            request.setType(PayoutMethodType.BANK_TRANSFER);
+            request.setAlias("Cuenta inventada");
+            request.setBankCode("no-existe");
+            request.setAccountNumber("123456789");
+            request.setBankAccountType(PayoutMethod.BankAccountType.SAVINGS);
+            request.setAccountHolderName("Empresa SAS");
+            request.setAccountHolderDoc("900123456");
+            request.setAccountHolderDocType(PayoutMethod.DocType.NIT);
+
+            when(commercialDetailsService.getCommercialById(1L)).thenReturn(new CommercialDetails());
+            when(wompiPayoutClient.getBanks()).thenReturn(List.of(bank("1007", "Bancolombia")));
+
+            assertThatThrownBy(() -> service.createPayoutMethod(1L, request))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("accountHolderDoc con formato inválido para el tipo de documento: lanza IllegalArgumentException")
+        void invalidDocFormat_throwsIllegalArgumentException() {
+            when(commercialDetailsService.getCommercialById(1L)).thenReturn(new CommercialDetails());
+            CreatePayoutMethodRequestDTO request = nequiRequest();
+            request.setAccountHolderDoc("abc"); // CC solo acepta dígitos
+
+            assertThatThrownBy(() -> service.createPayoutMethod(1L, request))
+                    .isInstanceOf(IllegalArgumentException.class);
         }
 
         @Test
@@ -147,6 +198,8 @@ class PayoutMethodServiceImplTest {
             request.setType(PayoutMethodType.BANK_TRANSFER);
             request.setAccountNumber("123");
             request.setBankAccountType(PayoutMethod.BankAccountType.SAVINGS);
+            request.setAccountHolderDocType(PayoutMethod.DocType.NIT);
+            request.setAccountHolderDoc("900123456");
 
             assertThatThrownBy(() -> service.createPayoutMethod(1L, request))
                     .isInstanceOf(IllegalArgumentException.class);
@@ -158,16 +211,33 @@ class PayoutMethodServiceImplTest {
     class VerifyOtp {
 
         @Test
-        @DisplayName("código correcto en estado AWAITING_OTP: verifica el método")
+        @DisplayName("código correcto en estado AWAITING_OTP: pasa el screening y verifica el método")
         void correctCodeWhileAwaiting_marksVerified() {
             PayoutMethod method = PayoutMethod.builder()
-                    .verificationStatus(VerificationStatus.AWAITING_OTP).phoneNumber("3001234567").build();
+                    .verificationStatus(VerificationStatus.AWAITING_OTP).phoneNumber("3001234567")
+                    .commercial(commercialWithUser(5L)).accountHolderName("Juan").accountHolderDoc("123").build();
             when(payoutMethodRepository.findByIdAndCommercialId(10L, 1L)).thenReturn(Optional.of(method));
             when(twilioSmsService.verifyOtp("3001234567", "123456")).thenReturn(true);
 
             service.verifyOtp(1L, 10L, "123456");
 
             assertThat(method.getVerificationStatus()).isEqualTo(VerificationStatus.VERIFIED);
+            verify(screeningService).screenOrThrow(5L, "Juan", "123");
+        }
+
+        @Test
+        @DisplayName("titular en lista restrictiva: rechaza automáticamente el método y lanza IllegalStateException")
+        void screeningHit_autoRejectsAndThrows() {
+            PayoutMethod method = PayoutMethod.builder()
+                    .verificationStatus(VerificationStatus.AWAITING_OTP).phoneNumber("3001234567")
+                    .commercial(commercialWithUser(5L)).accountHolderName("Juan").accountHolderDoc("123").build();
+            when(payoutMethodRepository.findByIdAndCommercialId(10L, 1L)).thenReturn(Optional.of(method));
+            when(twilioSmsService.verifyOtp("3001234567", "123456")).thenReturn(true);
+            doThrow(new ScreeningHitException(ScreeningList.OFAC_SDN, ScreeningStatus.HIT, "Juan"))
+                    .when(screeningService).screenOrThrow(any(), anyString(), anyString());
+
+            assertThatThrownBy(() -> service.verifyOtp(1L, 10L, "123456")).isInstanceOf(IllegalStateException.class);
+            assertThat(method.getVerificationStatus()).isEqualTo(VerificationStatus.REJECTED);
         }
 
         @Test

@@ -1,5 +1,7 @@
 package com.verygana2.controllers.commercial;
 
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.finance.requests.CreatePayoutMethodRequestDTO;
 import com.verygana2.dtos.finance.requests.VerifyOtpRequestDTO;
+import com.verygana2.dtos.finance.responses.PayoutBankResponseDTO;
 import com.verygana2.dtos.finance.responses.PayoutMethodResponseDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.services.interfaces.finance.PayoutMethodService;
@@ -28,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/commercial/payout-methods")
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 @RequiredArgsConstructor
 public class PayoutMethodController {
 
@@ -49,6 +52,17 @@ public class PayoutMethodController {
         Long commercialId = jwt.getClaim("userId");
         EntityCreatedResponseDTO response = payoutMethodService.createPayoutMethod(commercialId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    /**
+     * Lista el catálogo de bancos/canales disponibles en Wompi Pagos a Terceros,
+     * para que el frontend elija el bankCode correcto al registrar BANK_TRANSFER.
+     *
+     * GET /api/commercial/payout-methods/banks
+     */
+    @GetMapping("/banks")
+    public ResponseEntity<List<PayoutBankResponseDTO>> getBanks() {
+        return ResponseEntity.ok(payoutMethodService.getAvailableBanks());
     }
 
     /**

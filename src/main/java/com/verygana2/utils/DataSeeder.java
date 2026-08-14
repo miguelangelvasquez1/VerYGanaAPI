@@ -15,8 +15,11 @@ import org.springframework.stereotype.Component;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
+import com.verygana2.models.raffles.Prize;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
+import com.verygana2.repositories.raffles.PrizeRepository;
+import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.security.ProductCodeEncryptor;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +35,8 @@ public class DataSeeder implements CommandLineRunner {
     private final ProductRepository productRepository;
     private final ProductStockRepository productStockRepository;
     private final ProductCodeEncryptor productCodeEncryptor;
+    private final PrizeRepository prizeRepository;
+    private final ClaimCodeEncryptor claimCodeEncryptor;
 
     @Override
     public void run(String... args) throws Exception {
@@ -52,7 +57,26 @@ public class DataSeeder implements CommandLineRunner {
         // y con su code_hash igual que si lo hubiera creado un commercial real.
         seedProductStock();
 
+        // raffle_prizes.claim_code también va cifrado (ClaimCodeEncryptor). Los
+        // scripts SQL de rifas insertan un placeholder con prefijo "RAW:"; acá se
+        // reemplaza por el valor cifrado real, igual que con product_stock.code.
+        seedPrizeClaimCodes();
+
         log.info("Seeds ejecutados correctamente");
+    }
+
+    private static final String RAW_CLAIM_CODE_PREFIX = "RAW:";
+
+    private void seedPrizeClaimCodes() {
+        List<Prize> pendingPrizes = prizeRepository.findAll().stream()
+                .filter(p -> p.getClaimCode() != null && p.getClaimCode().startsWith(RAW_CLAIM_CODE_PREFIX))
+                .toList();
+
+        for (Prize prize : pendingPrizes) {
+            String plainCode = prize.getClaimCode().substring(RAW_CLAIM_CODE_PREFIX.length());
+            prize.setClaimCode(claimCodeEncryptor.encrypt(plainCode));
+            prizeRepository.save(prize);
+        }
     }
 
     private record SeedCode(Long productId, String code) {
@@ -121,6 +145,7 @@ public class DataSeeder implements CommandLineRunner {
         populator.addScript(new ClassPathResource("db/seed/test/test-productCategoryImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-productImageAsset.sql"));
         populator.addScript(new ClassPathResource("db/seed/test/test-raffle-referral-rule.sql")); // depende de test-users (admin)
+        populator.addScript(new ClassPathResource("db/seed/test/test-raffles-full-catalog.sql")); // depende de test-users (admin)
         // populator.addScript(new ClassPathResource("db/seed/test/test-ads.sql")); // depende de test-users (comercial)
     }
 

@@ -25,7 +25,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/game-designer/pet")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_GAME_DESIGNER')")
+@PreAuthorize("hasRole('GAME_DESIGNER')")
 public class PetDesignerController {
 
     private final PetCatalogService catalogService;
