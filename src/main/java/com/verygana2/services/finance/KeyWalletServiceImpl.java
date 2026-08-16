@@ -16,15 +16,19 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.finance.KeyWalletRepository;
+import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class KeyWalletServiceImpl implements KeyWalletService {
 
     @Value("${financial.purchase-keys-percentage:75}")
@@ -40,6 +44,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private final KeyTransactionRepository keyTransactionRepository;
     private final KeyWalletRepository keyWalletRepository;
     private final ConsumerDetailsService consumerDetailsService;
+    private final PetCatalogItemRepository petCatalogItemRepository;
 
     @Override
     public void createFor(Long consumerId) {
@@ -113,8 +118,10 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
         KeyWallet wallet = getByConsumerId(consumerId);
 
-        // El juego manda llaves y el resto de clientes centavos; acá ya es centavos.
-        long amountCents = request.resolveAmountCents(keyValueCents);
+        long amountCents = resolvePriceCents(request);
+
+        log.info("PetGame spend: itemId={} itemName={} qty={} amountCents={} consumerId={}",
+                request.itemId(), request.itemName(), request.quantityOrOne(), amountCents, consumerId);
 
         if (!wallet.hasSufficientPurchaseKeysCents(amountCents)) {
             return SpendKeysResponseDTO.fail("Saldo insuficiente");
@@ -124,10 +131,35 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         keyWalletRepository.save(wallet);
 
         keyTransactionRepository.save(
-                KeyTransaction.forPetGame(wallet, amountCents, request.itemName()));
+                KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName()));
 
         // Mismo criterio que getBalance, para que el saldo que devuelve la compra
         // coincida con el que el juego consulta después.
         return SpendKeysResponseDTO.ok(wallet.getPurchaseKeysCents() / keyValueCents);
+    }
+
+    /**
+     * El precio lo pone el servidor, no el cliente: sin esto cualquiera puede
+     * comprar un ítem de 75 llaves mandando amount=1.
+     *
+     * Los ítems horneados en el build no están en pet_catalog_items y por ahora
+     * caen al monto del cliente — es el comportamiento viejo, acotado a ese caso.
+     * Se cierra del todo cuando el catálogo del juego venga solo de la API.
+     */
+    private long resolvePriceCents(SpendKeysRequestDTO request) {
+        Integer externalId = request.resolveCatalogId();
+
+        if (externalId != null) {
+            PetCatalogItem item = petCatalogItemRepository
+                    .findByExternalId(externalId).orElse(null);
+
+            if (item != null && item.getPrice() != null) {
+                return item.getPrice() * keyValueCents * request.quantityOrOne();
+            }
+            log.warn("PetGame spend: externalId={} no está en el catálogo (¿ítem horneado "
+                    + "en el build?), se cobra el monto del cliente", externalId);
+        }
+
+        return request.resolveAmountCents(keyValueCents);
     }
 }

@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Ítem del catálogo de mascota",
+  "description": "Contrato del borrador que el diseñador completa antes de publicar. Los campos requeridos son los que el juego necesita para poder mostrar y cobrar el ítem.",
+  "type": "object",
+  "required": ["externalId", "name", "price"],
+  "properties": {
+    "externalId": {
+      "type": "integer",
+      "minimum": 1000,
+      "description": "Id con el que el juego identifica el ítem. Desde 1000: por debajo de 15 están los ítems horneados en el build y se pisarían."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "description": {
+      "type": ["string", "null"],
+      "maxLength": 500
+    },
+    "price": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Precio en llaves. Lo cobra el servidor; lo que mande el cliente se ignora."
+    },
+    "spriteObjectKey": {
+      "type": ["string", "null"],
+      "description": "Clave en el bucket de mascotas. Sin esto el juego usa su sprite de respaldo."
+    },
+    "isMedicine": { "type": ["boolean", "null"] },
+    "isDrink": { "type": ["boolean", "null"] },
+    "curesAllParts": { "type": ["boolean", "null"] },
+    "active": { "type": ["boolean", "null"] },
+    "expWhenEating": { "type": ["integer", "null"], "minimum": 0 },
+    "healthDelta": { "type": ["integer", "null"] },
+    "energyDelta": { "type": ["integer", "null"] },
+    "hungerDelta": { "type": ["integer", "null"] },
+    "thirstDelta": { "type": ["integer", "null"] },
+    "hygieneDelta": { "type": ["integer", "null"] },
+    "humorDelta": { "type": ["integer", "null"] },
+    "bodyFatDelta": { "type": ["integer", "null"] }
+  }
+}

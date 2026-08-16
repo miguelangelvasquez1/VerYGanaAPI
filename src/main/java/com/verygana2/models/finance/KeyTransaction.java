@@ -265,13 +265,20 @@ public class KeyTransaction {
     }
 
     // KeyTransaction.java — agregar factory method
+    /**
+     * El itemId se guarda además del nombre porque es el único dato que permite
+     * saber qué ítem se compró: el juego manda nombres numéricos para la comida
+     * ("12", "14") y descriptivos para la ropa ("monoculo"), así que el nombre
+     * solo no identifica nada. Es además el candidato a cruzarse con
+     * PetCatalogItem.externalId cuando el precio pase a calcularse en el servidor.
+     */
     public static KeyTransaction forPetGame(
-            KeyWallet wallet, long amountCentsSpent, String itemName) {
+            KeyWallet wallet, long amountCentsSpent, Integer itemId, String itemName) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.DEBIT_PET_GAME)
                 .purchaseKeysDeltaCents(-amountCentsSpent)
-                .reason("Mascota virtual: " + itemName)
+                .reason("Mascota virtual: " + itemName + " (itemId=" + itemId + ")")
                 .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
                 .build();
     }

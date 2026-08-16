@@ -9,7 +9,10 @@ public record PetCatalogItemRequestDTO(
         Boolean isDrink,
         Boolean curesAllParts,
         Integer price,
-        String spriteUrl,
+        // Clave del asset en R2, la que devuelve POST /game-designer/pet/assets.
+        // Antes este campo era `spriteUrl`: el front mandaba `spriteObjectKey`, Jackson
+        // no lo reconocía, lo descartaba en silencio y el ítem nacía sin imagen.
+        String spriteObjectKey,
         Integer expWhenEating,
         Integer healthDelta,
         Integer energyDelta,

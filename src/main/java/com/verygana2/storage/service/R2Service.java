@@ -111,6 +111,136 @@ public class R2Service {
         }
     }
 
+    // ==================== BUCKET EXPLÍCITO ====================
+    // El bucket principal (campañas) se asume en el resto de la clase. Los métodos de
+    // abajo reciben el bucket como parámetro para poder trabajar contra buckets
+    // secundarios — hoy el de mascotas (`cloudflare.r2.pets-bucket-name`).
+    //
+    /**
+     * Genera una URL pre-firmada (PUT) para subir un objeto a un bucket concreto.
+     *
+     * @param bucket bucket destino.
+     * @param objectKey clave del objeto, usada sin prefijo.
+     * @param contentType mime declarado por el cliente (se valida de verdad en
+     *                    {@link #validateUploadedObjectInBucket} tras la subida).
+     */
+    public FileUploadPermissionDTO generateUploadUrlInBucket(String bucket, String objectKey, String contentType) {
+        try {
+            validateObjectKey(objectKey);
+
+            PutObjectRequest putRequest = PutObjectRequest.builder()
+                .bucket(bucket)
+                .key(objectKey)
+                .contentType(contentType)
+                .build();
+
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                .signatureDuration(DEFAULT_UPLOAD_EXPIRATION)
+                .putObjectRequest(putRequest)
+                .build();
+
+            PresignedPutObjectRequest presignedRequest = r2Presigner.presignPutObject(presignRequest);
+
+            log.info("Pre-signed URL generada en bucket {} para: {}", bucket, objectKey);
+
+            return new FileUploadPermissionDTO(presignedRequest.url().toString(),
+                    DEFAULT_UPLOAD_EXPIRATION.getSeconds());
+
+        } catch (Exception e) {
+            log.error("Error generando pre-signed URL en bucket {} para {}: {}", bucket, objectKey, e.getMessage());
+            throw new StorageException("Error generando URL de subida", e);
+        }
+    }
+
+    /**
+     * Valida un objeto ya subido a un bucket concreto: que exista, que no exceda el
+     * tamaño máximo y que su contenido REAL (no el content-type declarado) sea de un
+     * tipo permitido. Si algo falla, borra el objeto para no dejar basura en el bucket.
+     *
+     * @return el mime real detectado.
+     */
+    public SupportedMimeType validateUploadedObjectInBucket(String bucket, String objectKey,
+            long maxSizeBytes, Set<SupportedMimeType> allowedMimeTypes) {
+        try {
+            HeadObjectResponse head = r2Client.headObject(
+                HeadObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey)
+                    .build()
+            );
+
+            if (head.contentLength() > maxSizeBytes) {
+                deleteObjectInBucket(bucket, objectKey);
+                throw new ValidationException(
+                    "Archivo excede el tamaño máximo permitido. Máximo: " + maxSizeBytes
+                    + " bytes, real: " + head.contentLength());
+            }
+
+            // El content-type declarado es solo una pista: la fuente de verdad son los
+            // bytes reales del objeto.
+            SupportedMimeType realMime;
+            try {
+                realMime = SupportedMimeType.fromValue(detectRealMimeTypeInBucket(bucket, objectKey));
+            } catch (ValidationException e) {
+                deleteObjectInBucket(bucket, objectKey);
+                throw new ValidationException("El archivo subido no es de un tipo soportado");
+            }
+
+            if (!allowedMimeTypes.contains(realMime)) {
+                deleteObjectInBucket(bucket, objectKey);
+                throw new ValidationException("Content-Type real inválido: " + realMime.getMime());
+            }
+
+            log.info("Objeto {} del bucket {} validado correctamente ({})", objectKey, bucket, realMime.getMime());
+            return realMime;
+
+        } catch (NoSuchKeyException e) {
+            throw new ValidationException("El objeto no existe en storage");
+        } catch (S3Exception e) {
+            // R2 responde 404 sin cuerpo en headObject sobre claves inexistentes.
+            if (e.statusCode() == 404) {
+                throw new ValidationException("El objeto no existe en storage");
+            }
+            log.error("Error validando objeto {} en bucket {}: {}", objectKey, bucket, e.getMessage());
+            throw new StorageException("Error accediendo a storage", e);
+        }
+    }
+
+    /** Detecta el mime real (por contenido) de un objeto en un bucket concreto. */
+    public String detectRealMimeTypeInBucket(String bucket, String objectKey) {
+        try (ResponseInputStream<GetObjectResponse> objectStream =
+                r2Client.getObject(
+                    GetObjectRequest.builder()
+                        .bucket(bucket)
+                        .key(objectKey)
+                        .range("bytes=0-4096")
+                        .build()
+                )) {
+
+            return new Tika().detect(objectStream);
+
+        } catch (Exception e) {
+            log.error("Error detectando MIME real de {} en bucket {}: {}", objectKey, bucket, e.getMessage());
+            throw new StorageException("Error detectando tipo real", e);
+        }
+    }
+
+    /** Borra un objeto de un bucket concreto. */
+    public void deleteObjectInBucket(String bucket, String objectKey) {
+        try {
+            r2Client.deleteObject(
+                DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(objectKey)
+                    .build()
+            );
+            log.info("Objeto {} eliminado del bucket {}", objectKey, bucket);
+        } catch (Exception e) {
+            log.error("Error eliminando {} del bucket {}: {}", objectKey, bucket, e.getMessage());
+            throw new StorageException("Error eliminando objeto", e);
+        }
+    }
+
     /**
      * Validación de Objetos Post-Upload (existencia, size y conten-type)
      * @param objectKey clave única del objeto dentro del bucket R2.
