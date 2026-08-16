@@ -332,8 +332,8 @@ El flag `firstPayoutCompleted` empieza en `false`. Cuando el job ejecuta el prim
 
 | Variable | Descripción |
 |---|---|
-| `WOMPI_PAYOUT_API_KEY` | Autenticación en el header `Authorization: Bearer` del WebClient de payouts |
-| `WOMPI_PAYOUT_PRINCIPAL_USER_ID` | ID Usuario Principal, header `Principal-User-Id` |
+| `WOMPI_PAYOUT_API_KEY` | Autenticación, header `x-api-key` del WebClient de payouts |
+| `WOMPI_PAYOUT_PRINCIPAL_USER_ID` | ID Usuario Principal, header `user-principal-id` |
 | `WOMPI_PAYOUT_EVENTS_KEY` | Secreto para validar la firma del webhook de payouts |
 | `WOMPI_PAYOUT_ACCOUNT_ID` | Cuenta de origen de las dispersiones (`GET /accounts`) |
 | `WOMPI_PAYOUT_NEQUI_BANK_ID` | `bankId` de Wompi que representa a Nequi en el catálogo `/banks` |
@@ -352,7 +352,21 @@ Ver `WompiPayoutWebClientConfig`.
 
 **`POST /payouts` además requiere un tercer header, `idempotency-key`** (confirmado en sandbox: sin él, la API responde `500 EXC_001` genérico en vez de un error claro). Debe ser único por request, 1-64 caracteres (letras, números, guion), y expira en 24h — por eso no puede ser un header fijo del `WebClient` como los otros dos; `WompiPayoutClient.createPayout()` genera un `UUID.randomUUID()` nuevo en cada llamada. Ref: `https://docs.wompi.co/docs/colombia/crea-tu-primer-lote/`.
 
-> **Pendiente de verificar en sandbox:** que `GET /banks` efectivamente incluya entradas para Nequi y Daviplata, y el envelope exacto de `GET /accounts` (se asume `{status, code, data: [...]}`, consistente con `POST /payouts`, pero sin ejemplo público confirmado).
+> **Confirmado (2026-08-05):** `GET /banks` responde correctamente con las credenciales de sandbox del usuario. Sigue **pendiente de verificar** que el envelope de campos por banco (`id`/`name`) coincida exactamente con lo asumido en `WompiPayoutBankResponseDTO` — `@JsonIgnoreProperties(ignoreUnknown = true)` evita que un campo extra rompa el deserializador, pero si `id`/`name` llegan con otro nombre quedarían en `null`. Ajustar los `@JsonProperty` si al probar `GET /api/commercial/payout-methods/banks` los valores no coinciden con el dashboard/Postman. También sigue pendiente confirmar que el envelope de `GET /accounts` sea `{status, code, data: [...]}` (sin ejemplo público confirmado) y que el catálogo de `/banks` efectivamente incluya entradas para Nequi y Daviplata (los `bankId` configurados en `WOMPI_PAYOUT_NEQUI_BANK_ID`/`WOMPI_PAYOUT_DAVIPLATA_BANK_ID` no se validan contra el catálogo, a diferencia del `bankCode` de BANK_TRANSFER — ver más abajo).
+
+### Validaciones agregadas en el registro de métodos de pago (2026-08-05)
+
+Mientras se resuelve el bloqueo de soporte de Wompi para un `POST /payouts` exitoso, se reforzó todo lo que sí se puede validar en el momento del registro (`PayoutMethodServiceImpl`), para no descubrir datos inválidos recién el día del payout:
+
+- **`GET /api/commercial/payout-methods/banks`** (nuevo, `PayoutMethodController`): expone el catálogo real de `GET /banks` de Wompi para que el frontend deje elegir el `bankCode` correcto en vez de que el commercial lo escriba a mano.
+- **Cross-check de `bankCode` contra el catálogo real** al registrar un método `BANK_TRANSFER`: si el `bankCode` enviado no existe en `GET /banks`, el registro se rechaza con 400 en vez de quedar `UNDER_REVIEW` con un dato que Wompi rechazará después.
+- **Validación de formato de `accountHolderDoc`** según `accountHolderDocType` (CC/CE/TI/DNI: solo dígitos 5-15; NIT: dígitos 6-12 con dígito de verificación opcional; PP: alfanumérico 5-20). Antes no había ninguna validación de formato — un documento mal escrito solo se detectaba al ejecutar el payout.
+- **Screening SARLAFT/OFAC también en NEQUI/DAVIPLATA**: antes `verifyOtp()` marcaba el método `VERIFIED` con solo el OTP de Twilio, sin pasar por `screeningService.screenOrThrow(...)` como sí ocurre en `adminVerifyMethod()` para BANK_TRANSFER. Ahora ambos flujos aplican el mismo screening antes de dejar un método listo para recibir dinero.
+
+**Sigue pendiente (no se puede resolver sin un `POST /payouts` exitoso en sandbox):**
+- Confirmar la unidad real de `amount` (¿centavos o pesos?) comparando el payout contra `GET /payouts/{id}/transactions`.
+- Confirmar que `DocType.DNI` sea un `legalIdType` aceptado por Wompi (el único ejemplo público confirmado usa `CC`).
+- Probar el webhook `transaction.updated` end-to-end.
 
 ### Ambientes
 

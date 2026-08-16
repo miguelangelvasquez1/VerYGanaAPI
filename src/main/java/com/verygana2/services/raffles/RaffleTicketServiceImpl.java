@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,6 @@ import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketAuditLogRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleRuleService;
-import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.services.interfaces.raffles.RaffleTicketService;
 import com.verygana2.utils.audit.AuditContextService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
@@ -61,7 +61,6 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
     private final RaffleRepository raffleRepository;
     private final RaffleRuleRespository raffleRuleRespository;
     private final RaffleRuleService raffleRuleService;
-    private final RaffleService raffleService;
     private final RaffleTicketMapper raffleTicketMapper;
     private final ConsumerDetailsService consumerDetailsService;
     private final RaffleParticipationRepository participationRepository;
@@ -155,7 +154,12 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
      */
     private Raffle validateAndGetRaffle(Long raffleId) {
 
-        Raffle raffle = raffleService.getRaffleById(raffleId);
+        // Lock pesimista: dos issueTickets() concurrentes sobre la misma rifa no
+        // deben poder leer el mismo totalTicketsIssued y generar el mismo
+        // ticket_number (ver RaffleRepository.findByIdForUpdate).
+        Raffle raffle = raffleRepository.findByIdForUpdate(raffleId)
+                .orElseThrow(() -> new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ",
+                        Raffle.class));
 
         if (raffle.getRaffleStatus() != RaffleStatus.ACTIVE) {
             throw new InvalidRequestException(

@@ -1,22 +1,32 @@
 package com.verygana2.services.details;
 
 import java.time.Instant;
+import java.time.ZonedDateTime;
 import java.util.Objects;
+import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
+import com.verygana2.dtos.user.admin.consumers.ConsumerResponseDTO;
+import com.verygana2.dtos.user.admin.consumers.ConsumerSummaryResponseDTO;
 import com.verygana2.dtos.user.consumer.requests.ConsumerUpdateProfileRequestDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO;
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.mappers.UserMapper;
+import com.verygana2.models.enums.Gender;
+import com.verygana2.models.enums.UserLevel;
+import com.verygana2.models.enums.UserState;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -83,6 +93,19 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     @Transactional(readOnly = true)
     public boolean existsConsumerById(Long consumerId) {
         return consumerDetailsRepository.existsById(Objects.requireNonNull(consumerId));
+    }
+
+    @Override
+    public PagedResponse<ConsumerSummaryResponseDTO> getConsumers(UserLevel level, String search, UserState userState,
+            Integer maxAge, Integer minAge, Gender gender, String departmentCode, String municipalityCode, ZonedDateTime startDate,
+            ZonedDateTime endDate, Pageable pageable) {
+
+        return PagedResponse.from(consumerDetailsRepository.getConsumers(level, search, userState, maxAge, minAge, gender, departmentCode, municipalityCode, startDate, endDate, pageable).map(consumerDetailsMapper::toConsumerSummaryResponseDTO));
+    }
+
+    @Override
+    public ConsumerResponseDTO getConsumer(UUID publicId) {
+        return consumerDetailsMapper.toConsumerResponseDTO(consumerDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("Consumer with public id: " + publicId + " not found"))); 
     }
     
 }

@@ -97,6 +97,15 @@ public class Investment {
     @Column(name = "confirmed_at")
     private ZonedDateTime confirmedAt;
 
+    /**
+     * Sellado cuando Wompi rechaza o falla el pago (DECLINED/ERROR).
+     * Null mientras está pendiente o ya fue confirmado.
+     * Permite distinguir "esperando webhook" de "rechazado, no volverá a confirmarse"
+     * sin degradar el significado de confirmed=false.
+     */
+    @Column(name = "failed_at")
+    private ZonedDateTime failedAt;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
@@ -111,5 +120,14 @@ public class Investment {
         this.wompiTransaction = wompiTx;
         this.confirmed = true;
         this.confirmedAt = ZonedDateTime.now(ZoneOffset.UTC);
+    }
+
+    /**
+     * Marca el depósito como rechazado/fallido cuando Wompi lo reporta DECLINED o ERROR.
+     * Llamado por PlanService.handleFailedPayment().
+     */
+    public void fail(WompiTransaction wompiTx) {
+        this.wompiTransaction = wompiTx;
+        this.failedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 }

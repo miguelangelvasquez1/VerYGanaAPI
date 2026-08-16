@@ -16,6 +16,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutBalanceResponseDTO;
+import com.verygana2.dtos.wompi.WompiPayoutBankResponseDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.exceptions.wompi.WompiApiException;
@@ -71,6 +72,35 @@ public class WompiPayoutClient {
                     e.getStatusCode(), e.getResponseBodyAsString());
             throw new WompiApiException(
                     "Error consultando balance de Wompi Payouts: " + e.getMessage(),
+                    e.getStatusCode().value());
+        }
+    }
+
+    /**
+     * Consulta el catálogo de bancos/canales disponibles para Pagos a Terceros.
+     * Se usa para validar que el bankCode que registra un commercial para
+     * BANK_TRANSFER exista realmente en el catálogo de Wompi antes de aceptarlo.
+     */
+    public List<WompiPayoutBankResponseDTO.Bank> getBanks() {
+        log.info("[WOMPI PAYOUT] Consultando catálogo de bancos");
+        try {
+            WompiPayoutBankResponseDTO response = webClient.get()
+                    .uri("/banks")
+                    .retrieve()
+                    .bodyToMono(WompiPayoutBankResponseDTO.class)
+                    .block();
+
+            List<WompiPayoutBankResponseDTO.Bank> banks = response != null ? response.getData() : null;
+            if (banks == null) {
+                throw new WompiApiException("Wompi no devolvió el catálogo de bancos", 502);
+            }
+            return banks;
+
+        } catch (WebClientResponseException e) {
+            log.error("[WOMPI PAYOUT] Error consultando catálogo de bancos: status={}, body={}",
+                    e.getStatusCode(), e.getResponseBodyAsString());
+            throw new WompiApiException(
+                    "Error consultando catálogo de bancos de Wompi Payouts: " + e.getMessage(),
                     e.getStatusCode().value());
         }
     }

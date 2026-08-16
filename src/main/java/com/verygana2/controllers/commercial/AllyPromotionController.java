@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/commercial/allies")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class AllyPromotionController {
 
     private final AllyPromotionService allyPromotionService;

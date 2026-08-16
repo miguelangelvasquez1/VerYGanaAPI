@@ -37,7 +37,7 @@ public class PlanController {
          */
 
         @PostMapping("/checkout")
-        @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+        @PreAuthorize("hasRole('COMMERCIAL')")
         public ResponseEntity<WompiCheckoutResponseDTO> initiatePayment(
                         @AuthenticationPrincipal Jwt jwt,
                         @Valid @RequestBody PlanPaymentRequestDTO request) {
@@ -65,7 +65,7 @@ public class PlanController {
          */
 
         @GetMapping("/status/{reference}")
-        @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+        @PreAuthorize("hasRole('COMMERCIAL')")
         public ResponseEntity<PlanPaymentStatusResponseDTO> getPaymentStatus(
                         @AuthenticationPrincipal Jwt jwt,
                         @PathVariable String reference) {
@@ -88,7 +88,7 @@ public class PlanController {
          * Se llama al cargar el dashboard y después de completar un pago.
          */
         @GetMapping("/commercial/state")
-        @PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+        @PreAuthorize("hasRole('COMMERCIAL')")
         public ResponseEntity<EffectivePlanStateResponseDTO> getEffectivePlanState(
                         @AuthenticationPrincipal Jwt jwt) {
 

@@ -261,6 +261,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(AllyPromotionException.class)
+    public ResponseEntity<ErrorResponse> handleAllyPromotionException(
+            AllyPromotionException ex, WebRequest request) {
+        log.warn("Ally promotion error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)

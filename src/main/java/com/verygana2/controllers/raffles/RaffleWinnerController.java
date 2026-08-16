@@ -38,7 +38,7 @@ public class RaffleWinnerController {
     private final TwilioSmsService twilioSmsService;
     private final EmailVerificationService emailVerificationService;
 
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     @GetMapping("/my-prizes")
     public ResponseEntity<PagedResponse<PrizeWonResponseDTO>> getWonPrizes(
             @AuthenticationPrincipal Jwt jwt,
@@ -59,7 +59,7 @@ public class RaffleWinnerController {
      *
      * POST /api/winners/claim/send-otp?phoneNumber=3001234567
      */
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     @PostMapping("/claim/send-otp")
     public ResponseEntity<Void> sendClaimPhoneOtp(@RequestParam String phoneNumber) {
         twilioSmsService.sendOtp(phoneNumber);
@@ -72,7 +72,7 @@ public class RaffleWinnerController {
      *
      * POST /api/winners/claim/send-email-otp?email=nuevo@correo.com
      */
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     @PostMapping("/claim/send-email-otp")
     public ResponseEntity<Void> sendClaimEmailOtp(@RequestParam String email) {
         emailVerificationService.sendVerificationCode(email);
@@ -85,7 +85,7 @@ public class RaffleWinnerController {
      *
      * POST /api/winners/claim
      */
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     @PostMapping("/claim")
     public ResponseEntity<Void> claimPrize(
             @AuthenticationPrincipal Jwt jwt,

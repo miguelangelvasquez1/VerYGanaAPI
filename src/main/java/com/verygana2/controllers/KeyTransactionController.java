@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/key-transactions")
-@PreAuthorize("hasRole('ROLE_CONSUMER')")
+@PreAuthorize("hasRole('CONSUMER')")
 @RequiredArgsConstructor
 public class KeyTransactionController {
 

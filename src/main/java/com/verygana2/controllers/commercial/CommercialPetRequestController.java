@@ -22,7 +22,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/commercial/pet/requests")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class CommercialPetRequestController {
 
     private final CatalogIntegrationRequestService requestService;

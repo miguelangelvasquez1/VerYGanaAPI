@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/admin/treasury")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_ADMIN')")
+@PreAuthorize("hasRole('ADMIN')")
 public class TreasuryAdminController {
 
     private final TreasuryService treasuryService;
@@ -56,7 +56,7 @@ public class TreasuryAdminController {
      * GET /admin/treasury/config/keys-reserve-pct
      */
     @GetMapping("/config/keys-reserve-pct")
-    @PreAuthorize("hasAnyRole('ROLE_ADMIN', 'ROLE_COMMERCIAL')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'COMMERCIAL')")
     public ResponseEntity<Integer> getKeysReservePct() {
         return ResponseEntity.ok(treasuryConfig.getKeysReservePct());
     }

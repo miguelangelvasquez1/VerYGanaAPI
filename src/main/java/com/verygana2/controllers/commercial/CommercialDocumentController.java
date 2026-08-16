@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/commercials/onboarding/documents")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ROLE_COMMERCIAL')")
+@PreAuthorize("hasRole('COMMERCIAL')")
 public class CommercialDocumentController {
 
     private final CommercialDocumentService documentService;

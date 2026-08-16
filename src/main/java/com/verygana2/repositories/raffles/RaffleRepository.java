@@ -7,9 +7,12 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
+import jakarta.persistence.LockModeType;
 
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
@@ -20,6 +23,18 @@ import com.verygana2.models.raffles.Raffle;
 
 @Repository
 public interface RaffleRepository extends JpaRepository<Raffle, Long> {
+
+        /**
+         * Lock pesimista para operaciones que leen y luego incrementan contadores
+         * de la rifa (emisión de tickets). Sin esto, dos transacciones concurrentes
+         * pueden leer el mismo totalTicketsIssued y generar el mismo ticket_number,
+         * chocando contra el UNIQUE(raffle_id, ticket_number) en vez de fallar con
+         * una excepción de dominio (LimitReachedException). Mismo patrón que
+         * WalletRepository/TreasuryAccountRepository/SurveyRepository.
+         */
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("SELECT r FROM Raffle r WHERE r.id = :id")
+        Optional<Raffle> findByIdForUpdate(@Param("id") Long id);
 
         // ========== CONSULTAS PARA ADMIN ==========
         /**
@@ -142,11 +157,12 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                r.requiresPet
                                ) FROM Raffle r
                                JOIN r.prizes p
+                               LEFT JOIN r.targetAudience ta
                                WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.LIVE)
                                AND (:municipality IS NULL
-                                    OR r.targetAudience IS NULL
-                                    OR r.targetAudience.targetMunicipalities IS EMPTY
-                                    OR :municipality MEMBER OF r.targetAudience.targetMunicipalities)
+                                    OR ta IS NULL
+                                    OR ta.targetMunicipalities IS EMPTY
+                                    OR :municipality MEMBER OF ta.targetMunicipalities)
                                GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                                     r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                                     r.totalParticipants, r.requiresPet
@@ -171,12 +187,13 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         r.requiresPet
                         ) FROM Raffle r
                         JOIN r.prizes p
+                        LEFT JOIN r.targetAudience ta
                         WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.ACTIVE)
                         AND (:type IS NULL OR r.raffleType = :type)
                         AND (:municipality IS NULL
-                             OR r.targetAudience IS NULL
-                             OR r.targetAudience.targetMunicipalities IS EMPTY
-                             OR :municipality MEMBER OF r.targetAudience.targetMunicipalities)
+                             OR ta IS NULL
+                             OR ta.targetMunicipalities IS EMPTY
+                             OR :municipality MEMBER OF ta.targetMunicipalities)
                         GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                              r.totalParticipants, r.requiresPet

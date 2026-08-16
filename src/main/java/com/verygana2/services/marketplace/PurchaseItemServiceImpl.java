@@ -103,7 +103,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     @Override
     public Integer getTotalCommercialSalesByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
         validateDateRange(commercialId, startDate, endDate);
-        return purchaseItemRepository.findTotalCommercialSalesByMonth(commercialId, startDate, endDate);
+        return purchaseItemRepository.countTotalSalesByCommercialIdAndDatesRange(commercialId, startDate, endDate);
     }
 
     @Override

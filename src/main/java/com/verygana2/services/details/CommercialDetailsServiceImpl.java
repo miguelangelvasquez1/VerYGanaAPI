@@ -1,8 +1,10 @@
 package com.verygana2.services.details;
 
 import java.math.BigDecimal;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.context.annotation.Lazy;
@@ -13,12 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialResponseDTO;
+import com.verygana2.dtos.user.admin.commercials.CommercialSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
 import com.verygana2.mappers.UserMapper;
+import com.verygana2.models.enums.UserState;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
@@ -28,6 +34,7 @@ import com.verygana2.services.interfaces.marketplace.ProductReviewService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -107,6 +114,22 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
 
     @Override
     @Transactional(readOnly = true)
+    public SalesReportResponseDTO[] getSalesReports(Long commercialId, Integer year) {
+        ZoneId zone = ZoneId.of("America/Bogota");
+        SalesReportResponseDTO[] reports = new SalesReportResponseDTO[12];
+        for (int month = 1; month <= 12; month++) {
+            ZonedDateTime startDate = ZonedDateTime.of(year, month, 1, 0, 0, 0, 0, zone);
+            ZonedDateTime endDate = startDate.plusMonths(1);
+            SalesReportResponseDTO monthlyReport = getSalesReport(commercialId, startDate, endDate);
+            monthlyReport.setMonth(month);
+            monthlyReport.setYear(year);
+            reports[month - 1] = monthlyReport;
+        }
+        return reports;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public SalesReportResponseDTO getSalesReport(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
 
         BigDecimal salesAmount = purchaseItemService.getTotalCommercialSalesAmountByDateRange(commercialId, startDate, endDate);
@@ -125,6 +148,12 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
                 .totalPlatformCommissionsAmount(commissionsAmount)
                 .topSellingProducts(topSellingProducts)
                 .build();
+    }
+
+    @Override
+    public Integer getSalesCount(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
+        getCommercialById(commercialId);
+        return purchaseItemService.getTotalCommercialSalesByDateRange(commercialId, startDate, endDate);
     }
 
     @Override
@@ -147,6 +176,17 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
         
         return commercialProfile;
 
-        
+    }
+
+    @Override
+    public PagedResponse<CommercialSummaryResponseDTO> getCommercials(String search, UserState userState,
+            PlanCode currentPlan, Pageable pageable) {
+
+        return PagedResponse.from(commercialDetailsRepository.findCommercials(search, userState, currentPlan, pageable).map(userMapper::toCommercialSummaryResponseDTO));
+    }
+
+    @Override
+    public CommercialResponseDTO getCommercial(UUID publicId) {
+        return userMapper.toCommercialResponseDTO(commercialDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("Commercial with public id: " + publicId + " not found")));
     }
 }

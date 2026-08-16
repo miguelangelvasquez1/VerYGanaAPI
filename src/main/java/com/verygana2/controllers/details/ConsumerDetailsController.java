@@ -27,28 +27,28 @@ public class ConsumerDetailsController {
     private final ConsumerDetailsService consumerDetailsService;
 
     @GetMapping("/available-keys")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<Long> getConsumerAvailableKeys (@AuthenticationPrincipal Jwt jwt){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(consumerDetailsService.getConsumerAvailableKeys(consumerId));
     }
 
     @GetMapping("/initialData")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<ConsumerInitialDataResponseDTO> getConsumerInitialData (@AuthenticationPrincipal Jwt jwt){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(consumerDetailsService.getConsumerInitialData(consumerId));
     }
 
     @GetMapping("/profile")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<ConsumerProfileResponseDTO> getConsumerProfile (@AuthenticationPrincipal Jwt jwt){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(consumerDetailsService.getConsumerProfile(consumerId));
     }
 
     @PutMapping("/profile/edit")
-    @PreAuthorize("hasRole('ROLE_CONSUMER')")
+    @PreAuthorize("hasRole('CONSUMER')")
     public ResponseEntity<EntityUpdatedResponseDTO> updateConsumerProfile (@AuthenticationPrincipal Jwt jwt, @Valid @RequestBody ConsumerUpdateProfileRequestDTO request){
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(consumerDetailsService.updateConsumerProfile(consumerId, request));

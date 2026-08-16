@@ -161,13 +161,19 @@ INSERT INTO raffle_prizes (
     prize_status, claim_code, claim_instructions,
     created_at, updated_at
 )
+-- claim_code lleva el prefijo RAW: porque en la app real este campo se
+-- guarda CIFRADO (ClaimCodeEncryptor, AES-256-GCM) — un SQL crudo no puede
+-- generar ese cifrado (requiere IV aleatorio + la llave del entorno). El
+-- prefijo es una marca temporal: DataSeeder.seedPrizeClaimCodes() la
+-- reemplaza por el valor cifrado real después de correr este script,
+-- igual que ya se hace con product_stock.code.
 SELECT
     900, 900,
     'Bono de 100.000 COP',
     'Bono de compra para la rifa estándar de referidos (prueba).',
     'VerYGana', 100000.00,
     'DIGITAL', 1, 1, 0,
-    'PENDING', 'TEST-STD-900',
+    'PENDING', 'RAW:TEST-STD-900',
     'Premio de prueba - solo entorno de desarrollo.',
     NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM raffle_prizes WHERE id = 900);
@@ -184,7 +190,7 @@ SELECT
     'Celular de gama alta para la rifa premium de referidos (prueba).',
     'VerYGana', 3500000.00,
     'PHYSICAL', 1, 1, 0,
-    'PENDING', 'TEST-PRM-901',
+    'PENDING', 'RAW:TEST-PRM-901',
     'Premio de prueba - solo entorno de desarrollo.',
     NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM raffle_prizes WHERE id = 901);
@@ -197,7 +203,7 @@ INSERT INTO raffle_image_assets (
     id, object_key, size_bytes, mime_type, status, raffle_id, uploaded_at
 )
 SELECT
-    900, 'raffles/test/rifa-referidos-standard.png', 1024,
+    900, 'raffles/900.png', 1024,
     'IMAGE_PNG', 'ATTACHED', 900, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM raffle_image_assets WHERE id = 900);
 
@@ -205,6 +211,30 @@ INSERT INTO raffle_image_assets (
     id, object_key, size_bytes, mime_type, status, raffle_id, uploaded_at
 )
 SELECT
-    901, 'raffles/test/rifa-referidos-premium.png', 1024,
+    901, 'raffles/901.png', 1024,
     'IMAGE_PNG', 'ATTACHED', 901, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM raffle_image_assets WHERE id = 901);
+
+-- ============================================================
+-- 7. IMÁGENES DE PREMIOS (prize_image_assets)
+-- ============================================================
+-- IDs 4+: los primeros 3 ya están ocupados por una rifa de 3 premios
+-- creada manualmente en el repositorio real. object_key sigue el mismo
+-- patrón que usa RaffleServiceImpl.confirmRaffleCreation: prizes/Rifa-
+-- {raffleId}/p{prizeId}.png (aquí prize.id == raffle.id, uno por rifa).
+
+INSERT INTO prize_image_assets (
+    id, object_key, size_bytes, mime_type, status, prize_id, uploaded_at
+)
+SELECT
+    4, 'prizes/Rifa-900/p900.png', 1024,
+    'IMAGE_PNG', 'VALIDATED', 900, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM prize_image_assets WHERE id = 4);
+
+INSERT INTO prize_image_assets (
+    id, object_key, size_bytes, mime_type, status, prize_id, uploaded_at
+)
+SELECT
+    5, 'prizes/Rifa-901/p901.png', 1024,
+    'IMAGE_PNG', 'VALIDATED', 901, NOW()
+WHERE NOT EXISTS (SELECT 1 FROM prize_image_assets WHERE id = 5);
