@@ -136,8 +136,7 @@ public class GameController {
             return ResponseEntity.ok(WordSearchAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 17L) {
             return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) { // minimo 8-16 palabras intermedias
-                                                                                    // de longitud
+        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) { // minimo 8-16 palabras intermedias                                                                           // de longitud
             return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
         } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) { 
             return ResponseEntity.ok(TicTacToeAssets.ASSETS);

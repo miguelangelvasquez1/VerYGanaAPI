@@ -117,6 +117,51 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
+    public void sendPhysicalItemExpiredToConsumer(PurchaseItem item, String consumerEmail) {
+        log.info("Sending physical item expired notice to consumer for purchaseItemId: {}", item.getId());
+        try {
+            String recipientEmail = (consumerEmail != null && !consumerEmail.isBlank())
+                    ? consumerEmail
+                    : item.getPurchase().getConsumer().getUser().getEmail();
+
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                log.error("No recipient email found for purchaseItemId: {}", item.getId());
+                return;
+            }
+
+            String html = templateLoader.render("physical-item-expired-consumer.html", Map.of(
+                    "orderId", String.valueOf(item.getPurchase().getId()),
+                    "productName", escapeHtml(item.getProductNameSnapshot()),
+                    "commercialName", escapeHtml(item.getProduct().getCommercial().getCompanyName()),
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_CONSUMER));
+
+            sendEmail(recipientEmail, "⏰ Plazo vencido - Orden #" + item.getPurchase().getId(), html);
+        } catch (Exception e) {
+            log.error("Error sending physical item expired notice to consumer for purchaseItemId: {}", item.getId(), e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPhysicalItemExpiredToCommercial(PurchaseItem item) {
+        log.info("Sending physical item expired notice to commercial for purchaseItemId: {}", item.getId());
+        try {
+            String html = templateLoader.render("physical-item-expired-commercial.html", Map.of(
+                    "orderId", String.valueOf(item.getPurchase().getId()),
+                    "productName", escapeHtml(item.getProductNameSnapshot()),
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+
+            sendEmail(item.getProduct().getCommercial().getUser().getEmail(),
+                    "⏰ Producto no reclamado - Orden #" + item.getPurchase().getId(), html);
+        } catch (Exception e) {
+            log.error("Error sending physical item expired notice to commercial for purchaseItemId: {}", item.getId(), e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode) {
         log.info("Sending prize claim confirmation to: {} for prize: {}", consumerEmail, prize.getId());
         try {
@@ -481,6 +526,14 @@ public class SendGridEmailService implements EmailService {
                 sb.append("<div class='code-value'>")
                         .append(escapeHtml(productCodeEncryptor.decrypt(item.getDeliveredCode())))
                         .append("</div>");
+                sb.append("</div>");
+                sb.append("</div>");
+            }
+            if (item.getPlainClaimPinForEmail() != null) {
+                sb.append("<div class='code-row'>");
+                sb.append("<div class='code-section'>");
+                sb.append("<div class='code-label'>PIN de reclamación (entrégalo al comercio al recoger tu producto)</div>");
+                sb.append("<div class='code-value'>").append(escapeHtml(item.getPlainClaimPinForEmail())).append("</div>");
                 sb.append("</div>");
                 sb.append("</div>");
             }

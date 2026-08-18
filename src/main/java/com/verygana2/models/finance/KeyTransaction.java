@@ -239,6 +239,17 @@ public class KeyTransaction {
                 .build();
     }
 
+    public static KeyTransaction forCopaymentRefund(
+            KeyWallet wallet, long amountCentsCredited, UUID copaymentId) {
+        return KeyTransaction.builder()
+                .keyWallet(wallet)
+                .type(KeyTransactionType.CREDIT_COPAYMENT_REFUND)
+                .purchaseKeysDeltaCents(amountCentsCredited)
+                .reason("Reembolso de llaves: ítem de compra reembolsado")
+                .referenceId(copaymentId)
+                .build();
+    }
+
     public static KeyTransaction forConnectivityRecharge(
             KeyWallet wallet, long amountCentsDebited, String rechargeDescription, UUID rechargeOrderId) {
         return KeyTransaction.builder()

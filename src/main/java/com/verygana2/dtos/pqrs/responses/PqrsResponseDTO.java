@@ -2,6 +2,8 @@ package com.verygana2.dtos.pqrs.responses;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
+import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.enums.pqrs.PqrsType;
 
@@ -20,4 +22,9 @@ public class PqrsResponseDTO {
     private ZonedDateTime dueDate;
     private ZonedDateTime createdAt;
     private ZonedDateTime resolvedAt;
+
+    /** Nullable — solo presente si el PQRS se radicó desde /purchaseItems/{id}/report. */
+    private Long purchaseItemId;
+    private MarketplaceIssueReason reasonCode;
+    private PqrsResolutionAction action;
 }

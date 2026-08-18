@@ -16,15 +16,20 @@ import com.verygana2.dtos.pqrs.responses.PqrsAdminDetailDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsResponseDTO;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.mappers.pqrs.PqrsMapper;
+import com.verygana2.models.finance.PurchaseItemCashRefund;
 import com.verygana2.models.User;
+import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
+import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.enums.pqrs.PqrsType;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.pqrs.PqrsRepository;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
 import com.verygana2.services.interfaces.pqrs.PqrsService;
 import com.verygana2.utils.audit.AuditLevel;
 import com.verygana2.utils.audit.Auditable;
@@ -51,25 +56,42 @@ public class PqrsServiceImpl implements PqrsService {
     private final BusinessDayCalculator businessDayCalculator;
     private final PqrsSlaProperties pqrsSlaProperties;
     private final RequesterNameResolver requesterNameResolver;
+    private final PurchaseItemRefundService purchaseItemRefundService;
 
     @Override
     @Auditable(action = "PQRS_SUBMIT", level = AuditLevel.INFO, category = "PQRS", description = "Usuario radica un PQRS")
     public PqrsResponseDTO createPqrs(CreatePqrsRequestDTO dto, Long requesterUserId) {
+        return createAndDispatch(dto.getType(), dto.getSubject(), dto.getDescription(), null, null, requesterUserId);
+    }
+
+    @Override
+    @Auditable(action = "PQRS_SUBMIT_MARKETPLACE", level = AuditLevel.INFO, category = "PQRS",
+            description = "Comprador reporta un problema con un ítem de compra")
+    public PqrsResponseDTO createPqrsForPurchaseItem(PurchaseItem item, MarketplaceIssueReason reason,
+            String description, Long requesterUserId) {
+        String subject = "Reclamo por compra #" + item.getPurchase().getId() + " (" + reason + ")";
+        return createAndDispatch(PqrsType.RECLAMO, subject, description, item, reason, requesterUserId);
+    }
+
+    private PqrsResponseDTO createAndDispatch(PqrsType type, String subject, String description,
+            PurchaseItem purchaseItem, MarketplaceIssueReason reasonCode, Long requesterUserId) {
         User requester = userRepository.findById(requesterUserId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + requesterUserId));
 
         ZonedDateTime dueDate = businessDayCalculator.addBusinessDays(
-                ZonedDateTime.now(), pqrsSlaProperties.getSlaDaysFor(dto.getType()));
+                ZonedDateTime.now(), pqrsSlaProperties.getSlaDaysFor(type));
 
         Optional<AdminDetails> assignedAdmin = pqrsAssignmentService.pickNextAdmin();
 
         Pqrs pqrs = Pqrs.builder()
-                .type(dto.getType())
+                .type(type)
                 .requester(requester)
                 .assignedAdmin(assignedAdmin.orElse(null))
-                .subject(dto.getSubject())
-                .description(dto.getDescription())
+                .subject(subject)
+                .description(description)
                 .dueDate(dueDate)
+                .purchaseItem(purchaseItem)
+                .reasonCode(reasonCode)
                 .build();
 
         Pqrs saved = pqrsRepository.save(pqrs);
@@ -136,7 +158,37 @@ public class PqrsServiceImpl implements PqrsService {
             throw new ValidationException("PQRS cannot be resolved from status: " + pqrs.getStatus());
         }
 
+        boolean awaitingCashRefundPayment = false;
+
+        if (pqrs.getPurchaseItem() != null) {
+            if (dto.getAction() == null) {
+                throw new ValidationException(
+                        "Action (DISMISS/REFUND) is required to resolve a marketplace-linked PQRS");
+            }
+            if (dto.getAction() == PqrsResolutionAction.REFUND) {
+                PurchaseItemCashRefund cashRefund = purchaseItemRefundService.refund(
+                        pqrs.getPurchaseItem(), pqrs.getReasonCode(), pqrs);
+                // Si hubo porción en efectivo, el reembolso queda pendiente de pago
+                // manual y el PQRS no se cierra todavía — se resuelve recién cuando
+                // el admin confirma el pago (CashRefundServiceImpl.markPaid), para
+                // que todo el flujo quede dentro del mismo PQRS.
+                awaitingCashRefundPayment = cashRefund != null;
+            }
+            // Persistido (no solo el campo transitorio del request) para que el
+            // frontend, leyendo el PQRS ya resuelto, sepa si debe mostrarle al
+            // comprador el formulario de datos bancarios.
+            pqrs.setAction(dto.getAction());
+        }
+
         pqrs.setResponse(dto.getResponse());
+
+        if (awaitingCashRefundPayment) {
+            pqrs.setStatus(PqrsStatus.PENDIENTE_PAGO_REEMBOLSO);
+            pqrsRepository.save(pqrs);
+            log.info("PQRS {} en espera de pago manual del reembolso, no se resuelve todavía", pqrs.getId());
+            return;
+        }
+
         pqrs.setStatus(PqrsStatus.RESUELTA);
         pqrs.setResolvedAt(ZonedDateTime.now());
         Pqrs saved = pqrsRepository.save(pqrs);

@@ -133,6 +133,15 @@ public class ProductStock {
         this.purchaseItem = null;
         this.soldAt = null;
     }
+
+    /**
+     * Marca el código como inválido tras un reclamo confirmado (ver
+     * PurchaseItemRefundService). No vuelve al inventario disponible — el
+     * comerciante debe reponer stock nuevo.
+     */
+    public void markAsInvalid() {
+        this.status = StockStatus.INVALID;
+    }
     
     public boolean isExpired() {
         return expirationDate != null && ZonedDateTime.now().isAfter(expirationDate);

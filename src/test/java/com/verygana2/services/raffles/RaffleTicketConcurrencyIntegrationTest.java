@@ -9,7 +9,6 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -142,7 +141,6 @@ class RaffleTicketConcurrencyIntegrationTest {
             raffle.setEndDate(ZonedDateTime.now().plusDays(5));
             raffle.setDrawDate(ZonedDateTime.now().plusDays(6));
             raffle.setMaxTotalTickets(maxTickets);
-            raffle.setRequiresPet(false);
             raffle.setDrawMethod(DrawMethod.SYSTEM_RANDOM);
             raffle.setCreatedBy(1L);
             em.persist(raffle);

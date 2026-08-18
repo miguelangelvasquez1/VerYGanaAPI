@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,11 +19,9 @@ import com.verygana2.dtos.payout.PayoutResponseDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO.WompiPayoutTransactionDTO;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
-import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.finance.PayoutItem;
 import com.verygana2.models.finance.PayoutMethod;
@@ -30,11 +29,11 @@ import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
-import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.PayoutItemRepository;
 import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.services.interfaces.finance.PayoutService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.wompi.WompiPayoutClient;
@@ -50,7 +49,7 @@ public class PayoutServiceImpl implements PayoutService {
 
     private final PayoutRepository payoutRepository;
     private final PayoutItemRepository payoutItemRepository;
-    private final CopaymentRepository copaymentRepository;
+    private final PurchaseItemRepository purchaseItemRepository;
     private final TreasuryService treasuryService;
     private final WompiPayoutClient wompiPayoutClient;
     private final WompiTransactionRepository wompiTransactionRepository;
@@ -63,8 +62,15 @@ public class PayoutServiceImpl implements PayoutService {
     }
 
     /**
-     * Fase 1 del job diario: agrupa copayments COMPLETED del período y crea un
-     * Payout por empresario.
+     * Fase 1 del job diario: agrupa por empresario los ítems CLAIMED que aún
+     * no entraron a ningún Payout y crea un Payout por empresario.
+     *
+     * A diferencia del diseño original (agrupar Copayment COMPLETED por
+     * ventana de 24h), la elegibilidad ahora es por ítem reclamado, sin
+     * filtro de fecha: un comprador puede reclamar un ítem físico varios días
+     * después de la venta, y ese ítem debe entrar al payout del día en que se
+     * reclamó, no perderse ni esperar al día de la venta. periodStart/periodEnd
+     * ya no filtran nada — solo quedan como metadato de cuándo corrió este batch.
      *
      * La comisión ya fue retenida en handleApproved() al momento de la venta,
      * por lo que este método NO llama a retainCommission(). Solo registra el
@@ -73,44 +79,28 @@ public class PayoutServiceImpl implements PayoutService {
     @Override
     @Transactional
     public void scheduleDailyPayouts(ZonedDateTime periodStart, ZonedDateTime periodEnd) {
-        log.info("[PAYOUT-SCHEDULER] Buscando copayments COMPLETED entre {} y {}", periodStart, periodEnd);
+        log.info("[PAYOUT-SCHEDULER] Buscando ítems CLAIMED sin payout asociado");
 
-        List<Copayment> completed = copaymentRepository.findCompletedInPeriod(
-                CopaymentStatus.COMPLETED, periodStart, periodEnd);
+        List<PurchaseItem> claimedItems = purchaseItemRepository.findClaimedWithoutPayout();
 
-        if (completed.isEmpty()) {
-            log.info("[PAYOUT-SCHEDULER] Sin copayments COMPLETED en el período. Nada que pagar.");
+        if (claimedItems.isEmpty()) {
+            log.info("[PAYOUT-SCHEDULER] Sin ítems reclamados pendientes de pago. Nada que pagar.");
             return;
         }
 
-        log.info("[PAYOUT-SCHEDULER] Encontrados {} copayments COMPLETED.", completed.size());
+        log.info("[PAYOUT-SCHEDULER] Encontrados {} ítems reclamados sin payout.", claimedItems.size());
 
-        // Agrupar por commercial: commercialId → acumuladores por copayment
-        // Estructura: commercialId → Map<copaymentId, {gross, commission, net, commercial, copayment}>
+        // Agrupar por commercial: commercialId → ítems + acumuladores
         Map<Long, CommercialGroup> groups = new HashMap<>();
 
-        for (Copayment copayment : completed) {
-            for (PurchaseItem item : copayment.getPurchase().getItems()) {
-                CommercialDetails commercial = item.getProduct().getCommercial();
-                Long commercialId = commercial.getId();
+        for (PurchaseItem item : claimedItems) {
+            CommercialDetails commercial = item.getProduct().getCommercial();
+            Long commercialId = commercial.getId();
 
-                // Idempotencia: si ya existe un PayoutItem para (copayment, commercial), ignorar
-                if (payoutItemRepository.existsByCopaymentAndCommercial(copayment.getId(), commercialId)) {
-                    log.debug("[PAYOUT-SCHEDULER] Copayment {} ya pagado para commercial {}. Saltando.",
-                            copayment.getId(), commercialId);
-                    continue;
-                }
+            CommercialGroup group = groups.computeIfAbsent(commercialId,
+                    k -> new CommercialGroup(commercial));
 
-                CommercialGroup group = groups.computeIfAbsent(commercialId,
-                        k -> new CommercialGroup(commercial));
-
-                group.addItem(copayment, item);
-            }
-        }
-
-        if (groups.isEmpty()) {
-            log.info("[PAYOUT-SCHEDULER] Todos los copayments ya tienen PayoutItems. Nada nuevo.");
-            return;
+            group.addItem(item);
         }
 
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
@@ -138,17 +128,17 @@ public class PayoutServiceImpl implements PayoutService {
 
             payout = payoutRepository.save(payout);
 
-            for (Map.Entry<Copayment, Long> entry : group.copaymentAmounts.entrySet()) {
-                PayoutItem item = PayoutItem.builder()
+            for (PurchaseItem item : group.items) {
+                PayoutItem payoutItem = PayoutItem.builder()
                         .payout(payout)
-                        .copayment(entry.getKey())
-                        .amountCents(entry.getValue())
+                        .purchaseItem(item)
+                        .amountCents(item.getNetToCommercialCents())
                         .build();
-                payoutItemRepository.save(item);
+                payoutItemRepository.save(payoutItem);
             }
 
-            log.info("[PAYOUT-SCHEDULER] Payout SCHEDULED: id={}, commercial={}, net={}",
-                    payout.getId(), commercial.getCompanyName(), group.totalNetCents);
+            log.info("[PAYOUT-SCHEDULER] Payout SCHEDULED: id={}, commercial={}, net={}, ítems={}",
+                    payout.getId(), commercial.getCompanyName(), group.totalNetCents, group.items.size());
         }
     }
 
@@ -391,7 +381,7 @@ public class PayoutServiceImpl implements PayoutService {
 
     private static class CommercialGroup {
         final CommercialDetails commercial;
-        final Map<Copayment, Long> copaymentAmounts = new HashMap<>();
+        final List<PurchaseItem> items = new ArrayList<>();
         long totalGrossCents = 0;
         long totalCommissionCents = 0;
         long totalNetCents = 0;
@@ -401,8 +391,8 @@ public class PayoutServiceImpl implements PayoutService {
             this.commercial = commercial;
         }
 
-        void addItem(Copayment copayment, PurchaseItem item) {
-            copaymentAmounts.merge(copayment, item.getNetToCommercialCents(), (a, b) -> a + b);
+        void addItem(PurchaseItem item) {
+            items.add(item);
             totalGrossCents += item.getSubtotalCents();
             totalCommissionCents += item.getCommissionCents();
             totalNetCents += item.getNetToCommercialCents();

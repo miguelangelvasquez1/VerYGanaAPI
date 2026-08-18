@@ -52,8 +52,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         r.drawDate,
                         r.totalTicketsIssued,
                         r.totalParticipants,
-                        COUNT(p),
-                        r.requiresPet
+                        COUNT(p)
                         ) FROM Raffle r
                         JOIN r.prizes p
                         WHERE (:status IS NULL OR r.raffleStatus = :status)
@@ -64,7 +63,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         AND (:drawDateEnd IS NULL OR r.drawDate < :drawDateEnd)
                         GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
-                             r.totalParticipants, r.requiresPet
+                             r.totalParticipants
                         """)
         Page<RaffleSummaryResponseDTO> findByFilters(
                         @Param("status") RaffleStatus status,
@@ -153,8 +152,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                r.drawDate,
                                r.totalTicketsIssued,
                                r.totalParticipants,
-                               COUNT(p),
-                               r.requiresPet
+                               COUNT(p)
                                ) FROM Raffle r
                                JOIN r.prizes p
                                LEFT JOIN r.targetAudience ta
@@ -165,7 +163,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                     OR :municipality MEMBER OF ta.targetMunicipalities)
                                GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                                     r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
-                                    r.totalParticipants, r.requiresPet
+                                    r.totalParticipants
                                 ORDER BY r.drawDate ASC
                                 LIMIT 10
                             """)
@@ -183,8 +181,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         r.drawDate,
                         r.totalTicketsIssued,
                         r.totalParticipants,
-                        COUNT(p),
-                        r.requiresPet
+                        COUNT(p)
                         ) FROM Raffle r
                         JOIN r.prizes p
                         LEFT JOIN r.targetAudience ta
@@ -196,7 +193,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                              OR :municipality MEMBER OF ta.targetMunicipalities)
                         GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
-                             r.totalParticipants, r.requiresPet
+                             r.totalParticipants
                          ORDER BY r.drawDate ASC
                         """)
         Page<RaffleSummaryResponseDTO> findActiveRaffles(

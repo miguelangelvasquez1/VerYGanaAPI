@@ -19,6 +19,23 @@ public interface PurchaseItemService {
     PagedResponse<FeaturedProductResponseDTO> getTopSellingProductsPage(Long commercialId, Pageable pageable);
     String getDeliveredCode (Long purchaseItemId, Long consumerId);
 
+    /**
+     * Valida el PIN de reclamación física que el comprador le entrega al
+     * comerciante al momento de recibir el producto. Solo aplica a ítems de
+     * productos PHYSICAL. Idempotente: si el ítem ya está CLAIMED, no hace
+     * nada (reintentos de red no deben fallar ni reprocesar).
+     */
+    void claimPhysicalItem(Long purchaseItemId, Long commercialId, String pin);
+
+    /**
+     * Valida que un PurchaseItem pueda reportarse (POST /purchaseItems/{id}/report):
+     * pertenece al consumidor autenticado, no está REFUNDED/CANCELLED, y si ya
+     * está CLAIMED debe estar dentro de la ventana de reporte post-reclamo.
+     * No crea el PQRS — solo devuelve el ítem validado, listo para que el
+     * llamador (PurchaseItemController) invoque PqrsService.createPqrsForPurchaseItem.
+     */
+    PurchaseItem getReportableItem(Long purchaseItemId, Long consumerId);
+
     // ── Variantes por rango de fechas arbitrario (usadas por el reporte de ventas) ──
     BigDecimal getTotalCommercialSalesAmountByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);
     Integer getTotalCommercialSalesByDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate);

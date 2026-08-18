@@ -217,6 +217,8 @@ class ProductServiceImplTest {
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
+            when(assetDurationService.getImageDimensions(anyString()))
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
             when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
             when(productMapper.toProduct(any())).thenReturn(mappedProduct);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
@@ -242,6 +244,8 @@ class ProductServiceImplTest {
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
+            when(assetDurationService.getImageDimensions(anyString()))
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
             when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
             Product cheapMappedProduct = new Product();
             cheapMappedProduct.setPriceCents(50_000L); // simula el mapper real para $500 COP
@@ -369,6 +373,7 @@ class ProductServiceImplTest {
         @DisplayName("producto PENDING: mueve la imagen a pública y lo activa")
         void pendingProduct_movesImageAndActivates() {
             Product pending = product(1L, ProductStatus.PENDING);
+            pending.setCommercial(commercial(1L));
             AdminDetails admin = new AdminDetails();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
 
@@ -417,7 +422,7 @@ class ProductServiceImplTest {
 
             assertThat(pending.getStatus()).isEqualTo(ProductStatus.REJECTED);
             assertThat(pending.getRejectionReason()).isEqualTo("Imagen borrosa");
-            verify(notificationService).createInternalNotification(eq(1L), anyString(), eq("Imagen borrosa"), any());
+            verify(notificationService).createInternalNotification(eq(1L), anyString(), eq("Razón: Imagen borrosa"), any());
         }
 
         @Test

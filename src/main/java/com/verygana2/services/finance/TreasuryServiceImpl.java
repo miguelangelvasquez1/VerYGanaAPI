@@ -308,6 +308,113 @@ public class TreasuryServiceImpl implements TreasuryService {
         }
 
         /**
+         * Reversa internamente un PurchaseItem reembolsado. Ver Javadoc de la
+         * interfaz para el alcance exacto (no reversa el cobro en Wompi).
+         */
+        @Transactional
+        @Override
+        public void reversePurchaseItemForRefund(Long commissionCents, Long keysPortionCents, Long cashPortionCents,
+                        UUID referenceId) {
+                log.info("[TREASURY] Reversando ítem reembolsado: commission={}, keys={}, cash={}, reference={}",
+                                commissionCents, keysPortionCents, cashPortionCents, referenceId);
+
+                long commission = commissionCents == null ? 0 : commissionCents;
+                long keysPortion = keysPortionCents == null ? 0 : keysPortionCents;
+                long cashPortion = cashPortionCents == null ? 0 : cashPortionCents;
+
+                if (commission < 0 || keysPortion < 0 || cashPortion < 0) {
+                        throw new IllegalArgumentException("Los montos a reversar no pueden ser negativos");
+                }
+
+                TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+
+                if (commission > 0) {
+                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                        if (operations.getBalanceCents() < commission) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en OPERATIONS para revertir la comisión.");
+                        }
+
+                        operations.setBalanceCents(operations.getBalanceCents() - commission);
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + commission);
+
+                        treasuryAccountRepository.save(operations);
+                        treasuryAccountRepository.save(payoutsPending);
+
+                        recordMovement(operations, payoutsPending, commission,
+                                        MovementConcept.COMMISSION_REVERSAL, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                if (keysPortion > 0) {
+                        TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+
+                        if (payoutsPending.getBalanceCents() < keysPortion) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para reponer KEYS_RESERVE.");
+                        }
+
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - keysPortion);
+                        keysReserve.setBalanceCents(keysReserve.getBalanceCents() + keysPortion);
+
+                        treasuryAccountRepository.save(payoutsPending);
+                        treasuryAccountRepository.save(keysReserve);
+
+                        recordMovement(payoutsPending, keysReserve, keysPortion,
+                                        MovementConcept.REFUND_KEYS_TO_RESERVE, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                if (cashPortion > 0) {
+                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                        if (payoutsPending.getBalanceCents() < cashPortion) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para el reembolso en efectivo.");
+                        }
+
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - cashPortion);
+                        operations.setBalanceCents(operations.getBalanceCents() + cashPortion);
+
+                        treasuryAccountRepository.save(payoutsPending);
+                        treasuryAccountRepository.save(operations);
+
+                        recordMovement(payoutsPending, operations, cashPortion,
+                                        MovementConcept.REFUND_CASH_TO_OPERATIONS, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                log.info("[TREASURY] Reversión completada: reference={}", referenceId);
+        }
+
+        /**
+         * Registra el pago manual de un reembolso en efectivo: sale de
+         * OPERATIONS hacia afuera del sistema (mismo patrón que registerPayoutSent).
+         */
+        @Transactional
+        @Override
+        public void registerManualCashRefundPaid(Long amountCents, UUID referenceId) {
+                log.info("[TREASURY] Registrando reembolso en efectivo pagado manualmente: amount={}, reference={}",
+                                amountCents, referenceId);
+
+                validateAmount(amountCents);
+
+                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                if (operations.getBalanceCents() < amountCents) {
+                        throw new IllegalStateException(
+                                        "[TREASURY] Saldo insuficiente en OPERATIONS para el reembolso manual.");
+                }
+
+                operations.setBalanceCents(operations.getBalanceCents() - amountCents);
+                treasuryAccountRepository.save(operations);
+
+                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                recordMovement(operations, external, amountCents,
+                                MovementConcept.REFUND_TO_BUYER, referenceId, "CASH_REFUND");
+
+                log.info("[TREASURY] Reembolso manual registrado: OPERATIONS → [externo], reference={}", referenceId);
+        }
+
+        /**
          * Retorna los saldos actuales de las 4 cuentas de tesorería.
          * Usado por el endpoint de auditoría del administrador.
          */

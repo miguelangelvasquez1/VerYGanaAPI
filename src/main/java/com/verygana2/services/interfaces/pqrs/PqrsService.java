@@ -7,12 +7,23 @@ import com.verygana2.dtos.pqrs.requests.CreatePqrsRequestDTO;
 import com.verygana2.dtos.pqrs.requests.RespondPqrsRequestDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsAdminDetailDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsResponseDTO;
+import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.enums.pqrs.PqrsType;
+import com.verygana2.models.marketplace.PurchaseItem;
 
 public interface PqrsService {
 
     PqrsResponseDTO createPqrs(CreatePqrsRequestDTO dto, Long requesterUserId);
+
+    /**
+     * Radica un PQRS ya vinculado a un PurchaseItem (ver
+     * /purchaseItems/{id}/report). Siempre type=RECLAMO. Mientras este PQRS
+     * no se resuelva, el ítem queda excluido del payout diario (ver
+     * PurchaseItemRepository.findClaimedWithoutPayout).
+     */
+    PqrsResponseDTO createPqrsForPurchaseItem(PurchaseItem item, MarketplaceIssueReason reason,
+            String description, Long requesterUserId);
 
     PagedResponse<PqrsResponseDTO> getMyPqrs(Long requesterUserId, Pageable pageable);
 

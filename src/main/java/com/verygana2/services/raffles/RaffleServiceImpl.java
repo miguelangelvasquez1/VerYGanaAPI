@@ -470,6 +470,12 @@ public class RaffleServiceImpl implements RaffleService {
     @Override
     public EntityUpdatedResponseDTO updateRaffle(Long adminId, Long raffleId, UpdateRaffleRequestDTO request) {
 
+        Raffle raffleUpdated = getRaffleById(raffleId);
+
+        if (raffleUpdated.getRaffleStatus() != RaffleStatus.DRAFT && raffleUpdated.getRaffleStatus() != RaffleStatus.ACTIVE && raffleUpdated.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
+            throw new InvalidOperationException("Only 'DRAFT', 'ACTIVE' or 'MISSED_DRAW' raffles may be updated");
+        }
+
         if (!request.getDrawDate().isAfter(request.getEndDate())) {
             throw new InvalidRequestException("Draw date must be after end date");
         }
@@ -478,13 +484,10 @@ public class RaffleServiceImpl implements RaffleService {
             throw new InvalidRequestException("End date must be after start date");
         }
 
-        Raffle raffleUpdated = getRaffleById(raffleId);
-
         raffleUpdated.setModifiedBy(adminId);
         raffleUpdated.setTitle(request.getTitle());
         raffleUpdated.setDescription(request.getDescription());
         raffleUpdated.setRaffleType(request.getRaffleType());
-        raffleUpdated.setRequiresPet(request.getRequiresPet());
         raffleUpdated.setStartDate(request.getStartDate());
         raffleUpdated.setEndDate(request.getEndDate());
         raffleUpdated.setDrawDate(request.getDrawDate());
@@ -550,8 +553,8 @@ public class RaffleServiceImpl implements RaffleService {
     public void deleteRaffle(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT && raffle.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
-            throw new InvalidOperationException("Only 'DRAFT' or 'MISSED_DRAW' raffles may be deleted");
+        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT) {
+            throw new InvalidOperationException("Only 'DRAFT' raffles may be deleted");
         }
 
         raffleRepository.delete(raffle);
@@ -623,6 +626,11 @@ public class RaffleServiceImpl implements RaffleService {
     public RaffleStatsResponseDTO getRaffleStats(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
+
+        if (raffle.getRaffleStatus() != RaffleStatus.COMPLETED) {
+            throw new InvalidOperationException("Only 'COMPLETED' raffles have stats available");
+        }
+
         RaffleStatsResponseDTO response = raffleMapper.toRaffleStatsResponseDTO(raffle);
 
         List<Object[]> stats = raffleTicketRepository.countTicketsBySource(raffleId);

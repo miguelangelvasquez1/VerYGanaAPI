@@ -14,8 +14,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.verygana2.exceptions.InvalidStatusException;
+import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
+import com.verygana2.models.enums.marketplace.ProductType;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
+import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.security.ProductCodeEncryptor;
@@ -25,6 +30,8 @@ import jakarta.persistence.EntityNotFoundException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -38,6 +45,7 @@ class PurchaseItemServiceImplTest {
 
     @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private ProductCodeEncryptor codeEncryptor;
+    @Mock private PasswordEncoder passwordEncoder;
 
     private PurchaseItemServiceImpl service;
 
@@ -46,7 +54,110 @@ class PurchaseItemServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PurchaseItemServiceImpl(purchaseItemRepository, codeEncryptor);
+        service = new PurchaseItemServiceImpl(purchaseItemRepository, codeEncryptor, passwordEncoder);
+    }
+
+    private PurchaseItem physicalPendingItem() {
+        Product product = new Product();
+        product.setProductType(ProductType.PHYSICAL);
+        PurchaseItem item = new PurchaseItem();
+        item.setProduct(product);
+        item.setCommercialId(9L);
+        item.setStatus(PurchaseItemStatus.PENDING);
+        item.setClaimPinHash("hashed-pin");
+        item.setClaimAttempts(0);
+        item.setClaimExpiresAt(ZonedDateTime.now(ZoneOffset.UTC).plusDays(1));
+        return item;
+    }
+
+    @Nested
+    @DisplayName("claimPhysicalItem")
+    class ClaimPhysicalItem {
+
+        @Test
+        @DisplayName("PIN correcto: marca el ítem como CLAIMED")
+        void correctPin_marksItemClaimed() {
+            PurchaseItem item = physicalPendingItem();
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+            when(passwordEncoder.matches("123456", "hashed-pin")).thenReturn(true);
+
+            service.claimPhysicalItem(1L, 9L, "123456");
+
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
+            assertThat(item.getClaimedAt()).isNotNull();
+            verify(purchaseItemRepository).save(item);
+        }
+
+        @Test
+        @DisplayName("PIN incorrecto: incrementa los intentos y lanza InvalidClaimException sin reclamar")
+        void wrongPin_incrementsAttemptsAndThrows() {
+            PurchaseItem item = physicalPendingItem();
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+            when(passwordEncoder.matches("000000", "hashed-pin")).thenReturn(false);
+
+            assertThatThrownBy(() -> service.claimPhysicalItem(1L, 9L, "000000"))
+                    .isInstanceOf(InvalidClaimException.class);
+
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.PENDING);
+            assertThat(item.getClaimAttempts()).isEqualTo(1);
+        }
+
+        @Test
+        @DisplayName("ítem que no pertenece al comercial autenticado: lanza InvalidClaimException")
+        void notOwnedByCommercial_throwsInvalidClaimException() {
+            PurchaseItem item = physicalPendingItem();
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.claimPhysicalItem(1L, 999L, "123456"))
+                    .isInstanceOf(InvalidClaimException.class);
+            verify(purchaseItemRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("ítem ya reclamado: idempotente, no reprocesa ni lanza error")
+        void alreadyClaimed_isIdempotent() {
+            PurchaseItem item = physicalPendingItem();
+            item.setStatus(PurchaseItemStatus.CLAIMED);
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+            service.claimPhysicalItem(1L, 9L, "123456");
+
+            verify(purchaseItemRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("producto digital (no requiere PIN): lanza InvalidClaimException")
+        void digitalProduct_throwsInvalidClaimException() {
+            PurchaseItem item = physicalPendingItem();
+            item.getProduct().setProductType(ProductType.DIGITAL);
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.claimPhysicalItem(1L, 9L, "123456"))
+                    .isInstanceOf(InvalidClaimException.class);
+        }
+
+        @Test
+        @DisplayName("plazo de reclamación vencido: lanza InvalidClaimException")
+        void expiredClaimWindow_throwsInvalidClaimException() {
+            PurchaseItem item = physicalPendingItem();
+            item.setClaimExpiresAt(ZonedDateTime.now(ZoneOffset.UTC).minusDays(1));
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.claimPhysicalItem(1L, 9L, "123456"))
+                    .isInstanceOf(InvalidClaimException.class);
+        }
+
+        @Test
+        @DisplayName("intentos agotados (5): lanza InvalidClaimException sin volver a comparar el PIN")
+        void maxAttemptsExceeded_throwsInvalidClaimException() {
+            PurchaseItem item = physicalPendingItem();
+            item.setClaimAttempts(5);
+            when(purchaseItemRepository.findById(1L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.claimPhysicalItem(1L, 9L, "123456"))
+                    .isInstanceOf(InvalidClaimException.class);
+            org.mockito.Mockito.verifyNoInteractions(passwordEncoder);
+        }
     }
 
     @Nested
@@ -186,6 +297,75 @@ class PurchaseItemServiceImplTest {
             assertThatThrownBy(() -> service.getDeliveredCode(1L, 0L))
                     .isInstanceOf(IllegalArgumentException.class);
             org.mockito.Mockito.verifyNoInteractions(purchaseItemRepository);
+        }
+    }
+
+    @Nested
+    @DisplayName("getReportableItem")
+    class GetReportableItem {
+
+        @Test
+        @DisplayName("ítem del consumidor en estado reportable: lo retorna")
+        void ownedAndReportable_returnsItem() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.PENDING);
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThat(service.getReportableItem(1L, 9L)).isSameAs(item);
+        }
+
+        @Test
+        @DisplayName("ítem ya REFUNDED: lanza InvalidStatusException")
+        void refundedItem_throwsInvalidStatusException() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.REFUNDED);
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.getReportableItem(1L, 9L))
+                    .isInstanceOf(InvalidStatusException.class);
+        }
+
+        @Test
+        @DisplayName("ítem CANCELLED: lanza InvalidStatusException")
+        void cancelledItem_throwsInvalidStatusException() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.CANCELLED);
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.getReportableItem(1L, 9L))
+                    .isInstanceOf(InvalidStatusException.class);
+        }
+
+        @Test
+        @DisplayName("ítem CLAIMED dentro de la ventana de 48h: lo retorna")
+        void claimedWithinWindow_returnsItem() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.CLAIMED);
+            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusHours(10));
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThat(service.getReportableItem(1L, 9L)).isSameAs(item);
+        }
+
+        @Test
+        @DisplayName("ítem CLAIMED fuera de la ventana de 48h: lanza InvalidStatusException")
+        void claimedPastWindow_throwsInvalidStatusException() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.CLAIMED);
+            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusHours(49));
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.getReportableItem(1L, 9L))
+                    .isInstanceOf(InvalidStatusException.class);
+        }
+
+        @Test
+        @DisplayName("ítem que no pertenece al consumidor (o no existe): lanza ObjectNotFoundException")
+        void notOwned_throwsObjectNotFoundException() {
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.getReportableItem(1L, 9L))
+                    .isInstanceOf(ObjectNotFoundException.class);
         }
     }
 }

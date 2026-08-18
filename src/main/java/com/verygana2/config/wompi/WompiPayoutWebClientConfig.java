@@ -34,6 +34,7 @@ public class WompiPayoutWebClientConfig {
                 .defaultHeader("Accept", "application/json")
                 .defaultHeader("x-api-key", wompiPayoutConfig.getApiKey())
                 .defaultHeader("user-principal-id", wompiPayoutConfig.getPrincipalUserId())
+                .defaultHeader("user-id", wompiPayoutConfig.getUserId())
                 .filter(logRequest())
                 .filter(logResponse())
                 .build();

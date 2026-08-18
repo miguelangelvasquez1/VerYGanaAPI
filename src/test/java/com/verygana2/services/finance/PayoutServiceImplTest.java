@@ -17,10 +17,9 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.models.User;
-import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
-import com.verygana2.models.finance.Copayment;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
@@ -29,11 +28,11 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
-import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.PayoutItemRepository;
 import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.wompi.WompiPayoutClient;
 
@@ -59,7 +58,7 @@ class PayoutServiceImplTest {
 
     @Mock private PayoutRepository payoutRepository;
     @Mock private PayoutItemRepository payoutItemRepository;
-    @Mock private CopaymentRepository copaymentRepository;
+    @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private TreasuryService treasuryService;
     @Mock private WompiPayoutClient wompiPayoutClient;
     @Mock private WompiTransactionRepository wompiTransactionRepository;
@@ -70,8 +69,9 @@ class PayoutServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PayoutServiceImpl(payoutRepository, payoutItemRepository, copaymentRepository, treasuryService,
-                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig, payoutMethodRepository);
+        service = new PayoutServiceImpl(payoutRepository, payoutItemRepository, purchaseItemRepository,
+                treasuryService, wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig,
+                payoutMethodRepository);
     }
 
     private CommercialDetails commercial(Long id, String name) {
@@ -84,15 +84,15 @@ class PayoutServiceImplTest {
         return c;
     }
 
-    private Copayment completedCopayment(CommercialDetails commercial, long subtotal, long commission, long net) {
+    private PurchaseItem claimedItem(CommercialDetails commercial, long subtotal, long commission, long net) {
         Product product = new Product();
         product.setCommercial(commercial);
         PurchaseItem item = PurchaseItem.builder().product(product)
                 .subtotalCents(subtotal).commissionCents(commission).netToCommercialCents(net)
-                .commissionPctApplied(10).build();
+                .commissionPctApplied(10).status(PurchaseItemStatus.CLAIMED).build();
         Purchase purchase = Purchase.builder().items(new java.util.ArrayList<>(List.of(item))).build();
         item.setPurchase(purchase);
-        return Copayment.builder().id(UUID.randomUUID()).purchase(purchase).status(CopaymentStatus.COMPLETED).build();
+        return item;
     }
 
     @Nested
@@ -100,11 +100,10 @@ class PayoutServiceImplTest {
     class ScheduleDailyPayouts {
 
         @Test
-        @DisplayName("sin copagos COMPLETED en el período: no crea ningún payout")
-        void noCompletedCopayments_createsNothing() {
+        @DisplayName("sin ítems CLAIMED pendientes de payout: no crea ningún payout")
+        void noClaimedItems_createsNothing() {
             ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC);
-            when(copaymentRepository.findCompletedInPeriod(CopaymentStatus.COMPLETED, start, start.plusDays(1)))
-                    .thenReturn(List.of());
+            when(purchaseItemRepository.findClaimedWithoutPayout()).thenReturn(List.of());
 
             service.scheduleDailyPayouts(start, start.plusDays(1));
 
@@ -115,11 +114,10 @@ class PayoutServiceImplTest {
         @DisplayName("agrupa por comercial y crea un Payout con sus PayoutItems")
         void groupsByCommercialAndCreatesPayout() {
             CommercialDetails commercial = commercial(1L, "Tienda X");
-            Copayment copayment = completedCopayment(commercial, 100_000L, 10_000L, 90_000L);
+            PurchaseItem item = claimedItem(commercial, 100_000L, 10_000L, 90_000L);
 
             ZonedDateTime start = ZonedDateTime.now(ZoneOffset.UTC);
-            when(copaymentRepository.findCompletedInPeriod(any(), any(), any())).thenReturn(List.of(copayment));
-            when(payoutItemRepository.existsByCopaymentAndCommercial(copayment.getId(), 1L)).thenReturn(false);
+            when(purchaseItemRepository.findClaimedWithoutPayout()).thenReturn(List.of(item));
             when(payoutRepository.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
 
             service.scheduleDailyPayouts(start, start.plusDays(1));
@@ -128,21 +126,29 @@ class PayoutServiceImplTest {
             verify(payoutRepository).save(captor.capture());
             assertThat(captor.getValue().getNetAmountCents()).isEqualTo(90_000L);
             assertThat(captor.getValue().getStatus()).isEqualTo(PayoutStatus.SCHEDULED);
-            verify(payoutItemRepository).save(any());
+
+            var itemCaptor = org.mockito.ArgumentCaptor.forClass(com.verygana2.models.finance.PayoutItem.class);
+            verify(payoutItemRepository).save(itemCaptor.capture());
+            assertThat(itemCaptor.getValue().getPurchaseItem()).isEqualTo(item);
+            assertThat(itemCaptor.getValue().getAmountCents()).isEqualTo(90_000L);
         }
 
         @Test
-        @DisplayName("idempotencia: si ya existe un PayoutItem para (copayment, comercial), lo salta")
-        void idempotent_skipsAlreadyPaidCopayments() {
+        @DisplayName("dos ítems del mismo comercial: un solo Payout agregando ambos, con un PayoutItem por ítem")
+        void twoItemsSameCommercial_oneAggregatedPayoutWithOnePayoutItemEach() {
             CommercialDetails commercial = commercial(1L, "Tienda X");
-            Copayment copayment = completedCopayment(commercial, 100_000L, 10_000L, 90_000L);
+            PurchaseItem item1 = claimedItem(commercial, 100_000L, 10_000L, 90_000L);
+            PurchaseItem item2 = claimedItem(commercial, 50_000L, 5_000L, 45_000L);
 
-            when(copaymentRepository.findCompletedInPeriod(any(), any(), any())).thenReturn(List.of(copayment));
-            when(payoutItemRepository.existsByCopaymentAndCommercial(copayment.getId(), 1L)).thenReturn(true);
+            when(purchaseItemRepository.findClaimedWithoutPayout()).thenReturn(List.of(item1, item2));
+            when(payoutRepository.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
 
             service.scheduleDailyPayouts(ZonedDateTime.now(), ZonedDateTime.now().plusDays(1));
 
-            verify(payoutRepository, never()).save(any());
+            var captor = org.mockito.ArgumentCaptor.forClass(Payout.class);
+            verify(payoutRepository).save(captor.capture());
+            assertThat(captor.getValue().getNetAmountCents()).isEqualTo(135_000L);
+            verify(payoutItemRepository, org.mockito.Mockito.times(2)).save(any());
         }
     }
 

@@ -18,12 +18,15 @@ public abstract class PqrsMapper {
     protected RequesterNameResolver requesterNameResolver;
 
     // "radicado" se resuelve automáticamente desde Pqrs.getBased() (mismo nombre de propiedad).
+    // reasonCode se mapea automático (mismo nombre de propiedad en ambos lados).
+    @Mapping(target = "purchaseItemId", source = "purchaseItem.id")
     public abstract PqrsResponseDTO toResponseDTO(Pqrs pqrs);
 
     @Mapping(target = "requesterId", source = "requester.id")
     @Mapping(target = "requesterEmail", source = "requester.email")
     @Mapping(target = "requesterPhone", source = "requester.phoneNumber")
     @Mapping(target = "requesterName", ignore = true)
+    @Mapping(target = "purchaseItemId", source = "purchaseItem.id")
     public abstract PqrsAdminDetailDTO toAdminDetailDTO(Pqrs pqrs);
 
     @AfterMapping

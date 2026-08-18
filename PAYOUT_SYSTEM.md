@@ -6,21 +6,23 @@
 2. [Arquitectura del sistema](#2-arquitectura-del-sistema)
 3. [Modelos de datos](#3-modelos-de-datos)
 4. [Flujo completo de un payout](#4-flujo-completo-de-un-payout)
-5. [Métodos de pago de los comercials](#5-métodos-de-pago-de-los-comercials)
-6. [Integración con Wompi Pagos a Terceros](#6-integración-con-wompi-pagos-a-terceros)
-7. [Job scheduler](#7-job-scheduler)
-8. [Webhook de confirmación](#8-webhook-de-confirmación)
-9. [Tesorería y movimientos contables](#9-tesorería-y-movimientos-contables)
-10. [Configuración](#10-configuración)
-11. [Endpoints de la API](#11-endpoints-de-la-api)
-12. [Operación y monitoreo](#12-operación-y-monitoreo)
-13. [Manejo de errores y reintentos](#13-manejo-de-errores-y-reintentos)
+5. [Reclamo de productos: qué hace elegible a un ítem para el payout](#5-reclamo-de-productos-qué-hace-elegible-a-un-ítem-para-el-payout)
+6. [Disputas y reembolsos](#6-disputas-y-reembolsos)
+7. [Métodos de pago de los comercials](#7-métodos-de-pago-de-los-comercials)
+8. [Integración con Wompi Pagos a Terceros](#8-integración-con-wompi-pagos-a-terceros)
+9. [Job scheduler](#9-job-scheduler)
+10. [Webhook de confirmación](#10-webhook-de-confirmación)
+11. [Tesorería y movimientos contables](#11-tesorería-y-movimientos-contables)
+12. [Configuración](#12-configuración)
+13. [Endpoints de la API](#13-endpoints-de-la-api)
+14. [Operación y monitoreo](#14-operación-y-monitoreo)
+15. [Manejo de errores y reintentos](#15-manejo-de-errores-y-reintentos)
 
 ---
 
 ## 1. Visión general
 
-El sistema de payouts transfiere diariamente a cada comercial los ingresos netos generados por las ventas de sus productos durante el día.
+El sistema de payouts transfiere diariamente a cada comercial los ingresos netos generados por los productos que sus compradores **ya reclamaron**.
 
 **Un solo proveedor, dos productos:**
 
@@ -31,13 +33,15 @@ El sistema de payouts transfiere diariamente a cada comercial los ingresos netos
 
 > El proveedor de payouts fue originalmente Kushki. Kushki rechazó la alianza para el producto de payouts, así que el sistema migró a Wompi Pagos a Terceros — el mismo proveedor que ya se usaba para cobros. Esto elimina una integración externa completa y simplifica la conciliación (un solo dashboard, una sola relación comercial).
 
+**Principio central (revisado):** un comercial **no cobra por vender** — cobra por **entregar**. El pago se paga solo la porción de sus ventas cuyo `PurchaseItem` llegó a estado `CLAIMED` (código digital entregado automáticamente, o código físico recogido y confirmado con PIN — ver [sección 5](#5-reclamo-de-productos-qué-hace-elegible-a-un-ítem-para-el-payout)). Un comercial puede tener 100 ventas en un día y que solo 50 se hayan reclamado: el payout de ese día cubre esas 50, y las otras 50 entran al payout del día en que efectivamente se reclamen — sin fecha límite ni pérdida.
+
 **Ciclo de vida de un payout:**
 
 ```
-Ventas del día (Copayments COMPLETED)
+Ítems reclamados (PurchaseItem.status = CLAIMED, sin PayoutItem, sin PQRS abierto)
         ↓
   scheduleDailyPayouts()          [11:00 PM Colombia]
-  → agrupa ventas por commercial
+  → agrupa ítems reclamados por commercial
   → calcula gross / commission / net
   → crea Payout(SCHEDULED)
         ↓
@@ -53,7 +57,7 @@ Ventas del día (Copayments COMPLETED)
   → reintenta payouts FAILED del ciclo anterior
 ```
 
-**Frecuencia:** una vez al día. El comercial espera máximo 24 horas para recibir su pago, estándar en plataformas colombianas.
+**Frecuencia:** una vez al día. Un ítem reclamado espera máximo 24 horas para entrar al ciclo de payout de su comercial.
 
 ---
 
@@ -98,18 +102,38 @@ models/finance/
   WompiTransaction.java            → registro genérico de toda operación Wompi
                                       (cobros y payouts, distinguidos por `type`)
   PayoutMethod.java                → cuenta bancaria/Nequi/Daviplata del commercial
-  PayoutItem.java                  → línea individual (copayment dentro de un payout)
+  PayoutItem.java                  → línea individual: un PurchaseItem reclamado dentro de un payout
+  PurchaseItemCashRefund.java      → reembolso en efectivo pendiente de pago manual (ver sección 6)
+
+models/marketplace/
+  Product.java                     → +campo fulfillmentType (ProductType: DIGITAL | PHYSICAL)
+  PurchaseItem.java                → +campos de reclamo físico (claimPinHash, claimAttempts,
+                                      claimedAt, claimExpiresAt) — ver sección 5
+
+models/enums/marketplace/
+  ProductType.java                 → DIGITAL | PHYSICAL
+  PurchaseItemStatus.java          → PENDING | CLAIMED | EXPIRED_UNCLAIMED | REFUNDED | CANCELLED
 
 models/enums/finance/
   PayoutStatus.java                → SCHEDULED | PROCESSING | PAID | FAILED
+  CashRefundStatus.java            → PENDING_PAYMENT | PAID
   WompiTransactionType.java        → CHARGE_* | TRANSFER_PAYOUT
   WompiTransactionStatus.java      → PENDING | APPROVED | DECLINED | ERROR | VOIDED
+  MovementConcept.java             → +COMMISSION_REVERSAL, REFUND_KEYS_TO_RESERVE,
+                                      REFUND_CASH_TO_OPERATIONS (ver sección 11)
 
 services/finance/
-  PayoutServiceImpl.java           → lógica de negocio
+  PayoutServiceImpl.java           → lógica de negocio del batch diario
+  TreasuryServiceImpl.java         → +reversePurchaseItemForRefund, +registerManualCashRefundPaid
+  CashRefundServiceImpl.java       → flujo de reembolso manual en efectivo
+
+services/marketplace/
+  PurchaseItemServiceImpl.java     → +claimPhysicalItem, +getReportableItem
+  PurchaseItemRefundServiceImpl.java → +refund (disputa PQRS), +expireUnclaimed (vencimiento)
 
 schedulers/
-  PayoutScheduler.java             → @Scheduled cron
+  PayoutScheduler.java              → @Scheduled cron del batch de payouts
+  PurchaseItemExpirationScheduler.java → @Scheduled cron: vence ítems físicos no reclamados
 
 services/wompi/
   WompiClient.java                 → HTTP client de cobros
@@ -120,16 +144,30 @@ controllers/wompi/
   WompiWebhookDispatcher.java        → enruta eventos de cobros por tipo
   WompiPayoutWebhookController.java  → endpoint POST /wompi/payouts/events
 
+controllers/marketplace/
+  PurchaseItemController.java      → /purchaseItems/{id}/claim, /report, /cash-refund/bank-details
+
+controllers/admin/
+  CashRefundAdminController.java   → /admin/cash-refunds
+
 repositories/finance/
   PayoutRepository.java
   WompiTransactionRepository.java
   PayoutMethodRepository.java
+  PurchaseItemCashRefundRepository.java
+
+repositories/marketplace/
+  PurchaseItemRepository.java      → +findClaimedWithoutPayout, +findExpiredUnclaimedPhysicalItems
 
 dtos/wompi/
   WompiPayoutRequestDTO.java        → body de POST /payouts
   WompiPayoutResponseDTO.java
   WompiPayoutBalanceResponseDTO.java → respuesta de GET /accounts
   WompiPayoutWebhookEvent.java       → payload del webhook de Pagos a Terceros
+
+dtos/finance/
+  requests/SubmitCashRefundBankDetailsRequestDTO.java
+  responses/CashRefundResponseDTO.java
 ```
 
 ---
@@ -138,13 +176,13 @@ dtos/wompi/
 
 ### 3.1 Payout
 
-Representa el pago diario batch a un comercial. Uno por comercial por día.
+Representa el pago diario batch a un comercial. Uno por comercial por día (por lo que efectivamente entró al batch — ver sección 5).
 
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `id` | UUID | PK inmutable |
 | `commercial` | CommercialDetails | empresario receptor |
-| `grossAmountCents` | Long | suma de `total_amount_cents` de todos los copayments del período |
+| `grossAmountCents` | Long | suma de `subtotalCents` de los ítems reclamados incluidos |
 | `commissionCents` | Long | parte que retiene VeryGana |
 | `netAmountCents` | Long | `gross - commission` — lo que recibe el commercial |
 | `commissionPctApplied` | Integer | snapshot del % aplicado en este payout (auditoría) |
@@ -152,7 +190,7 @@ Representa el pago diario batch a un comercial. Uno por comercial por día.
 | `wompiTransaction` | WompiTransaction | FK — se vincula cuando el job pasa a PROCESSING |
 | `scheduledAt` | ZonedDateTime | cuándo creó el job este payout |
 | `paidAt` | ZonedDateTime | cuándo Wompi confirmó el pago |
-| `periodStart` / `periodEnd` | ZonedDateTime | rango de ventas que cubre |
+| `periodStart` / `periodEnd` | ZonedDateTime | **solo informativo** — cuándo corrió el batch, ya no filtra qué ventas entran (ver sección 5) |
 | `failureReason` | String | razón del rechazo (si status=FAILED) |
 | `retryCount` | Integer | cuántas veces se reintentó |
 
@@ -218,13 +256,39 @@ NEQUI / DAVIPLATA (OTP vía Twilio):
 
 ### 3.4 PayoutItem
 
-Línea de detalle dentro de un Payout. Registra qué copayment (y a qué commercial) corresponde cada monto.
+Línea de detalle dentro de un Payout. **Un PayoutItem = un PurchaseItem reclamado** — no un Copayment completo, porque un mismo Copayment (una sola compra, potencialmente con varios productos) puede tener ítems que se reclaman en días distintos.
 
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `payout` | Payout | FK al payout del día |
-| `copayment` | Copayment | FK al copago origen |
-| `amountCents` | Long | parte de este copayment para este commercial |
+| `purchaseItem` | PurchaseItem | FK al ítem reclamado que financia esta línea — `unique=true`: un ítem solo puede entrar a un payout una vez (idempotencia) |
+| `amountCents` | Long | `purchaseItem.netToCommercialCents` en el momento de crear el payout |
+
+### 3.5 PurchaseItem (campos relevantes para payout/reclamo)
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `status` | PurchaseItemStatus | `PENDING` → `CLAIMED` (feliz) / `EXPIRED_UNCLAIMED` / `REFUNDED` / `CANCELLED` — ver sección 5 |
+| `deliveredCode` | String (cifrado) | código entregado, siempre al momento de la compra (digital o físico) |
+| `deliveredAt` | ZonedDateTime | cuándo se generó/envió el código — **no** cuándo se reclamó |
+| `claimPinHash` | String | hash BCrypt del PIN de reclamación física (null si es digital) |
+| `claimAttempts` | Integer | intentos fallidos de PIN — bloquea a las 5 |
+| `claimedAt` | ZonedDateTime | cuándo pasó a `CLAIMED` (digital: mismo instante que `deliveredAt`; físico: cuando el comerciante valida el PIN) |
+| `claimExpiresAt` | ZonedDateTime | solo físico: plazo para reclamar antes de `EXPIRED_UNCLAIMED` |
+
+### 3.6 PurchaseItemCashRefund
+
+Reembolso en efectivo pendiente de pago manual — ver [sección 6](#6-disputas-y-reembolsos).
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `purchaseItem` | PurchaseItem | FK único — el ítem reembolsado que originó este pago |
+| `pqrs` | Pqrs | **nullable** — solo si este reembolso nació de resolver un PQRS de marketplace con `action=REFUND` (null si fue un vencimiento automático). Mientras el pago siga pendiente, ese PQRS queda `PENDIENTE_PAGO_REEMBOLSO`; `CashRefundService.markPaid` lo resuelve al confirmar el pago — ver `PQRS_SYSTEM.md` |
+| `amountCents` | Long | porción en efectivo a reembolsar (excluye lo ya devuelto como llaves) |
+| `accountHolderName/Doc/DocType`, `bankName`, `accountNumber`, `accountType` | — | datos bancarios, null hasta que el comprador los indique |
+| `status` | CashRefundStatus | `PENDING_PAYMENT` → `PAID` |
+| `paidByAdmin` | AdminDetails | quién confirmó la transferencia manual |
+| `paidAt` | ZonedDateTime | cuándo se confirmó |
 
 ---
 
@@ -235,21 +299,24 @@ Línea de detalle dentro de un Payout. Registra qué copayment (y a qué commerc
 Se ejecuta a las 11 PM Colombia (04:00 UTC).
 
 ```
-1. Buscar Copayment(status=COMPLETED) del período sin PayoutItem asociado
-2. Para cada copayment → recorrer sus PurchaseItems
-3. Agrupar por commercial_id
-4. Por cada grupo:
+1. Buscar PurchaseItem(status=CLAIMED) sin PayoutItem asociado y sin PQRS abierto
+   (PurchaseItemRepository.findClaimedWithoutPayout — sin filtro de fecha)
+2. Agrupar por commercial_id (product.commercial)
+3. Por cada grupo:
    a. grossAmountCents  = Σ item.subtotalCents
    b. commissionCents   = Σ item.commissionCents
    c. netAmountCents    = Σ item.netToCommercialCents
-   d. commissionPctApplied = snapshot del % del plan actual
+   d. commissionPctApplied = snapshot del % del plan actual (último ítem procesado)
    e. Crear Payout(status=SCHEDULED)
-   f. Crear PayoutItem por cada copayment del grupo
-5. Idempotencia: si ya existe PayoutItem(copayment, commercial) → saltar
+   f. Crear un PayoutItem por cada PurchaseItem del grupo
+4. Idempotencia: la unique constraint en PayoutItem.purchase_item_id impide
+   que el mismo ítem entre a un payout dos veces
 ```
 
+**Por qué por ítem reclamado y no por Copayment completo:** un comprador puede pagar 3 productos en una sola transacción (un Copayment), pero si uno es digital (se reclama al instante) y dos son físicos (se reclaman cuando el comprador pasa por la tienda), cada uno puede entrar al payout del comercial en un día distinto. Agrupar por Copayment habría forzado a esperar a que **todos** los ítems de la compra estuvieran reclamados para pagar **cualquiera** de ellos.
+
 **Por qué batch y no en tiempo real:**
-- El batch agrupa todas las ventas del día en 1 transferencia por comercial.
+- El batch agrupa todos los ítems reclamados del día en 1 transferencia por comercial.
 - Wompi cobra por transacción — el batch reduce costos operativos significativamente.
 
 ### Fase 2 — processScheduledPayouts()
@@ -295,7 +362,163 @@ Se ejecuta a las 11:30 PM Colombia (04:30 UTC).
 
 ---
 
-## 5. Métodos de pago de los comercials
+## 5. Reclamo de productos: qué hace elegible a un ítem para el payout
+
+### 5.1 Digital vs. físico
+
+Cada `Product` tiene `fulfillmentType` (`ProductType.DIGITAL | PHYSICAL`, default `DIGITAL`). Determina qué pasa al momento de la entrega (`CopaymentServiceImpl.deliverProducts()`, disparado cuando Wompi aprueba el copago):
+
+```
+DIGITAL:
+  código entregado (deliveredCode, deliveredAt)
+  → status = CLAIMED de inmediato (claimedAt = deliveredAt)
+  → el proceso de redención ocurre fuera de la plataforma (Spotify, Netflix, etc.),
+    VerYGana no tiene más interacción con ese ítem
+
+PHYSICAL:
+  código entregado (deliveredCode, deliveredAt)
+  → se genera un PIN de 6 dígitos, se hashea (claimPinHash) y se envía
+    SOLO al comprador (mismo correo de confirmación de compra, junto al código)
+  → claimExpiresAt = ahora + marketplace.claim.expiration-days (default 15)
+  → status permanece PENDING — "esperando acción del comerciante"
+```
+
+El PIN nunca lo ve el comerciante por su cuenta: el comprador se lo entrega de viva voz al recoger el producto en tienda, alineando el incentivo (el comerciante solo cobra si el comprador coopera).
+
+### 5.2 Reclamo físico
+
+`POST /purchaseItems/{id}/claim` (rol `COMMERCIAL`) — `PurchaseItemServiceImpl.claimPhysicalItem`:
+
+```
+1. Validar que el ítem pertenezca a un producto de ese comerciante
+2. Idempotente: si ya está CLAIMED, responde 200 sin reprocesar
+3. Validar que el producto sea PHYSICAL y el ítem esté PENDING
+4. Validar que no haya vencido (claimExpiresAt)
+5. Validar intentos (máx. 5 — InvalidClaimException si se agotan)
+6. Comparar el PIN recibido contra claimPinHash (BCrypt)
+   → si no coincide: claimAttempts++, InvalidClaimException
+   → si coincide: status = CLAIMED, claimedAt = NOW()
+```
+
+### 5.3 Elegibilidad para el payout
+
+`PurchaseItemRepository.findClaimedWithoutPayout()`:
+
+```sql
+PurchaseItem.status = CLAIMED
+AND NOT EXISTS (PayoutItem para este ítem)
+AND NOT EXISTS (Pqrs vinculado a este ítem con status NOT IN (RESUELTA, CERRADA))
+```
+
+Sin filtro de fecha: un ítem reclamado 10 días después de la venta entra al payout del día en que se reclamó, no al de la venta ni se pierde. Ver [sección 6](#6-disputas-y-reembolsos) para el caso en que hay una disputa abierta.
+
+### 5.4 Vencimiento automático (ítems físicos nunca reclamados)
+
+`PurchaseItemExpirationScheduler` — corre diario (`marketplace.claim.expiration-scheduler.cron`, default `0 0 5 * * *` = 5 AM UTC):
+
+```
+1. PurchaseItemRepository.findExpiredUnclaimedPhysicalItems(now)
+   → PurchaseItem(status=PENDING, product.fulfillmentType=PHYSICAL, claimExpiresAt < now)
+2. Por cada ítem (aislado — uno que falle no detiene a los demás):
+   a. PurchaseItemRefundService.expireUnclaimed(item) → ver sección 6
+   b. EmailService.sendPhysicalItemExpiredToConsumer(item, ...)
+   c. EmailService.sendPhysicalItemExpiredToCommercial(item)
+```
+
+Un ítem que expira **nunca llegó a CLAIMED**, así que nunca estuvo en riesgo de pagarse — el vencimiento solo dispara su reembolso (ver sección 6), no afecta ningún payout ya calculado.
+
+---
+
+## 6. Disputas y reembolsos
+
+Dos caminos disparan un reembolso de `PurchaseItem`, ambos manejados por `PurchaseItemRefundService`:
+
+| Camino | Método | Termina en | Quién lo dispara |
+|---|---|---|---|
+| Comprador reporta un problema (código inválido, no entregado, no corresponde) | `refund(item, reason, pqrs)` | `REFUNDED` | Admin, al resolver el PQRS vinculado con acción `REFUND` |
+| Ítem físico nunca reclamado dentro del plazo | `expireUnclaimed(item)` | `EXPIRED_UNCLAIMED` | `PurchaseItemExpirationScheduler`, automático |
+
+Ambos comparten la misma mecánica financiera (`reverseFinancials()`); solo difieren en el estado final y en si el stock se invalida.
+
+### 6.1 Disputas (PQRS vinculado a un ítem)
+
+`POST /purchaseItems/{id}/report` (rol `CONSUMER`) crea un `Pqrs(type=RECLAMO)` vinculado al `PurchaseItem` (`Pqrs.purchaseItem`, `Pqrs.reasonCode`: `CODE_INVALID | NOT_DELIVERED | NOT_AS_DESCRIBED | OTHER`). Reutiliza el flujo normal de asignación/SLA de PQRS (ver `PQRS_SYSTEM.md`) sin cambios.
+
+**Mientras ese PQRS esté abierto** (no `RESUELTA`/`CERRADA` — esto incluye `PENDIENTE_PAGO_REEMBOLSO`), el ítem queda excluido del payout aunque ya esté `CLAIMED` — ver `findClaimedWithoutPayout()` en la sección 5.3.
+
+El admin resuelve con `PATCH /admin/pqrs/{id}/respond`, body con `action`:
+- `DISMISS` — el ítem sigue su curso normal (vuelve a ser elegible para payout si estaba `CLAIMED`).
+- `REFUND` — dispara `PurchaseItemRefundService.refund(item, pqrs.reasonCode, pqrs)`. Si resulta en un `PurchaseItemCashRefund` (porción en efectivo), el PQRS **no** pasa a `RESUELTA` todavía — queda `PENDIENTE_PAGO_REEMBOLSO` hasta que el admin confirme el pago manual (sección 6.4) — así que el ítem sigue excluido del payout hasta ese momento, aunque el reembolso interno ya se haya ejecutado.
+
+### 6.2 Vencimiento automático
+
+Ver sección 5.4. `expireUnclaimed(item)` no requiere PQRS — es una regla determinística, sin juicio humano de por medio.
+
+### 6.3 Mecánica financiera compartida (`reverseFinancials`)
+
+El dinero de un ítem con disputa o vencido **nunca llegó a pagársele al comerciante** (el payout solo toma ítems `CLAIMED` sin disputa), así que reversar no requiere tocar Wompi:
+
+```
+itemTotalCents = item.commissionCents + item.netToCommercialCents
+keysPortionCents = proporción del ítem pagada con llaves
+                  ≈ copayment.keysValueCents × (item.subtotalCents / purchase.totalCents)
+                  (aproximación: el split llaves/efectivo solo se registra a nivel de
+                   Copayment completo, no por ítem — mismo principio que ya usa el
+                   sistema para el snapshot de comisión por ítem)
+cashPortionCents = itemTotalCents - keysPortionCents
+
+TreasuryService.reversePurchaseItemForRefund(commissionCents, keysPortionCents, cashPortionCents, copaymentId):
+  1. commissionCents > 0  → OPERATIONS → PAYOUTS_PENDING       (COMMISSION_REVERSAL)
+  2. keysPortionCents > 0 → PAYOUTS_PENDING → KEYS_RESERVE      (REFUND_KEYS_TO_RESERVE)
+  3. cashPortionCents > 0 → PAYOUTS_PENDING → OPERATIONS        (REFUND_CASH_TO_OPERATIONS)
+
+Si keysPortionCents > 0:
+  → KeyWallet.creditKeysCents(keysPortionCents, 0)
+  → KeyTransaction(type=CREDIT_COPAYMENT_REFUND)
+
+Si cashPortionCents > 0:
+  → crea PurchaseItemCashRefund(amountCents=cashPortionCents, status=PENDING_PAYMENT)
+```
+
+**Por qué la porción en llaves vuelve a `KEYS_RESERVE` y no a `OPERATIONS`:** `KEYS_RESERVE` respalda todas las llaves en circulación. Si se le acreditan llaves de vuelta al comprador sin reponer el fondo, `KEYS_RESERVE` queda desfondeado frente a un pasivo (las llaves) que sigue existiendo.
+
+### 6.4 Reembolso en efectivo — manual, con trazabilidad
+
+Wompi no documenta un endpoint de reverso de cargos (`https://docs.wompi.co/docs/colombia/inicio-rapido/` no tiene una sección de refunds), así que el reembolso en efectivo **no se automatiza**: VerYGana lo paga por fuera de la app (transferencia bancaria propia) y dos endpoints dejan la trazabilidad completa:
+
+```
+1. POST /purchaseItems/{id}/cash-refund/bank-details   [CONSUMER]
+   El comprador indica a qué cuenta quiere la transferencia.
+   CashRefundService.submitBankDetails — valida dueño + que no esté ya PAID.
+
+2. GET /admin/cash-refunds?status=PENDING_PAYMENT       [ADMIN]
+   Panel de reembolsos pendientes de transferencia manual.
+
+3. PATCH /admin/cash-refunds/{id}/mark-paid             [ADMIN]
+   El admin confirma que ya transfirió por fuera de la app.
+   CashRefundService.markPaid — exige que ya haya datos bancarios.
+   → TreasuryService.registerManualCashRefundPaid(amountCents, cashRefundId)
+     OPERATIONS → EXTERNAL_INCOME (concepto REFUND_TO_BUYER)
+   → PurchaseItemCashRefund(status=PAID, paidByAdmin, paidAt)
+   → si PurchaseItemCashRefund.pqrs != null, resuelve ese PQRS
+     (status=RESUELTA, resolvedAt=now, notifica al solicitante) — ver PQRS_SYSTEM.md
+```
+
+**Nota:** `POST /purchaseItems/{id}/cash-refund/bank-details` recibe un `@RequestBody` JSON — el request debe enviarse con `Content-Type: application/json`. Enviarlo como `application/x-www-form-urlencoded` (error típico si el frontend usa un `<form>` o `URLSearchParams` en vez de `JSON.stringify` + fetch/axios con el header correcto) produce un `415 Unsupported Media Type` (antes de esto se devolvía un 500 genérico — `GlobalExceptionHandler` ya mapea `HttpMediaTypeNotSupportedException` explícitamente).
+
+**Vínculo con el PQRS que originó el reembolso:** cuando este `PurchaseItemCashRefund` nació de resolver un PQRS de marketplace con `action=REFUND` (no de un vencimiento automático), queda enlazado a ese PQRS (`PurchaseItemCashRefund.pqrs`). Mientras el pago siga pendiente, el PQRS se queda en `PENDIENTE_PAGO_REEMBOLSO` (no `RESUELTA`) — recién se cierra en el paso 3 de arriba, cuando el admin confirma el pago. Así todo el flujo (aprobación → datos bancarios → pago → cierre) vive dentro del mismo PQRS en vez de partirse en dos objetos sin relación visible para el comprador. Ver `PQRS_SYSTEM.md` sección 3.3 y Fase 3.
+
+### 6.5 Stock al reembolsar
+
+El código (`deliveredCode`) siempre se muestra al comprador desde el momento de la compra, sin importar el estado del ítem — así que el stock **nunca vuelve a `AVAILABLE`** en un reembolso (reutilizar el mismo código para otro comprador filtraría el secreto ya revelado):
+
+- `refund(item, reason=CODE_INVALID)` → `ProductStock.markAsInvalid()` (excluido del inventario).
+- `refund(item, cualquier otro motivo)` → el stock queda tal cual (`SOLD`); el comerciante repone stock nuevo.
+- `expireUnclaimed(item)` → el stock **nunca** se marca `INVALID` — el código nunca estuvo mal, el comprador simplemente no lo reclamó.
+
+---
+
+## 7. Métodos de pago de los comercials
 
 ### Registro de un método
 
@@ -326,7 +549,7 @@ El flag `firstPayoutCompleted` empieza en `false`. Cuando el job ejecuta el prim
 
 ---
 
-## 6. Integración con Wompi Pagos a Terceros
+## 8. Integración con Wompi Pagos a Terceros
 
 ### Credenciales
 
@@ -334,6 +557,7 @@ El flag `firstPayoutCompleted` empieza en `false`. Cuando el job ejecuta el prim
 |---|---|
 | `WOMPI_PAYOUT_API_KEY` | Autenticación, header `x-api-key` del WebClient de payouts |
 | `WOMPI_PAYOUT_PRINCIPAL_USER_ID` | ID Usuario Principal, header `user-principal-id` |
+| `WOMPI_PAYOUT_USER_ID` | Header `user-id` (ver nota abajo — descubierto necesario en pruebas propias, no está en el spec público) |
 | `WOMPI_PAYOUT_EVENTS_KEY` | Secreto para validar la firma del webhook de payouts |
 | `WOMPI_PAYOUT_ACCOUNT_ID` | Cuenta de origen de las dispersiones (`GET /accounts`) |
 | `WOMPI_PAYOUT_NEQUI_BANK_ID` | `bankId` de Wompi que representa a Nequi en el catálogo `/banks` |
@@ -341,32 +565,38 @@ El flag `firstPayoutCompleted` empieza en `false`. Cuando el job ejecuta el prim
 
 ### Headers de autenticación (confirmados)
 
-Contra el spec público de SwaggerHub (`https://app.swaggerhub.com/apis-docs/wompi/Payouts/1.0.0`), cada request lleva dos headers en minúscula, sin esquema `Bearer`:
+Contra el spec público de SwaggerHub (`https://app.swaggerhub.com/apis-docs/wompi/Payouts/1.0.0`), cada request lleva estos headers en minúscula, sin esquema `Bearer`:
 
 ```
 x-api-key: {WOMPI_PAYOUT_API_KEY}
 user-principal-id: {WOMPI_PAYOUT_PRINCIPAL_USER_ID}
+user-id: {WOMPI_PAYOUT_USER_ID}
 ```
 
-Ver `WompiPayoutWebClientConfig`.
+`user-id` **no está documentado en el spec público de SwaggerHub** — se agregó porque las pruebas propias en sandbox lo necesitaron para autenticar correctamente (mismo patrón que ya pasó antes con `idempotency-key`: el spec público no es 100% confiable, hay que validar contra el comportamiento real). En la cuenta de prueba, su valor coincide con `WOMPI_PAYOUT_PRINCIPAL_USER_ID`. Ver `WompiPayoutWebClientConfig`.
 
-**`POST /payouts` además requiere un tercer header, `idempotency-key`** (confirmado en sandbox: sin él, la API responde `500 EXC_001` genérico en vez de un error claro). Debe ser único por request, 1-64 caracteres (letras, números, guion), y expira en 24h — por eso no puede ser un header fijo del `WebClient` como los otros dos; `WompiPayoutClient.createPayout()` genera un `UUID.randomUUID()` nuevo en cada llamada. Ref: `https://docs.wompi.co/docs/colombia/crea-tu-primer-lote/`.
+**`POST /payouts` además requiere un cuarto header, `idempotency-key`** (confirmado en sandbox: sin él, la API responde `500 EXC_001` genérico en vez de un error claro). Debe ser único por request, 1-64 caracteres (letras, números, guion), y expira en 24h — por eso no puede ser un header fijo del `WebClient` como los otros tres; `WompiPayoutClient.createPayout()` genera un `UUID.randomUUID()` nuevo en cada llamada. Ref: `https://docs.wompi.co/docs/colombia/crea-tu-primer-lote/`.
 
-> **Confirmado (2026-08-05):** `GET /banks` responde correctamente con las credenciales de sandbox del usuario. Sigue **pendiente de verificar** que el envelope de campos por banco (`id`/`name`) coincida exactamente con lo asumido en `WompiPayoutBankResponseDTO` — `@JsonIgnoreProperties(ignoreUnknown = true)` evita que un campo extra rompa el deserializador, pero si `id`/`name` llegan con otro nombre quedarían en `null`. Ajustar los `@JsonProperty` si al probar `GET /api/commercial/payout-methods/banks` los valores no coinciden con el dashboard/Postman. También sigue pendiente confirmar que el envelope de `GET /accounts` sea `{status, code, data: [...]}` (sin ejemplo público confirmado) y que el catálogo de `/banks` efectivamente incluya entradas para Nequi y Daviplata (los `bankId` configurados en `WOMPI_PAYOUT_NEQUI_BANK_ID`/`WOMPI_PAYOUT_DAVIPLATA_BANK_ID` no se validan contra el catálogo, a diferencia del `bankCode` de BANK_TRANSFER — ver más abajo).
+> **Confirmado:** `GET /banks` responde correctamente con las credenciales de sandbox del usuario y el envelope coincide con lo asumido en `WompiPayoutBankResponseDTO`.
 
-### Validaciones agregadas en el registro de métodos de pago (2026-08-05)
+### Validaciones en el registro de métodos de pago
 
-Mientras se resuelve el bloqueo de soporte de Wompi para un `POST /payouts` exitoso, se reforzó todo lo que sí se puede validar en el momento del registro (`PayoutMethodServiceImpl`), para no descubrir datos inválidos recién el día del payout:
+`PayoutMethodServiceImpl` valida todo lo que se puede validar en el momento del registro, para no descubrir datos inválidos recién el día del payout:
 
 - **`GET /api/commercial/payout-methods/banks`** (nuevo, `PayoutMethodController`): expone el catálogo real de `GET /banks` de Wompi para que el frontend deje elegir el `bankCode` correcto en vez de que el commercial lo escriba a mano.
 - **Cross-check de `bankCode` contra el catálogo real** al registrar un método `BANK_TRANSFER`: si el `bankCode` enviado no existe en `GET /banks`, el registro se rechaza con 400 en vez de quedar `UNDER_REVIEW` con un dato que Wompi rechazará después.
 - **Validación de formato de `accountHolderDoc`** según `accountHolderDocType` (CC/CE/TI/DNI: solo dígitos 5-15; NIT: dígitos 6-12 con dígito de verificación opcional; PP: alfanumérico 5-20). Antes no había ninguna validación de formato — un documento mal escrito solo se detectaba al ejecutar el payout.
 - **Screening SARLAFT/OFAC también en NEQUI/DAVIPLATA**: antes `verifyOtp()` marcaba el método `VERIFIED` con solo el OTP de Twilio, sin pasar por `screeningService.screenOrThrow(...)` como sí ocurre en `adminVerifyMethod()` para BANK_TRANSFER. Ahora ambos flujos aplican el mismo screening antes de dejar un método listo para recibir dinero.
 
-**Sigue pendiente (no se puede resolver sin un `POST /payouts` exitoso en sandbox):**
-- Confirmar la unidad real de `amount` (¿centavos o pesos?) comparando el payout contra `GET /payouts/{id}/transactions`.
-- Confirmar que `DocType.DNI` sea un `legalIdType` aceptado por Wompi (el único ejemplo público confirmado usa `CC`).
-- Probar el webhook `transaction.updated` end-to-end.
+**Confirmado — `POST /payouts` exitoso en sandbox (Postman):** con el header `user-id` agregado, transacciones armadas con exactamente los campos de `WompiPayoutTransactionDTO` (`legalIdType`, `legalId`, `personType`, `bankId`, `accountType`, `accountNumber`, `name`, `email`, `amount`, `reference`) fueron aceptadas. Se probó explícitamente **sin** `description`, `phone` (a nivel de transacción) ni `transactionStatus` (a nivel de lote) — los tres son opcionales/no requeridos, no hace falta agregarlos al DTO. Los campos obligatorios según la documentación oficial de SwaggerHub (`legalIdType`, `legalId`, `bankId`, `accountType`, `accountNumber`, `name`, `email`, `amount`, `reference`, `accountId`, `paymentType`) ya están todos cubiertos por el request actual.
+
+`amount` confirmado en **centavos** (la documentación oficial lo especifica explícitamente: "$10,000 COP se representa como 1000000"), consistente con lo que ya se implementaba.
+
+**Sigue pendiente:**
+- Confirmar que `DocType.DNI` sea un `legalIdType` aceptado por Wompi (el único ejemplo confirmado usa `CC`).
+- Probar el webhook `transaction.updated` end-to-end (que el `Payout` efectivamente pase a `PAID` cuando Wompi confirma).
+
+**Refunds de cobros (Checkout/Transacciones):** tampoco se investigó ni se automatizó — `docs.wompi.co/docs/colombia/inicio-rapido/` no documenta un endpoint de reverso de cargos. Por eso el reembolso en efectivo a un comprador se resuelve manualmente (ver [sección 6.4](#64-reembolso-en-efectivo--manual-con-trazabilidad)) en vez de vía Wompi. Si en el futuro se confirma que sí existe (soporte de Wompi, sandbox), `CashRefundService.markPaid` es el punto natural para reemplazar la confirmación manual por una llamada real a la API.
 
 ### Ambientes
 
@@ -443,7 +673,7 @@ Las transferencias a bancos distintos de Bancolombia/Nequi/Bre-B siguen los cicl
 
 ---
 
-## 7. Job Scheduler
+## 9. Job Scheduler
 
 `PayoutScheduler` — `@Scheduled` con cron configurable.
 
@@ -459,8 +689,8 @@ wompi:
 
 ### Por qué 11 PM y no medianoche
 
-- Las 11 PM da tiempo a que todos los Copayments del día estén `COMPLETED` y los webhooks de Wompi (cobros) hayan llegado.
-- No usar medianoche: esos webhooks pueden tardar varios minutos y podrían quedar fuera del período.
+- Las 11 PM da tiempo a que todos los códigos entregados durante el día que ya fueron reclamados queden reflejados (`CLAIMED`) antes de correr el batch.
+- No usar medianoche: los webhooks de Wompi (cobros) pueden tardar varios minutos en llegar.
 
 ### Log de ejecución
 
@@ -468,16 +698,19 @@ Cada ciclo produce entradas como:
 
 ```
 [PAYOUT-SCHEDULER] Balance Wompi Payouts OK: 2500000 COP
-[PAYOUT-SCHEDULER] Encontrados 47 copayments COMPLETED.
-[PAYOUT-SCHEDULER] Payout SCHEDULED: id=..., commercial=Tienda XYZ, net=185000
+[PAYOUT-SCHEDULER] Buscando ítems CLAIMED sin payout asociado
+[PAYOUT-SCHEDULER] Encontrados 47 ítems reclamados sin payout.
+[PAYOUT-SCHEDULER] Payout SCHEDULED: id=..., commercial=Tienda XYZ, net=185000, ítems=12
 [PAYOUT-SCHEDULER] Payout → PROCESSING: id=..., wompiId=wp_123...
 [PAYOUT-SCHEDULER] Ciclo diario completado.
 [PAYOUT-RETRY] Sin payouts FAILED para reintentar.
 ```
 
+Job aparte, independiente del horario de payouts — `PurchaseItemExpirationScheduler` corre a las 5 AM UTC (`marketplace.claim.expiration-scheduler.cron`) y produce entradas `[CLAIM-EXPIRY]` (ver sección 5.4).
+
 ---
 
-## 8. Webhook de confirmación
+## 10. Webhook de confirmación
 
 ### Endpoint
 
@@ -531,7 +764,9 @@ El handler verifica si el `Payout` ya dejó de estar en `PROCESSING` antes de ap
 
 ---
 
-## 9. Tesorería y movimientos contables
+## 11. Tesorería y movimientos contables
+
+### 11.1 Payout pagado
 
 Cuando un payout es `PAID`, el sistema llama a `TreasuryService.registerPayoutSent(netAmountCents, payoutId)`. Esto genera un `TreasuryMovement` del tipo:
 
@@ -544,9 +779,30 @@ referenceId: payoutId
 
 La comisión de VeryGana fue retenida al momento de cada venta (en `handleApproved()` del servicio de copagos), por lo que `scheduleDailyPayouts()` **no** llama a `retainCommission()` — solo registra el snapshot de `commissionCents` para auditoría del payout.
 
+### 11.2 Reembolso de un PurchaseItem (disputa o vencimiento)
+
+Ver [sección 6.3](#63-mecánica-financiera-compartida-reversefinancials) para el flujo completo. Movimientos generados por `TreasuryService.reversePurchaseItemForRefund`:
+
+| Concepto | from → to | Cuándo |
+|---|---|---|
+| `COMMISSION_REVERSAL` | OPERATIONS → PAYOUTS_PENDING | siempre que `commissionCents > 0` |
+| `REFUND_KEYS_TO_RESERVE` | PAYOUTS_PENDING → KEYS_RESERVE | si el ítem se pagó (parcial o totalmente) con llaves |
+| `REFUND_CASH_TO_OPERATIONS` | PAYOUTS_PENDING → OPERATIONS | si el ítem se pagó (parcial o totalmente) en efectivo |
+
+### 11.3 Reembolso en efectivo pagado manualmente
+
+`TreasuryService.registerManualCashRefundPaid(amountCents, cashRefundId)`, disparado por `CashRefundService.markPaid`:
+
+```
+fromAccount: OPERATIONS
+toAccount: EXTERNAL_INCOME (cuenta externa virtual, dinero sale del banco real)
+concept: REFUND_TO_BUYER
+referenceId: purchaseItemCashRefundId
+```
+
 ---
 
-## 10. Configuración
+## 12. Configuración
 
 ### application-dev.yml / application-prod.yml
 
@@ -569,6 +825,12 @@ wompi:
     cron: "0 0 4 * * *"
     retry-cron: "0 30 4 * * *"
     min-balance-alert-cents: 5000000
+
+marketplace:
+  claim:
+    expiration-days: 15                  # plazo para reclamar un producto físico (PIN)
+    expiration-scheduler:
+      cron: "0 0 5 * * *"                # PurchaseItemExpirationScheduler, todos los días 5 AM UTC
 ```
 
 ### Variables de entorno requeridas (payouts)
@@ -584,7 +846,7 @@ wompi:
 
 ---
 
-## 11. Endpoints de la API
+## 13. Endpoints de la API
 
 ### Commercial (rol: `ROLE_COMMERCIAL`)
 
@@ -594,12 +856,22 @@ wompi:
 | `POST` | `/commercial/wallet/withdraw` | Solicitar retiro manual |
 | `GET` | `/commercial/wallet/me/transactions` | Historial de depósitos (paginado) |
 | `GET` | `/commercial/wallet/me/payouts` | Historial de payouts recibidos (paginado) |
+| `POST` | `/purchaseItems/{id}/claim` | Validar el PIN de un ítem físico entregado en persona |
+
+### Consumer (rol: `ROLE_CONSUMER`)
+
+| Método | Path | Descripción |
+|---|---|---|
+| `POST` | `/purchaseItems/{id}/report` | Reportar un problema con un ítem (crea PQRS vinculado) |
+| `POST` | `/purchaseItems/{id}/cash-refund/bank-details` | Indicar la cuenta para un reembolso en efectivo ya aprobado |
 
 ### Admin (rol: `ROLE_ADMIN`)
 
 | Método | Path | Descripción |
 |---|---|---|
 | `GET` | `/api/admin/payouts?date=YYYY-MM-DD` | Listar payouts de una fecha (hoy si no se pasa) |
+| `GET` | `/admin/cash-refunds?status=PENDING_PAYMENT` | Reembolsos en efectivo pendientes de pago manual |
+| `PATCH` | `/admin/cash-refunds/{id}/mark-paid` | Confirmar que ya se hizo la transferencia manual |
 
 ### Webhook (público)
 
@@ -610,7 +882,7 @@ wompi:
 
 ---
 
-## 12. Operación y monitoreo
+## 14. Operación y monitoreo
 
 ### Alerta de balance bajo
 
@@ -641,9 +913,13 @@ GET /api/admin/payouts?date=2025-03-15
 
 Respuesta incluye: `id`, `commercial`, `gross`, `commission`, `net`, `status`, `scheduledAt`, `paidAt`, `failureReason`, `retryCount`.
 
+### Reembolsos en efectivo pendientes
+
+Un `PurchaseItemCashRefund` en `PENDING_PAYMENT` sin datos bancarios todavía es normal (esperando al comprador). Uno con datos bancarios ya cargados y varios días en `PENDING_PAYMENT` es una señal operativa: alguien en soporte/finanzas debe ejecutar la transferencia manual y marcarla pagada. No hay alerta automática todavía — se recomienda revisar `GET /admin/cash-refunds` periódicamente hasta que se justifique automatizarlo.
+
 ---
 
-## 13. Manejo de errores y reintentos
+## 15. Manejo de errores y reintentos
 
 ### Matriz de fallos
 
@@ -655,6 +931,8 @@ Respuesta incluye: `id`, `commercial`, `gross`, `commission`, `net`, `status`, `
 | Webhook DECLINED/FAILED de Wompi | `Payout(FAILED)` | Se reintenta en el ciclo siguiente |
 | Balance de la cuenta de dispersión insuficiente | Wompi rechaza `/payouts` | Log WARN antes del ciclo — equipo ops recarga el balance |
 | Webhook duplicado | Ignorado (idempotencia) | — |
+| PIN de reclamo físico incorrecto | `InvalidClaimException` (400), `claimAttempts++` | Bloquea a los 5 intentos |
+| `expireUnclaimed`/`refund` fallan para un ítem del batch de vencimiento | Log ERROR, el ítem no se marca | El ítem sigue `PENDING`/en disputa y se reintenta en el próximo ciclo del scheduler correspondiente |
 
 ### Límite de reintentos
 
@@ -668,3 +946,9 @@ Cada payout tiene `id` (UUID) trazable en:
 - `WompiTransaction.wompiId` = ID en el dashboard de Wompi
 - `TreasuryMovement.referenceId` = `payoutId`
 - Logs con `[PAYOUT-SCHEDULER]`, `[WOMPI PAYOUT WEBHOOK]` como prefijos filtrables
+
+Cada reembolso es trazable en:
+- `PayoutItem.purchaseItem` → qué ítem específico financia cada línea de un payout
+- `TreasuryMovement.referenceId` = `copaymentId` (reversión) o `purchaseItemCashRefundId` (pago manual)
+- `PurchaseItemCashRefund.paidByAdmin` / `paidAt` → quién y cuándo ejecutó la transferencia manual
+- Logs con `[REFUND]` (mecánica financiera) y `[CLAIM-EXPIRY]` (vencimiento automático) como prefijos filtrables

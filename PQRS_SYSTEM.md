@@ -22,6 +22,8 @@ El sistema de PQRS (Peticiones, Quejas, Reclamos y Sugerencias) permite que cual
 
 **Principio central del diseño:** cada PQRS se asigna por **rotación equitativa** al admin activo que lleva más tiempo esperando su turno. No existe un rol de super-admin ni reasignación manual — el turno de rotación determina, de forma determinística, quién debe resolver cada caso.
 
+**PQRS vinculados a una compra:** además del flujo genérico (`POST /pqrs`), un comprador puede reportar un problema puntual con un ítem de su compra (código inválido, no entregado, no corresponde a lo comprado) desde `POST /purchaseItems/{id}/report`. Esto crea un `Pqrs(type=RECLAMO)` ya vinculado al `PurchaseItem` en cuestión, reutilizando exactamente el mismo motor de asignación/SLA/notificaciones — la única diferencia es que trae un ítem y un motivo (`reasonCode`) adjuntos, y que al resolverlo el admin puede disparar un reembolso. Ver [sección 5](#5-flujo-completo-de-un-pqrs) ("Fase 1b" y "Fase 3") y `PAYOUT_SYSTEM.md` (sección 6, "Disputas y reembolsos") para el detalle completo del lado financiero.
+
 **Ciclo de vida de un PQRS:**
 
 ```
@@ -38,6 +40,9 @@ Usuario radica PQRS
         ↓
   respondToPqrs()            [admin responde]
   → EN_REVISION → RESUELTA
+    (o → PENDIENTE_PAGO_REEMBOLSO si es un reclamo de marketplace
+     con action=REFUND y el reembolso tiene porción en efectivo —
+     ver sección 3.3 y Fase 3)
         ↓
   (alertas de SLA si se acerca el vencimiento)
 ```
@@ -71,10 +76,15 @@ Usuario radica PQRS
 ```
 models/enums/pqrs/
   PqrsType.java                    → PETICION | QUEJA | RECLAMO | SUGERENCIA
-  PqrsStatus.java                  → PENDIENTE_ASIGNACION | RECIBIDA | EN_REVISION | RESUELTA | CERRADA
+  PqrsStatus.java                  → PENDIENTE_ASIGNACION | RECIBIDA | EN_REVISION |
+                                      PENDIENTE_PAGO_REEMBOLSO | RESUELTA | CERRADA
+  MarketplaceIssueReason.java      → CODE_INVALID | NOT_DELIVERED | NOT_AS_DESCRIBED | OTHER
+                                      (solo para PQRS radicados desde /purchaseItems/{id}/report)
+  PqrsResolutionAction.java        → DISMISS | REFUND (acción del admin al resolver un PQRS
+                                      vinculado a un PurchaseItem)
 
 models/pqrs/
-  Pqrs.java                        → entidad principal
+  Pqrs.java                        → entidad principal, +purchaseItem, +reasonCode
 
 models/userDetails/
   AdminDetails.java                → +campo lastPqrsAssignedAt (cursor de rotación)
@@ -105,6 +115,19 @@ controllers/pqrs/
   PqrsController.java              → /pqrs (usuario)
 controllers/admin/
   PqrsAdminController.java         → /admin/pqrs (admin)
+controllers/marketplace/
+  PurchaseItemController.java      → POST /purchaseItems/{id}/report (crea el PQRS vinculado)
+
+services/interfaces/marketplace/
+  PurchaseItemRefundService.java   → refund(item, reason, pqrs) — disparado por respondToPqrs(action=REFUND).
+                                      Retorna el PurchaseItemCashRefund creado (o null si no hubo
+                                      porción en efectivo) para que respondToPqrs decida si el PQRS
+                                      se resuelve ya o queda PENDIENTE_PAGO_REEMBOLSO.
+                                      Ver PAYOUT_SYSTEM.md sección 6.
+
+services/finance/
+  CashRefundServiceImpl.java       → markPaid() resuelve el PQRS vinculado (si lo hay) cuando el
+                                      admin confirma el pago manual del reembolso — ver Fase 3.
 
 schedulers/
   PqrsAssignmentRetryScheduler.java
@@ -145,6 +168,10 @@ resources/templates/email/
 | `response` | String (TEXT) | respuesta del admin (nullable hasta resolver) |
 | `dueDate` | ZonedDateTime | fecha límite legal, calculada al crear |
 | `createdAt` / `updatedAt` / `resolvedAt` | ZonedDateTime | auditoría |
+| `purchaseItem` | PurchaseItem | **nullable** — solo se llena cuando el PQRS se radica desde `/purchaseItems/{id}/report` |
+| `reasonCode` | MarketplaceIssueReason | **nullable** — motivo específico del reclamo de marketplace (`CODE_INVALID` \| `NOT_DELIVERED` \| `NOT_AS_DESCRIBED` \| `OTHER`) |
+
+Mientras un PQRS con `purchaseItem` vinculado no esté `RESUELTA`/`CERRADA` (esto incluye `PENDIENTE_PAGO_REEMBOLSO`), ese ítem queda excluido del payout diario al comercial — ver `PurchaseItemRepository.findClaimedWithoutPayout()` en `PAYOUT_SYSTEM.md`.
 
 El campo `based` (así se expone en las respuestas JSON, `PqrsResponseDTO.based` / `PqrsAdminDetailDTO.based`) es el **número de radicado**. No se persiste en base de datos: se deriva en `Pqrs.getBased()` a partir del año de creación y el id (`"PQRS-{año}-{id con 6 dígitos}"`), y MapStruct lo mapea automáticamente al DTO por coincidencia de nombre de propiedad.
 
@@ -161,6 +188,30 @@ isPendingAssignment()   // true si status == PENDIENTE_ASIGNACION
 | Campo | Tipo | Descripción |
 |---|---|---|
 | `lastPqrsAssignedAt` | ZonedDateTime | cursor de rotación — el admin con el valor más antiguo (o `null`) es el siguiente en recibir un PQRS |
+
+### 3.3 MarketplaceIssueReason / PqrsResolutionAction
+
+Solo aplican a PQRS con `purchaseItem` vinculado (radicados desde `/purchaseItems/{id}/report`):
+
+```java
+public enum MarketplaceIssueReason {
+    CODE_INVALID,      // el código/PIN no funcionó
+    NOT_DELIVERED,     // nunca llegó el producto (físico) o el código (digital)
+    NOT_AS_DESCRIBED,  // el producto no corresponde a lo comprado
+    OTHER
+}
+
+public enum PqrsResolutionAction {
+    DISMISS,  // el ítem sigue su curso normal (código válido, entrega confirmada)
+    REFUND    // dispara PurchaseItemRefundService.refund(item, reasonCode, pqrs)
+}
+```
+
+`reasonCode` se fija al crear el PQRS (elegido por el comprador) y viaja intacto hasta la resolución — es el mismo valor que recibe `PurchaseItemRefundService.refund()` para decidir si el stock se marca `INVALID` (solo si `CODE_INVALID`).
+
+`Pqrs.action` (nullable) se persiste en el momento de resolver (`respondToPqrs`) — no es solo el campo transitorio de `RespondPqrsRequestDTO`. Se expone en `PqrsResponseDTO`/`PqrsAdminDetailDTO` para que el frontend, leyendo el PQRS, sepa si el admin aprobó `REFUND` y deba mostrarle al comprador el formulario de `POST /purchaseItems/{id}/cash-refund/bank-details` (ver `PAYOUT_SYSTEM.md` sección 6.4) — sin esto, el chat de PQRS del comprador no tendría forma de saber cuándo pedir la cuenta bancaria.
+
+**El PQRS solo se cierra cuando el problema realmente se resolvió, no cuando el admin lo aprobó.** Si `action = REFUND` y el reembolso tiene una porción en efectivo (ver `PurchaseItemCashRefund` en `PAYOUT_SYSTEM.md` sección 6.4), esa porción queda pendiente de un pago manual que el admin confirma después, por fuera de este endpoint. Hasta ese momento el PQRS queda en `PENDIENTE_PAGO_REEMBOLSO` — no `RESUELTA` — para que todo el flujo (aprobación → datos bancarios del comprador → pago → cierre) quede dentro del mismo PQRS en vez de partirse en dos objetos. `PurchaseItemCashRefund.pqrs` es el FK que sostiene ese vínculo; `CashRefundServiceImpl.markPaid()` es quien finalmente pasa el PQRS a `RESUELTA` cuando el admin confirma el pago (ver Fase 3 y `PAYOUT_SYSTEM.md` sección 6.4). Si el reembolso se cubrió 100% con llaves (sin porción en efectivo) o la acción fue `DISMISS`, no hay nada que esperar y el PQRS se resuelve de inmediato, como antes.
 
 ---
 
@@ -213,6 +264,17 @@ El `PESSIMISTIC_WRITE` bloquea esa fila hasta que la transacción de creación d
 
 Anotado con `@Auditable(action = "PQRS_SUBMIT", category = "PQRS")` para trazabilidad.
 
+### Fase 1b — Creación vinculada a una compra (`createPqrsForPurchaseItem`)
+
+`PurchaseItemController.reportIssue` (`POST /purchaseItems/{id}/report`) primero valida con `PurchaseItemService.getReportableItem(itemId, consumerId)` que el ítem sea del comprador autenticado, que no esté ya `REFUNDED`/`CANCELLED`, y que si ya está `CLAIMED` esté dentro de una ventana de 48h desde el reclamo (permite reportar "el PIN era correcto pero el producto no correspondía" incluso después de reclamado). Luego llama a `PqrsService.createPqrsForPurchaseItem(item, reason, description, consumerId)`, que comparte toda la lógica de `createAndDispatch()` con `createPqrs()` (misma asignación por rotación, mismo cálculo de `dueDate`, mismas notificaciones) pero:
+
+```
+type = RECLAMO (siempre)
+subject = generado automáticamente ("Reclamo por compra #{purchaseId} ({reason})")
+purchaseItem = el ítem validado
+reasonCode = el motivo elegido por el comprador
+```
+
 ### Fase 2 — Revisión (`markUnderReview`)
 
 El admin dueño del PQRS lo marca como `EN_REVISION` (`RECIBIDA → EN_REVISION`). Si el PQRS no está en `RECIBIDA`, lanza `ValidationException` (400).
@@ -223,9 +285,27 @@ El admin dueño del PQRS lo marca como `EN_REVISION` (`RECIBIDA → EN_REVISION`
 1. Verificar que el PQRS esté asignado al admin autenticado
    → si no, PqrsAccessDeniedException (403)
 2. Verificar canBeResolved() (RECIBIDA o EN_REVISION)
-   → si no, ValidationException (400)
-3. Guardar response, status = RESUELTA, resolvedAt = now()
-4. Notificar al solicitante (email + in-app) con la respuesta
+   → si no, ValidationException (400) — esto también bloquea reintentar la
+     resolución de un PQRS que ya quedó en PENDIENTE_PAGO_REEMBOLSO
+3. Si pqrs.purchaseItem != null (PQRS vinculado a una compra):
+   a. dto.action es obligatorio → si viene null, ValidationException (400)
+   b. Si action = REFUND → PurchaseItemRefundService.refund(pqrs.purchaseItem, pqrs.reasonCode, pqrs)
+      (revierte tesorería, acredita llaves si aplica, crea el reembolso en efectivo
+      pendiente si aplica, vinculado a este mismo PQRS — ver PAYOUT_SYSTEM.md sección 6)
+   c. Si action = DISMISS → no se ejecuta ninguna acción financiera, el ítem sigue su curso normal
+   (para un PQRS genérico sin purchaseItem, action se ignora por completo)
+   pqrs.action se persiste en cualquier caso (b o c)
+4. Guardar response
+5a. Si el paso 3b creó un PurchaseItemCashRefund (porción en efectivo pendiente):
+    status = PENDIENTE_PAGO_REEMBOLSO, resolvedAt queda null, NO se notifica
+    todavía "PQRS resuelto" — el flujo sigue abierto hasta el paso 6.
+5b. En cualquier otro caso (REFUND cubierto 100% con llaves, DISMISS, o PQRS
+    genérico sin purchaseItem): status = RESUELTA, resolvedAt = now(), se
+    notifica al solicitante (email + in-app) con la respuesta.
+6. (Async, fuera de este endpoint) Cuando el admin confirma el pago manual del
+   reembolso — PATCH /admin/cash-refunds/{id}/mark-paid, ver PAYOUT_SYSTEM.md
+   sección 6.4 — CashRefundServiceImpl.markPaid() detecta el PQRS vinculado
+   (PurchaseItemCashRefund.pqrs) y recién ahí lo pasa a RESUELTA + notifica.
 ```
 
 Anotado con `@Auditable(action = "PQRS_RESPOND", category = "PQRS")`.
@@ -242,7 +322,7 @@ Cada evento relevante dispara dos canales en paralelo, llamados de forma síncro
 |---|---|---|
 | PQRS creado y asignado | `pqrs-assigned-admin.html` → al admin | `NotificationService.createInternalNotification` → al admin |
 | PQRS creado (siempre) | `pqrs-received-confirmation.html` → al solicitante | — |
-| PQRS resuelto | `pqrs-resolved.html` → al solicitante | `createInternalNotification` → al solicitante |
+| PQRS resuelto (`respondToPqrs`, o `CashRefundServiceImpl.markPaid` si quedó `PENDIENTE_PAGO_REEMBOLSO`) | `pqrs-resolved.html` → al solicitante | `createInternalNotification` → al solicitante |
 | PQRS por vencer | `pqrs-sla-alert.html` → al admin | — |
 
 Las notificaciones in-app se persisten y además se empujan en tiempo real por SSE (`NotificationEmitterRegistry`) si el admin tiene el panel abierto; el correo llega siempre, esté o no conectado.
@@ -300,6 +380,12 @@ Busca PQRS en `RECIBIDA` o `EN_REVISION` cuya `dueDate` esté a menos de `pqrs.s
 | `GET` | `/pqrs/mine` | Lista paginada de los PQRS propios |
 | `GET` | `/pqrs/{id}` | Detalle de un PQRS propio |
 
+### Consumer (rol `ROLE_CONSUMER`)
+
+| Método | Path | Descripción |
+|---|---|---|
+| `POST` | `/purchaseItems/{id}/report` | Radica un PQRS (`RECLAMO`) ya vinculado a un ítem de compra — ver Fase 1b |
+
 ### Admin (rol `ROLE_ADMIN`)
 
 | Método | Path | Descripción |
@@ -307,7 +393,7 @@ Busca PQRS en `RECIBIDA` o `EN_REVISION` cuya `dueDate` esté a menos de `pqrs.s
 | `GET` | `/admin/pqrs?status=&type=` | PQRS asignados al admin autenticado (filtros opcionales) |
 | `GET` | `/admin/pqrs/{id}` | Detalle de un PQRS asignado a ese admin |
 | `PATCH` | `/admin/pqrs/{id}/review` | Marca el PQRS como `EN_REVISION` |
-| `PATCH` | `/admin/pqrs/{id}/respond` | Resuelve el PQRS (body: `{ "response": "..." }`) |
+| `PATCH` | `/admin/pqrs/{id}/respond` | Resuelve el PQRS (body: `{ "response": "...", "action": "DISMISS" \| "REFUND" }` — `action` solo obligatorio si el PQRS tiene `purchaseItem` vinculado). Si `action=REFUND` deja porción en efectivo pendiente, el PQRS queda `PENDIENTE_PAGO_REEMBOLSO` en vez de `RESUELTA` — ver Fase 3 y `PAYOUT_SYSTEM.md` sección 6.4 para el endpoint que lo cierra (`PATCH /admin/cash-refunds/{id}/mark-paid`) |
 
 No existe un endpoint "de todos los PQRS" — cada admin solo ve los que le tocaron por rotación, ya que no hay rol de super-admin en la plataforma.
 
@@ -340,6 +426,8 @@ No requiere variables de entorno nuevas — reutiliza la configuración existent
 | PQRS inexistente | `EntityNotFoundException` | 404 |
 | Admin intenta actuar sobre un PQRS que no le fue asignado | `PqrsAccessDeniedException` | 403 |
 | Transición de estado inválida (ej. responder un PQRS ya `RESUELTA`) | `ValidationException` | 400 |
+| Resolver un PQRS vinculado a una compra sin indicar `action` | `ValidationException` | 400 |
+| Reportar un ítem que no es del comprador, ya fue reembolsado/cancelado, o está fuera de la ventana de reporte post-reclamo | `ObjectNotFoundException` / `InvalidStatusException` | 400 |
 | No hay admins activos al crear | — (no es error) | PQRS queda `PENDIENTE_ASIGNACION`, se reintenta por scheduler |
 
 Todas las excepciones están registradas en `GlobalExceptionHandler`, siguiendo el mismo patrón usado por el resto de módulos de la plataforma (branding, rifas, marketplace, etc.).

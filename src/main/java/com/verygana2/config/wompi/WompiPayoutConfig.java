@@ -20,6 +20,9 @@ public class WompiPayoutConfig {
     private String principalUserId;
 
     @NotBlank
+    private String userId;
+
+    @NotBlank
     private String apiBaseUrl;
 
     @NotBlank

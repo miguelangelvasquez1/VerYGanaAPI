@@ -208,6 +208,10 @@ marketplace:
     cleanup:
       cron: "0 30 3 * * SUN"   # domingos 3:30 AM
       grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
+  claim:
+    expiration-days: 15                    # plazo para reclamar un producto fisico (PIN)
+    expiration-scheduler:
+      cron: "0 0 5 * * *"                  # todos los dias 5 AM UTC
 
 
 # ============================================
@@ -289,6 +293,7 @@ wompi:
   payout:
     api-key: ${WOMPI_PAYOUT_API_KEY}
     principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
+    user-id: ${WOMPI_PAYOUTS_USER_ID}
     events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}

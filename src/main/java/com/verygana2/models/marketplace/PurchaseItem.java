@@ -18,6 +18,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
@@ -170,7 +171,36 @@ public class PurchaseItem {
     private String deliveredCode;
 
     @Column(name = "delivered_at")
-    private ZonedDateTime deliveredAt; // Cuándo se entregó
+    private ZonedDateTime deliveredAt; // Cuándo se generó/envió el código (no cuándo se reclamó)
+
+    /**
+     * Hash (BCrypt, mismo PasswordEncoder que EmailVerificationServiceImpl)
+     * del PIN de reclamación física. Solo se genera cuando
+     * product.productType == PHYSICAL; el comprador lo recibe por correo
+     * y el comerciante lo ingresa al momento de la entrega física para que el
+     * ítem pase a CLAIMED. Null para productos digitales.
+     */
+    @Column(name = "claim_pin_hash", length = 100)
+    private String claimPinHash;
+
+    @Column(name = "claim_attempts", nullable = false)
+    @Builder.Default
+    private Integer claimAttempts = 0;
+
+    @Column(name = "claimed_at")
+    private ZonedDateTime claimedAt; // Cuándo se validó el PIN (o, en digital, igual a deliveredAt)
+
+    @Column(name = "claim_expires_at")
+    private ZonedDateTime claimExpiresAt; // Solo físico: plazo para reclamar antes de EXPIRED_UNCLAIMED
+
+    /**
+     * PIN en texto plano, solo en memoria dentro de la misma request que lo
+     * generó (ver CopaymentServiceImpl.deliverProducts). Nunca se persiste
+     * —solo claimPinHash va a la base de datos—; existe únicamente para que
+     * el correo de confirmación de compra pueda mostrarlo una sola vez.
+     */
+    @Transient
+    private String plainClaimPinForEmail;
 
      @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -180,11 +210,11 @@ public class PurchaseItem {
     @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
-    public boolean isDelivered() {
-        return status == PurchaseItemStatus.DELIVERED;
+    public boolean isClaimed() {
+        return status == PurchaseItemStatus.CLAIMED;
     }
 
     public boolean canBeReviewed() {
-        return this.isDelivered();
+        return this.isClaimed();
     }
 }
