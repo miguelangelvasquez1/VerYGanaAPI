@@ -9,6 +9,16 @@ import com.verygana2.dtos.pet.PetSceneRequestDTO;
 
 public interface PetSceneService {
     List<PetSceneResponseDTO> getAllScenes();
+
+    /**
+     * Escenas para el modo preview del diseñador: incluye las que tienen
+     * {@code active = false}, que son las que todavía no ve ningún consumidor.
+     *
+     * @param sceneId escena concreta a previsualizar; si es null devuelve todas
+     *                (publicadas y borradores).
+     */
+    List<PetSceneResponseDTO> getScenesForPreview(Integer sceneId);
+
     List<PetSceneAdminResponseDTO> getAllScenesAdmin();
     PetSceneAdminResponseDTO createScene(PetSceneRequestDTO dto);
     PetSceneAdminResponseDTO updateScene(Long id, PetSceneRequestDTO dto);

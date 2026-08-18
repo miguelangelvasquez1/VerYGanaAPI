@@ -26,6 +26,7 @@ public class PublicPaths {
         "/ws/info/**",
             "/pet/catalog",
             "/pet/scenes",
+            "/pet/scenes-objects",
             "/pet/notifications",
             "/pet/notifications/*/read",
             "/api/levels/config"

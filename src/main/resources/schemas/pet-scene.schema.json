@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Escena de mascota",
+  "description": "Contrato de una escena y sus objetos. El juego la consume desde /pet/scenes-objects: cada objeto se instancia en la posición y tamaño indicados.",
+  "type": "object",
+  "required": ["sceneId", "objects"],
+  "properties": {
+    "sceneId": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Número de escena que el juego usa para agrupar sus objetos."
+    },
+    "active": {
+      "type": ["boolean", "null"],
+      "description": "Si es false, la escena no se le entrega al juego. Por defecto true."
+    },
+    "objects": {
+      "type": "array",
+      "minItems": 1,
+      "description": "Una escena sin objetos no renderiza nada; se exige al menos uno.",
+      "items": {
+        "type": "object",
+        "required": ["objectId", "type", "objectKey", "x", "y", "width", "height"],
+        "properties": {
+          "objectId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Identificador del objeto dentro de la escena. Único por escena."
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Tipo de objeto. El build maneja al menos 'background', 'image' y 'video' (por SpawnImage/SpawnVideoDelayed); la lista completa está pendiente de confirmar con el equipo del juego, por eso no se restringe acá."
+          },
+          "objectKey": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Clave del asset en el bucket de mascotas. El backend arma la URL pública a partir de esto."
+          },
+          "x": { "type": "integer" },
+          "y": { "type": "integer" },
+          "width": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Ancho en píxeles. Cero o negativo haría el objeto invisible."
+          },
+          "height": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "scaleMultiplier": {
+            "type": ["number", "null"],
+            "exclusiveMinimum": 0,
+            "description": "Factor de escala sobre width/height. Por defecto 1.0."
+          }
+        }
+      }
+    }
+  }
+}

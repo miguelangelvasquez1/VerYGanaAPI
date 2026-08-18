@@ -6,4 +6,10 @@ import java.util.List;
 
 public interface PetSceneRepository extends JpaRepository<PetScene, Long> {
     List<PetScene> findAllByActiveTrue();
+
+    /**
+     * Sin filtro de `active`: lo usa el modo preview, que justamente existe para ver
+     * borradores todavía sin publicar.
+     */
+    List<PetScene> findAllBySceneId(Integer sceneId);
 }

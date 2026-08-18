@@ -18,8 +18,10 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.keys.SpendKeysRequestDTO;
 import com.verygana2.dtos.keys.SpendKeysResponseDTO;
 import com.verygana2.models.finance.KeyWallet;
+import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
+import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 
@@ -46,11 +48,13 @@ class KeyWalletServiceImplTest {
     @Mock private KeyTransactionRepository keyTransactionRepository;
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private ConsumerDetailsService consumerDetailsService;
+    @Mock private PetCatalogItemRepository petCatalogItemRepository;
 
     private KeyWalletServiceImpl service;
 
     private void setUpWithClock(Clock clock) {
-        service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository, consumerDetailsService);
+        service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository,
+                consumerDetailsService, petCatalogItemRepository);
         ReflectionTestUtils.setField(service, "PURCHASE_KEYS_PERCENTAGE", 75L);
         ReflectionTestUtils.setField(service, "keyValueCents", KEY_VALUE_CENTS);
     }
@@ -137,6 +141,17 @@ class KeyWalletServiceImplTest {
         assertThatThrownBy(() -> service.getByConsumerId(99L)).isInstanceOf(EntityNotFoundException.class);
     }
 
+    /** Ítem del catálogo: PK interna 5, externalId 1005 (lo que ve el juego), 25 llaves. */
+    private static PetCatalogItem pizza() {
+        PetCatalogItem item = new PetCatalogItem();
+        item.setId(5L);
+        item.setExternalId(1005);
+        item.setName("Pizza");
+        item.setPrice(25);
+        item.setActive(true);
+        return item;
+    }
+
     @Nested
     @DisplayName("spendKeysForPetGame")
     class SpendKeysForPetGame {
@@ -169,18 +184,54 @@ class KeyWalletServiceImplTest {
             verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
         }
 
+        /**
+         * El precio lo pone el servidor: el juego solo dice QUÉ compró y cuántas
+         * unidades. Sin esto, mandar amount=1 alcanzaba para llevarse un ítem de
+         * 25 llaves por 1.
+         *
+         * El id llega en itemName porque el build deja itemId en 0 (ver
+         * SpendKeysRequestDTO); esta prueba usa el payload real del juego.
+         */
         @Test
-        @DisplayName("el juego manda 'amount' en llaves y se convierte a centavos")
-        void amountInKeys_isConvertedToCents() {
+        @DisplayName("cobra el precio del catálogo, no el monto que manda el cliente")
+        void chargesCatalogPrice_notClientAmount() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
+
+            SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
+                    new SpendKeysRequestDTO(null, 1L, 0, "1005"));   // Pizza: externalId=1005, price=25
+
+            assertThat(response.success()).isTrue();
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(75L * KEY_VALUE_CENTS);
+        }
+
+        @Test
+        @DisplayName("multiplica el precio del catálogo por la cantidad")
+        void multipliesCatalogPriceByQuantity() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 3L, 0, "1005"));
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(25L * KEY_VALUE_CENTS); // 100 - 3×25
+        }
+
+        /**
+         * Los ítems horneados en el build no están en pet_catalog_items, y la ropa
+         * ni siquiera manda un id numérico ("monoculo"). Esos siguen cobrando el
+         * monto del cliente hasta que el catálogo del juego venga solo de la API.
+         */
+        @Test
+        @DisplayName("ítem que no está en el catálogo: cae al monto del cliente")
+        void unknownItem_fallsBackToClientAmount() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
             when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
 
-            // Payload tal como lo serializa Unity: {"amount": 30, ...}
-            SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
-                    new SpendKeysRequestDTO(null, 30L, 1, "Sombrero"));
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "monoculo"));
 
-            assertThat(response.success()).isTrue();
-            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(70L * KEY_VALUE_CENTS);
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(99L * KEY_VALUE_CENTS);
         }
     }
 

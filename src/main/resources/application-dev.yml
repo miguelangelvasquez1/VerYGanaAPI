@@ -128,6 +128,16 @@ pets:
   cdn-domain: ${R2_PETS_CDN_DOMAIN}
   game-path: ${PETS_GAME_PATH:index.html}
 
+  # Imagen del producto que el comercial adjunta al pedir integración al catálogo.
+  # Se sube al bucket de mascotas (cloudflare.r2.pets-bucket-name).
+  catalog-request-image:
+    max-size-bytes: 5242880 # 5 MB
+
+  # Assets que sube el diseñador (sprites del catálogo y objetos de escena).
+  # Más alto que el del comercial porque los objetos de escena pueden ser video.
+  designer-asset:
+    max-size-bytes: 26214400 # 25 MB
+
 # ============================================
 # ADS CONFIG
 # ============================================

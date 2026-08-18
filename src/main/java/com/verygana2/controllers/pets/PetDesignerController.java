@@ -1,6 +1,11 @@
 package com.verygana2.controllers.pets;
 
+import com.verygana2.dtos.pet.AddCatalogRequestCommentDTO;
+import com.verygana2.dtos.pet.CatalogRequestCommentDTO;
+import com.verygana2.models.enums.CommentAuthorRole;
 import com.verygana2.dtos.pet.CatalogIntegrationResponseDTO;
+import com.verygana2.dtos.pet.PetAssetUploadRequestDTO;
+import com.verygana2.dtos.pet.PetImageUploadPermissionDTO;
 import com.verygana2.dtos.pet.CatalogRequestRejectionDTO;
 import com.verygana2.dtos.pet.PetCatalogItemRequestDTO;
 import com.verygana2.dtos.pet.PetCatalogItemResponseDTO;
@@ -10,6 +15,7 @@ import com.verygana2.dtos.pet.PetSceneAdminResponseDTO;
 import com.verygana2.dtos.pet.PetSceneRequestDTO;
 import com.verygana2.models.enums.CatalogRequestStatus;
 import com.verygana2.services.interfaces.pet.CatalogIntegrationRequestService;
+import com.verygana2.services.interfaces.pet.PetAssetService;
 import com.verygana2.services.interfaces.pet.PetCatalogService;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
 import com.verygana2.services.interfaces.pet.PetSceneService;
@@ -18,9 +24,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/game-designer/pet")
@@ -32,6 +41,31 @@ public class PetDesignerController {
     private final PetSceneService sceneService;
     private final PetNotificationService notificationService;
     private final CatalogIntegrationRequestService integrationRequestService;
+    private final PetAssetService assetService;
+
+    // ── ASSETS ────────────────────────────────────────────────────────────────
+
+    /**
+     * Paso 1 para cualquier imagen o video que el diseñador necesite subir.
+     *
+     * Devuelve una URL pre-firmada y la {@code objectKey} que hay que usar después:
+     *
+     * <pre>
+     *   POST /game-designer/pet/assets   { kind, contentType, originalFileName, sizeBytes }
+     *        → { objectKey, uploadUrl, expiresInSeconds }
+     *   PUT  &lt;uploadUrl&gt;  (body: el archivo, con el Content-Type declarado)
+     *
+     *   kind = CATALOG_SPRITE → mandar objectKey como spriteObjectKey del ítem
+     *   kind = SCENE_OBJECT   → mandar objectKey como objectKey del objeto de escena
+     * </pre>
+     */
+    @PostMapping("/assets")
+    public ResponseEntity<PetImageUploadPermissionDTO> prepareAssetUpload(
+            @Valid @RequestBody PetAssetUploadRequestDTO dto,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(assetService.prepareUpload(userId, dto));
+    }
 
     // ── CATÁLOGO ──────────────────────────────────────────────────────────────
 
@@ -114,33 +148,63 @@ public class PetDesignerController {
         return ResponseEntity.noContent().build();
     }
 
-    // ── SOLICITUDES DE INTEGRACIÓN DE COMERCIALES ─────────────────────────────
+    // ── SOLICITUDES ASIGNADAS A ESTE DISEÑADOR ────────────────────────────────
+    // Igual que en branding: aprobar/rechazar y asignar son del admin
+    // (/api/admin/pet-requests). Aquí el diseñador solo ve y trabaja lo suyo.
 
+    /** Bandeja del diseñador: solo las solicitudes que el admin le asignó. */
     @GetMapping("/requests")
-    public ResponseEntity<List<CatalogIntegrationResponseDTO>> getAllRequests(
-            @RequestParam(required = false) CatalogRequestStatus status) {
-        if (status != null) {
-            return ResponseEntity.ok(integrationRequestService.getRequestsByStatus(status));
-        }
-        return ResponseEntity.ok(integrationRequestService.getAllRequests());
+    public ResponseEntity<List<CatalogIntegrationResponseDTO>> getMyAssignedRequests(
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(integrationRequestService.getAssignedRequests(userId));
     }
 
-    @PatchMapping("/requests/{id}/review")
-    public ResponseEntity<CatalogIntegrationResponseDTO> markInReview(@PathVariable Long id) {
-        return ResponseEntity.ok(integrationRequestService.markInReview(id));
-    }
-
-    @PostMapping("/requests/{id}/approve")
-    public ResponseEntity<CatalogIntegrationResponseDTO> approve(
+    @GetMapping("/requests/{id}")
+    public ResponseEntity<CatalogIntegrationResponseDTO> getAssignedRequestDetail(
             @PathVariable Long id,
-            @Valid @RequestBody PetCatalogItemRequestDTO catalogItemDto) {
-        return ResponseEntity.ok(integrationRequestService.approve(id, catalogItemDto));
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(integrationRequestService.getAssignedRequestDetail(id, userId));
     }
 
-    @PostMapping("/requests/{id}/reject")
-    public ResponseEntity<CatalogIntegrationResponseDTO> reject(
+    /** Guardado parcial del ítem en construcción. Las claves son las de PetCatalogItemRequestDTO. */
+    @PatchMapping("/requests/{id}/draft")
+    public ResponseEntity<CatalogIntegrationResponseDTO> saveItemDraft(
             @PathVariable Long id,
-            @Valid @RequestBody CatalogRequestRejectionDTO dto) {
-        return ResponseEntity.ok(integrationRequestService.reject(id, dto.reason()));
+            @RequestBody Map<String, Object> draft,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(integrationRequestService.saveItemDraft(id, userId, draft));
+    }
+
+    /** Publica el borrador como ítem real del catálogo y cierra la solicitud. */
+    @PostMapping("/requests/{id}/publish")
+    public ResponseEntity<CatalogIntegrationResponseDTO> publishCatalogItem(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(integrationRequestService.publishCatalogItem(id, userId));
+    }
+
+    // ── Hilo con el comercial ─────────────────────────────────────────────
+
+    @GetMapping("/requests/{id}/comments")
+    public ResponseEntity<List<CatalogRequestCommentDTO>> getComments(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(
+                integrationRequestService.getComments(id, userId, CommentAuthorRole.DESIGNER));
+    }
+
+    @PostMapping("/requests/{id}/comments")
+    public ResponseEntity<CatalogRequestCommentDTO> addComment(
+            @PathVariable Long id,
+            @Valid @RequestBody AddCatalogRequestCommentDTO dto,
+            @AuthenticationPrincipal Jwt jwt) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                integrationRequestService.addComment(id, userId, CommentAuthorRole.DESIGNER, dto.content()));
     }
 }

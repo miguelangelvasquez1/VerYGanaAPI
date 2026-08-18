@@ -31,6 +31,12 @@ public class PetGameConfigController {
     private final PetNotificationService petNotificationService;
     private final ConsumerDetailsRepository consumerDetailsRepository;
 
+    /**
+     * Token de sesión reservado para el modo preview del diseñador. Mismo valor y
+     * mismo criterio que en juegos (ver GameController.getGameAssets).
+     */
+    private static final String PREVIEW_TOKEN = "preview";
+
     // ── Iniciar sesión (requiere JWT) ─────────────────────
     @PostMapping("/session/init")
     @PreAuthorize("hasRole('CONSUMER')")
@@ -44,7 +50,10 @@ public class PetGameConfigController {
     }
 
 
-    @GetMapping("/catalog")
+    // POST y no GET aunque sean lecturas: las credenciales viajan en el body, y los
+    // navegadores descartan el body de las peticiones GET (fetch lanza TypeError, XHR lo
+    // ignora), así que desde WebGL nunca llegaban. Mismo criterio que /games/assets.
+    @PostMapping("/catalog")
     public ResponseEntity<Map<String, List<PetCatalogItemResponseDTO>>> getCatalog(
             @RequestBody(required = false) PetSessionRequestDTO body
     ) {
@@ -52,15 +61,26 @@ public class PetGameConfigController {
         return ResponseEntity.ok(Map.of("foods", petCatalogService.getAllCatalogItems()));
     }
 
-    @GetMapping("/scenes")
+    // "/scenes-objects" es un alias: el build de Unity tiene esa ruta horneada y su
+    // network_config.json solo aplica baseUrl, así que no se puede redirigir desde
+    // configuración. Se puede quitar cuando el juego respete el endpoint del archivo.
+    @PostMapping({"/scenes", "/scenes-objects"})
     public ResponseEntity<Map<String, List<PetSceneResponseDTO>>> getScenes(
             @RequestBody(required = false) PetSessionRequestDTO body
     ) {
+        // Modo preview: el diseñador abre el juego contra un borrador para ver dónde
+        // queda cada objeto antes de publicarlo. No hay sesión de mascota que validar
+        // —no es un consumidor jugando—, así que se atiende antes de validateSession.
+        if (body != null && PREVIEW_TOKEN.equals(body.sessionToken())) {
+            return ResponseEntity.ok(Map.of(
+                    "scenes", petSceneService.getScenesForPreview(previewSceneId(body.userHash()))));
+        }
+
         validateSession(body);
         return ResponseEntity.ok(Map.of("scenes", petSceneService.getAllScenes()));
     }
 
-    @GetMapping("/notifications")
+    @PostMapping("/notifications")
     public ResponseEntity<Map<String, List<PetNotificationResponseDTO>>> getNotifications(
             @RequestBody(required = false) PetSessionRequestDTO body
     ) {
@@ -97,6 +117,26 @@ public class PetGameConfigController {
                             + "el navegador los descarta: usa POST o mándalos como query params.");
         }
         petSessionService.validateSession(body.sessionToken(), body.userHash());
+    }
+
+    /**
+     * En preview, `user_hash` transporta la escena a previsualizar.
+     *
+     * Se reutiliza ese campo porque el build solo manda `session_token` y `user_hash`:
+     * no hay un tercer parámetro que añadir sin volver a tocar Unity, y el `user_hash`
+     * no significa nada cuando no hay consumidor detrás. Juegos hace lo mismo mandando
+     * `user_hash=preview` junto al `campaign_id`.
+     *
+     * Cualquier valor no numérico (incluido el literal "preview") pide todas las
+     * escenas, publicadas y borradores.
+     */
+    private static Integer previewSceneId(String userHash) {
+        if (userHash == null || userHash.isBlank()) return null;
+        try {
+            return Integer.valueOf(userHash.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private Long getConsumerId(Jwt jwt) {

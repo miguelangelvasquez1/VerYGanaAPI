@@ -2,11 +2,15 @@ package com.verygana2.models.pets;
 
 import com.verygana2.models.enums.CatalogRequestStatus;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.models.userDetails.GameDesignerDetails;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Entity
 @Table(name = "catalog_integration_requests")
@@ -38,8 +42,29 @@ public class CatalogIntegrationRequest {
     @Column(nullable = false, length = 20)
     private CatalogRequestStatus status = CatalogRequestStatus.PENDING;
 
+    /**
+     * Diseñador al que el admin asignó la solicitud. Mismo modelo que
+     * BrandingRequest.assignedDesigner: hasta que no hay asignación, ningún
+     * diseñador la ve en su bandeja.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "assigned_designer_id")
+    private GameDesignerDetails assignedDesigner;
+
+    @Column(name = "admin_notes", length = 1000)
+    private String adminNotes;
+
     @Column(name = "rejection_reason", length = 500)
     private String rejectionReason;
+
+    /**
+     * Borrador del ítem que el diseñador va armando después de aceptar la solicitud.
+     * Se guarda parcial (mismo patrón que BrandingRequest.draftFormData) y solo se
+     * convierte en un PetCatalogItem real al publicar.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "item_draft", columnDefinition = "json")
+    private Map<String, Object> itemDraft;
 
     @Column(name = "result_catalog_item_id")
     private Long resultCatalogItemId;

@@ -6,5 +6,5 @@ public record PetSceneAdminResponseDTO(
         Long id,
         Integer sceneId,
         Boolean active,
-        List<PetSceneObjectResponseDTO> objects
+        List<PetSceneObjectAdminResponseDTO> objects
 ) {}
