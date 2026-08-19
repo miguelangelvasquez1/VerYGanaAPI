@@ -54,7 +54,6 @@ public class CreateRaffleRequestDTO {
     private DrawMethod drawMethod;
 
     @NotNull(message = "Raffle prizes cannot be null")
-    @Size(min = 1, message = "At least one prize is required")
     private List<CreatePrizeRequestDTO> prizes;
 
     @NotNull(message = "Raffle rules cannot be null")
