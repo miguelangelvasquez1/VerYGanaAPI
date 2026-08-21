@@ -25,6 +25,5 @@ public class PrepareRaffleCreationRequestBodyDTO {
 
     // En el mismo orden que raffleData.prizes
     @NotNull
-    @Size(min = 1)
     private List<@Valid FileUploadRequestDTO> prizeImageMetadataList;
 }

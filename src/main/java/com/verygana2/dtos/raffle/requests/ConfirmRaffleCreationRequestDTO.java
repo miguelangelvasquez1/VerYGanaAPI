@@ -18,7 +18,6 @@ public class ConfirmRaffleCreationRequestDTO {
 
     // Lista de assetIds de prizes, en el mismo orden de los prizes originales
     @NotNull
-    @Size(min = 1)
     private List<Long> prizeAssetIds;
 
     @NotNull(message = "Raffle data is required")
