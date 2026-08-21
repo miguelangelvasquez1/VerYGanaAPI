@@ -64,6 +64,17 @@ public class BudgetService {
         consume(commercialId, amountCents, TransactionType.MANUAL_ADJUSTMENT, null, description);
     }
 
+    /**
+     * @param commercialId ID del comercial anunciante
+     * @param amountCents  Presupuesto reservado para la solicitud de branding
+     * @param referenceId  ID de la BrandingRequest (para auditoría)
+     */
+    @Transactional
+    public void consumeForBrandingRequest(Long commercialId, Long amountCents, String referenceId) {
+        consume(commercialId, amountCents, TransactionType.BRANDING_REQUEST, referenceId,
+                "Presupuesto reservado para solicitud de juego branded");
+    }
+
     // ── Implementación interna ────────────────────────────────────────────────
 
     private void consume(Long commercialId, Long amountCents, TransactionType type,

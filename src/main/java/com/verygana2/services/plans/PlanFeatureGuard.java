@@ -126,9 +126,9 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_SURVEYS -> {
-                // Cuenta encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: CLOSED/"cancelada" y COMPLETED).
+                // Cuenta encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: REJECTED y COMPLETED).
                 long current = surveyRepository.countByCreatorIdAndStatusNotIn(
-                    commercialId, List.of(SurveyStatus.CLOSED, SurveyStatus.COMPLETED));
+                    commercialId, List.of(SurveyStatus.REJECTED, SurveyStatus.COMPLETED));
                 if (current >= state.getMaxSurveys()) {
                     throw new PlanCapabilityException(
                         "Límite de encuestas alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -139,9 +139,29 @@ public class PlanFeatureGuard {
         }
     }
 
+    /**
+     * Exige que el comercial tenga presupuesto disponible (STANDARD/PREMIUM con
+     * wallet no agotado). BASIC nunca se suspende por presupuesto — no tiene wallet.
+     */
+    public void assertBudgetAvailable(Long commercialId) {
+        EffectivePlanState state = planResolver.resolve(commercialId);
+        if (state.isBudgetSuspended()) {
+            throw new BudgetSuspendedException(
+                "Su saldo publicitario está agotado. Recargue su billetera para crear nuevos " +
+                "anuncios, campañas, encuestas o exportar reportes.");
+        }
+    }
+
     // Excepción personalizada
     public static class PlanCapabilityException extends RuntimeException {
         public PlanCapabilityException(String message) {
+            super(message);
+        }
+    }
+
+    /** Subtipo específico para cuando el bloqueo es por presupuesto agotado, no por plan. */
+    public static class BudgetSuspendedException extends PlanCapabilityException {
+        public BudgetSuspendedException(String message) {
             super(message);
         }
     }

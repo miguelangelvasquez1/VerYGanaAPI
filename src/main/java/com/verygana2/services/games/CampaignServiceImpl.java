@@ -128,11 +128,7 @@ public class CampaignServiceImpl implements CampaignService {
                     throw new ValidationException("Solo se puede pausar una campaña ACTIVE");
                 }
             }
-            case CANCELLED -> {
-                if (from != CampaignStatus.ACTIVE && from != CampaignStatus.PAUSED) {
-                    throw new ValidationException("Solo se puede cancelar una campaña ACTIVE o PAUSED");
-                }
-            }
+            case CANCELLED -> throw new ValidationException("Las campañas no se pueden cancelar");
             case COMPLETED -> throw new ValidationException("El estado COMPLETED no se puede asignar manualmente");
         }
     }
@@ -158,11 +154,6 @@ public class CampaignServiceImpl implements CampaignService {
             case ACTIVE -> {
                 if (campaign.getStartDate() == null) {
                     campaign.setStartDate(now);
-                }
-            }
-            case CANCELLED -> {
-                if (campaign.getEndDate() == null) {
-                    campaign.setEndDate(now);
                 }
             }
             default -> {

@@ -52,6 +52,7 @@ import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveySuspendedException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
+import com.verygana2.services.plans.PlanFeatureGuard;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 import com.twilio.exception.ApiException;
 
@@ -319,6 +320,13 @@ public class GlobalExceptionHandler {
             FavoriteProductException ex, WebRequest request) {
         log.warn("Favorite product error: {}", ex.getMessage());
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PlanFeatureGuard.BudgetSuspendedException.class)
+    public ResponseEntity<ErrorResponse> handleBudgetSuspendedException(
+            PlanFeatureGuard.BudgetSuspendedException ex, WebRequest request) {
+        log.warn("Budget suspended error: {}", ex.getMessage());
+        return buildError(HttpStatus.PAYMENT_REQUIRED, ex.getMessage(), request);
     }
 
     @ExceptionHandler(PlanCapabilityException.class)

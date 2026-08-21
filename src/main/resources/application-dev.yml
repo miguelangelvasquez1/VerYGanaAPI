@@ -407,3 +407,12 @@ zapsign:
   webhook-header-name: X-VERyGANA-Secret
   api-token: ${ZAPSIGN_API_TOKEN:}
   webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
+
+
+# ============================================
+# reCAPTCHA
+# ============================================
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:}
+  min-score: 0.5
+  login-action: login

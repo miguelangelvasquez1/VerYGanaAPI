@@ -21,7 +21,8 @@ import lombok.NoArgsConstructor;
  *
  * Reglas de uso de valor:
  *  - Si feature.type == BOOLEAN   → usar boolValue
- *  - Si feature.type == LIMIT     → usar intValue
+ *  - Si feature.type == LIMIT     → usar intValue (o longValue si el límite es un monto en centavos,
+ *    donde Integer se queda corto a escala STANDARD/PREMIUM)
  *  - Si feature.type == PERCENTAGE → usar decimalValue (0.00 – 100.00)
  */
 @Entity
@@ -47,6 +48,7 @@ public class PlanFeature {
 
     private Integer intValue;
     private Boolean boolValue;
+    private Long longValue;
 
     @Column(precision = 10, scale = 4)
     private BigDecimal decimalValue;
@@ -59,6 +61,10 @@ public class PlanFeature {
 
     public int getIntOrDefault(int defaultValue) {
         return intValue != null ? intValue : defaultValue;
+    }
+
+    public long getLongOrDefault(long defaultValue) {
+        return longValue != null ? longValue : defaultValue;
     }
 
     public BigDecimal getDecimalOrDefault(BigDecimal defaultValue) {

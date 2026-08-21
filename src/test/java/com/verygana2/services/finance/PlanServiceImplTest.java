@@ -46,8 +46,9 @@ import static org.mockito.Mockito.when;
 /**
  * Tests de {@link PlanServiceImpl}: iniciar el pago de un plan (BASIC vs.
  * STANDARD/PREMIUM tienen validaciones y entidades distintas) y procesar el
- * resultado del webhook de Wompi (activación de suscripción o inversión, y
- * la regla de que el plan del comercial nunca baja).
+ * resultado del webhook de Wompi (activación de suscripción o inversión).
+ * Una recarga de inversión nunca cambia el plan del comercial — el cambio de
+ * plan es siempre una acción explícita.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("PlanServiceImpl")
@@ -64,6 +65,12 @@ class PlanServiceImplTest {
     @Mock private WalletRepository walletRepository;
     @Mock private WalletService walletService;
     @Mock private CommercialOnboardingRepository onboardingRepository;
+    @Mock private com.verygana2.services.plans.InvestmentService investmentService;
+    @Mock private com.verygana2.services.interfaces.EmailService emailService;
+    @Mock private com.verygana2.services.interfaces.commercial.CommercialContractService commercialContractService;
+    @Mock private com.verygana2.repositories.commercial.CommercialContractRepository commercialContractRepository;
+    @Mock private com.verygana2.repositories.commercial.PlanChangeRequestRepository planChangeRequestRepository;
+    @Mock private com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
 
     private PlanServiceImpl service;
 
@@ -71,7 +78,9 @@ class PlanServiceImplTest {
     void setUp() {
         service = new PlanServiceImpl(wompiService, wompiTransactionRepository, commercialDetailsRepository,
                 treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
-                walletRepository, walletService, onboardingRepository);
+                walletRepository, walletService, onboardingRepository, investmentService, emailService,
+                commercialContractService, commercialContractRepository, planChangeRequestRepository,
+                planChangeRequestService);
     }
 
     private CommercialDetails commercial(Long id) {
@@ -232,46 +241,42 @@ class PlanServiceImplTest {
         }
 
         @Test
-        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: confirma la inversión, acredita el wallet y NUNCA degrada el plan")
-        void approvedInvestment_confirmsAndUpgradesButNeverDowngrades() {
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: confirma la inversión, acredita el wallet y NUNCA cambia el plan del comercial")
+        void approvedInvestment_confirmsAndNeverChangesPlan() {
             Wallet wallet = new Wallet();
             wallet.setBalanceCents(0L);
             CommercialDetails commercial = commercial(1L);
             commercial.setWallet(wallet);
             wallet.setCommercial(commercial);
 
-            Investment investment = Investment.builder().wallet(wallet).confirmed(false).build();
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            commercial.setCurrentPlan(standard);
+
+            Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
                     .status(WompiTransactionStatus.APPROVED)
                     .reference("VG-DEP-123").amountInCents(11_000_000L).build();
 
-            Plan premium = Plan.builder().code(PlanCode.PREMIUM).minInvestmentCents(1_000_000_000L).build();
-            Plan standard = Plan.builder().code(PlanCode.STANDARD).minInvestmentCents(10_000_000L).build();
-
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
             when(investmentRepository.findByWompiReference("VG-DEP-123")).thenReturn(Optional.of(investment));
             when(treasuryConfig.getKeysReservePct()).thenReturn(60);
-            when(investmentRepository.findByWalletAndConfirmedTrue(wallet))
-                    .thenReturn(java.util.List.of(Investment.builder().depositAmountCents(11_000_000L).build()));
-            // 11.000.000 centavos < umbral PREMIUM (1.000.000.000) → no alcanza el umbral real de negocio, pero
-            // aquí bajamos el mínimo de STANDARD a 10.000.000 para forzar que SÍ lo alcance y así probar el
-            // camino de "confirma y sube de plan" sin depender de los montos reales de producción.
-            when(planRepository.findByCodeAndActiveTrue(PlanCode.PREMIUM)).thenReturn(Optional.of(premium));
-            when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
             service.handleWompiResult(tx.getId());
 
             assertThat(investment.getConfirmed()).isTrue();
             assertThat(wallet.getBalanceCents()).isEqualTo(6_600_000L); // 60% de 11.000.000
-            assertThat(commercial.getCurrentPlan()).isSameAs(standard);
+            assertThat(commercial.getCurrentPlan()).isSameAs(standard); // la recarga no cambia el plan
             verify(treasuryService).distributeDeposit(11_000_000L, commercial, tx.getId());
+            verify(planRepository, never()).findByCodeAndActiveTrue(PlanCode.PREMIUM);
         }
 
         @Test
         @DisplayName("DECLINED: marca la Subscription asociada como PAYMENT_FAILED si existe")
         void declined_marksSubscriptionAsPaymentFailed() {
-            Subscription sub = Subscription.builder().status(SubscriptionStatus.PENDING_PAYMENT).build();
+            Subscription sub = Subscription.builder().status(SubscriptionStatus.PENDING_PAYMENT)
+                    .commercial(commercial(1L)).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_PLAN_SUBSCRIPTION)
                     .status(WompiTransactionStatus.DECLINED)
@@ -288,7 +293,9 @@ class PlanServiceImplTest {
         @Test
         @DisplayName("DECLINED: marca el Investment asociado como fallido (failedAt) si existe")
         void declined_marksInvestmentAsFailed() {
-            Investment investment = Investment.builder().confirmed(false).build();
+            Wallet wallet = new Wallet();
+            wallet.setCommercial(commercial(1L));
+            Investment investment = Investment.builder().confirmed(false).wallet(wallet).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
                     .status(WompiTransactionStatus.DECLINED)

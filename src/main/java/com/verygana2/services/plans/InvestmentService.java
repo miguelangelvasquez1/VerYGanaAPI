@@ -1,6 +1,7 @@
 package com.verygana2.services.plans;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,7 +14,8 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.InvestmentRepository;
-import com.verygana2.repositories.finance.plans.PlanRepository;
+import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.services.interfaces.NotificationService;
 
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
@@ -30,14 +32,16 @@ public class InvestmentService {
     private final InvestmentRepository investmentRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
     private final WalletRepository walletRepository;
-    private final PlanRepository planRepository;
+    private final EmailService emailService;
+    private final NotificationService notificationService;
 
     /**
      * Registra un depósito publicitario.
      *
-     * El saldo existente en el wallet se acumula con el nuevo depósito para
-     * determinar el plan (nunca se pierde saldo por hacer un top-up).
-     * El plan se recalcula sobre el balance total resultante.
+     * El saldo existente en el wallet se acumula con el nuevo depósito (nunca se
+     * pierde saldo por hacer un top-up). El depósito nunca cambia el plan del
+     * comercial — el cambio de plan es siempre una acción explícita, nunca
+     * derivada del monto invertido.
      */
     @Transactional
     public InvestmentResponseDTO createInvestment(Long commercialId, BigDecimal depositAmountCOP) {
@@ -45,6 +49,12 @@ public class InvestmentService {
         CommercialDetails commercial = commercialDetailsRepository.findById(commercialId)
                 .orElseThrow(() -> new ValidationException(
                         "Comercial no encontrado: " + commercialId));
+
+        Plan plan = commercial.getCurrentPlan();
+        if (plan == null) {
+            throw new ValidationException(
+                    "El comercial no tiene un plan activo — solicite un cambio de plan antes de invertir.");
+        }
 
         Wallet wallet = walletRepository.findByCommercialId(commercialId)
                 .orElseGet(() -> walletRepository.save(Wallet.createFor(commercial)));
@@ -58,17 +68,8 @@ public class InvestmentService {
                     "Saldo total resultante: " + newTotalCOP);
         }
 
-        Plan plan = planRepository.findEligiblePlans(newTotalCOP)
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> new ValidationException(
-                        "No hay plan elegible para el monto: " + newTotalCOP));
-
         wallet.deposit(depositCents);
         walletRepository.save(wallet);
-
-        commercial.setCurrentPlan(plan);
-        commercialDetailsRepository.save(commercial);
 
         Investment deposit = Investment.builder()
                 .wallet(wallet)
@@ -84,15 +85,37 @@ public class InvestmentService {
     }
 
     /**
-     * Limpia el plan activo del comercial cuando su wallet se agota.
-     * Llamado por BudgetService al detectar que wallet.isExhausted().
+     * Notifica al comercial cuando su wallet se agota. NO toca el plan — la
+     * suspensión (bloqueo de creación de activos nuevos y de exportar reportes)
+     * se deriva en tiempo real de Wallet.status == EXHAUSTED vía
+     * {@link PlanFeatureGuard#assertBudgetAvailable}, así que no hay ningún
+     * campo que mutar aquí. Llamado por BudgetService al detectar wallet.isExhausted().
      */
     @Transactional
     public void handleWalletExhausted(Long commercialId) {
         commercialDetailsRepository.findById(commercialId).ifPresent(commercial -> {
-            commercial.setCurrentPlan(null);
-            commercialDetailsRepository.save(commercial);
-            log.info("Comercial {} sin plan activo: wallet agotado.", commercialId);
+            log.info("Comercial {} sin presupuesto: wallet agotado. Creación de activos nuevos bloqueada.", commercialId);
+            emailService.sendBudgetExhaustedEmail(commercial.getUser().getEmail(), commercial.getCompanyName());
+            notificationService.createInternalNotification(commercial.getUser().getId(),
+                    "Saldo publicitario agotado",
+                    "Tu billetera llegó a $0 — recárgala para seguir creando anuncios, campañas y encuestas.",
+                    Instant.now());
+        });
+    }
+
+    /**
+     * Notifica al comercial que su wallet salió de EXHAUSTED tras una recarga —
+     * la suspensión se levanta sola, esto es solo el aviso.
+     */
+    @Transactional
+    public void handleWalletReplenished(Long commercialId) {
+        commercialDetailsRepository.findById(commercialId).ifPresent(commercial -> {
+            log.info("Comercial {} recuperó presupuesto tras agotamiento.", commercialId);
+            emailService.sendBudgetReplenishedEmail(commercial.getUser().getEmail(), commercial.getCompanyName());
+            notificationService.createInternalNotification(commercial.getUser().getId(),
+                    "Saldo publicitario restaurado",
+                    "Tu billetera fue recargada — ya puedes volver a crear anuncios, campañas y encuestas.",
+                    Instant.now());
         });
     }
 

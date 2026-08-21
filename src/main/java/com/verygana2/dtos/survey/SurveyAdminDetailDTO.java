@@ -23,6 +23,7 @@ public class SurveyAdminDetailDTO {
     private String title;
     private String description;
     private Survey.SurveyStatus status;
+    private String rejectionReason;
     private Long rewardAmountPerQuestionCents;
     private Integer maxResponses;
     private Integer responseCount;

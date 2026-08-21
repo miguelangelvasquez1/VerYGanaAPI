@@ -309,11 +309,13 @@ ON DUPLICATE KEY UPDATE
 -- ------------------------------------------------------------
 
 INSERT INTO commercial_contracts (
-    commercial_onboarding_id, object_key, version, status, generated_at,
+    commercial_id, commercial_onboarding_id, purpose, object_key, version, status, generated_at,
     business_approved_at, admin_reviewer_user_id, admin_reviewed_at, admin_decision_notes
 )
 SELECT
+    co.commercial_details_id,
     co.id,
+    'ONBOARDING',
     'legal/seed/commercial-demo/contrato-marco-v1.pdf',
     1,
     'APPROVED',
@@ -460,16 +462,18 @@ INSERT INTO wallets (
     status,
     low_balance_threshold_pct,
     last_deposit_amount_cents,
+    last_budget_alert_stage,
     last_updated,
     created_at
 )
-SELECT 
+SELECT
     cd.user_id,
     1,
     5000000,                    -- 50.000 COP de saldo inicial (ajusta si quieres)
     'ACTIVE',                   -- WalletStatus.ACTIVE
     10,                         -- low_balance_threshold_pct (10%)
     5000000,                    -- last_deposit_amount_cents
+    'NONE',                     -- WalletBudgetAlertStage.NONE
     NOW(),                      -- last_updated
     NOW()                       -- created_at
 FROM commercial_details cd

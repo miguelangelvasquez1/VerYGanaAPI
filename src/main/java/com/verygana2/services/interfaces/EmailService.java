@@ -29,6 +29,14 @@ public interface EmailService {
     void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version);
     void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason, boolean documentsIssue);
 
+    // ===== PLANES / RENOVACIÓN / PRESUPUESTO =====
+    void sendSubscriptionExpiredEmail(String toEmail, String commercialName);
+    void sendRenewalReminderEmail(String toEmail, String commercialName, long daysRemaining);
+    void sendPlanPaymentFailedEmail(String toEmail, String commercialName);
+    void sendBudgetLowWarningEmail(String toEmail, String commercialName, boolean critical);
+    void sendBudgetExhaustedEmail(String toEmail, String commercialName);
+    void sendBudgetReplenishedEmail(String toEmail, String commercialName);
+
     // ===== PQRS =====
     void sendPqrsReceivedConfirmation(String toEmail, String requesterName, String based, PqrsType type, ZonedDateTime dueDate);
     void sendPqrsAssignedToAdmin(String adminEmail, String adminName, String based, String subject, ZonedDateTime dueDate);

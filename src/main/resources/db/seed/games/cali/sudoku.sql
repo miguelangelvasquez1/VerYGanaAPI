@@ -44,13 +44,29 @@ SELECT
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "Sudoku Game Configuration",
   "type": "object",
-  "required": ["game_config", "branding", "audio", "texts", "game"],
+  "required": ["meta", "game_config", "branding", "audio", "texts", "game", "rewards", "personalization"],
   "properties": {
+    "meta": {
+      "type": "object",
+      "title": "Metadata",
+      "description": "General metadata associated with the game configuration",
+      "required": ["brand_id"],
+      "properties": {
+        "brand_id": {
+          "type": "string",
+          "title": "Brand ID",
+          "description": "Unique identifier for the brand",
+          "minLength": 1,
+          "maxLength": 50,
+          "default": "default"
+        }
+      }
+    },
     "game_config": {
       "type": "object",
       "title": "Game Configuration",
       "description": "Core gameplay settings for Sudoku",
-      "required": ["time_limit", "difficulty", "max_errors", "empty_cells", "warning_threshold", "use_countdown"],
+      "required": ["time_limit", "difficulty", "max_errors", "empty_cells", "warning_threshold", "use_countdown", "enable_powerups", "levels"],
       "properties": {
         "time_limit": {
           "type": "integer",
@@ -96,6 +112,65 @@ SELECT
           "title": "Use Countdown Timer",
           "description": "Show countdown timer instead of count-up",
           "default": true
+        },
+        "enable_powerups": {
+          "type": "boolean",
+          "title": "Enable Power-ups",
+          "description": "Whether power-ups (rocket, eraser, bomb) are available during gameplay",
+          "default": true
+        },
+        "levels": {
+          "type": "array",
+          "title": "Levels",
+          "description": "Per-level difficulty overrides applied as the player progresses",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "title": "Level",
+            "required": ["id", "empty_cells", "time_limit", "max_errors", "use_countdown", "enable_powerups"],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "title": "Level ID",
+                "minimum": 1,
+                "maximum": 100
+              },
+              "empty_cells": {
+                "type": "integer",
+                "title": "Empty Cells",
+                "description": "Number of cells to leave empty at start (3-32, more = harder)",
+                "minimum": 3,
+                "maximum": 32,
+                "default": 12
+              },
+              "time_limit": {
+                "type": "integer",
+                "title": "Time Limit",
+                "description": "Time limit in seconds (0 = unlimited)",
+                "minimum": 0,
+                "maximum": 3600,
+                "default": 300
+              },
+              "max_errors": {
+                "type": "integer",
+                "title": "Maximum Errors",
+                "description": "Number of errors allowed before losing (0 = unlimited)",
+                "minimum": 0,
+                "maximum": 10,
+                "default": 3
+              },
+              "use_countdown": {
+                "type": "boolean",
+                "title": "Use Countdown Timer",
+                "default": true
+              },
+              "enable_powerups": {
+                "type": "boolean",
+                "title": "Enable Power-ups",
+                "default": true
+              }
+            }
+          }
         }
       }
     },
@@ -107,7 +182,7 @@ SELECT
         "images": {
           "type": "object",
           "title": "Image Assets",
-          "required": ["main_logo_url", "main_logo_offset_y", "logo_watermark_url", "logo_watermark_offset_y", "background_url", "background_color_hex", "cell_background_url", "button_background_url"],
+          "required": ["main_logo_url", "main_logo_offset_y", "logo_watermark_url", "logo_watermark_offset_y", "background_url", "background_color_hex", "cell_background_url", "button_background_url", "bomb_url", "horizontal_url", "vertical_url"],
           "properties": {
             "main_logo_url": {
               "type": ["string", "null"],
@@ -164,113 +239,159 @@ SELECT
               "description": "Background image for number buttons",
               "format": "uri",
               "default": ""
+            },
+            "bomb_url": {
+              "type": ["string", "null"],
+              "title": "Bomb Power-up Icon URL",
+              "description": "Icon shown for the bomb (clear-cell) power-up",
+              "format": "uri",
+              "default": ""
+            },
+            "horizontal_url": {
+              "type": ["string", "null"],
+              "title": "Horizontal Clear Icon URL",
+              "description": "Icon shown for the horizontal row-clear power-up",
+              "format": "uri",
+              "default": ""
+            },
+            "vertical_url": {
+              "type": ["string", "null"],
+              "title": "Vertical Clear Icon URL",
+              "description": "Icon shown for the vertical column-clear power-up",
+              "format": "uri",
+              "default": ""
             }
           }
         },
         "background_config": {
           "type": "object",
-          "title": "Background Configuration",
+          "title": "Background Layer Configuration",
+          "description": "Configuration for the Front and Back background rendering layers",
           "required": ["Front", "Back"],
           "properties": {
             "Front": {
               "type": "object",
               "title": "Front Layer",
-              "required": ["url", "offset_x", "offset_y", "scale_x", "scale_y", "rotation"],
+              "description": "Configuration for the foreground background layer",
+              "required": ["SpriteUrl", "ColorHex", "Enabled", "Speed", "Rotation", "LayoutMode", "AspectRatio"],
               "properties": {
-                "url": {
+                "SpriteUrl": {
                   "type": ["string", "null"],
-                  "title": "Front Layer URL",
+                  "title": "Sprite URL",
+                  "description": "URL of the foreground layer sprite image",
                   "format": "uri",
                   "default": ""
                 },
-                "offset_x": {
+                "ColorHex": {
+                  "type": "string",
+                  "title": "Color Hex",
+                  "description": "Hex color applied to the foreground layer sprite",
+                  "minLength": 7,
+                  "maxLength": 9,
+                  "default": "#FFFFFF"
+                },
+                "Enabled": {
+                  "type": "boolean",
+                  "title": "Enabled",
+                  "description": "Whether the foreground layer is active and visible",
+                  "default": false
+                },
+                "Speed": {
                   "type": "number",
-                  "title": "X Offset",
-                  "minimum": -5.0,
-                  "maximum": 5.0,
+                  "title": "Speed",
+                  "description": "Scrolling or animation speed of the foreground layer",
+                  "minimum": 0.0,
+                  "maximum": 10.0,
+                  "multipleOf": 0.01,
+                  "default": 0.2
+                },
+                "Rotation": {
+                  "type": "number",
+                  "title": "Rotation (degrees)",
+                  "description": "Rotation angle in degrees for the foreground layer",
+                  "minimum": -360.0,
+                  "maximum": 360.0,
+                  "multipleOf": 0.01,
                   "default": 0.0
                 },
-                "offset_y": {
-                  "type": "number",
-                  "title": "Y Offset",
-                  "minimum": -5.0,
-                  "maximum": 5.0,
-                  "default": 0.0
+                "LayoutMode": {
+                  "type": "string",
+                  "title": "Layout Mode",
+                  "description": "Rendering layout mode for the foreground layer sprite",
+                  "enum": ["TiledSquare", "Stretched", "Fit", "Fill"],
+                  "default": "TiledSquare"
                 },
-                "scale_x": {
+                "AspectRatio": {
                   "type": "number",
-                  "title": "X Scale",
+                  "title": "Aspect Ratio",
+                  "description": "Aspect ratio used when rendering the foreground layer",
                   "minimum": 0.1,
                   "maximum": 10.0,
-                  "multipleOf": 0.1,
+                  "multipleOf": 0.01,
                   "default": 1.0
-                },
-                "scale_y": {
-                  "type": "number",
-                  "title": "Y Scale",
-                  "minimum": 0.1,
-                  "maximum": 10.0,
-                  "multipleOf": 0.1,
-                  "default": 1.0
-                },
-                "rotation": {
-                  "type": "integer",
-                  "title": "Rotation",
-                  "description": "Rotation in degrees",
-                  "minimum": 0,
-                  "maximum": 360,
-                  "default": 0
                 }
               }
             },
             "Back": {
               "type": "object",
               "title": "Back Layer",
-              "required": ["url", "offset_x", "offset_y", "scale_x", "scale_y", "rotation"],
+              "description": "Configuration for the background rendering layer",
+              "required": ["SpriteUrl", "ColorHex", "Enabled", "Speed", "Rotation", "LayoutMode", "AspectRatio"],
               "properties": {
-                "url": {
+                "SpriteUrl": {
                   "type": ["string", "null"],
-                  "title": "Back Layer URL",
+                  "title": "Sprite URL",
+                  "description": "URL of the background layer sprite image",
                   "format": "uri",
-                  "default": ""
+                  "default": "https://placehold.co/1024x512/000033/FFFFFF.png?text=BG"
                 },
-                "offset_x": {
+                "ColorHex": {
+                  "type": "string",
+                  "title": "Color Hex",
+                  "description": "Hex color applied to the background layer sprite",
+                  "minLength": 7,
+                  "maxLength": 9,
+                  "default": "#FFFFFF"
+                },
+                "Enabled": {
+                  "type": "boolean",
+                  "title": "Enabled",
+                  "description": "Whether the background layer is active and visible",
+                  "default": true
+                },
+                "Speed": {
                   "type": "number",
-                  "title": "X Offset",
-                  "minimum": -5.0,
-                  "maximum": 5.0,
+                  "title": "Speed",
+                  "description": "Scrolling or animation speed of the background layer",
+                  "minimum": 0.0,
+                  "maximum": 10.0,
+                  "multipleOf": 0.01,
+                  "default": 0.05
+                },
+                "Rotation": {
+                  "type": "number",
+                  "title": "Rotation (degrees)",
+                  "description": "Rotation angle in degrees for the background layer",
+                  "minimum": -360.0,
+                  "maximum": 360.0,
+                  "multipleOf": 0.01,
                   "default": 0.0
                 },
-                "offset_y": {
-                  "type": "number",
-                  "title": "Y Offset",
-                  "minimum": -5.0,
-                  "maximum": 5.0,
-                  "default": 0.0
+                "LayoutMode": {
+                  "type": "string",
+                  "title": "Layout Mode",
+                  "description": "Rendering layout mode for the background layer sprite",
+                  "enum": ["TiledSquare", "Stretched", "Fit", "Fill"],
+                  "default": "Stretched"
                 },
-                "scale_x": {
+                "AspectRatio": {
                   "type": "number",
-                  "title": "X Scale",
+                  "title": "Aspect Ratio",
+                  "description": "Aspect ratio used when rendering the background layer",
                   "minimum": 0.1,
                   "maximum": 10.0,
-                  "multipleOf": 0.1,
-                  "default": 1.0
-                },
-                "scale_y": {
-                  "type": "number",
-                  "title": "Y Scale",
-                  "minimum": 0.1,
-                  "maximum": 10.0,
-                  "multipleOf": 0.1,
-                  "default": 1.0
-                },
-                "rotation": {
-                  "type": "number",
-                  "title": "Rotation",
-                  "description": "Rotation in degrees",
-                  "minimum": 0,
-                  "maximum": 360,
-                  "default": 0
+                  "multipleOf": 0.01,
+                  "default": 1.77
                 }
               }
             }
@@ -458,6 +579,52 @@ SELECT
         }
       }
     },
+    "rewards": {
+      "type": "object",
+      "title": "Rewards",
+      "description": "Coin reward values for player actions",
+      "required": ["coins_per_action", "coins_on_completion"],
+      "properties": {
+        "coins_per_action": {
+          "type": "integer",
+          "title": "Coins Per Action",
+          "description": "Number of coins awarded for each number placed correctly",
+          "minimum": 0,
+          "maximum": 10000,
+          "default": 20
+        },
+        "coins_on_completion": {
+          "type": "integer",
+          "title": "Coins On Completion",
+          "description": "Number of coins awarded upon successfully completing the puzzle",
+          "minimum": 0,
+          "maximum": 100000,
+          "default": 200
+        }
+      }
+    },
+    "personalization": {
+      "type": "object",
+      "title": "Personalization",
+      "description": "Custom visual asset URLs for personalized game UI elements",
+      "required": ["coin_url", "coin_count_url"],
+      "properties": {
+        "coin_url": {
+          "type": ["string", "null"],
+          "title": "Coin Image URL",
+          "description": "URL of the custom coin image displayed in-game",
+          "format": "uri",
+          "default": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN"
+        },
+        "coin_count_url": {
+          "type": ["string", "null"],
+          "title": "Coin Counter Image URL",
+          "description": "URL of the custom coin counter UI image",
+          "format": "uri",
+          "default": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+        }
+      }
+    },
     "game": {
       "type": "object",
       "title": "Game Assets",
@@ -489,7 +656,17 @@ SELECT
 }',
     -- UI SCHEMA (layout and widgets)
     '{
-  "ui:order": ["game_config", "branding", "audio", "texts", "game"],
+  "ui:order": ["meta", "game_config", "branding", "audio", "texts", "rewards", "personalization", "game"],
+  "meta": {
+    "ui:title": "Metadata",
+    "ui:description": "General brand and configuration metadata",
+    "brand_id": {
+      "ui:widget": "textInput",
+      "ui:title": "Brand ID",
+      "ui:placeholder": "e.g. default",
+      "ui:help": "Unique identifier assigned to this brand"
+    }
+  },
   "game_config": {
     "ui:title": "⚙️ Game Configuration",
     "ui:description": "Configure gameplay mechanics and difficulty",
@@ -528,6 +705,38 @@ SELECT
     
     "use_countdown": {
       "ui:widget": "checkbox"
+    },
+    "enable_powerups": {
+      "ui:widget": "checkbox"
+    },
+    "levels": {
+      "ui:title": "Levels",
+      "ui:description": "Configure per-level difficulty overrides",
+      "items": {
+        "ui:order": ["id", "empty_cells", "time_limit", "max_errors", "use_countdown", "enable_powerups"],
+        "id": {
+          "ui:widget": "numberInput",
+          "ui:placeholder": "1"
+        },
+        "empty_cells": {
+          "ui:widget": "numberInput",
+          "ui:placeholder": "12"
+        },
+        "time_limit": {
+          "ui:widget": "numberInput",
+          "ui:placeholder": "300"
+        },
+        "max_errors": {
+          "ui:widget": "numberInput",
+          "ui:placeholder": "3"
+        },
+        "use_countdown": {
+          "ui:widget": "checkbox"
+        },
+        "enable_powerups": {
+          "ui:widget": "checkbox"
+        }
+      }
     }
   },
   "branding": {
@@ -585,100 +794,107 @@ SELECT
         "ui:options": {
           "assetType": "image"
         }
+      },
+      "bomb_url": {
+        "ui:widget": "assetUpload",
+        "ui:title": "Bomb Power-up Icon",
+        "ui:help": "Icon shown for the bomb (clear-cell) power-up",
+        "ui:options": {
+          "assetType": "image"
+        }
+      },
+      "horizontal_url": {
+        "ui:widget": "assetUpload",
+        "ui:title": "Horizontal Clear Icon",
+        "ui:help": "Icon shown for the horizontal row-clear power-up",
+        "ui:options": {
+          "assetType": "image"
+        }
+      },
+      "vertical_url": {
+        "ui:widget": "assetUpload",
+        "ui:title": "Vertical Clear Icon",
+        "ui:help": "Icon shown for the vertical column-clear power-up",
+        "ui:options": {
+          "assetType": "image"
+        }
       }
     },
     "background_config": {
       "ui:title": "Background Layers",
+      "ui:description": "Configure the Front and Back background rendering layers",
       "Front": {
         "ui:title": "Front Layer",
-        "url": {
+        "SpriteUrl": {
           "ui:widget": "assetUpload",
+          "ui:title": "Front Layer Sprite",
           "ui:options": {
             "assetType": "image"
           }
         },
-        "offset_x": {
-          "ui:widget": "decimalInput",
-          "ui:placeholder": "0.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": ""
-          }
+        "ColorHex": {
+          "ui:widget": "colorPicker",
+          "ui:title": "Front Layer Color (Hex)"
         },
-        "offset_y": {
-          "ui:widget": "decimalInput",
-          "ui:placeholder": "0.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": ""
-          }
+        "Enabled": {
+          "ui:widget": "checkbox",
+          "ui:title": "Enable Front Layer"
         },
-        "scale_x": {
+        "Speed": {
           "ui:widget": "decimalInput",
-          "ui:placeholder": "1.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": "x"
-          }
+          "ui:title": "Speed",
+          "ui:placeholder": "0.2"
         },
-        "scale_y": {
+        "Rotation": {
           "ui:widget": "decimalInput",
-          "ui:placeholder": "1.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": "x"
-          }
+          "ui:title": "Rotation (degrees)",
+          "ui:placeholder": "0.0"
         },
-        "rotation": {
-          "ui:widget": "numberInput",
-          "ui:placeholder": "0",
-          "ui:help": "Rotación en grados (0-360)"
+        "LayoutMode": {
+          "ui:widget": "radio",
+          "ui:title": "Layout Mode"
+        },
+        "AspectRatio": {
+          "ui:widget": "decimalInput",
+          "ui:title": "Aspect Ratio",
+          "ui:placeholder": "1.0"
         }
       },
       "Back": {
         "ui:title": "Back Layer",
-        "url": {
+        "SpriteUrl": {
           "ui:widget": "assetUpload",
+          "ui:title": "Back Layer Sprite",
           "ui:options": {
             "assetType": "image"
           }
         },
-        "offset_x": {
-          "ui:widget": "decimalInput",
-          "ui:placeholder": "0.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": ""
-          }
+        "ColorHex": {
+          "ui:widget": "colorPicker",
+          "ui:title": "Back Layer Color (Hex)"
         },
-        "offset_y": {
-          "ui:widget": "decimalInput",
-          "ui:placeholder": "0.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": ""
-          }
+        "Enabled": {
+          "ui:widget": "checkbox",
+          "ui:title": "Enable Back Layer"
         },
-        "scale_x": {
+        "Speed": {
           "ui:widget": "decimalInput",
-          "ui:placeholder": "1.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": "x"
-          }
+          "ui:title": "Speed",
+          "ui:placeholder": "0.05"
         },
-        "scale_y": {
+        "Rotation": {
           "ui:widget": "decimalInput",
-          "ui:placeholder": "1.0",
-          "ui:options": {
-            "decimalPlaces": 1,
-            "suffix": "x"
-          }
+          "ui:title": "Rotation (degrees)",
+          "ui:placeholder": "0.0"
         },
-        "rotation": {
-          "ui:widget": "numberInput",
-          "ui:placeholder": "0",
-          "ui:help": "Rotación en grados (0-360)"
+        "LayoutMode": {
+          "ui:widget": "radio",
+          "ui:title": "Layout Mode"
+        },
+        "AspectRatio": {
+          "ui:widget": "decimalInput",
+          "ui:title": "Aspect Ratio",
+          "ui:placeholder": "1.77"
         }
       }
     },
@@ -805,6 +1021,39 @@ SELECT
     "label_score": {
       "ui:widget": "textInput",
       "ui:placeholder": "Llaves"
+    }
+  },
+  "rewards": {
+    "ui:title": "🏆 Rewards",
+    "ui:description": "Coin reward values for player actions",
+    "ui:color": "yellow",
+    "coins_per_action": {
+      "ui:widget": "numberInput",
+      "ui:title": "Coins Per Action",
+      "ui:placeholder": "e.g. 20",
+      "ui:help": "Coins awarded for each number placed correctly"
+    },
+    "coins_on_completion": {
+      "ui:widget": "numberInput",
+      "ui:title": "Coins On Completion",
+      "ui:placeholder": "e.g. 200",
+      "ui:help": "Coins awarded upon successfully completing the puzzle"
+    }
+  },
+  "personalization": {
+    "ui:title": "✨ Personalization",
+    "ui:description": "Custom visual assets for personalized game UI elements",
+    "coin_url": {
+      "ui:widget": "assetUpload",
+      "ui:title": "Coin Image",
+      "ui:help": "Upload or provide URL for the custom coin image displayed in-game",
+      "ui:options": { "assetType": "image" }
+    },
+    "coin_count_url": {
+      "ui:widget": "assetUpload",
+      "ui:title": "Coin Counter Image",
+      "ui:help": "Upload or provide URL for the custom coin counter UI image",
+      "ui:options": { "assetType": "image" }
     }
   },
   "game": {

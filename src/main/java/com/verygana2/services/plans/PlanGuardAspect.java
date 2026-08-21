@@ -33,6 +33,12 @@ public class PlanGuardAspect {
             guard.assertCapability(commercialId, cap);
         }
 
+        // Los errores de "tu plan no incluye esto" priman sobre los de "saldo agotado" —
+        // son dos problemas distintos (subir de plan vs. recargar).
+        if (requireCapability.requiresBudget()) {
+            guard.assertBudgetAvailable(commercialId);
+        }
+
         // Si todo es correcto, continuar con la ejecución del método
         return joinPoint.proceed();
     }

@@ -15,10 +15,16 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.models.commercial.CommercialContract;
+import com.verygana2.models.commercial.PlanChangeRequest;
+import com.verygana2.models.enums.commercial.ContractPurpose;
+import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.enums.finance.WompiTransactionType;
+import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
 import com.verygana2.models.enums.finance.plans.SubscriptionStatus;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.WompiTransaction;
@@ -28,12 +34,15 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.finance.plans.Subscription;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.WalletRepository;
+import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
+import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.finance.plans.InvestmentRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.finance.plans.SubscriptionRepository;
+import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.finance.PlanService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.finance.WalletService;
@@ -58,6 +67,12 @@ public class PlanServiceImpl implements PlanService {
         private final WalletRepository walletRepository;
         private final WalletService walletService;
         private final CommercialOnboardingRepository onboardingRepository;
+        private final com.verygana2.services.plans.InvestmentService investmentService;
+        private final com.verygana2.services.interfaces.EmailService emailService;
+        private final CommercialContractService commercialContractService;
+        private final CommercialContractRepository commercialContractRepository;
+        private final PlanChangeRequestRepository planChangeRequestRepository;
+        private final com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
 
         // =========================================================================
         // PASO 1: INICIAR PAGO
@@ -94,6 +109,8 @@ public class PlanServiceImpl implements PlanService {
                                 .orElseThrow(() -> new IllegalStateException(
                                                 "Plan not found or inactive: " + planCode));
                 log.info("Plan encontrado: {}, code: {}, id: {}", plan.getName(), plan.getCode(), plan.getId());
+
+                requireLegacyPaymentAllowed(commercial, planCode);
 
                 long finalAmount = resolveAmount(commercial, plan, amountCents);
 
@@ -246,7 +263,7 @@ public class PlanServiceImpl implements PlanService {
         // PLAN BÁSICO
         // =========================================================================
 
-        private void createPendingSubscription(
+        private Subscription createPendingSubscription(
                         CommercialDetails commercial, Plan plan,
                         long amountCents, String reference) {
 
@@ -266,8 +283,9 @@ public class PlanServiceImpl implements PlanService {
                                 .status(SubscriptionStatus.PENDING_PAYMENT)
                                 .build();
 
-                subscriptionRepository.save(Objects.requireNonNull(pending));
+                Subscription saved = subscriptionRepository.save(Objects.requireNonNull(pending));
                 log.info("[PLAN] Subscription PENDING_PAYMENT creada: reference={}", reference);
+                return saved;
         }
 
         private void activateSubscription(WompiTransaction wompiTx) {
@@ -297,13 +315,14 @@ public class PlanServiceImpl implements PlanService {
                                 wompiTx.getId());
 
                 completeOnboardingIfPending(commercial);
+                applyPlanChangeIfLinked(null, subscription.getId());
         }
 
         // =========================================================================
         // PLANES ESTÁNDAR Y PREMIUM
         // =========================================================================
 
-        private void createPendingInvestment(
+        private Investment createPendingInvestment(
                         CommercialDetails commercial, Plan plan,
                         long amountCents, String reference) {
 
@@ -319,13 +338,148 @@ public class PlanServiceImpl implements PlanService {
                                 .confirmed(false)
                                 .build();
 
-                investmentRepository.save(Objects.requireNonNull(pending));
+                Investment saved = investmentRepository.save(Objects.requireNonNull(pending));
                 log.info("[PLAN] Investment pendiente creado: reference={}, amount={}",
                                 reference, amountCents);
+                return saved;
         }
 
-        // ─── Reemplazar el método activateInvestment en PlanServiceImpl ──────────────
-        // Los demás métodos permanecen igual.
+        // =========================================================================
+        // RECARGA STANDARD/PREMIUM CON CONTRATO — contrato primero, pago después
+        // =========================================================================
+
+        @Override
+        @Transactional
+        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercial, Long amountCents) {
+                Plan plan = commercial.getCurrentPlan();
+                if (plan == null || plan.getCode() == PlanCode.BASIC) {
+                        throw new IllegalStateException("Solo los planes STANDARD/PREMIUM pueden recargar presupuesto.");
+                }
+                validateInvestmentAmount(amountCents, plan);
+
+                if (!commercialContractRepository.findOpenRechargeContracts(commercial.getId()).isEmpty()) {
+                        throw new IllegalStateException(
+                                        "Ya tiene una recarga en curso — fírmela o espere a que se resuelva antes de pedir otra.");
+                }
+                List<PlanChangeRequestStatus> terminal = List.of(
+                                PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
+                if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercial.getId(), terminal).isEmpty()) {
+                        throw new IllegalStateException(
+                                        "Tiene una solicitud de cambio de plan en curso — resuélvala antes de recargar.");
+                }
+
+                log.info("[PLAN] Solicitando recarga: commercialId={}, amount={}", commercial.getId(), amountCents);
+                return commercialContractService.generateFor(commercial, ContractPurpose.RECHARGE, amountCents, null);
+        }
+
+        @Override
+        @Transactional
+        public WompiCheckoutResponseDTO generateRechargeCheckout(Long contractId, CommercialDetails commercial) {
+                CommercialContract contract = commercialContractRepository.findById(contractId)
+                                .orElseThrow(() -> new IllegalArgumentException("Contrato no encontrado: " + contractId));
+
+                if (!contract.getCommercial().getId().equals(commercial.getId())) {
+                        throw new IllegalArgumentException("Contrato no encontrado: " + contractId);
+                }
+                if (contract.getPurpose() != ContractPurpose.RECHARGE) {
+                        throw new IllegalStateException("Este contrato no es de recarga.");
+                }
+                if (contract.getStatus() != ContractStatus.SIGNED) {
+                        throw new IllegalStateException("El contrato debe estar firmado antes de generar el pago.");
+                }
+                if (contract.getInvestment() != null) {
+                        throw new IllegalStateException("Esta recarga ya generó un pago.");
+                }
+
+                Plan plan = commercial.getCurrentPlan();
+                long amountCents = contract.getAmountCentsSnapshot();
+                String reference = "VG-DEP-" +
+                                commercial.getUser().getPublicId().toString().replace("-", "").substring(0, 12) + "-" +
+                                System.currentTimeMillis();
+
+                Investment pending = createPendingInvestment(commercial, plan, amountCents, reference);
+                contract.setInvestment(pending);
+                commercialContractRepository.save(contract);
+
+                WompiCheckoutRequestDTO request = WompiCheckoutRequestDTO.builder()
+                                .reference(reference)
+                                .amountInCents(amountCents)
+                                .customerEmail(commercial.getUser().getEmail())
+                                .redirectUrl("http://verygana.com/empresario/plan/resultado")
+                                .build();
+
+                WompiCheckoutResponseDTO response = wompiService.createCheckoutUrl(
+                                request, WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
+
+                log.info("[PLAN] Checkout de recarga generado: contractId={}, reference={}, amount={}",
+                                contractId, reference, amountCents);
+
+                return response;
+        }
+
+        /**
+         * Genera el checkout del abono requerido por un cambio de plan ya firmado
+         * (PlanChangeRequest en PAYMENT_PENDING). Si el destino es BASIC crea una
+         * Subscription; si es STANDARD/PREMIUM crea un Investment — en ambos casos
+         * vinculado al contrato para que, al confirmarse el pago,
+         * PlanServiceImpl#applyPlanChangeIfLinked aplique el cambio automáticamente.
+         */
+        @Override
+        @Transactional
+        public WompiCheckoutResponseDTO generatePlanChangeTopUpCheckout(Long requestId, CommercialDetails commercial) {
+                PlanChangeRequest request = planChangeRequestRepository.findById(requestId)
+                                .orElseThrow(() -> new IllegalArgumentException("Solicitud no encontrada: " + requestId));
+
+                if (!request.getCommercial().getId().equals(commercial.getId())) {
+                        throw new IllegalArgumentException("Solicitud no encontrada: " + requestId);
+                }
+                if (request.getStatus() != com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus.PAYMENT_PENDING) {
+                        throw new IllegalStateException("Esta solicitud no está pendiente de pago.");
+                }
+
+                CommercialContract contract = request.getContract();
+                if (contract == null || contract.getStatus() != ContractStatus.SIGNED) {
+                        throw new IllegalStateException("El contrato de cambio de plan debe estar firmado antes de pagar.");
+                }
+                if (contract.getInvestment() != null || contract.getSubscription() != null) {
+                        throw new IllegalStateException("Esta solicitud ya generó un pago.");
+                }
+
+                Plan targetPlan = request.getToPlan();
+                long amountCents = request.getRequiredTopUpAmountCents();
+                String idPart = commercial.getUser().getPublicId().toString().replace("-", "").substring(0, 12);
+
+                WompiCheckoutRequestDTO.WompiCheckoutRequestDTOBuilder wompiRequestBuilder = WompiCheckoutRequestDTO.builder()
+                                .amountInCents(amountCents)
+                                .customerEmail(commercial.getUser().getEmail())
+                                .redirectUrl("http://verygana.com/empresario/plan/resultado");
+
+                WompiCheckoutResponseDTO response;
+                if (targetPlan.getCode() == PlanCode.BASIC) {
+                        String reference = "VG-SUB-" + idPart + "-" + System.currentTimeMillis();
+                        Subscription pending = createPendingSubscription(commercial, targetPlan, amountCents, reference);
+                        contract.setSubscription(pending);
+                        commercialContractRepository.save(contract);
+
+                        response = wompiService.createCheckoutUrl(
+                                        wompiRequestBuilder.reference(reference).build(),
+                                        WompiTransactionType.CHARGE_PLAN_SUBSCRIPTION);
+                } else {
+                        String reference = "VG-DEP-" + idPart + "-" + System.currentTimeMillis();
+                        Investment pending = createPendingInvestment(commercial, targetPlan, amountCents, reference);
+                        contract.setInvestment(pending);
+                        commercialContractRepository.save(contract);
+
+                        response = wompiService.createCheckoutUrl(
+                                        wompiRequestBuilder.reference(reference).build(),
+                                        WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
+                }
+
+                log.info("[PLAN CHANGE] Checkout de abono generado: requestId={}, targetPlan={}, amount={}",
+                                requestId, targetPlan.getCode(), amountCents);
+
+                return response;
+        }
 
         private void activateInvestment(WompiTransaction wompiTx) {
                 // 1. Lookup por referencia Wompi
@@ -354,73 +508,35 @@ public class PlanServiceImpl implements PlanService {
 
                 CommercialDetails commercial = wallet.getCommercial();
 
-                // 5. Calcular total histórico invertido (todos los depósitos confirmados)
-                long totalInvestedCents = investmentRepository
-                                .findByWalletAndConfirmedTrue(wallet)
-                                .stream()
-                                .mapToLong(Investment::getDepositAmountCents)
-                                .sum();
-
-                // 6. Determinar el plan correcto según total histórico
-                // El plan NUNCA baja — solo sube cuando el total acumulado supera el umbral
-                Plan correctPlan = resolvePlanByTotalInvested(totalInvestedCents);
-                commercial.setCurrentPlan(correctPlan);
-
+                // 5. Acreditar saldo nunca cambia el plan por sí solo — salvo que este
+                // Investment sea justo el abono de un cambio de plan explícito ya aprobado
+                // y firmado, en cuyo caso applyPlanChangeIfLinked() lo detecta y aplica.
                 completeOnboardingIfPending(commercial);
 
                 log.info("[PLAN] Inversión activada: commercialId={}, amount={}, " +
-                                "totalInvested={}, plan={}, walletStatus={}",
+                                "plan={}, walletStatus={}",
                                 commercial.getId(), wompiTx.getAmountInCents(),
-                                totalInvestedCents, correctPlan.getCode(), wallet.getStatus());
+                                investment.getPlanAtDeposit().getCode(), wallet.getStatus());
 
-                // 7. Si el wallet estaba EXHAUSTED, reactivar todas las interacciones pausadas
+                // 6. Si el wallet estaba EXHAUSTED, reactivar todas las interacciones pausadas
                 // El dispatcher de interacciones escucha este evento y reactiva todo
                 if (wasExhausted) {
                         log.info("[PLAN] Wallet reactivado después de agotamiento: " +
                                         "commercialId={} — reactivando interacciones", commercial.getId());
+                        investmentService.handleWalletReplenished(commercial.getId());
                         // TODO (fase siguiente): interactionService.reactivateAll(commercial);
                         // Este método buscará todas las interacciones del comercial con
                         // status=PAUSED_BY_BALANCE y las volverá a ACTIVE
                 }
 
-                // 8. Distribuir en tesorería — 60% KEYS_RESERVE / 10% FORTIFICATION / 30%
+                // 7. Distribuir en tesorería — 60% KEYS_RESERVE / 10% FORTIFICATION / 30%
                 // OPERATIONS
                 treasuryService.distributeDeposit(
                                 wompiTx.getAmountInCents(),
                                 commercial,
                                 wompiTx.getId());
-        }
 
-        /**
-         * Determina el plan según el total histórico invertido.
-         * El plan NUNCA se degrada — siempre retorna el mejor plan al que califique.
-         *
-         * Ejemplo:
-         * totalInvested = $3M → STANDARD
-         * totalInvested = $11M → PREMIUM
-         * totalInvested = $0 → error (no debería llegar aquí)
-         */
-        private Plan resolvePlanByTotalInvested(long totalInvestedCents) {
-                // Verificar PREMIUM primero (el de mayor umbral)
-                Optional<Plan> premium = planRepository.findByCodeAndActiveTrue(PlanCode.PREMIUM);
-                if (premium.isPresent()
-                                && premium.get().getMinInvestmentCents() != null
-                                && totalInvestedCents >= premium.get().getMinInvestmentCents()) {
-                        return premium.get();
-                }
-
-                // Luego STANDARD
-                Optional<Plan> standard = planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD);
-                if (standard.isPresent()
-                                && standard.get().getMinInvestmentCents() != null
-                                && totalInvestedCents >= standard.get().getMinInvestmentCents()) {
-                        return standard.get();
-                }
-
-                // No debería llegar aquí porque validateInvestmentAmount
-                // ya garantizó que el monto mínimo fue respetado en el primer depósito
-                throw new IllegalStateException(
-                                "No se encontró plan para totalInvested=" + totalInvestedCents);
+                applyPlanChangeIfLinked(investment.getId(), null);
         }
 
         /**
@@ -428,6 +544,22 @@ public class PlanServiceImpl implements PlanService {
          * PAYMENT_PENDING), lo completa. Para pagos posteriores — renovación de BASIC,
          * recarga de inversión — el onboarding ya está COMPLETED y esto no hace nada.
          */
+        /**
+         * Si el Investment/Subscription recién confirmado es el abono de un cambio de
+         * plan explícito ya firmado (contrato PLAN_CHANGE con esa referencia vinculada),
+         * aplica el cambio ahora. No-op para cualquier otro pago (recarga normal,
+         * renovación BASIC común, etc. — la mayoría de los casos).
+         */
+        private void applyPlanChangeIfLinked(Long investmentId, java.util.UUID subscriptionId) {
+                var contractOpt = investmentId != null
+                                ? commercialContractRepository.findByInvestment_Id(investmentId)
+                                : commercialContractRepository.findBySubscription_Id(subscriptionId);
+
+                contractOpt.filter(c -> c.getPurpose() == ContractPurpose.PLAN_CHANGE)
+                                .flatMap(c -> planChangeRequestRepository.findByContract_Id(c.getId()))
+                                .ifPresent(request -> planChangeRequestService.applyIfPending(request.getId()));
+        }
+
         private void completeOnboardingIfPending(CommercialDetails commercial) {
                 onboardingRepository.findByCommercialDetails_Id(commercial.getId())
                                 .filter(o -> o.getCurrentStep() == OnboardingStep.PAYMENT_PENDING)
@@ -463,7 +595,9 @@ public class PlanServiceImpl implements PlanService {
                         sub.expire();
                         subscriptionRepository.save(sub);
                         log.info("[PLAN JOB] Expirada: commercialId={}", sub.getCommercial().getId());
-                        // TODO: notificationService.sendSubscriptionExpiredEmail(sub.getCommercial());
+                        CommercialDetails commercial = sub.getCommercial();
+                        emailService.sendSubscriptionExpiredEmail(
+                                        commercial.getUser().getEmail(), commercial.getCompanyName());
                 });
         }
 
@@ -472,15 +606,23 @@ public class PlanServiceImpl implements PlanService {
          * Corre a las 2 PM Colombia (7 PM UTC).
          */
         @Scheduled(cron = "${subscription.reminder-cron:0 0 19 * * *}")
-        @Transactional(readOnly = true)
+        @Transactional
         public void sendRenewalReminders() {
                 ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
                 subscriptionRepository
                                 .findExpiringBetween(now, now.plusDays(3))
+                                .stream()
+                                // Ya se envió un recordatorio en este ciclo — no reenviar cada día dentro de la ventana.
+                                .filter(sub -> sub.getRenewalReminderSentAt() == null)
                                 .forEach(sub -> {
-                                        log.info("[PLAN JOB] Recordatorio pendiente: commercialId={}, dias={}",
+                                        log.info("[PLAN JOB] Recordatorio enviado: commercialId={}, dias={}",
                                                         sub.getCommercial().getId(), sub.daysRemaining());
-                                        // TODO: notificationService.sendRenewalReminderEmail(...)
+                                        CommercialDetails commercial = sub.getCommercial();
+                                        emailService.sendRenewalReminderEmail(
+                                                        commercial.getUser().getEmail(), commercial.getCompanyName(),
+                                                        sub.daysRemaining());
+                                        sub.setRenewalReminderSentAt(now);
+                                        subscriptionRepository.save(sub);
                                 });
         }
 
@@ -508,6 +650,14 @@ public class PlanServiceImpl implements PlanService {
         // =========================================================================
 
         private long resolveAmount(CommercialDetails commercial, Plan plan, Long amountCents) {
+                // Un comercial con plan asignado solo puede renovar/recargar ese mismo plan por
+                // esta vía — cambiar de plan siempre requiere una solicitud explícita (con
+                // aprobación de VerYGana), nunca simplemente pagar bajo otro código de plan.
+                if (commercial.getCurrentPlan() != null && commercial.getCurrentPlan().getCode() != plan.getCode()) {
+                        throw new IllegalStateException(
+                                        "Solo puede renovar su plan actual (" + commercial.getCurrentPlan().getCode() +
+                                                        "). Para cambiar de plan, solicite un cambio de plan explícito.");
+                }
                 return switch (plan.getCode()) {
                         case BASIC -> {
                                 boolean hasActive = subscriptionRepository
@@ -529,6 +679,25 @@ public class PlanServiceImpl implements PlanService {
                                 yield amountCents;
                         }
                 };
+        }
+
+        /**
+         * Una vez completado el onboarding, una recarga STANDARD/PREMIUM debe pasar por
+         * el flujo de contrato-primero-luego-pago ({@link #requestRecharge}) — este
+         * endpoint legado queda solo para el primer pago (durante el onboarding, ya
+         * cubierto por el Contrato Marco) y para la renovación mensual de BASIC.
+         */
+        private void requireLegacyPaymentAllowed(CommercialDetails commercial, PlanCode planCode) {
+                if (planCode == PlanCode.BASIC) {
+                        return;
+                }
+                boolean onboardingCompleted = onboardingRepository.findByCommercialDetails_Id(commercial.getId())
+                                .map(o -> o.getCurrentStep() == OnboardingStep.COMPLETED)
+                                .orElse(false);
+                if (onboardingCompleted && commercial.getCurrentPlan() != null) {
+                        throw new IllegalStateException(
+                                        "Ya completó su registro — use la solicitud de recarga (con contrato) para depositar más saldo.");
+                }
         }
 
         private void validateInvestmentAmount(Long amountCents, Plan plan) {
@@ -558,15 +727,19 @@ public class PlanServiceImpl implements PlanService {
                                 .ifPresent(sub -> {
                                         sub.setStatus(SubscriptionStatus.PAYMENT_FAILED);
                                         subscriptionRepository.save(sub);
+                                        CommercialDetails commercial = sub.getCommercial();
+                                        emailService.sendPlanPaymentFailedEmail(
+                                                        commercial.getUser().getEmail(), commercial.getCompanyName());
                                 });
 
                 investmentRepository.findByWompiReference(wompiTx.getReference())
                                 .ifPresent(inv -> {
                                         inv.fail(wompiTx);
                                         investmentRepository.save(inv);
+                                        CommercialDetails commercial = inv.getWallet().getCommercial();
+                                        emailService.sendPlanPaymentFailedEmail(
+                                                        commercial.getUser().getEmail(), commercial.getCompanyName());
                                 });
-
-                // TODO: notificationService.sendPaymentFailedEmail(...)
         }
 
         @Override
