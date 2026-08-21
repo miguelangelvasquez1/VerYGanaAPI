@@ -9,7 +9,7 @@ spring:
   # ============================================
   datasource:
     # Para Docker usa host.docker.internal
-    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
+    url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:root}
     password: ${DB_PASSWORD:1234}
     hikari:
@@ -407,3 +407,4 @@ zapsign:
   webhook-header-name: X-VERyGANA-Secret
   api-token: ${ZAPSIGN_API_TOKEN:}
   webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
+
