@@ -80,7 +80,7 @@ class PurchaseItemControllerTest {
 
         when(purchaseItemService.getReportableItem(5L, 9L)).thenReturn(item);
         when(pqrsService.createPqrsForPurchaseItem(item, MarketplaceIssueReason.NOT_DELIVERED,
-                "Nunca llegó el producto", 9L)).thenReturn(expected);
+                "Nunca llegó el producto", 9L, null)).thenReturn(expected);
 
         var response = controller.reportIssue(jwtWithUserId(9L), 5L, request);
 

@@ -1,6 +1,8 @@
 package com.verygana2.models.pqrs;
 
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 import com.verygana2.models.User;
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
@@ -10,6 +12,7 @@ import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.AdminDetails;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -21,6 +24,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -108,6 +112,17 @@ public class Pqrs {
 
     @Column(name = "resolved_at")
     private ZonedDateTime resolvedAt;
+
+    /**
+     * Evidencia (foto/video) opcional adjuntada por el solicitante — ver
+     * PqrsAssetServiceImpl.validateAndClaimAssets. @Builder.Default es
+     * obligatorio: sin él, cada Pqrs.builder()...build() dejaría la colección
+     * en null (Pqrs usa @Data @Builder, no @Getter/@Setter con inicializador
+     * "vivo" fuera del builder).
+     */
+    @OneToMany(mappedBy = "pqrs", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<PqrsAsset> assets = new ArrayList<>();
 
     @PrePersist
     void onCreate() {

@@ -210,11 +210,41 @@ public class PurchaseItem {
     @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
+    /**
+     * Status (PENDING o CLAIMED) que tenía el ítem justo antes de entrar en
+     * IN_REVIEW — ver enterReview(). Permite restaurarlo exactamente si el
+     * admin descarta el reclamo (exitReviewDismissed()), en vez de asumir
+     * siempre CLAIMED. Null salvo mientras el ítem está IN_REVIEW.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_before_review", length = 20)
+    private PurchaseItemStatus statusBeforeReview;
+
     public boolean isClaimed() {
         return status == PurchaseItemStatus.CLAIMED;
     }
 
     public boolean canBeReviewed() {
         return this.isClaimed();
+    }
+
+    /**
+     * El comprador reportó un problema con este ítem (PQRS recién creado):
+     * guarda el status actual para poder restaurarlo si el reclamo se
+     * descarta — ver PqrsServiceImpl.createPqrsForPurchaseItem.
+     */
+    public void enterReview() {
+        this.statusBeforeReview = this.status;
+        this.status = PurchaseItemStatus.IN_REVIEW;
+    }
+
+    /**
+     * El admin resolvió el PQRS con DISMISS: el reclamo no procedía, así que
+     * el ítem retoma exactamente el status que tenía antes de la revisión —
+     * ver PqrsServiceImpl.respondToPqrs.
+     */
+    public void exitReviewDismissed() {
+        this.status = statusBeforeReview != null ? statusBeforeReview : PurchaseItemStatus.CLAIMED;
+        this.statusBeforeReview = null;
     }
 }

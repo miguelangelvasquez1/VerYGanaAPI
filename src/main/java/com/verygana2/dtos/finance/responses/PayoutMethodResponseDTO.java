@@ -34,6 +34,14 @@ public class PayoutMethodResponseDTO {
 
     private boolean active;
     private boolean firstPayoutCompleted;
+    private boolean defaultMethod;
     private ZonedDateTime createdAt;
     private ZonedDateTime verifiedAt;
+
+    /**
+     * URL del proxy privado para ver la certificación bancaria (PDF/foto), solo
+     * cuando ya fue subida y validada. Null si el método no tiene certificación
+     * (ej. NEQUI/DAVIPLATA, o BANK_ACCOUNT que aún no la sube).
+     */
+    private String certificateUrl;
 }

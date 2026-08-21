@@ -240,7 +240,8 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
                 .orElseThrow(() -> new ObjectNotFoundException("Purchase item with id:" + purchaseItemId + " not found",
                         PurchaseItem.class));
 
-        if (item.getStatus() == PurchaseItemStatus.REFUNDED || item.getStatus() == PurchaseItemStatus.CANCELLED) {
+        if (item.getStatus() == PurchaseItemStatus.REFUNDED || item.getStatus() == PurchaseItemStatus.CANCELLED
+                || item.getStatus() == PurchaseItemStatus.IN_REVIEW) {
             throw new InvalidStatusException("This purchase item cannot be reported from status: " + item.getStatus());
         }
 

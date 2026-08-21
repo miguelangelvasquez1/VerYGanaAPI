@@ -1,5 +1,7 @@
 package com.verygana2.services.interfaces.pqrs;
 
+import java.util.List;
+
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
@@ -21,9 +23,12 @@ public interface PqrsService {
      * /purchaseItems/{id}/report). Siempre type=RECLAMO. Mientras este PQRS
      * no se resuelva, el ítem queda excluido del payout diario (ver
      * PurchaseItemRepository.findClaimedWithoutPayout).
+     *
+     * @param assetIds opcional — evidencia (PqrsAsset) ya confirmada que el
+     *                  comprador quiere adjuntar.
      */
     PqrsResponseDTO createPqrsForPurchaseItem(PurchaseItem item, MarketplaceIssueReason reason,
-            String description, Long requesterUserId);
+            String description, Long requesterUserId, List<Long> assetIds);
 
     PagedResponse<PqrsResponseDTO> getMyPqrs(Long requesterUserId, Pageable pageable);
 

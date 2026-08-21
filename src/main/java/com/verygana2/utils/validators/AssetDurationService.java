@@ -1,6 +1,11 @@
 package com.verygana2.utils.validators;
 
+import java.util.Iterator;
 import java.util.Optional;
+
+import javax.imageio.ImageIO;
+import javax.imageio.ImageReader;
+import javax.imageio.stream.ImageInputStream;
 
 import org.springframework.stereotype.Service;
 import com.github.kokorin.jaffree.LogLevel;
@@ -14,6 +19,8 @@ import com.verygana2.storage.service.R2Service;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import software.amazon.awssdk.core.ResponseInputStream;
+import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 
 @Service
 @RequiredArgsConstructor
@@ -57,26 +64,26 @@ public class AssetDurationService {
     }
 
     public ImageDimensions getImageDimensions(String objectKey) {
-        try {
-            String presignedUrl = r2Service.getPrivateObject(objectKey, 60);
+        try (ResponseInputStream<GetObjectResponse> objectStream = r2Service.getPrivateObjectStream(objectKey);
+                ImageInputStream imageInputStream = ImageIO.createImageInputStream(objectStream)) {
 
-            FFprobeResult result = FFprobe.atPath()
-                .setShowStreams(true)
-                .setLogLevel(LogLevel.ERROR)
-                .setInput(presignedUrl)
-                .execute();
+            Iterator<ImageReader> readers = ImageIO.getImageReaders(imageInputStream);
+            if (!readers.hasNext()) {
+                throw new ValidationException("No se pudieron leer las dimensiones de la imagen");
+            }
 
-            Stream stream = result.getStreams().stream()
-                .filter(s -> s.getWidth() != null && s.getHeight() != null)
-                .findFirst()
-                .orElseThrow(() -> new ValidationException("No se pudieron leer las dimensiones de la imagen"));
-
-            return new ImageDimensions(stream.getWidth(), stream.getHeight());
+            ImageReader reader = readers.next();
+            try {
+                reader.setInput(imageInputStream);
+                return new ImageDimensions(reader.getWidth(0), reader.getHeight(0));
+            } finally {
+                reader.dispose();
+            }
 
         } catch (ValidationException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Error obteniendo dimensiones via presigned URL: {}: {}", objectKey, e.getMessage(), e);
+            log.error("Error obteniendo dimensiones de la imagen: {}: {}", objectKey, e.getMessage(), e);
             throw new StorageException("Error obteniendo dimensiones de la imagen", e);
         }
     }

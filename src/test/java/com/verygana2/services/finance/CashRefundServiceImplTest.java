@@ -1,5 +1,6 @@
 package com.verygana2.services.finance;
 
+import java.time.ZonedDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,9 +16,11 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.finance.requests.SubmitCashRefundBankDetailsRequestDTO;
+import com.verygana2.dtos.finance.responses.CashRefundResponseDTO;
 import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.finance.CashRefundStatus;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.finance.PurchaseItemCashRefund;
 import com.verygana2.models.finance.PurchaseItemCashRefund.BankAccountType;
@@ -29,6 +32,7 @@ import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.AdminDetailsRepository;
 import com.verygana2.repositories.finance.PurchaseItemCashRefundRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.repositories.pqrs.PqrsRepository;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
@@ -57,6 +61,7 @@ import static org.mockito.Mockito.when;
 class CashRefundServiceImplTest {
 
     @Mock private PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
+    @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private AdminDetailsRepository adminDetailsRepository;
     @Mock private TreasuryService treasuryService;
     @Mock private PqrsRepository pqrsRepository;
@@ -68,8 +73,9 @@ class CashRefundServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new CashRefundServiceImpl(purchaseItemCashRefundRepository, adminDetailsRepository, treasuryService,
-                pqrsRepository, emailService, notificationService, requesterNameResolver);
+        service = new CashRefundServiceImpl(purchaseItemCashRefundRepository, purchaseItemRepository,
+                adminDetailsRepository, treasuryService, pqrsRepository, emailService, notificationService,
+                requesterNameResolver);
     }
 
     private PurchaseItemCashRefund pendingRefund(Long consumerId, long amountCents) {
@@ -79,6 +85,7 @@ class CashRefundServiceImplTest {
         PurchaseItem item = new PurchaseItem();
         item.setId(5L);
         item.setPurchase(purchase);
+        item.setStatus(PurchaseItemStatus.IN_REVIEW);
 
         return PurchaseItemCashRefund.builder()
                 .id(UUID.randomUUID())
@@ -206,7 +213,7 @@ class CashRefundServiceImplTest {
         }
 
         @Test
-        @DisplayName("sin PQRS vinculado: marca PAID y no toca PQRS ni notifica resolución")
+        @DisplayName("sin PQRS vinculado: marca PAID, no toca el status del ítem ni el PQRS, y no notifica resolución")
         void withoutLinkedPqrs_doesNotTouchPqrs() {
             PurchaseItemCashRefund refund = pendingRefund(9L, 30_000L);
             refund.submitBankDetails("Juan Pérez", "123456", DocType.CC, "Bancolombia", "9988776655",
@@ -218,11 +225,14 @@ class CashRefundServiceImplTest {
 
             service.markPaid(refund.getId(), 99L);
 
-            verifyNoInteractions(pqrsRepository, emailService, notificationService);
+            // Sin PQRS vinculado (ej. vencimiento automático) no hay ítem en revisión
+            // que restaurar — este flujo no toca PurchaseItem.status.
+            assertThat(refund.getPurchaseItem().getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
+            verifyNoInteractions(purchaseItemRepository, pqrsRepository, emailService, notificationService);
         }
 
         @Test
-        @DisplayName("con PQRS vinculado: además resuelve ese PQRS y notifica al solicitante")
+        @DisplayName("con PQRS vinculado: marca el ítem REFUNDED, resuelve ese PQRS y notifica al solicitante")
         void withLinkedPqrs_resolvesItAndNotifies() {
             PurchaseItemCashRefund refund = pendingRefund(9L, 30_000L);
             refund.submitBankDetails("Juan Pérez", "123456", DocType.CC, "Bancolombia", "9988776655",
@@ -243,6 +253,10 @@ class CashRefundServiceImplTest {
 
             service.markPaid(refund.getId(), 99L);
 
+            // Único punto donde este ítem llega a REFUNDED (ver PurchaseItemRefundServiceImpl.refund).
+            assertThat(refund.getPurchaseItem().getStatus()).isEqualTo(PurchaseItemStatus.REFUNDED);
+            verify(purchaseItemRepository).save(refund.getPurchaseItem());
+
             assertThat(linkedPqrs.getStatus()).isEqualTo(PqrsStatus.RESUELTA);
             assertThat(linkedPqrs.getResolvedAt()).isNotNull();
             verify(pqrsRepository).save(linkedPqrs);
@@ -251,17 +265,47 @@ class CashRefundServiceImplTest {
         }
     }
 
+    @Nested
+    @DisplayName("findByPurchaseItemId")
+    class FindByPurchaseItemId {
+
+        @Test
+        @DisplayName("existe reembolso para ese ítem: lo devuelve mapeado")
+        void found_returnsMappedDto() {
+            PurchaseItemCashRefund refund = pendingRefund(9L, 30_000L);
+            refund.submitBankDetails("Juan Pérez", "123456", DocType.CC, "Bancolombia", "9988776655",
+                    BankAccountType.SAVINGS);
+            when(purchaseItemCashRefundRepository.findByPurchaseItemId(5L)).thenReturn(Optional.of(refund));
+
+            Optional<CashRefundResponseDTO> result = service.findByPurchaseItemId(5L);
+
+            assertThat(result).isPresent();
+            assertThat(result.get().getAccountNumber()).isEqualTo("9988776655");
+            assertThat(result.get().getPurchaseItemId()).isEqualTo(5L);
+        }
+
+        @Test
+        @DisplayName("no hay reembolso para ese ítem: devuelve vacío")
+        void notFound_returnsEmpty() {
+            when(purchaseItemCashRefundRepository.findByPurchaseItemId(5L)).thenReturn(Optional.empty());
+
+            assertThat(service.findByPurchaseItemId(5L)).isEmpty();
+        }
+    }
+
     @Test
-    @DisplayName("getPendingPayments: delega en el repositorio filtrando por PENDING_PAYMENT")
-    void getPendingPayments_delegatesToRepository() {
+    @DisplayName("getRefunds: delega en el repositorio filtrando por status y rango de fechas de creacion")
+    void getRefunds_delegatesToRepository() {
         PurchaseItemCashRefund refund = pendingRefund(9L, 30_000L);
         Pageable pageable = Pageable.ofSize(20);
         Page<PurchaseItemCashRefund> page = new PageImpl<>(java.util.List.of(refund));
+        ZonedDateTime startDate = ZonedDateTime.now().minusDays(7);
+        ZonedDateTime endDate = ZonedDateTime.now();
 
-        when(purchaseItemCashRefundRepository.findByStatus(CashRefundStatus.PENDING_PAYMENT, pageable))
-                .thenReturn(page);
+        when(purchaseItemCashRefundRepository.findByStatusAndRangeDates(CashRefundStatus.PENDING_PAYMENT, startDate,
+                endDate, pageable)).thenReturn(page);
 
-        var result = service.getPendingPayments(pageable);
+        var result = service.getRefunds(CashRefundStatus.PENDING_PAYMENT, startDate, endDate, pageable);
 
         assertThat(result.getData()).hasSize(1);
         assertThat(result.getData().get(0).getAmountCents()).isEqualTo(30_000L);

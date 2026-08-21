@@ -237,7 +237,7 @@ class RaffleServiceImplTest {
 
         private UpdateRaffleRequestDTO validRequest() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(1);
-            return new UpdateRaffleRequestDTO("Nuevo título", "Nueva descripción", RaffleType.STANDARD, false,
+            return new UpdateRaffleRequestDTO("Nuevo título", "Nueva descripción", RaffleType.STANDARD,
                     start, start.plusDays(5), start.plusDays(6), null);
         }
 
@@ -257,7 +257,7 @@ class RaffleServiceImplTest {
         @DisplayName("drawDate no es posterior a endDate: lanza InvalidRequestException")
         void drawDateNotAfterEndDate_throwsInvalidRequestException() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(1);
-            UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD, false,
+            UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD,
                     start, start.plusDays(5), start.plusDays(5), null); // drawDate == endDate
 
             assertThatThrownBy(() -> service.updateRaffle(9L, 1L, request))
@@ -268,7 +268,7 @@ class RaffleServiceImplTest {
         @DisplayName("endDate no es posterior a startDate: lanza InvalidRequestException")
         void endDateNotAfterStartDate_throwsInvalidRequestException() {
             ZonedDateTime start = ZonedDateTime.now().plusDays(5);
-            UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD, false,
+            UpdateRaffleRequestDTO request = new UpdateRaffleRequestDTO("t", "d", RaffleType.STANDARD,
                     start, start, start.plusDays(6), null); // endDate == startDate
 
             assertThatThrownBy(() -> service.updateRaffle(9L, 1L, request))
@@ -288,7 +288,7 @@ class RaffleServiceImplTest {
                     BigDecimal.TEN, PrizeType.PHYSICAL, 1, 1, "code", "instructions");
             CreateRaffleRuleRequestDTO rule = new CreateRaffleRuleRequestDTO(1L, 100L);
             return new CreateRaffleRequestDTO("t", "d", RaffleType.STANDARD, start, start.plusDays(5),
-                    start.plusDays(6), 100L, 10L, false, DrawMethod.SYSTEM_RANDOM, List.of(prize), List.of(rule),
+                    start.plusDays(6), 100L, 10L, DrawMethod.SYSTEM_RANDOM, List.of(prize), List.of(rule),
                     "terms", null);
         }
 

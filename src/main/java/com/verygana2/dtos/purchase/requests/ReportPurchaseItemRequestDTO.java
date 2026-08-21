@@ -1,5 +1,7 @@
 package com.verygana2.dtos.purchase.requests;
 
+import java.util.List;
+
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 
 import jakarta.validation.constraints.NotBlank;
@@ -16,4 +18,10 @@ public class ReportPurchaseItemRequestDTO {
     @NotBlank(message = "Description is required")
     @Size(max = 2000, message = "Description must not exceed 2000 characters")
     private String description;
+
+    /**
+     * Opcional — ids de PqrsAsset ya subidos y confirmados (VALIDATED) que el
+     * comprador quiere adjuntar como evidencia. Ver POST /pqrs/assets/prepare-upload.
+     */
+    private List<Long> assetIds;
 }

@@ -61,10 +61,14 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
             productStockRepository.save(stock);
         }
 
-        item.setStatus(PurchaseItemStatus.REFUNDED);
-        purchaseItemRepository.save(item);
+        // maxKeysPct nunca llega a 100 (20/35/50 según el plan del comercial — ver
+        // Product.maxKeysPct), así que todo ítem tiene una porción en efectivo
+        // mínima obligatoria: cashRefund nunca es null aquí. El ítem se queda
+        // IN_REVIEW — CashRefundServiceImpl.markPaid es el único lugar donde
+        // puede llegar a REFUNDED.
+        log.info("[REFUND] PurchaseItem {} en espera de pago manual del reembolso, sigue IN_REVIEW (reason={})",
+                item.getId(), reason);
 
-        log.info("[REFUND] PurchaseItem {} reembolsado internamente (reason={})", item.getId(), reason);
         return cashRefund;
     }
 

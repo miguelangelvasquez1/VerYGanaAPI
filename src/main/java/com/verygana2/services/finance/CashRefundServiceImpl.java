@@ -2,6 +2,7 @@ package com.verygana2.services.finance;
 
 import java.time.Instant;
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -15,12 +16,15 @@ import com.verygana2.dtos.finance.responses.CashRefundResponseDTO;
 import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.finance.CashRefundStatus;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.finance.PurchaseItemCashRefund;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.repositories.details.AdminDetailsRepository;
 import com.verygana2.repositories.finance.PurchaseItemCashRefundRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.repositories.pqrs.PqrsRepository;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
@@ -38,6 +42,7 @@ import lombok.extern.slf4j.Slf4j;
 public class CashRefundServiceImpl implements CashRefundService {
 
     private final PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
+    private final PurchaseItemRepository purchaseItemRepository;
     private final AdminDetailsRepository adminDetailsRepository;
     private final TreasuryService treasuryService;
     private final PqrsRepository pqrsRepository;
@@ -76,11 +81,18 @@ public class CashRefundServiceImpl implements CashRefundService {
 
     @Override
     @Transactional(readOnly = true)
-    public PagedResponse<CashRefundResponseDTO> getPendingPayments(Pageable pageable) {
+    public PagedResponse<CashRefundResponseDTO> getRefunds(CashRefundStatus status, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable) {
         Page<CashRefundResponseDTO> page = purchaseItemCashRefundRepository
-                .findByStatus(CashRefundStatus.PENDING_PAYMENT, pageable)
+                .findByStatusAndRangeDates(status, startDate, endDate, pageable)
                 .map(this::toResponseDTO);
         return PagedResponse.from(page);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<CashRefundResponseDTO> findByPurchaseItemId(Long purchaseItemId) {
+        return purchaseItemCashRefundRepository.findByPurchaseItemId(purchaseItemId)
+                .map(this::toResponseDTO);
     }
 
     @Override
@@ -109,6 +121,13 @@ public class CashRefundServiceImpl implements CashRefundService {
         log.info("[CASH-REFUND] {} marcado como PAID por adminUserId={}", cashRefundId, adminUserId);
 
         if (cashRefund.getPqrs() != null) {
+            // Único lugar donde un ítem en revisión por reembolso con porción en
+            // efectivo llega a REFUNDED — ver PurchaseItemRefundServiceImpl.refund().
+            PurchaseItem item = cashRefund.getPurchaseItem();
+            item.setStatus(PurchaseItemStatus.REFUNDED);
+            item.setStatusBeforeReview(null);
+            purchaseItemRepository.save(item);
+
             resolveLinkedPqrs(cashRefund.getPqrs());
         }
     }

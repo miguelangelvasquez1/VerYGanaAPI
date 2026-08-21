@@ -1,6 +1,7 @@
 package com.verygana2.dtos.pqrs.responses;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
@@ -27,4 +28,7 @@ public class PqrsResponseDTO {
     private Long purchaseItemId;
     private MarketplaceIssueReason reasonCode;
     private PqrsResolutionAction action;
+
+    /** Evidencia adjunta por el solicitante — puede venir vacía. */
+    private List<PqrsAssetResponseDTO> assets;
 }

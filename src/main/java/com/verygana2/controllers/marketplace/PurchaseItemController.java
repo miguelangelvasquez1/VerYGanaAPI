@@ -89,7 +89,7 @@ public class PurchaseItemController {
         Long consumerId = jwt.getClaim("userId");
         PurchaseItem item = purchaseItemService.getReportableItem(purchaseItemId, consumerId);
         PqrsResponseDTO response = pqrsService.createPqrsForPurchaseItem(
-                item, request.getReason(), request.getDescription(), consumerId);
+                item, request.getReason(), request.getDescription(), consumerId, request.getAssetIds());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

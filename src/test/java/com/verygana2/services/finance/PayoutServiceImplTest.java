@@ -158,7 +158,7 @@ class PayoutServiceImplTest {
 
         private PayoutMethod verifiedMethod() {
             return PayoutMethod.builder().verificationStatus(VerificationStatus.VERIFIED)
-                    .type(PayoutMethod.PayoutMethodType.BANK_TRANSFER)
+                    .type(PayoutMethod.PayoutMethodType.BANK_ACCOUNT)
                     .accountHolderDocType(PayoutMethod.DocType.CC).accountHolderDoc("123")
                     .accountHolderName("Juan").bankCode("bank-uuid-1007")
                     .bankAccountType(PayoutMethod.BankAccountType.SAVINGS).accountNumber("999").build();

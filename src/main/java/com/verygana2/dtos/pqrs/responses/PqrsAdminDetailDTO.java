@@ -1,6 +1,7 @@
 package com.verygana2.dtos.pqrs.responses;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
@@ -33,4 +34,11 @@ public class PqrsAdminDetailDTO {
     private Long purchaseItemId;
     private MarketplaceIssueReason reasonCode;
     private PqrsResolutionAction action;
+
+    /** Evidencia adjunta por el solicitante — puede venir vacía. */
+    private List<PqrsAssetResponseDTO> assets;
+
+    /** Nullable — solo presente si el PQRS tiene purchaseItem vinculado. Da contexto para resolver sin salir del detalle. */
+    private PqrsProductContextDTO product;
+    private PqrsCommercialContextDTO commercial;
 }

@@ -1,5 +1,7 @@
 package com.verygana2.services.interfaces.finance;
 
+import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
@@ -7,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.finance.requests.SubmitCashRefundBankDetailsRequestDTO;
 import com.verygana2.dtos.finance.responses.CashRefundResponseDTO;
+import com.verygana2.models.enums.finance.CashRefundStatus;
 
 public interface CashRefundService {
 
@@ -17,8 +20,15 @@ public interface CashRefundService {
      */
     void submitBankDetails(Long purchaseItemId, Long consumerId, SubmitCashRefundBankDetailsRequestDTO dto);
 
-    /** Reembolsos en efectivo pendientes de pago manual, para el panel de admin. */
-    PagedResponse<CashRefundResponseDTO> getPendingPayments(Pageable pageable);
+    PagedResponse<CashRefundResponseDTO> getRefunds(CashRefundStatus status, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
+
+    /**
+     * Reembolso en efectivo asociado a un PurchaseItem, si existe. Pensado para
+     * el detalle de un PQRS: si el PQRS trae purchaseItemId, el panel de admin
+     * consulta esto para mostrar los datos bancarios y permitir marcarlo pagado
+     * sin salir de la solicitud.
+     */
+    Optional<CashRefundResponseDTO> findByPurchaseItemId(Long purchaseItemId);
 
     /**
      * El admin confirma que ya hizo la transferencia manual. Dispara

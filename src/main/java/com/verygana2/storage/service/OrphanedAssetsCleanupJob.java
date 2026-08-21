@@ -13,13 +13,16 @@ import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.branding.Asset;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.pqrs.PqrsAssetStatus;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.marketplace.ProductImageAsset;
+import com.verygana2.models.pqrs.PqrsAsset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
+import com.verygana2.repositories.pqrs.PqrsAssetRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +47,7 @@ public class OrphanedAssetsCleanupJob {
     private final StoryMediaAssetRepository storyMediaAssetRepository;
     private final ProductImageAssetRepository productImageAssetRepository;
     private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
+    private final PqrsAssetRepository pqrsAssetRepository;
     private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
@@ -174,6 +178,33 @@ public class OrphanedAssetsCleanupJob {
                 productCategoryImageAssetRepository.save(asset);
 
                 log.info("Product Category Image Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    }
+
+    // For PQRS evidence
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupPqrsAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        // Barre PENDING/ORPHANED vencidos y también VALIDATED-sin-reclamar
+        // vencidos (usuario subió evidencia pero nunca radicó el PQRS) — ver
+        // PqrsAssetRepository.findDeletableAssets.
+        List<PqrsAsset> assets = pqrsAssetRepository.findDeletableAssets(threshold);
+        log.info("Cleanup job: {} candidate pqrs assets", assets.size());
+
+        for (PqrsAsset asset : assets) {
+            try {
+                r2Service.deleteObject("private/" + asset.getObjectKey());
+                asset.setStatus(PqrsAssetStatus.DELETED);
+                pqrsAssetRepository.save(asset);
+
+                log.info("PQRS Asset {} deleted from R2", asset.getId());
 
             } catch (Exception e) {
                 log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());

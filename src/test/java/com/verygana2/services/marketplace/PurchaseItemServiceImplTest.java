@@ -337,6 +337,17 @@ class PurchaseItemServiceImplTest {
         }
 
         @Test
+        @DisplayName("ítem IN_REVIEW (ya hay un PQRS abierto sobre él): lanza InvalidStatusException")
+        void inReviewItem_throwsInvalidStatusException() {
+            PurchaseItem item = new PurchaseItem();
+            item.setStatus(PurchaseItemStatus.IN_REVIEW);
+            when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
+
+            assertThatThrownBy(() -> service.getReportableItem(1L, 9L))
+                    .isInstanceOf(InvalidStatusException.class);
+        }
+
+        @Test
         @DisplayName("ítem CLAIMED dentro de la ventana de 48h: lo retorna")
         void claimedWithinWindow_returnsItem() {
             PurchaseItem item = new PurchaseItem();

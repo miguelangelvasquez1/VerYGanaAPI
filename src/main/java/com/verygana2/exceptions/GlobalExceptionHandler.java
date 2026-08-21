@@ -42,6 +42,7 @@ import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
@@ -463,6 +464,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidPayoutMethodStateException(
             InvalidPayoutMethodStateException ex, WebRequest request) {
         log.warn("Invalid payout method state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PayoutMethodRequiredException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodRequiredException(
+            PayoutMethodRequiredException ex, WebRequest request) {
+        log.warn("Payout method required: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 

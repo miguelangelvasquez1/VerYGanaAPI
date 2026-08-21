@@ -22,10 +22,13 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.pqrs.requests.CreatePqrsRequestDTO;
 import com.verygana2.dtos.pqrs.requests.RespondPqrsRequestDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsAdminDetailDTO;
+import com.verygana2.dtos.pqrs.responses.PqrsAssetResponseDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsResponseDTO;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
+import com.verygana2.mappers.pqrs.PqrsAssetMapper;
 import com.verygana2.mappers.pqrs.PqrsMapper;
 import com.verygana2.models.User;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
@@ -33,12 +36,15 @@ import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
+import com.verygana2.models.pqrs.PqrsAsset;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.repositories.pqrs.PqrsRepository;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
+import com.verygana2.services.interfaces.pqrs.PqrsAssetService;
 import com.verygana2.utils.pqrs.BusinessDayCalculator;
 import com.verygana2.utils.pqrs.RequesterNameResolver;
 
@@ -69,6 +75,7 @@ class PqrsServiceImplTest {
 
     @Mock private PqrsRepository pqrsRepository;
     @Mock private UserRepository userRepository;
+    @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private PqrsAssignmentService pqrsAssignmentService;
     @Mock private PqrsMapper pqrsMapper;
     @Mock private EmailService emailService;
@@ -77,14 +84,16 @@ class PqrsServiceImplTest {
     @Mock private PqrsSlaProperties pqrsSlaProperties;
     @Mock private RequesterNameResolver requesterNameResolver;
     @Mock private PurchaseItemRefundService purchaseItemRefundService;
+    @Mock private PqrsAssetService pqrsAssetService;
+    @Mock private PqrsAssetMapper pqrsAssetMapper;
 
     private PqrsServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PqrsServiceImpl(pqrsRepository, userRepository, pqrsAssignmentService, pqrsMapper,
-                emailService, notificationService, businessDayCalculator, pqrsSlaProperties, requesterNameResolver,
-                purchaseItemRefundService);
+        service = new PqrsServiceImpl(pqrsRepository, userRepository, purchaseItemRepository, pqrsAssignmentService,
+                pqrsMapper, emailService, notificationService, businessDayCalculator, pqrsSlaProperties,
+                requesterNameResolver, purchaseItemRefundService, pqrsAssetService, pqrsAssetMapper);
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -123,6 +132,7 @@ class PqrsServiceImplTest {
         PurchaseItem item = new PurchaseItem();
         item.setId(id);
         item.setPurchase(purchase);
+        item.setStatus(PurchaseItemStatus.CLAIMED);
         return item;
     }
 
@@ -166,6 +176,7 @@ class PqrsServiceImplTest {
             when(businessDayCalculator.addBusinessDays(any(), eq(15))).thenReturn(ZonedDateTime.now().plusDays(21));
             when(pqrsAssignmentService.pickNextAdmin()).thenReturn(Optional.of(assignedAdmin));
             when(pqrsRepository.save(any(Pqrs.class))).thenReturn(saved);
+            when(pqrsAssetService.validateAndClaimAssets(null, 1L, saved)).thenReturn(List.of());
             // Se resuelve el nombre tanto del solicitante (email de confirmación) como
             // del admin recién asignado (notificación in-app y email de asignación).
             when(requesterNameResolver.resolve(any(User.class))).thenReturn("Nombre Resuelto");
@@ -198,6 +209,7 @@ class PqrsServiceImplTest {
             when(businessDayCalculator.addBusinessDays(any(), eq(15))).thenReturn(ZonedDateTime.now().plusDays(21));
             when(pqrsAssignmentService.pickNextAdmin()).thenReturn(Optional.empty());
             when(pqrsRepository.save(any(Pqrs.class))).thenReturn(saved);
+            when(pqrsAssetService.validateAndClaimAssets(null, 1L, saved)).thenReturn(List.of());
             when(requesterNameResolver.resolve(requester)).thenReturn("Juan Pérez");
             when(pqrsMapper.toResponseDTO(saved)).thenReturn(new PqrsResponseDTO());
 
@@ -219,7 +231,7 @@ class PqrsServiceImplTest {
             assertThatThrownBy(() -> service.createPqrs(dto, 404L))
                     .isInstanceOf(EntityNotFoundException.class);
 
-            verifyNoInteractions(pqrsRepository, pqrsAssignmentService, emailService, notificationService);
+            verifyNoInteractions(pqrsRepository, pqrsAssignmentService, emailService, notificationService, pqrsAssetService);
         }
     }
 
@@ -247,14 +259,77 @@ class PqrsServiceImplTest {
 
             var captor = ArgumentCaptor.forClass(Pqrs.class);
             when(pqrsRepository.save(captor.capture())).thenReturn(saved);
+            when(pqrsAssetService.validateAndClaimAssets(null, 1L, saved)).thenReturn(List.of());
 
-            service.createPqrsForPurchaseItem(item, MarketplaceIssueReason.CODE_INVALID, "El código no funciona", 1L);
+            service.createPqrsForPurchaseItem(item, MarketplaceIssueReason.CODE_INVALID, "El código no funciona", 1L, null);
 
             Pqrs persisted = captor.getValue();
             assertThat(persisted.getType()).isEqualTo(PqrsType.RECLAMO);
             assertThat(persisted.getPurchaseItem()).isSameAs(item);
             assertThat(persisted.getReasonCode()).isEqualTo(MarketplaceIssueReason.CODE_INVALID);
             assertThat(persisted.getDescription()).isEqualTo("El código no funciona");
+
+            // El ítem entra en revisión y guarda su status previo para poder
+            // restaurarlo si el admin descarta el reclamo.
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
+            assertThat(item.getStatusBeforeReview()).isEqualTo(PurchaseItemStatus.CLAIMED);
+            verify(purchaseItemRepository).save(item);
+        }
+
+        @Test
+        @DisplayName("con evidencia adjunta: reclama los assets para el Pqrs creado y los devuelve en el DTO")
+        void withAssetIds_claimsAssetsAndReturnsThemInResponse() {
+            User requester = requester(1L);
+            PurchaseItem item = purchaseItem(5L);
+            AdminDetails assignedAdmin = admin(99L);
+            Pqrs saved = marketplacePqrs(21L, PqrsStatus.RECIBIDA, requester, assignedAdmin, item,
+                    MarketplaceIssueReason.NOT_AS_DESCRIBED);
+            List<Long> assetIds = List.of(100L, 101L);
+            PqrsAsset claimedAsset = PqrsAsset.builder().id(100L).ownerUserId(1L).objectKey("pqrs-evidence/1/a").build();
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+            when(pqrsSlaProperties.getSlaDaysFor(PqrsType.RECLAMO)).thenReturn(15);
+            when(businessDayCalculator.addBusinessDays(any(), eq(15))).thenReturn(ZonedDateTime.now().plusDays(21));
+            when(pqrsAssignmentService.pickNextAdmin()).thenReturn(Optional.of(assignedAdmin));
+            when(requesterNameResolver.resolve(any(User.class))).thenReturn("Nombre Resuelto");
+            when(pqrsRepository.save(any(Pqrs.class))).thenReturn(saved);
+            when(pqrsAssetService.validateAndClaimAssets(assetIds, 1L, saved)).thenReturn(List.of(claimedAsset));
+            when(pqrsMapper.toResponseDTO(saved)).thenReturn(new PqrsResponseDTO());
+            PqrsAssetResponseDTO mappedAsset = new PqrsAssetResponseDTO();
+            mappedAsset.setViewUrl("/pqrs/assets/100/view");
+            when(pqrsAssetMapper.toResponseDTO(claimedAsset)).thenReturn(mappedAsset);
+
+            PqrsResponseDTO result = service.createPqrsForPurchaseItem(
+                    item, MarketplaceIssueReason.NOT_AS_DESCRIBED, "No corresponde", 1L, assetIds);
+
+            assertThat(result.getAssets()).hasSize(1);
+            assertThat(result.getAssets().get(0).getViewUrl()).isEqualTo("/pqrs/assets/100/view");
+            verify(pqrsAssetService).validateAndClaimAssets(assetIds, 1L, saved);
+        }
+
+        @Test
+        @DisplayName("evidencia inválida (ej. dueño incorrecto): la excepción se propaga y no se envían notificaciones")
+        void invalidAssets_propagatesExceptionWithoutNotifying() {
+            User requester = requester(1L);
+            PurchaseItem item = purchaseItem(5L);
+            AdminDetails assignedAdmin = admin(99L);
+            Pqrs saved = marketplacePqrs(22L, PqrsStatus.RECIBIDA, requester, assignedAdmin, item,
+                    MarketplaceIssueReason.CODE_INVALID);
+            List<Long> assetIds = List.of(999L);
+
+            when(userRepository.findById(1L)).thenReturn(Optional.of(requester));
+            when(pqrsSlaProperties.getSlaDaysFor(PqrsType.RECLAMO)).thenReturn(15);
+            when(businessDayCalculator.addBusinessDays(any(), eq(15))).thenReturn(ZonedDateTime.now().plusDays(21));
+            when(pqrsAssignmentService.pickNextAdmin()).thenReturn(Optional.of(assignedAdmin));
+            when(pqrsRepository.save(any(Pqrs.class))).thenReturn(saved);
+            when(pqrsAssetService.validateAndClaimAssets(assetIds, 1L, saved))
+                    .thenThrow(new PqrsAccessDeniedException("El archivo 999 no pertenece a este usuario"));
+
+            assertThatThrownBy(() -> service.createPqrsForPurchaseItem(
+                    item, MarketplaceIssueReason.CODE_INVALID, "x", 1L, assetIds))
+                    .isInstanceOf(PqrsAccessDeniedException.class);
+
+            verifyNoInteractions(emailService, notificationService);
         }
     }
 
@@ -487,9 +562,10 @@ class PqrsServiceImplTest {
         }
 
         @Test
-        @DisplayName("PQRS vinculado a un ítem con action=DISMISS: resuelve sin ejecutar reembolso")
+        @DisplayName("PQRS vinculado a un ítem con action=DISMISS: restaura el status previo del ítem y resuelve sin ejecutar reembolso")
         void marketplaceLinkedWithDismiss_resolvesWithoutRefund() {
             PurchaseItem item = purchaseItem(5L);
+            item.enterReview(); // simula que el ítem ya estaba IN_REVIEW (guardó CLAIMED como previo)
             Pqrs pqrs = marketplacePqrs(1L, PqrsStatus.RECIBIDA, requester(1L), admin(99L), item,
                     MarketplaceIssueReason.NOT_DELIVERED);
             RespondPqrsRequestDTO dto = new RespondPqrsRequestDTO();
@@ -504,6 +580,9 @@ class PqrsServiceImplTest {
 
             assertThat(pqrs.getStatus()).isEqualTo(PqrsStatus.RESUELTA);
             assertThat(pqrs.getAction()).isEqualTo(PqrsResolutionAction.DISMISS);
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
+            assertThat(item.getStatusBeforeReview()).isNull();
+            verify(purchaseItemRepository).save(item);
             verifyNoInteractions(purchaseItemRefundService);
         }
 

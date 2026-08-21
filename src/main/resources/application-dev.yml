@@ -374,6 +374,14 @@ legal:
     max-size-bytes: 10485760 # 10 MB
 
 # ============================================
+# PQRS — evidencia adjunta (foto/video, opcional)
+# ============================================
+pqrs:
+  assets:
+    max-size-bytes: 26214400 # 25 MB (imagen o video)
+    max-count: 5
+
+# ============================================
 # OBSERVABILIDAD (dev)
 # ============================================
 observability:

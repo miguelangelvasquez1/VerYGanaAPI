@@ -108,19 +108,21 @@ class PurchaseItemRefundServiceImplTest {
         }
 
         @Test
-        @DisplayName("sin llaves: revierte tesorería (todo como efectivo), marca REFUNDED, crea el reembolso en efectivo pendiente, y el stock NO vuelve a AVAILABLE (código ya fue revelado)")
-        void withoutKeys_reversesTreasuryCreatesCashRefundAndMarksRefunded() {
-            PurchaseItem item = itemWithStock(100_000L, 100_000L, 10_000L, 90_000L, PurchaseItemStatus.CLAIMED);
+        @DisplayName("sin llaves: revierte tesorería (todo como efectivo), crea el reembolso en efectivo pendiente, el ítem se queda IN_REVIEW (esperando markPaid), y el stock NO vuelve a AVAILABLE (código ya fue revelado)")
+        void withoutKeys_reversesTreasuryCreatesCashRefundAndStaysInReview() {
+            PurchaseItem item = itemWithStock(100_000L, 100_000L, 10_000L, 90_000L, PurchaseItemStatus.IN_REVIEW);
             Copayment copayment = copayment(consumer(1L), 0L);
             when(copaymentRepository.findByPurchaseId(50L)).thenReturn(Optional.of(copayment));
 
             PurchaseItemCashRefund result = service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
             verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 100_000L, copayment.getId());
-            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.REFUNDED);
+            // Hay porción en efectivo pendiente de pago manual: el ítem NO pasa a
+            // REFUNDED todavía — eso solo ocurre en CashRefundServiceImpl.markPaid.
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
             assertThat(item.getAssignedProductStock().getStatus()).isEqualTo(StockStatus.SOLD); // sin tocar
             verifyNoInteractions(keyWalletRepository);
-            verify(purchaseItemRepository).save(item);
+            verify(purchaseItemRepository, never()).save(item);
 
             var captor = org.mockito.ArgumentCaptor.forClass(PurchaseItemCashRefund.class);
             verify(purchaseItemCashRefundRepository).save(captor.capture());
@@ -145,7 +147,7 @@ class PurchaseItemRefundServiceImplTest {
         @Test
         @DisplayName("con PQRS vinculado: el reembolso en efectivo creado queda enlazado a ese PQRS")
         void withLinkedPqrs_cashRefundReferencesIt() {
-            PurchaseItem item = itemWithStock(100_000L, 100_000L, 10_000L, 90_000L, PurchaseItemStatus.CLAIMED);
+            PurchaseItem item = itemWithStock(100_000L, 100_000L, 10_000L, 90_000L, PurchaseItemStatus.IN_REVIEW);
             Copayment copayment = copayment(consumer(1L), 0L);
             when(copaymentRepository.findByPurchaseId(50L)).thenReturn(Optional.of(copayment));
             Pqrs pqrs = Pqrs.builder().id(9L).build();
@@ -162,7 +164,7 @@ class PurchaseItemRefundServiceImplTest {
             // Compra de 100.000 total, este ítem es la mitad (50.000), copayment usó 40.000 en llaves
             // → porción de llaves del ítem = 40.000 * (50.000/100.000) = 20.000
             // → porción en efectivo del ítem = (5.000+45.000) - 20.000 = 30.000
-            PurchaseItem item = itemWithStock(100_000L, 50_000L, 5_000L, 45_000L, PurchaseItemStatus.CLAIMED);
+            PurchaseItem item = itemWithStock(100_000L, 50_000L, 5_000L, 45_000L, PurchaseItemStatus.IN_REVIEW);
             ConsumerDetails consumerDetails = consumer(1L);
             Copayment copayment = copayment(consumerDetails, 40_000L);
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
@@ -183,9 +185,9 @@ class PurchaseItemRefundServiceImplTest {
         }
 
         @Test
-        @DisplayName("compra pagada 100% con llaves: no crea reembolso en efectivo")
-        void fullyPaidWithKeys_doesNotCreateCashRefund() {
-            PurchaseItem item = itemWithStock(50_000L, 50_000L, 5_000L, 45_000L, PurchaseItemStatus.CLAIMED);
+        @DisplayName("caso límite artificial, 100% cubierto por llaves (en la práctica maxKeysPct nunca llega a 100 — ver Product.maxKeysPct): no crea reembolso en efectivo; refund() no toca el status, sigue IN_REVIEW")
+        void fullyPaidWithKeys_doesNotCreateCashRefundAndDoesNotTouchStatus() {
+            PurchaseItem item = itemWithStock(50_000L, 50_000L, 5_000L, 45_000L, PurchaseItemStatus.IN_REVIEW);
             ConsumerDetails consumerDetails = consumer(1L);
             Copayment copayment = copayment(consumerDetails, 50_000L);
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
@@ -197,6 +199,10 @@ class PurchaseItemRefundServiceImplTest {
 
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(50_000L);
             verifyNoInteractions(purchaseItemCashRefundRepository);
+            // refund() ya no toca el status del ítem directamente en ningún caso —
+            // eso queda exclusivamente en manos de CashRefundServiceImpl.markPaid.
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
+            verify(purchaseItemRepository, never()).save(item);
         }
 
         @Test

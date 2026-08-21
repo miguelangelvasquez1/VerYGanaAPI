@@ -23,10 +23,13 @@ import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.exceptions.GameRewardException;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.InvalidStatusException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.models.finance.PayoutMethod;
+import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
@@ -214,6 +217,7 @@ class ProductServiceImplTest {
             mappedProduct.setPriceCents(1_500_000L); // simula lo que el mapper real produciría para $15.000 COP
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
@@ -241,6 +245,7 @@ class ProductServiceImplTest {
             ProductImageAsset asset = pendingAsset();
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
@@ -267,12 +272,59 @@ class ProductServiceImplTest {
             asset.setProduct(new Product()); // ya vinculado
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
 
             assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000))))
                     .isInstanceOf(ValidationException.class);
 
             verify(assetOrphanedService).markProductImageAssetsAsOrphanedByIds(List.of(500L));
+        }
+
+        @Test
+        @DisplayName("primer producto sin método de pago verificado: lanza PayoutMethodRequiredException")
+        void firstProductWithoutVerifiedPayoutMethod_throwsPayoutMethodRequiredException() {
+            CommercialDetails commercial = commercial(1L);
+
+            when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(0L);
+
+            assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000))))
+                    .isInstanceOf(PayoutMethodRequiredException.class);
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("primer producto con método de pago verificado: sigue el flujo normal")
+        void firstProductWithVerifiedPayoutMethod_succeeds() {
+            CommercialDetails commercial = commercial(1L);
+            commercial.setDefaultPayoutMethod(
+                    PayoutMethod.builder().verificationStatus(VerificationStatus.VERIFIED).active(true).build());
+            ProductImageAsset asset = pendingAsset();
+            Product mappedProduct = new Product();
+            mappedProduct.setStockItems(List.of());
+            mappedProduct.setPriceCents(1_500_000L);
+
+            when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(0L);
+            when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
+            when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
+                    .thenReturn(SupportedMimeType.IMAGE_PNG);
+            when(assetDurationService.getImageDimensions(anyString()))
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
+            when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
+            when(productMapper.toProduct(any())).thenReturn(mappedProduct);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+                Product p = inv.getArgument(0);
+                p.setId(77L);
+                return p;
+            });
+
+            var response = service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000)));
+
+            assertThat(response.getId()).isEqualTo(77L);
+            verify(productRepository).save(any(Product.class));
         }
     }
 

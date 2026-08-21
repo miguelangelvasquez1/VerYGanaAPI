@@ -28,4 +28,48 @@ class PurchaseItemTest {
         assertThat(PurchaseItem.builder().status(PurchaseItemStatus.CLAIMED).build().canBeReviewed()).isTrue();
         assertThat(PurchaseItem.builder().status(PurchaseItemStatus.PENDING).build().canBeReviewed()).isFalse();
     }
+
+    @Test
+    @DisplayName("enterReview: pasa a IN_REVIEW y guarda el status anterior")
+    void enterReview_movesToInReviewAndSavesPreviousStatus() {
+        PurchaseItem item = PurchaseItem.builder().status(PurchaseItemStatus.CLAIMED).build();
+
+        item.enterReview();
+
+        assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
+        assertThat(item.getStatusBeforeReview()).isEqualTo(PurchaseItemStatus.CLAIMED);
+    }
+
+    @Test
+    @DisplayName("enterReview desde PENDING (físico aún no reclamado): guarda PENDING como previo")
+    void enterReview_fromPending_savesPendingAsPrevious() {
+        PurchaseItem item = PurchaseItem.builder().status(PurchaseItemStatus.PENDING).build();
+
+        item.enterReview();
+
+        assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
+        assertThat(item.getStatusBeforeReview()).isEqualTo(PurchaseItemStatus.PENDING);
+    }
+
+    @Test
+    @DisplayName("exitReviewDismissed: restaura exactamente el status guardado y limpia statusBeforeReview")
+    void exitReviewDismissed_restoresExactPreviousStatus() {
+        PurchaseItem item = PurchaseItem.builder().status(PurchaseItemStatus.PENDING).build();
+        item.enterReview();
+
+        item.exitReviewDismissed();
+
+        assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.PENDING);
+        assertThat(item.getStatusBeforeReview()).isNull();
+    }
+
+    @Test
+    @DisplayName("exitReviewDismissed sin statusBeforeReview: por defecto restaura CLAIMED")
+    void exitReviewDismissed_withoutPreviousStatus_defaultsToClaimed() {
+        PurchaseItem item = PurchaseItem.builder().status(PurchaseItemStatus.IN_REVIEW).build();
+
+        item.exitReviewDismissed();
+
+        assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
+    }
 }
