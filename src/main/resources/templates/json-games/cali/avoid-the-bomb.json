@@ -48,6 +48,22 @@
     "bad_model_scale": 1.0,
     "bonus_model_scale": 0.5
   },
+  "game": {
+    "good_objects": [
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Duck/glTF-Binary/Duck.glb", "scale": 1.0 },
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Avocado/glTF-Binary/Avocado.glb", "scale": 25.0 }
+    ],
+    "bomb_objects": [
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/WaterBottle/glTF-Binary/WaterBottle.glb", "scale": 5 }
+    ],
+    "bonus_items": [
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb", "effect_id": 1, "weight": 0.4, "scale": 2.0 },
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb", "effect_id": 2, "weight": 0.3, "scale": 2.0 },
+      { "url": "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Box/glTF-Binary/Box.glb", "effect_id": 3, "weight": 0.3, "scale": 2.0 }
+    ],
+    "click_effect_url": "",
+    "explosion_effect_url": ""
+  },
   "audio": {
     "music_url": "https://games.verygana.com/asset_tests/music-guitar.wav",
     "win_url": "https://games.verygana.com/asset_tests/slash.mp3",

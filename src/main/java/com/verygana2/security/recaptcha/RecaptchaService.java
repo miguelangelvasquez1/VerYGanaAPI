@@ -44,6 +44,7 @@ public class RecaptchaService {
             body.add("secret", secretKey);
             body.add("response", token);
 
+            @SuppressWarnings("unchecked")
             Map<String, Object> response = restClient.post()
                     .uri(VERIFY_URL)
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)

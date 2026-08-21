@@ -100,6 +100,10 @@ public class Subscription {
     @Column(name = "cancellation_reason", length = 500)
     private String cancellationReason;
 
+    /** Marca cuándo se envió el recordatorio de renovación, para no reenviarlo cada día dentro de la ventana. */
+    @Column(name = "renewal_reminder_sent_at")
+    private ZonedDateTime renewalReminderSentAt;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
 

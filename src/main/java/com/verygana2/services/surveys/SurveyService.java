@@ -1,5 +1,6 @@
 package com.verygana2.services.surveys;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -57,6 +58,7 @@ import com.verygana2.repositories.surveys.SurveyRepository;
 import com.verygana2.repositories.surveys.SurveySessionRepository;
 import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -84,9 +86,10 @@ public class SurveyService {
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
     private final SurveyScoringConfig scoringConfig;
+    private final NotificationService notificationService;
 
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS})
+    @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS}, requiresBudget = true)
     public SurveyResponseDTO createSurvey(CreateSurveyRequest request, Long commercialId) {
 
         long minPricePerQuestion = pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS);
@@ -199,12 +202,43 @@ public class SurveyService {
         return dto;
     }
 
+    /**
+     * Commercial: envía la encuesta (en DRAFT) a revisión del admin. No puede publicarse
+     * directamente — requiere aprobación previa vía {@link #approveSurvey}.
+     */
+    @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS})
+    public SurveyResponseDTO submitSurveyForReview(Long surveyId, Long commercialId) {
+        Survey survey = findSurveyOrThrow(surveyId);
+
+        if (survey.getCreator() == null || !survey.getCreator().getId().equals(commercialId)) {
+            throw new AccessDeniedException("No tienes permiso para enviar esta encuesta a revisión");
+        }
+        if (survey.getStatus() != Survey.SurveyStatus.DRAFT) {
+            throw new ValidationException("Solo se pueden enviar a revisión encuestas en borrador");
+        }
+
+        survey.setStatus(Survey.SurveyStatus.PENDING_REVIEW);
+        return mapper.toResponse(surveyRepository.save(survey));
+    }
+
+    /**
+     * Commercial: publica (activa) una encuesta ya aprobada por un admin.
+     */
     @Transactional
     @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS})
     public SurveyResponseDTO publishSurvey(Long surveyId, Long commercialId) {
         Survey survey = findSurveyOrThrow(surveyId);
+        if (survey.getCreator() == null || !survey.getCreator().getId().equals(commercialId)) {
+            throw new AccessDeniedException("No tienes permiso para publicar esta encuesta");
+        }
         if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
             throw new SurveySuspendedException(surveyId);
+        }
+        if (survey.getStatus() != Survey.SurveyStatus.APPROVED) {
+            throw new ValidationException(
+                    "La encuesta debe ser aprobada por un administrador antes de publicarse. Estado actual: "
+                            + survey.getStatus());
         }
         survey.setStatus(Survey.SurveyStatus.ACTIVE);
         activateIfFirstTime(survey);
@@ -254,41 +288,138 @@ public class SurveyService {
         return dto;
     }
 
-    private static final Set<Survey.SurveyStatus> ADMIN_ALLOWED_STATUSES =
-            EnumSet.of(Survey.SurveyStatus.CLOSED, Survey.SurveyStatus.SUSPENDED, Survey.SurveyStatus.PAUSED);
+    /**
+     * Admin: aprueba una encuesta en revisión (PENDING_REVIEW → APPROVED).
+     * A partir de aquí el comercial ya puede publicarla con {@link #publishSurvey}.
+     */
+    @Transactional
+    public SurveyResponseDTO approveSurvey(Long surveyId, Long adminId) {
+        Survey survey = findSurveyOrThrow(surveyId);
+
+        if (survey.getStatus() != Survey.SurveyStatus.PENDING_REVIEW) {
+            throw new ValidationException("Solo se pueden aprobar encuestas en revisión");
+        }
+
+        survey.setStatus(Survey.SurveyStatus.APPROVED);
+        Survey saved = surveyRepository.save(survey);
+        log.info("Admin {} approved survey {}", adminId, surveyId);
+
+        notificationService.createInternalNotification(
+                saved.getCreator().getUser().getId(),
+                "Encuesta aprobada",
+                "Tu encuesta \"" + saved.getTitle() + "\" fue aprobada y ya puedes publicarla",
+                Instant.now());
+
+        return mapper.toResponse(saved);
+    }
 
     /**
-     * Admin-only: restricted to CLOSED ("cancelled"), SUSPENDED, and PAUSED.
+     * Admin: rechaza una encuesta en revisión (PENDING_REVIEW → REJECTED). Rechazo es terminal
+     * y devuelve el presupuesto completo (similar a {@code AdServiceImpl.rejectAd}), ya que
+     * la encuesta nunca llegó a activarse ni a gastar presupuesto.
+     */
+    @Transactional
+    public SurveyResponseDTO rejectSurvey(Long surveyId, String reason, Long adminId) {
+        Survey survey = findSurveyOrThrow(surveyId);
+
+        if (survey.getStatus() != Survey.SurveyStatus.PENDING_REVIEW) {
+            throw new ValidationException("Solo se pueden rechazar encuestas en revisión");
+        }
+
+        survey.setRejectionReason(reason);
+        survey.setStatus(Survey.SurveyStatus.REJECTED);
+        Survey saved = surveyRepository.save(survey);
+        log.info("Admin {} rejected survey {}", adminId, surveyId);
+
+        refundRemainingBudget(saved);
+
+        notificationService.createInternalNotification(
+                saved.getCreator().getUser().getId(),
+                "Encuesta rechazada",
+                "Tu encuesta \"" + saved.getTitle() + "\" fue rechazada"
+                        + (reason != null && !reason.isBlank() ? ": " + reason : ""),
+                Instant.now());
+
+        return mapper.toResponse(saved);
+    }
+
+    private static final Set<Survey.SurveyStatus> ADMIN_ALLOWED_STATUSES =
+            EnumSet.of(Survey.SurveyStatus.SUSPENDED, Survey.SurveyStatus.PAUSED);
+
+    /**
+     * Admin-only: restricted to SUSPENDED and PAUSED.
      * PAUSED is only allowed to revert a SUSPENDED survey ("un-suspend") — it's not a general
      * admin pause tool, that stays with {@link #updateSurveyStatusAsCommercial}.
-     * CLOSED is terminal: once closed, no further admin transition is allowed.
+     * Encuestas no se pueden cancelar — no hay transición admin a estado terminal aquí.
+     * No refund on SUSPENDED: an admin can un-suspend (PAUSED) the survey later.
      * No ownership check.
      */
     @Transactional
     public SurveyResponseDTO updateSurveyStatus(Long surveyId, Survey.SurveyStatus status) {
         if (!ADMIN_ALLOWED_STATUSES.contains(status)) {
-            throw new ValidationException("Los administradores solo pueden cambiar el estado a CLOSED, SUSPENDED o PAUSED (para revertir una suspensión)");
+            throw new ValidationException("Los administradores solo pueden cambiar el estado a SUSPENDED o PAUSED (para revertir una suspensión)");
         }
 
         Survey survey = findSurveyOrThrow(surveyId);
 
-        if (survey.getStatus() == Survey.SurveyStatus.CLOSED) {
-            throw new ValidationException("La encuesta ya fue cerrada y no se puede revertir");
-        }
         if (status == Survey.SurveyStatus.PAUSED && survey.getStatus() != Survey.SurveyStatus.SUSPENDED) {
             throw new ValidationException("Los administradores solo pueden poner PAUSED al revertir una encuesta SUSPENDED");
         }
 
+        boolean isBlocking = status == Survey.SurveyStatus.SUSPENDED;
+
         survey.setStatus(status);
-        return mapper.toResponse(surveyRepository.save(survey));
+        Survey saved = surveyRepository.save(survey);
+
+        if (isBlocking) {
+            notificationService.createInternalNotification(
+                    saved.getCreator().getUser().getId(),
+                    "Encuesta bloqueada",
+                    "Tu encuesta \"" + saved.getTitle() + "\" fue bloqueada por un administrador",
+                    Instant.now());
+        }
+
+        return mapper.toResponse(saved);
+    }
+
+    /**
+     * Devuelve a la wallet del creador el presupuesto no gastado de la encuesta
+     * (total - lo ya pagado por sesiones completadas). Usado solo al rechazar una encuesta
+     * (REJECTED es terminal, a diferencia de SUSPENDED que se puede revertir).
+     */
+    private void refundRemainingBudget(Survey survey) {
+        if (survey.getMaxResponses() == null) {
+            return;
+        }
+
+        int questionCount = survey.getQuestions().size();
+        long completedSessions = sessionRepository.countBySurveyIdAndStatus(
+                survey.getId(), SurveySession.SessionStatus.COMPLETED);
+
+        long totalBudgetCents = (long) questionCount * survey.getMaxResponses() * survey.getRewardAmountPerQuestionCents();
+        long spentCents = completedSessions * questionCount * survey.getRewardAmountPerQuestionCents();
+        long remaining = totalBudgetCents - spentCents;
+
+        if (remaining <= 0) {
+            return;
+        }
+
+        Wallet wallet = walletRepository.findByCommercialId(survey.getCreator().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+
+        wallet.deposit(remaining);
+        walletRepository.save(wallet);
+        log.info("Refunded {} ¢ to commercial {} for rejected survey {}",
+                remaining, survey.getCreator().getId(), survey.getId());
     }
 
     private static final Set<Survey.SurveyStatus> COMMERCIAL_ALLOWED_STATUSES =
-            EnumSet.of(Survey.SurveyStatus.ACTIVE, Survey.SurveyStatus.PAUSED, Survey.SurveyStatus.CLOSED);
+            EnumSet.of(Survey.SurveyStatus.ACTIVE, Survey.SurveyStatus.PAUSED);
 
     /**
-     * Commercial-only status transition, restricted to ACTIVE / PAUSED / CLOSED ("cancelled").
-     * DRAFT surveys must go through {@link #publishSurvey} first; CLOSED is terminal.
+     * Commercial-only status transition, restricted to ACTIVE / PAUSED. Encuestas no se pueden
+     * cancelar por el comercial — no hay transición a un estado terminal aquí.
+     * DRAFT surveys must go through {@link #submitSurveyForReview} and {@link #publishSurvey} first.
      */
     @Transactional
     public SurveyResponseDTO updateSurveyStatusAsCommercial(Long surveyId, Survey.SurveyStatus status, Long commercialId) {
@@ -298,13 +429,12 @@ public class SurveyService {
             throw new AccessDeniedException("No tienes permiso para modificar esta encuesta");
         }
         if (!COMMERCIAL_ALLOWED_STATUSES.contains(status)) {
-            throw new ValidationException("Los comerciales solo pueden cambiar el estado entre ACTIVE, PAUSED o CLOSED");
+            throw new ValidationException("Los comerciales solo pueden cambiar el estado entre ACTIVE y PAUSED");
         }
-        if (survey.getStatus() == Survey.SurveyStatus.DRAFT) {
-            throw new ValidationException("La encuesta debe publicarse antes de cambiar su estado");
-        }
-        if (survey.getStatus() == Survey.SurveyStatus.CLOSED) {
-            throw new ValidationException("La encuesta ya fue cerrada y no se puede reactivar");
+        if (survey.getStatus() == Survey.SurveyStatus.DRAFT
+                || survey.getStatus() == Survey.SurveyStatus.PENDING_REVIEW
+                || survey.getStatus() == Survey.SurveyStatus.REJECTED) {
+            throw new ValidationException("La encuesta debe ser aprobada y publicada antes de cambiar su estado");
         }
         if (survey.getStatus() == Survey.SurveyStatus.COMPLETED) {
             throw new ValidationException("La encuesta ya completó su cupo de respuestas y no se puede modificar");

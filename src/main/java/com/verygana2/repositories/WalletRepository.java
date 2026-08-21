@@ -1,5 +1,6 @@
 package com.verygana2.repositories;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -8,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.verygana2.models.enums.finance.WalletStatus;
 import com.verygana2.models.finance.Wallet;
 
 import jakarta.persistence.LockModeType;
@@ -23,4 +25,6 @@ public interface WalletRepository extends JpaRepository<Wallet, Long> {
     Optional<Wallet> findByCommercialIdForUpdate(@Param("commercialId") Long commercialId);
 
     boolean existsByCommercialId (Long commercialId);
+
+    List<Wallet> findByStatusIn(List<WalletStatus> statuses);
 }
