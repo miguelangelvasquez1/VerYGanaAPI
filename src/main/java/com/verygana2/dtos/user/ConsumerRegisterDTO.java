@@ -73,4 +73,8 @@ public class ConsumerRegisterDTO {
     @NotNull(message = "PEP declaration is required")
     private Boolean isPEP;
 
+
+    @NotBlank(message = "El token de reCAPTCHA es requerido")
+    private String recaptchaToken;
+
 }

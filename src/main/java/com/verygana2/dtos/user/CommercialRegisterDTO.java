@@ -23,4 +23,6 @@ public class CommercialRegisterDTO {
     @Pattern(regexp = "\\d{7,15}", message = "Phone number must have between 7 and 15 digits")
     private String phoneNumber;
 
+    @NotBlank(message = "El token de reCAPTCHA es requerido")
+    private String recaptchaToken;
 }
