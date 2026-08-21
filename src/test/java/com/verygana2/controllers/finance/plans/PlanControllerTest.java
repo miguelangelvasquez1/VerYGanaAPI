@@ -14,6 +14,7 @@ import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.PlanService;
 
@@ -32,12 +33,13 @@ class PlanControllerTest {
 
     @Mock private PlanService planService;
     @Mock private CommercialDetailsService commercialDetailsService;
+    @Mock private CommercialContractService commercialContractService;
 
     private PlanController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new PlanController(planService, commercialDetailsService);
+        controller = new PlanController(planService, commercialDetailsService, commercialContractService);
     }
 
     private Jwt jwtWithUserId(Long userId) {

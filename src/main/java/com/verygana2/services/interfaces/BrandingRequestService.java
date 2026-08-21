@@ -36,6 +36,9 @@ public interface BrandingRequestService {
 
     void submitForReview(Long requestId, Long userId, String notes);
 
+    /** Cancela una solicitud aún en borrador: devuelve el presupuesto reservado y borra los recursos del CDN. */
+    void cancelBrandingRequest(Long requestId, Long userId);
+
     void updateConfig(Long requestId, UpdateBrandingRequestConfigDTO dto, Long userId);
 
     List<BrandingRequestSummaryDTO> getMyBrandingRequests(Long commercialUserId);

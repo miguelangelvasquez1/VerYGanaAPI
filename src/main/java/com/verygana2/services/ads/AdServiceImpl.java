@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -56,6 +57,7 @@ import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.specifications.AdSpecifications;
@@ -90,6 +92,7 @@ public class AdServiceImpl implements AdService {
     private final AssetOrphanedService assetOrphanedService;
     private final AssetDurationService mediaMetadataService;
     private final PricingConfigService pricingConfigService;
+    private final NotificationService notificationService;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -289,7 +292,7 @@ public class AdServiceImpl implements AdService {
      * On any failure, marks the asset as ORPHANED.
      */
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
+    @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS}, requiresBudget = true)
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
  
         AdAsset asset = null;
@@ -587,6 +590,14 @@ public class AdServiceImpl implements AdService {
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} blocked", adId);
 
+        // No se reembolsa: el anuncio puede ser reactivado por un admin (activateAdAsAdmin),
+        // así que el presupuesto restante se mantiene reservado en el anuncio.
+        notificationService.createInternalNotification(
+                savedAd.getCommercial().getUser().getId(),
+                "Anuncio bloqueado",
+                "Tu anuncio \"" + savedAd.getTitle() + "\" fue bloqueado por un administrador",
+                Instant.now());
+
         AdResponseDTO responseDto = adMapper.toDto(savedAd);
         responseDto.setContentUrl(resolveContentUrl(savedAd));
 
@@ -634,6 +645,14 @@ public class AdServiceImpl implements AdService {
 
         Ad savedAd = adRepository.save(ad);
         log.info("Ad {} rejected", adId);
+
+        refundRemainingBudget(savedAd);
+        notificationService.createInternalNotification(
+                savedAd.getCommercial().getUser().getId(),
+                "Anuncio rechazado",
+                "Tu anuncio \"" + savedAd.getTitle() + "\" fue rechazado"
+                        + (reason != null && !reason.isBlank() ? ": " + reason : ""),
+                Instant.now());
 
         AdResponseDTO responseDto = adMapper.toDto(savedAd);
         responseDto.setContentUrl(resolveContentUrl(savedAd));
@@ -760,6 +779,25 @@ public class AdServiceImpl implements AdService {
     public Long getTotalLikesByCommercial(Long commercialId) {
         Long total = adRepository.sumLikesByCommercialId(commercialId);
         return total != null ? total : 0L;
+    }
+
+    /**
+     * Devuelve el presupuesto no consumido del anuncio a la wallet del anunciante.
+     * Solo se usa al rechazar un anuncio (rechazo = terminal). Al bloquear NO se reembolsa,
+     * porque un admin puede reactivar el anuncio más adelante.
+     */
+    private void refundRemainingBudget(Ad ad) {
+        long remaining = ad.getRemainingBudget();
+        if (remaining <= 0) {
+            return;
+        }
+
+        Wallet wallet = walletRepository.findByCommercialId(ad.getCommercial().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+
+        wallet.deposit(remaining);
+        walletRepository.save(wallet);
+        log.info("Refunded {} ¢ to commercial {} for ad {}", remaining, ad.getCommercial().getId(), ad.getId());
     }
 
     // ── Helpers de conversión ─────────────────────────────────────────────────

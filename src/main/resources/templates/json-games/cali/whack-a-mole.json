@@ -4,7 +4,8 @@
   },
   "branding": {
     "images": {
-      "main_image_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png"
+      "main_image_url": "https://games.verygana.com/asset_tests/redbull/redbull-logo.png",
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK"
     },
     "shader_background_config": {
       "Front": {
@@ -33,6 +34,10 @@
     "moleLifetime": 2.0,
     "pointsPerHit": 10,
     "maxLives": 3
+  },
+  "personalization": {
+    "coin_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
   },
   "game": {
     "holeSpriteUrl": "https://games.verygana.com/asset_tests/redbull/redbull-latacerrada.png",

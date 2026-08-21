@@ -12,9 +12,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.user.commercial.onboarding.EsignatureEnvelope;
 import com.verygana2.dtos.user.commercial.onboarding.SignatureRequest;
+import com.verygana2.event.ContractSignedEvent;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.userDetails.CommercialDetails;
@@ -44,8 +46,8 @@ public class ESignatureServiceImpl implements ESignatureService {
     @Override
     public void requestSignature(Long contractId) {
         CommercialContract contract = getContractOrThrow(contractId);
-        CommercialOnboarding onboarding = contract.getOnboarding();
-        CommercialDetails details = onboarding.getCommercialDetails();
+        CommercialDetails details = contract.getCommercial();
+        CommercialOnboarding onboarding = details.getOnboarding();
 
         byte[] pdfBytes;
         try (var stream = r2Service.getPrivateObjectStream(contract.getObjectKey())) {
@@ -56,11 +58,14 @@ public class ESignatureServiceImpl implements ESignatureService {
 
         String signerEmail = details.getUser().getEmail();
         String signerPhoneNumber = details.getUser().getPhoneNumber();
-        String signerName = (nullSafe(onboarding.getLegalRepFirstName()) + " " + nullSafe(onboarding.getLegalRepLastName())).trim();
+        String signerName = onboarding != null
+                ? (nullSafe(onboarding.getLegalRepFirstName()) + " " + nullSafe(onboarding.getLegalRepLastName())).trim()
+                : details.getCompanyName();
 
         EsignatureEnvelope envelope = esignaturePort.sendForSignature(new SignatureRequest(
                 contractId, details.getId(), signerName, signerEmail, signerPhoneNumber, pdfBytes,
-                "contrato-marco-v" + contract.getVersion() + details.getLegalRepDocNumber() +".pdf"));
+                contract.getPurpose().name().toLowerCase() + "-v" + contract.getVersion()
+                        + details.getLegalRepDocNumber() + ".pdf"));
 
         contract.setStatus(ContractStatus.PENDING_SIGNATURE);
         contract.setEsignatureProvider(envelope.provider());
@@ -69,12 +74,14 @@ public class ESignatureServiceImpl implements ESignatureService {
         contract.setEsignatureSignerEmail(signerEmail);
         contractRepository.save(contract);
 
-        onboarding.setCurrentStep(OnboardingStep.SIGNATURE_PENDING);
-        onboardingRepository.save(onboarding);
+        if (contract.getPurpose() == ContractPurpose.ONBOARDING && onboarding != null) {
+            onboarding.setCurrentStep(OnboardingStep.SIGNATURE_PENDING);
+            onboardingRepository.save(onboarding);
+        }
 
         publishAudit(details.getId(), "COMMERCIAL_CONTRACT_SENT_FOR_SIGNATURE",
-                "Se envió el Contrato Marco v" + contract.getVersion() + " a firma electrónica de "
-                        + signerEmail + " (proveedor: " + envelope.provider() + ").",
+                "Se envió el contrato (" + contract.getPurpose() + ") v" + contract.getVersion()
+                        + " a firma electrónica de " + signerEmail + " (proveedor: " + envelope.provider() + ").",
                 Map.of("contractId", contractId, "envelopeId", envelope.envelopeId(), "provider", envelope.provider()));
     }
 
@@ -89,13 +96,19 @@ public class ESignatureServiceImpl implements ESignatureService {
         contract.setEsignatureSignedAt(signedAt);
         contractRepository.save(contract);
 
-        CommercialOnboarding onboarding = contract.getOnboarding();
-        onboarding.setCurrentStep(OnboardingStep.PAYMENT_PENDING);
-        onboardingRepository.save(onboarding);
+        CommercialDetails details = contract.getCommercial();
 
-        publishAudit(onboarding.getCommercialDetails().getId(), "COMMERCIAL_CONTRACT_SIGNED",
-                "El Contrato Marco v" + contract.getVersion() + " fue firmado. Onboarding pasa a pendiente de pago.",
+        if (contract.getPurpose() == ContractPurpose.ONBOARDING) {
+            CommercialOnboarding onboarding = contract.getOnboarding();
+            onboarding.setCurrentStep(OnboardingStep.PAYMENT_PENDING);
+            onboardingRepository.save(onboarding);
+        }
+
+        publishAudit(details.getId(), "COMMERCIAL_CONTRACT_SIGNED",
+                "El contrato (" + contract.getPurpose() + ") v" + contract.getVersion() + " fue firmado.",
                 Map.of("contractId", contractId));
+
+        eventPublisher.publishEvent(new ContractSignedEvent(this, contractId, contract.getPurpose()));
     }
 
     private CommercialContract getContractOrThrow(Long contractId) {

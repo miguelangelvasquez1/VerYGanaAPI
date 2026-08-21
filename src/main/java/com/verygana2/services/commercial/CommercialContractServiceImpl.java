@@ -24,6 +24,7 @@ import com.verygana2.models.commercial.CommercialDocument;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.commercial.CommercialDocumentStatus;
 import com.verygana2.models.enums.commercial.CommercialRoute;
+import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.finance.plans.Plan;
@@ -86,6 +87,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 .orElseGet(() -> {
                     CommercialContract c = new CommercialContract();
                     c.setOnboarding(onboarding);
+                    c.setCommercial(details);
+                    c.setPurpose(ContractPurpose.ONBOARDING);
                     return c;
                 });
 
@@ -118,6 +121,16 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     public ContractSummaryResponseDTO getCurrent(Long userId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         return toSummary(getContractByOnboardingOrThrow(onboarding.getId()));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public ContractSummaryResponseDTO getForCommercial(Long contractId, Long commercialId) {
+        CommercialContract contract = getContractOrThrow(contractId);
+        if (!contract.getCommercial().getId().equals(commercialId)) {
+            throw new ObjectNotFoundException("Contrato no encontrado: " + contractId, CommercialContract.class);
+        }
+        return toSummary(contract);
     }
 
     @Override
@@ -163,14 +176,168 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         return onboarding.getCurrentStep();
     }
 
+    @Override
+    public ContractSummaryResponseDTO generateFor(CommercialDetails commercial, ContractPurpose purpose,
+            Long amountCentsForRecharge, Plan targetPlanForChange) {
+
+        if (purpose == ContractPurpose.ONBOARDING) {
+            throw new IllegalArgumentException("Use generate(userId) para contratos de onboarding.");
+        }
+
+        CommercialContract contract = new CommercialContract();
+        contract.setCommercial(commercial);
+        contract.setPurpose(purpose);
+        contract.setVersion(1);
+
+        String html;
+        if (purpose == ContractPurpose.RECHARGE) {
+            requireGenerationReadyForRecharge(commercial, amountCentsForRecharge);
+            contract.setAmountCentsSnapshot(amountCentsForRecharge);
+            html = buildRechargeContractHtml(commercial, amountCentsForRecharge);
+        } else {
+            requireGenerationReadyForPlanChange(commercial, targetPlanForChange);
+            contract.setTargetPlan(targetPlanForChange);
+            html = buildPlanChangeContractHtml(commercial, targetPlanForChange);
+        }
+
+        byte[] pdfBytes = pdfRenderer.renderToPdf(html);
+        String objectKey = "commercial-contracts/" + commercial.getId() + "/" + purpose.name().toLowerCase()
+                + "-" + System.currentTimeMillis() + ".pdf";
+        r2Service.putPrivateObject(objectKey, pdfBytes, "application/pdf");
+
+        contract.setObjectKey(objectKey);
+        contract.setGeneratedAt(ZonedDateTime.now());
+        // RECHARGE: el monto ya está acotado por el rango del plan y no cambia términos
+        // comerciales — se salta la revisión humana e inicia la firma directamente.
+        // PLAN_CHANGE: siempre requiere aprobación de negocio + VerYGana, igual que el
+        // Contrato Marco.
+        contract.setStatus(purpose == ContractPurpose.RECHARGE
+                ? ContractStatus.APPROVED
+                : ContractStatus.PENDING_BUSINESS_REVIEW);
+
+        CommercialContract saved = contractRepository.save(contract);
+
+        publishAudit(commercial.getId(), "COMMERCIAL_CONTRACT_GENERATED",
+                "Se generó un contrato de " + purpose + " (v" + saved.getVersion() + ") para "
+                        + commercial.getCompanyName() + ".",
+                Map.of("contractId", saved.getId(), "purpose", purpose.name()));
+
+        if (purpose == ContractPurpose.RECHARGE) {
+            esignatureService.requestSignature(saved.getId());
+            saved = getContractOrThrow(saved.getId());
+        }
+
+        return toSummary(saved);
+    }
+
+    @Override
+    public ContractSummaryResponseDTO businessApproveContract(Long contractId, Long userId) {
+        CommercialContract contract = getContractOrThrow(contractId);
+        if (contract.getPurpose() == ContractPurpose.ONBOARDING) {
+            throw new OnboardingStepException("Use businessApprove(userId) para contratos de onboarding.");
+        }
+        if (!contract.getCommercial().getId().equals(userId)) {
+            throw new OnboardingStepException("Este contrato no pertenece al comercial autenticado.");
+        }
+        if (contract.getStatus() != ContractStatus.PENDING_BUSINESS_REVIEW) {
+            throw new OnboardingStepException("El contrato no está pendiente de revisión del comercial.");
+        }
+
+        contract.setBusinessApprovedAt(ZonedDateTime.now());
+        contract.setStatus(ContractStatus.PENDING_VERYGANA_REVIEW);
+        contractRepository.save(contract);
+
+        publishAudit(userId, "COMMERCIAL_CONTRACT_APPROVED_BY_BUSINESS",
+                "El comercial aprobó el contrato de " + contract.getPurpose() + " v" + contract.getVersion()
+                        + ". Pasa a revisión de VERYGANA.",
+                Map.of("contractId", contract.getId(), "version", contract.getVersion()));
+
+        return toSummary(contract);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<CommercialContract> listContractsByPurpose(ContractPurpose purpose, ContractStatus statusFilter) {
+        return statusFilter != null
+                ? contractRepository.findByPurposeAndStatus(purpose, statusFilter)
+                : contractRepository.findByPurposeAndStatusIn(purpose, COMPLIANCE_RELEVANT_STATUSES);
+    }
+
+    private void requireGenerationReadyForRecharge(CommercialDetails commercial, Long amountCents) {
+        Plan plan = commercial.getCurrentPlan();
+        if (plan == null || plan.getCode() == Plan.PlanCode.BASIC) {
+            throw new OnboardingStepException("Solo los planes STANDARD/PREMIUM pueden recargar presupuesto.");
+        }
+        if (amountCents == null || amountCents <= 0) {
+            throw new IllegalArgumentException("El monto de recarga debe ser positivo.");
+        }
+    }
+
+    private void requireGenerationReadyForPlanChange(CommercialDetails commercial, Plan targetPlan) {
+        if (targetPlan == null) {
+            throw new IllegalArgumentException("Debe indicar el plan destino.");
+        }
+        if (commercial.getCurrentPlan() != null && commercial.getCurrentPlan().getCode() == targetPlan.getCode()) {
+            throw new IllegalArgumentException("El plan destino debe ser distinto del plan actual.");
+        }
+    }
+
+    private String buildRechargeContractHtml(CommercialDetails details, long amountCents) {
+        Plan plan = details.getCurrentPlan();
+        Map<String, String> vars = new java.util.HashMap<>();
+        vars.put("version", "1");
+        vars.put("generatedAt", ZonedDateTime.now().format(DATE_FMT));
+        vars.put("companyName", nullSafe(details.getCompanyName()));
+        vars.put("nit", nullSafe(details.getNit()));
+        vars.put("legalRepFullName", legalRepFullName(details));
+        vars.put("legalRepDocType", details.getLegalRepDocType() != null ? details.getLegalRepDocType().name() : "");
+        vars.put("legalRepDocNumber", nullSafe(details.getLegalRepDocNumber()));
+        vars.put("planName", plan.getName());
+        vars.put("amountFormatted", formatMoney(amountCents));
+        vars.put("investmentRangeFormatted",
+                formatInvestmentRange(plan.getMinInvestmentCents(), plan.getMaxInvestmentCents()));
+        return templateLoader.render("contrato-recarga.html", vars);
+    }
+
+    private String buildPlanChangeContractHtml(CommercialDetails details, Plan targetPlan) {
+        Plan fromPlan = details.getCurrentPlan();
+        Map<String, String> vars = new java.util.HashMap<>();
+        vars.put("version", "1");
+        vars.put("generatedAt", ZonedDateTime.now().format(DATE_FMT));
+        vars.put("companyName", nullSafe(details.getCompanyName()));
+        vars.put("nit", nullSafe(details.getNit()));
+        vars.put("legalRepFullName", legalRepFullName(details));
+        vars.put("legalRepDocType", details.getLegalRepDocType() != null ? details.getLegalRepDocType().name() : "");
+        vars.put("legalRepDocNumber", nullSafe(details.getLegalRepDocNumber()));
+        vars.put("fromPlanName", fromPlan != null ? fromPlan.getName() : "Sin plan");
+        vars.put("toPlanName", targetPlan.getName());
+        vars.put("monthlyFeeFormatted", formatMoney(targetPlan.getMonthlyPriceCents()));
+        vars.put("investmentRangeFormatted",
+                formatInvestmentRange(targetPlan.getMinInvestmentCents(), targetPlan.getMaxInvestmentCents()));
+        vars.put("saleCommissionPct", String.valueOf(targetPlan.getSaleCommissionPct()));
+        vars.put("topUpFormatted", "Ver solicitud de cambio de plan");
+        return templateLoader.render("contrato-cambio-plan.html", vars);
+    }
+
+    private String legalRepFullName(CommercialDetails details) {
+        CommercialOnboarding onboarding = details.getOnboarding();
+        if (onboarding == null) {
+            return "";
+        }
+        return (nullSafe(onboarding.getLegalRepFirstName()) + " " + nullSafe(onboarding.getLegalRepLastName())).trim();
+    }
+
     // ==================== LADO VERYGANA / COMPLIANCE (PASO 11) ====================
 
     @Override
     @Transactional(readOnly = true)
     public List<ContractReviewListItemDTO> listContracts(ContractStatus statusFilter) {
+        // Solo contratos de onboarding — recarga y cambio de plan tienen sus propias
+        // colas de revisión (ver listContractsByPurpose), con un DTO distinto porque
+        // no tienen CommercialOnboarding vinculado.
         List<CommercialContract> contracts = statusFilter != null
-                ? contractRepository.findByStatus(statusFilter)
-                : contractRepository.findByStatusIn(COMPLIANCE_RELEVANT_STATUSES);
+                ? contractRepository.findByPurposeAndStatus(ContractPurpose.ONBOARDING, statusFilter)
+                : contractRepository.findByPurposeAndStatusIn(ContractPurpose.ONBOARDING, COMPLIANCE_RELEVANT_STATUSES);
 
         return contracts.stream()
                 .map(c -> {
@@ -210,7 +377,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes("Aprobado");
         contractRepository.save(contract);
 
-        CommercialDetails details = contract.getOnboarding().getCommercialDetails();
+        CommercialDetails details = contract.getCommercial();
         emailService.sendCommercialContractApprovedEmail(
                 details.getUser().getEmail(), details.getCompanyName(), contract.getVersion());
 
@@ -313,14 +480,14 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes(reason);
         contractRepository.save(contract);
 
-        CommercialOnboarding onboarding = contract.getOnboarding();
-        if (documentsIssue) {
+        if (documentsIssue && contract.getPurpose() == ContractPurpose.ONBOARDING) {
+            CommercialOnboarding onboarding = contract.getOnboarding();
             onboarding.setDocumentsCompletedAt(null);
             onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
             onboardingRepository.save(onboarding);
         }
 
-        CommercialDetails details = onboarding.getCommercialDetails();
+        CommercialDetails details = contract.getCommercial();
         emailService.sendCommercialContractRejectedEmail(
                 details.getUser().getEmail(), details.getCompanyName(), reason, documentsIssue);
 
@@ -451,15 +618,19 @@ public class CommercialContractServiceImpl implements CommercialContractService 
 
     private ContractSummaryResponseDTO toSummary(CommercialContract c) {
         String downloadUrl = r2Service.getPrivateObject(c.getObjectKey(), 300);
-        List<CommercialDocumentResponseDTO> documents = documentRepository
-                .findByOnboarding_IdAndStatusNot(c.getOnboarding().getId(), CommercialDocumentStatus.ORPHANED)
-                .stream()
-                .map(d -> new CommercialDocumentResponseDTO(
-                        d.getId(), d.getDocumentType(), d.getOriginalFileName(), d.getSizeBytes(), d.getStatus(),
-                        d.getUploadedAt(),
-                        d.getStatus() == CommercialDocumentStatus.VALIDATED
-                                ? r2Service.getPrivateObject(d.getObjectKey(), 300) : null))
-                .toList();
+        // Los documentos KYC son propios del onboarding — no aplican a contratos de
+        // recarga/cambio de plan (purpose != ONBOARDING), que no tienen onboarding vinculado.
+        List<CommercialDocumentResponseDTO> documents = c.getPurpose() == ContractPurpose.ONBOARDING && c.getOnboarding() != null
+                ? documentRepository
+                        .findByOnboarding_IdAndStatusNot(c.getOnboarding().getId(), CommercialDocumentStatus.ORPHANED)
+                        .stream()
+                        .map(d -> new CommercialDocumentResponseDTO(
+                                d.getId(), d.getDocumentType(), d.getOriginalFileName(), d.getSizeBytes(), d.getStatus(),
+                                d.getUploadedAt(),
+                                d.getStatus() == CommercialDocumentStatus.VALIDATED
+                                        ? r2Service.getPrivateObject(d.getObjectKey(), 300) : null))
+                        .toList()
+                : List.of();
 
         return new ContractSummaryResponseDTO(
                 c.getId(), c.getVersion(), c.getStatus(), c.getGeneratedAt(),

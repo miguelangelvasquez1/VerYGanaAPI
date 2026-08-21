@@ -98,6 +98,21 @@ public class BrandingRequestController {
     }
 
     /**
+     * Cancela una solicitud que sigue en borrador: devuelve el presupuesto reservado
+     * a la wallet del anunciante y borra del CDN los recursos corporativos ya subidos.
+     * POST /branding-requests/{id}/cancel
+     */
+    @PostMapping("/{id}/cancel")
+    public ResponseEntity<Void> cancelBrandingRequest(
+            @PathVariable Long id,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        brandingRequestService.cancelBrandingRequest(id, userId);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
      * Opcional:
      * Actualiza targeting (categorías, género, edad, municipios) y configuración de
      * recompensas (completionRewardCents, maxRewardPerSessionCents, etc.).

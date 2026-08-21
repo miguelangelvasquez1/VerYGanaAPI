@@ -61,6 +61,7 @@ import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.plans.BudgetService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
 
@@ -102,6 +103,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final WalletRepository walletRepository;
+    private final BudgetService budgetService;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -152,19 +154,12 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     @Override
-    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES, Capability.MAX_BRANDED_GAMES}, commercialIdParam = "commercialUserId")
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES, Capability.MAX_BRANDED_GAMES}, commercialIdParam = "commercialUserId", requiresBudget = true)
     public BrandingRequestSummaryDTO createBrandingRequest(CreateBrandingRequestDTO dto, Long commercialUserId) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialUserId)
             .orElseThrow(() -> new EntityNotFoundException("Commercial profile not found for user: " + commercialUserId));
 
-        if (dto.getBudgetCents() > commercial.getWallet().getBalanceCents()) {
-            throw new ValidationException("Insufficient funds in wallet.");
-        }
-
-        Wallet wallet = walletRepository.findByCommercialId(commercialUserId).orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
- 
-        wallet.consume(dto.getBudgetCents());
-        walletRepository.save(wallet);
+        budgetService.consumeForBrandingRequest(commercialUserId, dto.getBudgetCents(), null);
 
         Game game = gameRepository.findById(dto.getGameId())
             .orElseThrow(() -> new EntityNotFoundException("Game not found: " + dto.getGameId()));
@@ -218,6 +213,31 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
                     .relatedStatus(BrandingRequestStatus.PENDING_REVIEW)
                     .build());
         }
+    }
+
+    @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
+    public void cancelBrandingRequest(Long requestId, Long userId) {
+        BrandingRequest request = findOwnedRequest(requestId, userId);
+
+        if (request.getStatus() != BrandingRequestStatus.DRAFT) {
+            throw new ValidationException("Solo se pueden cancelar solicitudes en borrador");
+        }
+
+        List<CorporateResource> resources = request.getCorporateResources();
+        if (!resources.isEmpty()) {
+            List<String> objectKeys = resources.stream()
+                .map(CorporateResource::getObjectKey)
+                .collect(Collectors.toList());
+            r2Service.deleteObjects(objectKeys);
+            corporateResourceRepository.deleteAll(resources);
+        }
+
+        refundBudget(request);
+
+        request.setStatus(BrandingRequestStatus.CANCELLED);
+
+        log.info("BrandingRequest {} cancelled by commercial user {}", requestId, userId);
     }
 
     // segundo paso o update
@@ -380,6 +400,8 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         request.setAdminNotes(dto.getAdminNotes());
 
         log.info("BrandingRequest {} rejected by admin {} with notes: {}", requestId, adminUserId, dto.getAdminNotes());
+
+        refundBudget(request);
 
         emailService.sendBrandingRejectedEmail(
             request.getCommercial().getUser().getEmail(),
@@ -600,6 +622,26 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private String extractExtension(String fileName) {
         if (fileName == null || !fileName.contains(".")) return "";
         return fileName.substring(fileName.lastIndexOf('.'));
+    }
+
+    /**
+     * Devuelve el presupuesto de la solicitud a la wallet del anunciante.
+     * El presupuesto completo se consume al crear la solicitud (antes de la revisión del admin),
+     * así que un rechazo o una cancelación siempre implican devolver el monto completo.
+     */
+    private void refundBudget(BrandingRequest request) {
+        Long budgetCents = request.getBudgetCents();
+        if (budgetCents == null || budgetCents <= 0) {
+            return;
+        }
+
+        Wallet wallet = walletRepository.findByCommercialId(request.getCommercial().getId())
+            .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+
+        wallet.deposit(budgetCents);
+        walletRepository.save(wallet);
+        log.info("Refunded {} ¢ to commercial {} for BrandingRequest {}",
+            budgetCents, request.getCommercial().getId(), request.getId());
     }
 
         private void notifyDesignApproved(BrandingRequest request, Long userId) {

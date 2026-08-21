@@ -5,8 +5,12 @@ import java.util.List;
 import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.models.commercial.CommercialContract;
+import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.userDetails.CommercialDetails;
 
 /** Pasos 9-11: generación documental, revisión del empresario y revisión de VERYGANA. */
 public interface CommercialContractService {
@@ -17,7 +21,29 @@ public interface CommercialContractService {
 
     ContractSummaryResponseDTO getCurrent(Long userId);
 
+    /**
+     * Consulta un contrato de RECHARGE o PLAN_CHANGE por id, validando que pertenezca
+     * al comercial autenticado. Usado por el frontend para hacer polling del estado
+     * (p. ej. detectar cuándo pasó a SIGNED tras volver de la firma electrónica).
+     */
+    ContractSummaryResponseDTO getForCommercial(Long contractId, Long commercialId);
+
     ContractSummaryResponseDTO businessApprove(Long userId);
+
+    /**
+     * Genera un contrato de RECHARGE o PLAN_CHANGE (nunca ONBOARDING — usar generate()
+     * para ese caso). RECHARGE se aprueba automáticamente y pasa directo a firma;
+     * PLAN_CHANGE arranca en PENDING_BUSINESS_REVIEW y sigue el mismo pipeline que
+     * el Contrato Marco.
+     */
+    ContractSummaryResponseDTO generateFor(CommercialDetails commercial, ContractPurpose purpose,
+            Long amountCentsForRecharge, Plan targetPlanForChange);
+
+    /** Aprobación del comercial para contratos de RECHARGE/PLAN_CHANGE (no ONBOARDING). */
+    ContractSummaryResponseDTO businessApproveContract(Long contractId, Long userId);
+
+    /** Colas de revisión de compliance para recarga/cambio de plan, separadas de listContracts(). */
+    List<CommercialContract> listContractsByPurpose(ContractPurpose purpose, ContractStatus statusFilter);
 
     /**
      * El empresario regresa a corregir campos no jurídicos (diagnóstico/plan/documentos).

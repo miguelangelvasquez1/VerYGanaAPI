@@ -63,6 +63,7 @@ public class BudgetTransaction {
     public enum TransactionType {
         AD_VIEW,
         GAME_REWARD,
-        MANUAL_ADJUSTMENT
+        MANUAL_ADJUSTMENT,
+        BRANDING_REQUEST
     }
 }

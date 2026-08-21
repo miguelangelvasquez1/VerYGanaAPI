@@ -39,7 +39,7 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
 
     @Override
     @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_PROMOTE_ALLY_PRODUCTS,
-            commercialIdParam = "premiumCommercialId")
+            commercialIdParam = "premiumCommercialId", requiresBudget = true)
     public void toggleAllyPromotion(Long premiumCommercialId, Long productId) {
 
         Product product = productRepository.findById(productId)

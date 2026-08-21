@@ -32,6 +32,7 @@ import com.verygana2.dtos.survey.StartSurveyResponse;
 import com.verygana2.dtos.survey.SurveyAdminDetailDTO;
 import com.verygana2.dtos.survey.SurveyAnalyticsDTO;
 import com.verygana2.dtos.survey.SurveyCommercialDetailDTO;
+import com.verygana2.dtos.survey.SurveyRejectDTO;
 import com.verygana2.dtos.survey.SurveyResponseDTO;
 import com.verygana2.dtos.survey.SurveyResponseDetailDTO;
 import com.verygana2.dtos.survey.SurveySummaryResponse;
@@ -77,6 +78,17 @@ public class SurveyController {
         return ResponseEntity.ok(surveyService.updateSurvey(surveyId, request, jwt.getClaim("userId")));
     }
 
+    /** Envía la encuesta (en DRAFT) a revisión de un admin. Debe ser aprobada antes de publicarse. */
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    @PatchMapping("/{surveyId}/submit")
+    public ResponseEntity<SurveyResponseDTO> submitSurveyForReview(
+            @PathVariable Long surveyId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.submitSurveyForReview(surveyId, jwt.getClaim("userId")));
+    }
+
+    /** Publica (activa) una encuesta ya aprobada por un admin. */
     @PreAuthorize("hasRole('COMMERCIAL')")
     @PatchMapping("/{surveyId}/publish")
     public ResponseEntity<SurveyResponseDTO> publishSurvey(
@@ -246,7 +258,28 @@ public class SurveyController {
         return ResponseEntity.ok(surveyService.updateSurveyStatus(surveyId, status));
     }
 
-    /** Commercial-only status transition, restricted to ACTIVE / PAUSED / CLOSED ("cancelled"). */
+    /** Aprueba una encuesta en revisión (PENDING_REVIEW → APPROVED). El comercial ya puede publicarla. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/{surveyId}/approve")
+    public ResponseEntity<SurveyResponseDTO> approveSurvey(
+            @PathVariable Long surveyId,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.approveSurvey(surveyId, jwt.getClaim("userId")));
+    }
+
+    /** Rechaza una encuesta en revisión (PENDING_REVIEW → REJECTED) y devuelve el presupuesto completo. */
+    @PreAuthorize("hasRole('ADMIN')")
+    @PostMapping("/admin/{surveyId}/reject")
+    public ResponseEntity<SurveyResponseDTO> rejectSurvey(
+            @PathVariable Long surveyId,
+            @RequestBody @Valid SurveyRejectDTO rejectDto,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.rejectSurvey(surveyId, rejectDto.getReason(), jwt.getClaim("userId")));
+    }
+
+    /** Commercial-only status transition, restricted to ACTIVE / PAUSED. Encuestas no se pueden cancelar. */
     @PreAuthorize("hasRole('COMMERCIAL')")
     @PatchMapping("/{surveyId}/commercial-status")
     public ResponseEntity<SurveyResponseDTO> updateStatusAsCommercial(

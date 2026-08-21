@@ -38,7 +38,7 @@ public class ExecutiveReportServiceImpl implements ExecutiveReportService {
     private final CommercialDetailsRepository commercialDetailsRepository;
 
     @Override
-    @RequirePlanCapability(RequirePlanCapability.Capability.CAN_EXPORT_REPORT)
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_EXPORT_REPORT, requiresBudget = true)
     public byte[] generateExecutiveReportPdf(Long commercialId, List<ReportMetricType> metricTypes,
             ZonedDateTime startDate, ZonedDateTime endDate) {
 

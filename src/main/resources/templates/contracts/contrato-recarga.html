@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<style>
+    @page { size: letter; margin: 2.5cm 2cm; }
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.5; }
+    h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; }
+    h2 { font-size: 12.5pt; margin-top: 22px; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 3px; }
+    .subtitle { text-align: center; color: #555; margin-bottom: 20px; font-size: 9.5pt; }
+    .notice { background: #fff6d9; border: 1px solid #e0c260; padding: 8px 12px; font-size: 9pt; margin-bottom: 18px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+    td, th { border: 1px solid #ddd; padding: 6px 8px; font-size: 10pt; text-align: left; vertical-align: top; }
+    th { background: #f4f4f4; width: 38%; }
+    .placeholder-legal { font-style: italic; color: #444; }
+    .footer { margin-top: 30px; font-size: 8.5pt; color: #777; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Otrosí de Recarga de Presupuesto Publicitario</h1>
+<p class="subtitle">VERYGANA — Anexo al Contrato Marco · Versión {{version}} · Generado el {{generatedAt}}</p>
+
+<div class="notice">
+    Este documento es un anexo (otrosí) al Contrato Marco de vinculación comercial vigente entre
+    VERYGANA y EL COMERCIANTE, y formaliza exclusivamente la recarga de presupuesto publicitario
+    descrita a continuación. No modifica ningún otro término del Contrato Marco.
+</div>
+
+<h2>1. Partes</h2>
+<table>
+    <tr><th>Razón social / Comerciante</th><td>{{companyName}}</td></tr>
+    <tr><th>NIT</th><td>{{nit}}</td></tr>
+    <tr><th>Representante legal</th><td>{{legalRepFullName}} ({{legalRepDocType}} {{legalRepDocNumber}})</td></tr>
+    <tr><th>Plan vigente</th><td>{{planName}}</td></tr>
+</table>
+
+<h2>2. Objeto</h2>
+<p class="placeholder-legal">
+    [Placeholder legal — pendiente de validación jurídica] EL COMERCIANTE se compromete a depositar el
+    monto indicado a continuación en su billetera publicitaria dentro de la plataforma VERYGANA, bajo
+    las mismas condiciones comerciales pactadas en el Contrato Marco vigente (rango de inversión,
+    comisión por venta y demás términos aplicables a su plan {{planName}}).
+</p>
+
+<h2>3. Monto de la recarga</h2>
+<table>
+    <tr><th>Monto a recargar</th><td>{{amountFormatted}}</td></tr>
+    <tr><th>Rango vigente del plan</th><td>{{investmentRangeFormatted}}</td></tr>
+</table>
+
+<p class="footer">VERYGANA S.A.S. — Documento generado electrónicamente, sujeto a firma electrónica.</p>
+</body>
+</html>

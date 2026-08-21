@@ -164,10 +164,10 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
-    @RequirePlanCapability({
+    @RequirePlanCapability(value = {
         RequirePlanCapability.Capability.CAN_SELL_DIRECTLY,
         RequirePlanCapability.Capability.MAX_PRODUCTS
-    })
+    }, requiresBudget = true)
     public EntityCreatedResponseDTO confirmProductCreation(Long commercialId,
             ConfirmProductCreationRequestDTO request) {
 

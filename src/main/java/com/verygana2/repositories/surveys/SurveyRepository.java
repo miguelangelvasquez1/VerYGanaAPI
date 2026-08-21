@@ -28,7 +28,7 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     long countByCreatorIdAndStatus(Long creatorId, Survey.SurveyStatus status);
 
-    /** Counts surveys still consuming a plan slot (everything except final states: CLOSED/"cancelled" and COMPLETED). */
+    /** Counts surveys still consuming a plan slot (everything except final states: REJECTED and COMPLETED). */
     long countByCreatorIdAndStatusNotIn(Long creatorId, List<Survey.SurveyStatus> statuses);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)

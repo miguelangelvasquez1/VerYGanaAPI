@@ -77,6 +77,9 @@ public class Survey {
     @Builder.Default
     private SurveyStatus status = SurveyStatus.DRAFT;
 
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
     @Column(name = "starts_at")
     private ZonedDateTime startsAt;
 
@@ -114,8 +117,16 @@ public class Survey {
     }
 
     public enum SurveyStatus {
-        DRAFT, ACTIVE, PAUSED, CLOSED,
-        /** Admin-only. Freezes all activity on the survey (new sessions, resuming, submitting). */
+        /** Being composed by the commercial. Not yet submitted for admin review. */
+        DRAFT,
+        /** Submitted by the commercial, waiting for an admin decision. */
+        PENDING_REVIEW,
+        /** Admin-approved. Can now be published (activated) by the commercial. */
+        APPROVED,
+        /** Admin-rejected. Terminal — refunds the full budget. */
+        REJECTED,
+        ACTIVE, PAUSED,
+        /** Admin-only. Freezes all activity on the survey (new sessions, resuming, submitting). No refund — an admin can un-suspend it later. */
         SUSPENDED,
         /** System-set only, when responseCount reaches maxResponses. */
         COMPLETED

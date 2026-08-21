@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.models.enums.finance.WalletBudgetAlertStage;
 import com.verygana2.models.enums.finance.WalletStatus;
 import com.verygana2.models.finance.plans.BudgetTransaction;
 import com.verygana2.models.finance.plans.Investment;
@@ -79,6 +80,14 @@ public class Wallet {
     @Column(name = "low_balance_threshold_pct", nullable = false)
     private int lowBalanceThresholdPct = 10;
 
+    /** Última etapa de aviso de saldo bajo notificada — evita reenviar el mismo aviso cada barrido. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "last_budget_alert_stage", nullable = false, length = 20)
+    private WalletBudgetAlertStage lastBudgetAlertStage = WalletBudgetAlertStage.NONE;
+
+    @Column(name = "last_budget_alert_at")
+    private ZonedDateTime lastBudgetAlertAt;
+
     @Column(name = "last_updated", nullable = false)
     private ZonedDateTime lastUpdated;
 
@@ -97,6 +106,9 @@ public class Wallet {
         if (this.status == null) {
             this.status = WalletStatus.INACTIVE;
         }
+        if (this.lastBudgetAlertStage == null) {
+            this.lastBudgetAlertStage = WalletBudgetAlertStage.NONE;
+        }
     }
 
     @PreUpdate
@@ -114,6 +126,10 @@ public class Wallet {
         if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
         this.balanceCents += amount;
         recalculateStatus();
+        if (this.balanceCents > 0) {
+            // Saldo repuesto — permite que el próximo ciclo de avisos de saldo bajo se dispare de nuevo.
+            this.lastBudgetAlertStage = WalletBudgetAlertStage.NONE;
+        }
     }
 
     public void consume(Long amount) {

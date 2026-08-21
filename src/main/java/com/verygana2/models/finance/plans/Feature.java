@@ -49,6 +49,8 @@ public class Feature {
     public enum FeatureType {
         BOOLEAN,
         LIMIT,
-        PERCENTAGE
+        PERCENTAGE,
+        /** Monto en centavos — usa PlanFeature.longValue (LIMIT/intValue se queda corto a esta escala). */
+        AMOUNT
     }
 }

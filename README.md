@@ -34,16 +34,15 @@ docker push miguelvasquez777/verygana-api:latest
 docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
-- validar que cuando un commercial activa un anuncio ya haya sido activado por el admin
-- si state devulve que ya tiene max ads bloquear el creacion de ads
 
+probar sesion, check everything
+revisar documentacion de nestor sobre los planes y empezar a hacer. (- si un commercial cambia a plan mas bajo que no se devuelva lo creado?)
+- un empresario no se puede cambiar de plan, cada recarga genera un nuevo contrato?, plan especial si recarga de mas, suspension de activos si llega a 0, notific de presupuesto.
+- metricas
 
-
-- 1. corrige los bugs de schema. 2. agrega todos los campos comentados a los jsons y para initial_types quitalo del script. preguntar a nestor, flujo juegos full
+- preguntar a nestor, flujo juegos full
 - ver lo de antecedentes.
-- que pasa con el dinero cuando se cierra una encuesta? (que no se pueda cerrar?)
 - flujo de jugar, metricas, casos de juego, etc.
-- si un commercial cambia a plan mas bajo que no se devuelva lo creado?
 
 - probar max_ads(state del plan lo devuelve), flujo de sesiones y recompensa bien revisar.
 

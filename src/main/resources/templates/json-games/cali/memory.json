@@ -22,6 +22,7 @@
     "images": {
       "main_logo_url": "https://games.verygana.com/asset_tests/fritolay/fritolay-logo.png",
       "main_logo_offset_y": 0.0,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
       "logo_watermark_offset_y": 0.0,
       "card_back_url": "https://placehold.co/256x256/3498db/ffffff.png?text=?",
       "icon_life_url": "https://placehold.co/64x64/FF0000/FFFFFF.png?text=LIFE",

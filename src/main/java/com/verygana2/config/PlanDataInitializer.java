@@ -171,6 +171,26 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.BOOLEAN)
                 .build());
 
+        Feature lowBalanceWarningPct = featureRepository.save(Feature.builder()
+                .code("LOW_BALANCE_WARNING_PCT")
+                .name("Umbral de aviso de saldo bajo (% del último depósito)")
+                .type(FeatureType.PERCENTAGE)
+                .build());
+
+        Feature lowBalanceCriticalPct = featureRepository.save(Feature.builder()
+                .code("LOW_BALANCE_CRITICAL_PCT")
+                .name("Umbral crítico de saldo bajo (% del último depósito)")
+                .type(FeatureType.PERCENTAGE)
+                .build());
+
+        // Sin PlanFeature asociado por defecto — override opcional del admin, tiene
+        // prioridad sobre el % cuando está configurado (ver EffectivePlanResolver).
+        featureRepository.save(Feature.builder()
+                .code("LOW_BALANCE_WARNING_FIXED_CENTS")
+                .name("Umbral fijo de aviso de saldo bajo, en centavos (opcional)")
+                .type(FeatureType.AMOUNT)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -201,6 +221,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, canHavePets,     null, false, null),
             pf(standard, canPromoteAllyProducts, null, false, null),
             pf(standard, canExportReport, null, false, null),
+            pf(standard, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
+            pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
@@ -214,7 +236,9 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, visibilityBoost, null, null,  new BigDecimal("70.00")),
             pf(premium, canHavePets,     null, true,  null),
             pf(premium, canPromoteAllyProducts, null, true, null),
-            pf(premium, canExportReport, null, true, null)
+            pf(premium, canExportReport, null, true, null),
+            pf(premium, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
+            pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00"))
         );
 
         planFeatureRepository.saveAll(planFeatures);

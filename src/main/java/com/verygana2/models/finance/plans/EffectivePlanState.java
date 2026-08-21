@@ -46,6 +46,13 @@ public class EffectivePlanState {
 
     boolean canExportReport;
 
+    /**
+     * true cuando el wallet (STANDARD/PREMIUM) está en saldo cero. Bloquea solo la
+     * creación de activos nuevos y la exportación de reportes — nunca BASIC, que no
+     * tiene wallet, y nunca la edición/consulta de lo ya creado.
+     */
+    boolean budgetSuspended;
+
     int maxProducts;
 
     int maxAds;
@@ -70,6 +77,7 @@ public class EffectivePlanState {
                 .canHavePets(false)
                 .canPromoteAllyProducts(false)
                 .canExportReport(false)
+                .budgetSuspended(true)
                 .maxProducts(0)
                 .maxAds(0)
                 .maxBrandedGames(0)

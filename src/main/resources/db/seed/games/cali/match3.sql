@@ -459,17 +459,9 @@ SELECT
     "game": {
       "type": "object",
       "title": "Game",
-      "description": "Tile definitions and initial tile type count for the match game",
-      "required": ["initial_types", "tiles"],
+      "description": "Tile definitions for the match game",
+      "required": ["tiles"],
       "properties": {
-        "initial_types": {
-          "type": "integer",
-          "title": "Initial Tile Types",
-          "description": "Number of distinct tile types available at the start of the game",
-          "minimum": 1,
-          "maximum": 50,
-          "default": 6
-        },
         "tiles": {
           "type": "array",
           "title": "Tiles",
@@ -807,13 +799,7 @@ SELECT
   },
   "game": {
     "ui:title": "Game",
-    "ui:description": "Tile definitions and initial tile type count for the match game",
-    "initial_types": {
-      "ui:widget": "numberInput",
-      "ui:title": "Initial Tile Types",
-      "ui:placeholder": "e.g. 6",
-      "ui:help": "Number of distinct tile types available at the start of the game"
-    },
+    "ui:description": "Tile definitions for the match game",
     "tiles": {
       "ui:title": "Tiles",
       "ui:description": "Define all tile types used in the match game",
