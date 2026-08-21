@@ -47,6 +47,16 @@ observability:
   scrape-token: ${METRICS_SCRAPE_TOKEN:}
 
 # ============================================
+# reCAPTCHA
+# ============================================
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:}
+  min-score: 0.5
+  login-action: login
+  register-consumer-action: register_consumer
+  register-commercial-action: register_commercial
+
+# ============================================
 # PQRS - Plazos legales por tipo (días hábiles, Ley 1755 de 2015)
 # ============================================
 pqrs:
@@ -55,3 +65,4 @@ pqrs:
     QUEJA: 15
     RECLAMO: 15
     SUGERENCIA: 10
+
