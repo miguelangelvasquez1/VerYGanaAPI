@@ -18,8 +18,8 @@ public interface PayoutService {
     /** Ejecuta las transferencias Wompi para todos los payouts SCHEDULED. */
     void processScheduledPayouts();
 
-    /** Reintenta los payouts FAILED del día anterior. */
-    void retryFailedPayouts(ZonedDateTime previousPeriodStart, ZonedDateTime previousPeriodEnd);
+    /** Reintenta todos los payouts que estén actualmente en FAILED, sin importar cuándo se programaron. */
+    void retryFailedPayouts();
 
     /**
      * Procesa la confirmación de Wompi (Pagos a Terceros) vía webhook y

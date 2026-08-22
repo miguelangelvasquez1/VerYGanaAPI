@@ -303,8 +303,8 @@ wompi:
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
     api-base-url: https://api.payouts.wompi.co/v1
-    cron: "0 0 4 * * *"
-    retry-cron: "0 30 4 * * *"
+    cron: "0 0 23 * * *"        # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
+    retry-cron: "0 30 23 * * *" # 11:30 PM hora Colombia
     min-balance-alert-cents: 5000000
 
 zapsign:

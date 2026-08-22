@@ -37,18 +37,6 @@ public interface PayoutRepository extends JpaRepository<Payout, UUID> {
     /** Todos los payouts en un estado dado, sin restricción de fecha. Usado por processScheduledPayouts(). */
     List<Payout> findByStatus(PayoutStatus status);
 
-    /** Payouts FAILED del ciclo anterior para reintento. */
-    @Query("""
-            SELECT p FROM Payout p
-            WHERE p.status = :status
-            AND p.scheduledAt >= :start
-            AND p.scheduledAt < :end
-            """)
-    List<Payout> findFailedForRetry(
-            @Param("status") PayoutStatus status,
-            @Param("start") ZonedDateTime start,
-            @Param("end") ZonedDateTime end);
-
     /** Busca el Payout vinculado a una WompiTransaction — usado por el webhook handler. */
     Optional<Payout> findByWompiTransactionId(UUID wompiTransactionId);
 

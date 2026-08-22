@@ -177,6 +177,12 @@ financial:
   key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
 
 # ============================================
+# TAXES
+# ============================================      
+taxes:
+  iva: ${IVA}
+
+# ============================================
 # MARKETPLACE LIMITS
 # ============================================
 marketplace:
@@ -254,8 +260,8 @@ wompi:
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
     api-base-url: https://api.sandbox.payouts.wompi.co/v1  # sandbox
     # api-base-url: https://api.payouts.wompi.co/v1        # producción
-    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
-    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    cron: "0 0 23 * * *"          # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
+    retry-cron: "0 30 23 * * *"   # reintentos 30 min después
     min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
 
 payment:

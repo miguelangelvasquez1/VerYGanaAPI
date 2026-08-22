@@ -35,12 +35,12 @@ docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
 
-probar sesion, check everything
+- revisar que el usuario vea el resumen antes de generar el contrato de recarga, que un usuario tenga el presupuesto en 0 para cambiar a BASIC, ver donde poner boton de cambio de plan, ver como se solapan los dos tipos de solicitudes, ver si funciona la suspension de plan, umbrales de saldo, ver que revisar segun claude, abonos de cambio de plan
 revisar documentacion de nestor sobre los planes y empezar a hacer. (- si un commercial cambia a plan mas bajo que no se devuelva lo creado?)
 - un empresario no se puede cambiar de plan, cada recarga genera un nuevo contrato?, plan especial si recarga de mas, suspension de activos si llega a 0, notific de presupuesto.
 - metricas
 
-- preguntar a nestor, flujo juegos full
+- flujo juegos full
 - ver lo de antecedentes.
 - flujo de jugar, metricas, casos de juego, etc.
 

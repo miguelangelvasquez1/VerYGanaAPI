@@ -45,8 +45,8 @@ public class WompiPayoutConfig {
     @Getter
     @Setter
     public static class Payout {
-        private String cron = "0 0 4 * * *";
-        private String retryCron = "0 30 4 * * *";
+        private String cron = "0 0 23 * * *";
+        private String retryCron = "0 30 23 * * *";
         private long minBalanceAlertCents = 5_000_000L;
     }
 }

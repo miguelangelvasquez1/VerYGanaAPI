@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,6 +19,7 @@ import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.payout.PayoutResponseDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO.WompiPayoutTransactionDTO;
+import com.verygana2.mappers.PayoutMapper;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
@@ -55,6 +57,13 @@ public class PayoutServiceImpl implements PayoutService {
     private final WompiTransactionRepository wompiTransactionRepository;
     private final WompiPayoutConfig wompiPayoutConfig;
     private final PayoutMethodRepository payoutMethodRepository;
+    private final PayoutMapper payoutMapper;
+
+    private static final Long WOMPI_COMMISSION_AMOUNT_BASE = 184900L; 
+    private static final double WOMPI_COMMISSION_PCT = 0.04;
+
+    @Value("taxes.iva")
+    private static double iva;
 
     @Override
     public BigDecimal getCommercialEarningsForDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
@@ -96,7 +105,7 @@ public class PayoutServiceImpl implements PayoutService {
         for (PurchaseItem item : claimedItems) {
             CommercialDetails commercial = item.getProduct().getCommercial();
             Long commercialId = commercial.getId();
-
+            
             CommercialGroup group = groups.computeIfAbsent(commercialId,
                     k -> new CommercialGroup(commercial));
 
@@ -117,7 +126,7 @@ public class PayoutServiceImpl implements PayoutService {
             Payout payout = Payout.builder()
                     .commercial(commercial)
                     .grossAmountCents(group.totalGrossCents)
-                    .commissionCents(group.totalCommissionCents)
+                    .commissionAmountCents(group.totalCommissionCents)
                     .netAmountCents(group.totalNetCents)
                     .commissionPctApplied(group.commissionPctSnapshot)
                     .status(PayoutStatus.SCHEDULED)
@@ -169,14 +178,20 @@ public class PayoutServiceImpl implements PayoutService {
     }
 
     /**
-     * Reintenta los payouts FAILED del ciclo anterior.
-     * El PayoutScheduler lo llama con el rango del día anterior.
+     * Reintenta todos los payouts actualmente FAILED, sin filtrar por fecha.
+     *
+     * Antes filtraba por "el rango del día anterior" calculado igual que
+     * scheduleDailyPayouts(), pero ese rango es [ayer 00:00, hoy 00:00) — un
+     * Payout que falla hoy a las 11 PM (scheduledAt = hoy) queda FUERA de ese
+     * rango cuando este job corre 30 min después (todavía "hoy"), así que nunca
+     * se reintentaba la misma noche: recién entraba al rango la noche
+     * siguiente. Al no filtrar por fecha, cualquier FAILED se reintenta en el
+     * primer ciclo de reintento disponible, sin depender de en qué día cayó.
      */
     @Override
     @Transactional
-    public void retryFailedPayouts(ZonedDateTime previousPeriodStart, ZonedDateTime previousPeriodEnd) {
-        List<Payout> failed = payoutRepository.findFailedForRetry(
-                PayoutStatus.FAILED, previousPeriodStart, previousPeriodEnd);
+    public void retryFailedPayouts() {
+        List<Payout> failed = payoutRepository.findByStatus(PayoutStatus.FAILED);
 
         if (failed.isEmpty()) {
             log.info("[PAYOUT-RETRY] Sin payouts FAILED para reintentar.");
@@ -211,7 +226,7 @@ public class PayoutServiceImpl implements PayoutService {
 
         return payoutRepository.findByScheduledAtBetweenOrderByScheduledAtDesc(start, end)
                 .stream()
-                .map(this::toResponseDTO)
+                .map(payoutMapper::toPayoutResponseDTO)
                 .toList();
     }
 
@@ -261,13 +276,9 @@ public class PayoutServiceImpl implements PayoutService {
     private void processOnePayout(Payout payout) {
         CommercialDetails commercial = payout.getCommercial();
 
-        PayoutMethod method = payoutMethodRepository
-                .findFirstByCommercialIdAndVerificationStatusAndActiveTrue(
-                        commercial.getId(), VerificationStatus.VERIFIED)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Empresario " + commercial.getId() + " no tiene método de pago verificado."));
+        PayoutMethod method = resolvePayoutMethod(commercial);
 
-        String internalReference = "VG-PAYOUT-" + payout.getId();
+        String internalReference = payout.getId().toString();
 
         // Paso único — Wompi no requiere tokenizar la cuenta antes de transferir
         WompiPayoutRequestDTO request = buildPayoutRequest(payout, commercial, method, internalReference);
@@ -294,6 +305,24 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.info("[PAYOUT-SCHEDULER] Payout → {}: id={}, commercial={}, wompiId={}",
                 payout.getStatus(), payout.getId(), commercial.getCompanyName(), response.getPayoutId());
+    }
+
+    /**
+     * Usa el método marcado como default si sigue VERIFIED y activo; si no hay
+     * default (dato legado de antes de que existiera este concepto) o quedó
+     * inválido, cae al primer VERIFIED activo como antes.
+     */
+    private PayoutMethod resolvePayoutMethod(CommercialDetails commercial) {
+        PayoutMethod defaultMethod = commercial.getDefaultPayoutMethod();
+        if (defaultMethod != null && defaultMethod.canBeUsedForPayout()) {
+            return defaultMethod;
+        }
+
+        return payoutMethodRepository
+                .findFirstByCommercialIdAndVerificationStatusAndActiveTrue(
+                        commercial.getId(), VerificationStatus.VERIFIED)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Empresario " + commercial.getId() + " no tiene método de pago verificado."));
     }
 
     /**
@@ -338,13 +367,13 @@ public class PayoutServiceImpl implements PayoutService {
         WompiPayoutTransactionDTO transaction = WompiPayoutTransactionDTO.builder()
                 .legalIdType(method.getAccountHolderDocType().name())
                 .legalId(method.getAccountHolderDoc())
-                .personType(personType)
                 .bankId(bankId)
                 .accountType(accountType)
                 .accountNumber(accountNumber)
                 .name(method.getAccountHolderName())
-                .email(commercial.getUser().getEmail())
                 .amount(payout.getNetAmountCents())
+                .personType(personType)
+                .email(commercial.getUser().getEmail())
                 .reference(internalReference)
                 .build();
 
@@ -355,35 +384,13 @@ public class PayoutServiceImpl implements PayoutService {
                 .build();
     }
 
-    private PayoutResponseDTO toResponseDTO(Payout payout) {
-        // contar PayoutItems asociados
-        // Se usa size de la colección lazy; si hay N+1 aquí,
-        // se puede optimizar con un @Query COUNT en el futuro.
-        return new PayoutResponseDTO(
-                payout.getId(),
-                payout.getCommercial().getId(),
-                payout.getCommercial().getCompanyName(),
-                payout.getGrossAmountCents(),
-                payout.getCommissionCents(),
-                payout.getNetAmountCents(),
-                payout.getCommissionPctApplied(),
-                0, // copaymentCount: se puede enriquecer con un COUNT query si se necesita
-                payout.getStatus(),
-                payout.getScheduledAt(),
-                payout.getPaidAt(),
-                payout.getPeriodStart(),
-                payout.getPeriodEnd(),
-                payout.getFailureReason(),
-                payout.getRetryCount());
-    }
-
     // ─── Clase auxiliar de agrupación (sólo usada dentro del job) ─────────────
 
     private static class CommercialGroup {
         final CommercialDetails commercial;
         final List<PurchaseItem> items = new ArrayList<>();
         long totalGrossCents = 0;
-        long totalCommissionCents = 0;
+        long totalCommissionCents = WOMPI_COMMISSION_AMOUNT_BASE;
         long totalNetCents = 0;
         int commissionPctSnapshot = 0;
 
@@ -393,11 +400,10 @@ public class PayoutServiceImpl implements PayoutService {
 
         void addItem(PurchaseItem item) {
             items.add(item);
-            totalGrossCents += item.getSubtotalCents();
-            totalCommissionCents += item.getCommissionCents();
+            Long commissionPerItem = BigDecimal.valueOf(item.getNetToCommercialCents()).multiply(BigDecimal.valueOf(WOMPI_COMMISSION_PCT)).longValue();
             totalNetCents += item.getNetToCommercialCents();
-            // Usar el último pct aplicado como snapshot (todos los ítems del mismo
-            // comercial en el mismo plan tienen el mismo pct)
+            totalCommissionCents += BigDecimal.valueOf(commissionPerItem).multiply(BigDecimal.valueOf(iva)).longValue();
+            totalGrossCents += totalNetCents + totalCommissionCents;
             commissionPctSnapshot = item.getCommissionPctApplied();
         }
     }
