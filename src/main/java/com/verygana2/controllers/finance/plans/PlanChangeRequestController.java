@@ -9,13 +9,16 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.finance.plans.requests.PlanChangeRequestDTO;
+import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanChangeRequestResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.models.commercial.PlanChangeRequest;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
@@ -39,6 +42,22 @@ public class PlanChangeRequestController {
     private final CommercialContractService contractService;
     private final PlanService planService;
     private final CommercialDetailsService commercialDetailsService;
+
+    /**
+     * Resumen de solo lectura del otrosí (elegibilidad, mensaje explicativo, abono
+     * requerido, condiciones del plan destino) — para que el comercial lo revise antes
+     * de confirmar y disparar la generación real del documento.
+     */
+    @GetMapping("/preview")
+    public ResponseEntity<PlanChangePreviewResponseDTO> previewPlanChange(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam PlanCode targetPlanCode,
+            @RequestParam(required = false) Long intendedInvestmentAmountCents) {
+
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(planChangeRequestService.previewPlanChange(
+                commercialId, targetPlanCode, intendedInvestmentAmountCents));
+    }
 
     @PostMapping
     public ResponseEntity<PlanChangeRequestResponseDTO> requestPlanChange(

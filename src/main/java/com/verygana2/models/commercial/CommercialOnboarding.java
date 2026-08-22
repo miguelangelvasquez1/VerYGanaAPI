@@ -27,7 +27,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 /**
  * Estado del flujo de registro comercial extendido (post "registro básico"):
@@ -36,7 +37,8 @@ import lombok.Data;
  */
 @Entity
 @Table(name = "commercial_onboarding")
-@Data
+@Getter
+@Setter
 public class CommercialOnboarding {
 
     @Id

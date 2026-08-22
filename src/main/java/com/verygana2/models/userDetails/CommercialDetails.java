@@ -24,13 +24,14 @@ import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 
-import lombok.Data;
-import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "commercial_details")
-@Data
-@EqualsAndHashCode(callSuper = false)
+@Getter
+@Setter
+// @EqualsAndHashCode(callSuper = false, exclude = {"onboarding"})
 public class CommercialDetails extends UserDetails {
 
     // Razón social, NIT y el resto de datos de identificación jurídica se

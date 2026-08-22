@@ -2,6 +2,7 @@ package com.verygana2.services.interfaces.finance;
 
 import java.util.List;
 
+import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 
@@ -13,6 +14,12 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 public interface PlanChangeRequestService {
 
     PlanChangeRequest requestPlanChange(Long commercialId, PlanCode targetPlanCode, Long intendedInvestmentAmountCents);
+
+    /**
+     * Resumen de solo lectura de lo que implicaría el cambio — para que el comercial lo
+     * revise antes de que se genere el otrosí y se envíe a revisión/firma. No crea nada.
+     */
+    PlanChangePreviewResponseDTO previewPlanChange(Long commercialId, PlanCode targetPlanCode, Long intendedInvestmentAmountCents);
 
     PlanChangeRequest cancelPlanChangeRequest(Long commercialId, Long requestId);
 
