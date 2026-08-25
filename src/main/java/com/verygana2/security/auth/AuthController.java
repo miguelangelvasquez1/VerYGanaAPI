@@ -2,6 +2,7 @@ package com.verygana2.security.auth;
 
 import java.util.stream.Collectors;
 
+import com.verygana2.security.recaptcha.RecaptchaService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -56,6 +57,7 @@ public class AuthController {
     private final PasswordSetupService passwordSetupService;
     private final SecurityAuditService securityAuditService;
     private final AccountLockService accountLockService;
+    private final RecaptchaService recaptchaService;
 
     @Value("${jwt.access-token.expiration}")
     private long accessTokenExpiration;
@@ -65,7 +67,7 @@ public class AuthController {
 
     public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService,
                            TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService,
-                           SecurityAuditService securityAuditService, AccountLockService accountLockService) {
+                           SecurityAuditService securityAuditService, AccountLockService accountLockService, RecaptchaService recaptchaService) {
         this.tokenService = tokenService;
         this.authManager = authManager;
         this.userService = userService;
@@ -73,6 +75,7 @@ public class AuthController {
         this.passwordSetupService = passwordSetupService;
         this.securityAuditService = securityAuditService;
         this.accountLockService = accountLockService;
+        this.recaptchaService = recaptchaService;
     }
 
     /**
@@ -88,6 +91,17 @@ public class AuthController {
 
         if (accountLockService.isLocked(request.getIdentifier())) {
             throw new AccountLockedException("Cuenta bloqueada por múltiples intentos fallidos. Revisa tu correo para el código de desbloqueo.");
+        }
+
+        if (!recaptchaService.verify(request.getRecaptchaToken())) {
+            log.warn(
+                    "reCAPTCHA verification failed for login attempt: {}",
+                    request.getIdentifier()
+            );
+
+            throw new BadCredentialsException(
+                    "No fue posible verificar la seguridad de la solicitud."
+            );
         }
 
         Authentication authentication;
@@ -266,20 +280,38 @@ public class AuthController {
     }
 
     @PostMapping("/register/consumer")
-    public ResponseEntity<?> registerConsumer(@Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
+    public ResponseEntity<?> registerConsumer(
+            @Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
+
+        if (!recaptchaService.verify(consumerRegisterRequest.getRecaptchaToken())) {
+            log.warn("reCAPTCHA verification failed for consumer registration");
+            throw new BadCredentialsException(
+                    "No fue posible verificar la seguridad de la solicitud."
+            );
+        }
+
         userService.registerConsumer(consumerRegisterRequest);
+
         String message = Boolean.TRUE.equals(consumerRegisterRequest.getIsPEP())
                 ? "Registro exitoso. Tu cuenta está en revisión por el equipo de cumplimiento. Te notificaremos cuando sea aprobada."
                 : "Registro exitoso. Revisa tu correo para activar tu cuenta.";
+
         return ResponseEntity.status(HttpStatus.CREATED).body(message);
     }
 
     @PostMapping("/register/commercial")
-    public ResponseEntity<?> registerCommercial(@Valid @RequestBody CommercialRegisterDTO dto) {
+    public ResponseEntity<?> registerCommercial(
+            @Valid @RequestBody CommercialRegisterDTO dto) {
+
+        if (!recaptchaService.verify(dto.getRecaptchaToken())) {
+            log.warn("reCAPTCHA verification failed for commercial registration");
+            throw new BadCredentialsException(
+                    "No fue posible verificar la seguridad de la solicitud."
+            );
+        }
+
         userService.registerCommercial(dto);
-        // La declaración de PEP y el screening SAGRILAFT ahora ocurren en el paso 3
-        // (identificación jurídica), no en el registro básico — por eso el mensaje ya
-        // no depende de isPEP aquí.
+
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body("Registro exitoso. Revisa tu correo para activar tu cuenta.");
     }

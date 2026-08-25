@@ -3,7 +3,6 @@ package com.verygana2.dtos.raffle.requests;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -25,6 +24,5 @@ public class PrepareRaffleCreationRequestBodyDTO {
 
     // En el mismo orden que raffleData.prizes
     @NotNull
-    @Size(min = 1)
     private List<@Valid FileUploadRequestDTO> prizeImageMetadataList;
 }

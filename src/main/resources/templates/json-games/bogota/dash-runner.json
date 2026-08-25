@@ -28,7 +28,6 @@
     ]
   },
   "rewards": {
-    "keys_per_action": 5,
-    "keys_on_completion": 5
+    "keys_per_action": 5
   }
 }

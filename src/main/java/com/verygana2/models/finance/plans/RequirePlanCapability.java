@@ -13,6 +13,13 @@ public @interface RequirePlanCapability {
 
     String commercialIdParam() default "commercialId";
 
+    /**
+     * Si es true, además de las capacidades declaradas exige que el wallet del comercial
+     * (STANDARD/PREMIUM) no esté agotado. Marca solo los puntos de creación real de
+     * activos nuevos (y la exportación de reportes) — nunca edición/consulta.
+     */
+    boolean requiresBudget() default false;
+
     enum Capability {
         CAN_ADVERTISE,
         CAN_USE_GAMES,

@@ -23,6 +23,7 @@ public class SurveyResponseDTO {
     private Integer responseCount;
     private Integer maxResponses;
     private Survey.SurveyStatus status;
+    private String rejectionReason;
     private LocalDateTime startsAt;
     private LocalDateTime endsAt;
     private LocalDateTime createdAt;

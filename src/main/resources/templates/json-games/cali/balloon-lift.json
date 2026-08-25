@@ -11,6 +11,7 @@
     "images": {
       "main_logo_url": "https://games.verygana.com/asset_tests/aseguradora/sura-logo-blanco-png.png",
       "main_logo_offset_y": 100,
+      "logo_watermark_url": "https://placehold.co/150x50/333333/FFFFFF.png?text=WATERMARK",
       "logo_watermark_offset_y": -200
     },
     "shader_background_config": {
@@ -41,7 +42,8 @@
   },
   "game": {
     "images": {
-      "main_image_url": "https://games.verygana.com/asset_tests/aseguradora/carro.png"
+      "main_image_url": "https://games.verygana.com/asset_tests/aseguradora/carro.png",
+      "parallax_image_url": "https://placehold.co/512x256/00FF00/FFFFFF.png?text=PARALLAX"
     },
     "stages": [],
     "obstacle_models_urls": [],
@@ -83,5 +85,8 @@
     "coins_per_action": 20,
     "coins_on_completion": 200
   },
-  "personalization": {}
+  "personalization": {
+    "coin_url": "https://placehold.co/500x500/FFD700/FFFFFF.png?text=COIN",
+    "coin_count_url": "https://placehold.co/128x128/FFD700/FFFFFF.png?text=COUNT"
+  }
 }

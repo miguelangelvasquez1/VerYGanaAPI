@@ -136,6 +136,7 @@ public abstract class SurveyMapper {
 
     @Mapping(target = "id",                          ignore = true)
     @Mapping(target = "status",                      ignore = true)
+    @Mapping(target = "rejectionReason",              ignore = true)
     @Mapping(target = "responseCount",               ignore = true)
     @Mapping(target = "targetAudience",              ignore = true)
     @Mapping(target = "questions",                   ignore = true)

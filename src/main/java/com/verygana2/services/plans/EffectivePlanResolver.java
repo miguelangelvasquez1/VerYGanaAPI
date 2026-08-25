@@ -46,6 +46,9 @@ public class EffectivePlanResolver {
     private static final String FEAT_MAX_BRANDED_GAMES = "MAX_BRANDED_GAMES";
     private static final String FEAT_MAX_SURVEYS       = "MAX_SURVEYS";
     private static final String FEAT_VISIBILITY_BOOST  = "VISIBILITY_BOOST";
+    private static final String FEAT_LOW_BALANCE_WARNING_PCT      = "LOW_BALANCE_WARNING_PCT";
+    private static final String FEAT_LOW_BALANCE_CRITICAL_PCT     = "LOW_BALANCE_CRITICAL_PCT";
+    private static final String FEAT_LOW_BALANCE_WARNING_FIXED_CENTS = "LOW_BALANCE_WARNING_FIXED_CENTS";
 
     private static final BigDecimal CENTS_PER_COP = BigDecimal.valueOf(100);
 
@@ -107,6 +110,7 @@ public class EffectivePlanResolver {
                         () -> getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false)))
                 // Sin override de onboarding todavía — solo depende del feature del Plan.
                 .canExportReport(getFeatureBool(code, FEAT_CAN_EXPORT_REPORT, false))
+                .budgetSuspended(code != PlanCode.BASIC && balanceCents == 0L)
                 .maxProducts(resolveInt(onboarding == null ? null : onboarding.getMaxProductsOverride(),
                         () -> getFeatureInt(code, FEAT_MAX_PRODUCTS, 0)))
                 .maxAds(resolveInt(onboarding == null ? null : onboarding.getMaxAdsOverride(),
@@ -154,5 +158,50 @@ public class EffectivePlanResolver {
         return planFeatureRepository.findByPlanCodeAndFeatureCode(planCode, featureCode)
                 .map(pf -> pf.getDecimalOrDefault(defaultVal))
                 .orElse(defaultVal);
+    }
+
+    private long getFeatureLong(PlanCode planCode, String featureCode, long defaultVal) {
+        return planFeatureRepository.findByPlanCodeAndFeatureCode(planCode, featureCode)
+                .map(pf -> pf.getLongOrDefault(defaultVal))
+                .orElse(defaultVal);
+    }
+
+    // ── Umbrales de saldo bajo (configurables por plan) ─────────────────────────
+
+    /** Umbrales de aviso de saldo bajo, en centavos, para el plan/wallet dados. */
+    public record BudgetThresholds(long warningCents, long criticalCents) {}
+
+    /**
+     * Resuelve los umbrales de aviso de saldo bajo para un wallet: primero busca un
+     * monto fijo configurado por plan (LOW_BALANCE_WARNING_FIXED_CENTS); si no existe,
+     * usa un porcentaje del último depósito (LOW_BALANCE_WARNING_PCT, con fallback al
+     * 10% plano de Wallet.lowBalanceThresholdPct para no cambiar el comportamiento de
+     * wallets/planes existentes que no definan un override propio).
+     */
+    public BudgetThresholds resolveBudgetThresholds(Wallet wallet) {
+        CommercialDetails commercial = wallet.getCommercial();
+        Plan plan = commercial.getCurrentPlan();
+        if (plan == null || plan.getCode() == PlanCode.BASIC) {
+            return new BudgetThresholds(0L, 0L);
+        }
+
+        long lastDeposit = wallet.getLastDepositAmountCents() != null ? wallet.getLastDepositAmountCents() : 0L;
+
+        long fixedWarningCents = getFeatureLong(plan.getCode(), FEAT_LOW_BALANCE_WARNING_FIXED_CENTS, 0L);
+        long warningCents = fixedWarningCents > 0
+                ? fixedWarningCents
+                : pctOf(lastDeposit, getFeatureDecimal(plan.getCode(), FEAT_LOW_BALANCE_WARNING_PCT,
+                        BigDecimal.valueOf(wallet.getLowBalanceThresholdPct())));
+
+        BigDecimal criticalPct = getFeatureDecimal(plan.getCode(), FEAT_LOW_BALANCE_CRITICAL_PCT, BigDecimal.ZERO);
+        long criticalCents = criticalPct.signum() > 0 ? pctOf(lastDeposit, criticalPct) : 0L;
+
+        return new BudgetThresholds(warningCents, criticalCents);
+    }
+
+    private long pctOf(long amountCents, BigDecimal pct) {
+        return BigDecimal.valueOf(amountCents).multiply(pct)
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
+                .longValue();
     }
 }

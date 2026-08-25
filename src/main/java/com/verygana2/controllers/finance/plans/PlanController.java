@@ -12,10 +12,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.finance.plans.requests.PlanPaymentRequestDTO;
+import com.verygana2.dtos.finance.plans.requests.RechargeRequestDTO;
 import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.PlanService;
 
@@ -31,6 +34,7 @@ public class PlanController {
 
         private final PlanService planService;
         private final CommercialDetailsService commercialDetailsService;
+        private final CommercialContractService commercialContractService;
 
         /**
          * Genera la URL del checkout de Wompi para pagar un plan.
@@ -75,6 +79,55 @@ public class PlanController {
 
                 PlanPaymentStatusResponseDTO status = planService.getPaymentStatus(reference, commercial);
                 return ResponseEntity.ok(status);
+        }
+
+        /**
+         * Solicita una recarga de saldo STANDARD/PREMIUM: genera el contrato específico a
+         * ese monto y lo envía a firma electrónica. El pago solo se habilita una vez
+         * firmado (ver /plans/recharge/{contractId}/checkout).
+         */
+        @PostMapping("/recharge/request")
+        @PreAuthorize("hasRole('COMMERCIAL')")
+        public ResponseEntity<ContractSummaryResponseDTO> requestRecharge(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @Valid @RequestBody RechargeRequestDTO request) {
+
+                Long commercialId = jwt.getClaim("userId");
+                CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+
+                ContractSummaryResponseDTO summary = planService.requestRecharge(commercial, request.getAmountCents());
+                return ResponseEntity.ok(summary);
+        }
+
+        /**
+         * Consulta el estado de un contrato de recarga (polling después de volver de la
+         * firma electrónica, para saber cuándo llamar a /checkout).
+         */
+        @GetMapping("/recharge/{contractId}")
+        @PreAuthorize("hasRole('COMMERCIAL')")
+        public ResponseEntity<ContractSummaryResponseDTO> getRechargeContract(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable Long contractId) {
+
+                Long commercialId = jwt.getClaim("userId");
+                return ResponseEntity.ok(commercialContractService.getForCommercial(contractId, commercialId));
+        }
+
+        /**
+         * Genera el checkout de Wompi para una recarga ya firmada. El frontend lo llama
+         * cuando detecta (por polling del contrato) que el estado pasó a SIGNED.
+         */
+        @PostMapping("/recharge/{contractId}/checkout")
+        @PreAuthorize("hasRole('COMMERCIAL')")
+        public ResponseEntity<WompiCheckoutResponseDTO> generateRechargeCheckout(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable Long contractId) {
+
+                Long commercialId = jwt.getClaim("userId");
+                CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+
+                WompiCheckoutResponseDTO response = planService.generateRechargeCheckout(contractId, commercial);
+                return ResponseEntity.ok(response);
         }
 
         /**

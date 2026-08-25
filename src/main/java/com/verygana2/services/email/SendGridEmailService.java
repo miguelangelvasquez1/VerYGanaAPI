@@ -329,6 +329,109 @@ public class SendGridEmailService implements EmailService {
         }
     }
 
+    // ===== PLANES / RENOVACIÓN / PRESUPUESTO =====
+
+    @Override
+    @Async
+    public void sendSubscriptionExpiredEmail(String toEmail, String commercialName) {
+        log.info("Sending subscription expired email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("subscription-expired.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu suscripción venció — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending subscription expired email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendRenewalReminderEmail(String toEmail, String commercialName, long daysRemaining) {
+        log.info("Sending renewal reminder email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("renewal-reminder.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "daysRemaining", String.valueOf(daysRemaining),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu suscripción vence en " + daysRemaining + " días — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending renewal reminder email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPlanPaymentFailedEmail(String toEmail, String commercialName) {
+        log.info("Sending plan payment failed email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("plan-payment-failed.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu pago no pudo procesarse — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending plan payment failed email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendBudgetLowWarningEmail(String toEmail, String commercialName, boolean critical) {
+        log.info("Sending budget low warning email to: {} (critical={})", toEmail, critical);
+        try {
+            String html = templateLoader.render("budget-low-warning.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "urgencyLabel", critical ? "crítico" : "bajo",
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            String subject = critical
+                    ? "⚠️ Tu saldo publicitario está por agotarse — VerYGana"
+                    : "Tu saldo publicitario está bajando — VerYGana";
+            sendEmail(toEmail, subject, html);
+        } catch (Exception e) {
+            log.error("Error sending budget low warning email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendBudgetExhaustedEmail(String toEmail, String commercialName) {
+        log.info("Sending budget exhausted email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("budget-exhausted.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu saldo publicitario se agotó — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending budget exhausted email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendBudgetReplenishedEmail(String toEmail, String commercialName) {
+        log.info("Sending budget replenished email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("budget-replenished.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu saldo publicitario fue recargado — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending budget replenished email to: {}", toEmail, e);
+        }
+    }
+
     // ===== PQRS =====
 
     @Override
