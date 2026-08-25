@@ -49,7 +49,13 @@ class PetAssetServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PetAssetServiceImpl(designerDetailsRepository, r2Service);
+        // Resolver real: el permiso ahora lleva la url pública y es parte de lo
+        // que se comprueba, así que un mock solo la reimplementaría.
+        PetAssetUrlResolver urlResolver = new PetAssetUrlResolver();
+        ReflectionTestUtils.setField(urlResolver, "petsCdnDomain", "");
+        ReflectionTestUtils.setField(urlResolver, "petsBucketName", BUCKET);
+
+        service = new PetAssetServiceImpl(designerDetailsRepository, r2Service, urlResolver);
         ReflectionTestUtils.setField(service, "petsBucketName", BUCKET);
         ReflectionTestUtils.setField(service, "maxAssetSizeBytes", MAX_SIZE);
     }
