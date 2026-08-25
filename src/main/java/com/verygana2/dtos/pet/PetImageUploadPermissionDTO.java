@@ -16,5 +16,15 @@ public record PetImageUploadPermissionDTO(
         String uploadUrl,
 
         /** Segundos que la URL sigue siendo válida. */
-        Long expiresInSeconds
+        Long expiresInSeconds,
+
+        /**
+         * URL pública donde quedará el archivo una vez subido.
+         *
+         * Se devuelve desde ya para que el cliente pueda mostrarlo sin haber
+         * guardado todavía: hasta ahora la url solo llegaba al releer la entidad,
+         * así que el diseñador subía un objeto de escena y no veía nada hasta
+         * guardar y recargar. Es la misma que devolverán después los listados.
+         */
+        String publicUrl
 ) {}

@@ -36,9 +36,14 @@ class PetSceneServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PetSceneServiceImpl(sceneRepository, sceneMapper, schemaValidator, new ObjectMapper());
-        ReflectionTestUtils.setField(service, "petsCdnDomain", "cdn.pets.test");
-        ReflectionTestUtils.setField(service, "petsBucketName", "verygana-pets");
+        // El resolver es real, no mock: lo que se está comprobando es justamente la
+        // URL que sale de él, y con un mock habría que reimplementarla en el stub.
+        PetAssetUrlResolver urlResolver = new PetAssetUrlResolver();
+        ReflectionTestUtils.setField(urlResolver, "petsCdnDomain", "cdn.pets.test");
+        ReflectionTestUtils.setField(urlResolver, "petsBucketName", "verygana-pets");
+
+        service = new PetSceneServiceImpl(
+                sceneRepository, sceneMapper, schemaValidator, new ObjectMapper(), urlResolver);
     }
 
     /** Escena con un único objeto, suficiente para comprobar el mapeo de URL. */

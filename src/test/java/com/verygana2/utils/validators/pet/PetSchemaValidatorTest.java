@@ -140,6 +140,21 @@ class PetSchemaValidatorTest {
         assertThat(validateScene(s)).isNotEmpty();
     }
 
+    /**
+     * El número de escena lo elige el equipo del juego, no la base de datos, y usa
+     * negativos para escenas especiales. El schema exigía >= 0 y rechazaba escenas
+     * legítimas; no confundir con `id`, la clave primaria de la fila, que no viaja
+     * en este contrato.
+     */
+    @Test
+    @DisplayName("sceneId negativo se acepta")
+    void negativeSceneId_accepted() {
+        Map<String, Object> s = validScene();
+        s.put("sceneId", -1);
+
+        assertThat(validateScene(s)).isEmpty();
+    }
+
     @Test
     @DisplayName("scaleMultiplier es opcional pero no puede ser cero")
     void zeroScale_rejected() {

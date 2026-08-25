@@ -12,6 +12,7 @@ import com.verygana2.dtos.pet.PetCatalogItemResponseDTO;
 import com.verygana2.dtos.pet.PetNotificationRequestDTO;
 import com.verygana2.dtos.pet.PetNotificationResponseDTO;
 import com.verygana2.dtos.pet.PetSceneAdminResponseDTO;
+import com.verygana2.dtos.pet.PetSceneCanvasDTO;
 import com.verygana2.dtos.pet.PetSceneRequestDTO;
 import com.verygana2.models.enums.CatalogRequestStatus;
 import com.verygana2.services.interfaces.pet.CatalogIntegrationRequestService;
@@ -101,6 +102,18 @@ public class PetDesignerController {
     @GetMapping("/scenes")
     public ResponseEntity<List<PetSceneAdminResponseDTO>> getAllScenes() {
         return ResponseEntity.ok(sceneService.getAllScenesAdmin());
+    }
+
+    /**
+     * Área de juego contra la que el editor dibuja el lienzo de referencia.
+     *
+     * Va aparte del listado de escenas porque no depende de ninguna: es una
+     * propiedad del build. El editor la pide una vez y, si falla, cae a su propio
+     * defecto — quedarse sin lienzo por esto sería peor que dibujarlo aproximado.
+     */
+    @GetMapping("/scenes/canvas")
+    public ResponseEntity<PetSceneCanvasDTO> getSceneCanvas() {
+        return ResponseEntity.ok(sceneService.getSceneCanvas());
     }
 
     @PostMapping("/scenes")
