@@ -7,6 +7,7 @@ import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.pet.PetCatalogService;
 import com.verygana2.services.interfaces.pet.PetNotificationService;
+import com.verygana2.services.interfaces.pet.PetPlayerSaveService;
 import com.verygana2.services.interfaces.pet.PetSceneService;
 import com.verygana2.services.interfaces.pet.PetSessionService;
 import jakarta.persistence.EntityNotFoundException;
@@ -30,12 +31,42 @@ public class PetGameConfigController {
     private final PetSceneService petSceneService;
     private final PetNotificationService petNotificationService;
     private final ConsumerDetailsRepository consumerDetailsRepository;
+    private final PetPlayerSaveService petPlayerSaveService;
 
     /**
      * Token de sesión reservado para el modo preview del diseñador. Mismo valor y
      * mismo criterio que en juegos (ver GameController.getGameAssets).
      */
     private static final String PREVIEW_TOKEN = "preview";
+
+    // ── Progreso de la mascota (requiere JWT) ─────────────
+    //
+    // Va con JWT y no con session_token porque el guardado pertenece al consumidor,
+    // no a una partida: el session_token identifica una sesión de juego, que caduca
+    // a los 30 minutos y de la que hay varias por usuario.
+
+    /**
+     * Devuelve el progreso guardado. 204 si el jugador todavía no ha guardado nada,
+     * para que el juego distinga "sin guardado" de "guardado vacío" sin parsear.
+     */
+    @GetMapping("/save")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<PetSaveDTO> getSave(@AuthenticationPrincipal Jwt jwt) {
+        PetSaveDTO save = petPlayerSaveService.get(getConsumerId(jwt));
+        return save == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(save);
+    }
+
+    /** Sustituye el progreso completo. El contenido es opaco para el backend. */
+    @PutMapping("/save")
+    @PreAuthorize("hasRole('CONSUMER')")
+    public ResponseEntity<PetSaveDTO> putSave(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestBody PetSaveDTO body) {
+        if (body == null) {
+            throw new InvalidRequestException("Falta el cuerpo con el guardado");
+        }
+        return ResponseEntity.ok(petPlayerSaveService.save(getConsumerId(jwt), body.data()));
+    }
 
     // ── Iniciar sesión (requiere JWT) ─────────────────────
     @PostMapping("/session/init")
