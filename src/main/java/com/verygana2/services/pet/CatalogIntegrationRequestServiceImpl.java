@@ -131,14 +131,17 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
 
+        // La imagen es obligatoria: el diseñador no puede hornear el producto sin ver
+        // cómo se ve, y una solicitud sin imagen se queda atascada en el hilo pidiéndola.
         String imageObjectKey = normalizeImageKey(dto.imageObjectKey());
-        if (imageObjectKey != null) {
-            assertImageBelongsToCommercial(imageObjectKey, commercial.getId());
-            // Comprueba contra R2 que el objeto existe de verdad y que su contenido es una
-            // imagen — sin esto, imageObjectKey sería texto libre que el cliente inventa.
-            r2Service.validateUploadedObjectInBucket(
-                    petsBucketName, imageObjectKey, maxImageSizeBytes, ALLOWED_IMAGE_TYPES);
+        if (imageObjectKey == null) {
+            throw new ValidationException("La imagen del producto es requerida");
         }
+        assertImageBelongsToCommercial(imageObjectKey, commercial.getId());
+        // Comprueba contra R2 que el objeto existe de verdad y que su contenido es una
+        // imagen — sin esto, imageObjectKey sería texto libre que el cliente inventa.
+        r2Service.validateUploadedObjectInBucket(
+                petsBucketName, imageObjectKey, maxImageSizeBytes, ALLOWED_IMAGE_TYPES);
 
         CatalogIntegrationRequest request = new CatalogIntegrationRequest();
         request.setCommercial(commercial);

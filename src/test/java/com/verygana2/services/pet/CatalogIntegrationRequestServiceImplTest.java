@@ -246,21 +246,17 @@ class CatalogIntegrationRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("la imagen es opcional: sin clave no toca R2 y guarda null")
-        void imagenOpcional() {
+        @DisplayName("la imagen es obligatoria: sin clave no toca R2 y no crea la solicitud")
+        void imagenObligatoria() {
             commercialExists();
-            when(requestRepository.save(any(CatalogIntegrationRequest.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
 
-            service.submit(USER_ID, requestWithImage("   "));
+            assertThatThrownBy(() -> service.submit(USER_ID, requestWithImage("   ")))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("imagen del producto es requerida");
 
             verify(r2Service, never())
                     .validateUploadedObjectInBucket(any(), any(), anyLong(), anySet());
-
-            ArgumentCaptor<CatalogIntegrationRequest> saved =
-                    ArgumentCaptor.forClass(CatalogIntegrationRequest.class);
-            verify(requestRepository).save(saved.capture());
-            assertThat(saved.getValue().getImageObjectKey()).isNull();
+            verify(requestRepository, never()).save(any());
         }
     }
 
