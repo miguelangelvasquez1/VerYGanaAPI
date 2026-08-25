@@ -72,6 +72,7 @@ class CatalogIntegrationRequestServiceImplTest {
     @Mock private PetCatalogService catalogService;
     @Mock private R2Service r2Service;
     @Mock private CatalogRequestCommentRepository commentRepository;
+    @Mock private com.verygana2.repositories.finance.KeyTransactionRepository keyTransactionRepository;
 
     private CatalogIntegrationRequestServiceImpl service;
     private CommercialDetails commercial;
@@ -92,7 +93,8 @@ class CatalogIntegrationRequestServiceImplTest {
 
         service = new CatalogIntegrationRequestServiceImpl(
                 requestRepository, commercialDetailsRepository, designerDetailsRepository,
-                catalogService, r2Service, mapper, commentRepository, draftValidator);
+                catalogService, r2Service, mapper, commentRepository, draftValidator,
+                keyTransactionRepository);
         ReflectionTestUtils.setField(service, "petsBucketName", PETS_BUCKET);
         ReflectionTestUtils.setField(service, "petsCdnDomain", "");
         ReflectionTestUtils.setField(service, "maxImageSizeBytes", MAX_SIZE);

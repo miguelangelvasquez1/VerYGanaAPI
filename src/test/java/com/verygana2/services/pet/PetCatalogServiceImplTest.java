@@ -18,6 +18,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -79,6 +80,32 @@ class PetCatalogServiceImplTest {
             PetCatalogItemResponseDTO res = service.createCatalogItem(dto("catalog-sprites/6/abc"));
 
             assertThat(res.spriteUrl()).isEqualTo("https://cdn.pets.test/catalog-sprites/6/abc");
+        }
+
+        @Test
+        @DisplayName("sin externalId el servidor asigna el siguiente")
+        void asignaExternalIdAutomatico() {
+            // Lo tecleaba el diseñador. Dos ítems con el mismo número hacen que
+            // findByExternalId (que devuelve Optional) reviente, y toda compra de ese
+            // ítem pasa a dar 500.
+            when(catalogMapper.toEntity(any())).thenReturn(new PetCatalogItem());
+            when(catalogRepository.nextExternalId()).thenReturn(1301);
+            saveEchoesBack();
+
+            assertThat(service.createCatalogItem(dto(null)).externalId()).isEqualTo(1301);
+        }
+
+        @Test
+        @DisplayName("si el DTO trae externalId se respeta y no se pide otro")
+        void respetaElExternalIdDelDto() {
+            // Hace falta para mapear un ítem nuestro sobre uno horneado en el build.
+            PetCatalogItem entidad = new PetCatalogItem();
+            entidad.setExternalId(7);
+            when(catalogMapper.toEntity(any())).thenReturn(entidad);
+            saveEchoesBack();
+
+            assertThat(service.createCatalogItem(dto(null)).externalId()).isEqualTo(7);
+            verify(catalogRepository, org.mockito.Mockito.never()).nextExternalId();
         }
 
         @Test

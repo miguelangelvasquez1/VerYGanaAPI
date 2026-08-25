@@ -7,6 +7,7 @@ import com.verygana2.models.enums.CommentAuthorRole;
 import com.verygana2.dtos.pet.CatalogIntegrationResponseDTO;
 import com.verygana2.dtos.pet.PetImageUploadPermissionDTO;
 import com.verygana2.dtos.pet.PetImageUploadRequestDTO;
+import com.verygana2.dtos.pet.PetProductMetricsDTO;
 import com.verygana2.services.interfaces.pet.CatalogIntegrationRequestService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +18,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
+import com.verygana2.dtos.pet.PetSalesPointDTO;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -81,5 +85,38 @@ public class CommercialPetRequestController {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.status(HttpStatus.CREATED).body(
                 requestService.addComment(id, userId, CommentAuthorRole.COMMERCIAL, dto.content()));
+    }
+
+    /**
+     * Métricas de venta de los productos que este comercial publicó en el juego.
+     *
+     * Mide ventas, no exposición: el juego no reporta cuántas veces se mostró el
+     * producto en la tienda, así que no hay impresiones ni tasa de conversión.
+     *
+     * Exige plan con CAN_HAVE_PETS (se valida en el servicio, igual que al crear la
+     * solicitud): sin ese plan el comercial no tiene productos en el juego.
+     */
+    @GetMapping("/metrics")
+    public ResponseEntity<List<PetProductMetricsDTO>> getMyProductMetrics(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(requestService.getMyProductMetrics(userId, from, to));
+    }
+
+    /**
+     * Serie diaria para la gráfica de evolución. Sin rango, los últimos 30 días.
+     *
+     * Devuelve también los días sin ventas, en cero: omitirlos haría que la gráfica
+     * uniera dos fechas lejanas con una recta y aparentara actividad continua.
+     */
+    @GetMapping("/metrics/daily")
+    public ResponseEntity<List<PetSalesPointDTO>> getMyDailySales(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        Long userId = jwt.getClaim("userId");
+        return ResponseEntity.ok(requestService.getMyDailySales(userId, from, to));
     }
 }

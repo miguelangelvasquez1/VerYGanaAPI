@@ -77,6 +77,21 @@ public class KeyTransaction {
      * Positivo = crédito, negativo = débito.
      * Null si este movimiento no afecta las llaves de conectividad.
      */
+    /**
+     * Ítem del catálogo de mascotas que originó el gasto, o null si la compra no se
+     * pudo resolver (ítem sin registrar) o la transacción no es del juego.
+     *
+     * Existe para poder medir ventas por producto. Antes el ítem vivía solo dentro del
+     * texto de {@code reason} ("Mascota virtual: 1300 (itemId=0)") y {@code referenceId}
+     * es un UUID aleatorio, así que cualquier informe tenía que partir esa cadena: si
+     * alguien cambiaba el formato del mensaje, los reportes devolvían cero en silencio.
+     *
+     * Se guarda el id suelto y no una relación JPA a propósito: finanzas no debe
+     * depender del modelo de mascotas, y para agregar por producto basta con el join.
+     */
+    @Column(name = "pet_catalog_item_id", updatable = false)
+    private Long petCatalogItemId;
+
     @Column(name = "connectivity_keys_delta_cents", updatable = false)
     private Long connectivityKeysDeltaCents;
 
@@ -272,12 +287,20 @@ public class KeyTransaction {
      * solo no identifica nada. Es además el candidato a cruzarse con
      * PetCatalogItem.externalId cuando el precio pase a calcularse en el servidor.
      */
+    /**
+     * @param petCatalogItemId ítem resuelto en nuestro catálogo, o null si la compra
+     *                         llegó con un identificador que no tenemos registrado.
+     *                         Es lo que permite medir ventas por producto sin parsear
+     *                         el texto de {@code reason}.
+     */
     public static KeyTransaction forPetGame(
-            KeyWallet wallet, long amountCentsSpent, Integer itemId, String itemName) {
+            KeyWallet wallet, long amountCentsSpent, Integer itemId, String itemName,
+            Long petCatalogItemId) {
         return KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(KeyTransactionType.DEBIT_PET_GAME)
                 .purchaseKeysDeltaCents(-amountCentsSpent)
+                .petCatalogItemId(petCatalogItemId)
                 .reason("Mascota virtual: " + itemName + " (itemId=" + itemId + ")")
                 .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
                 .build();

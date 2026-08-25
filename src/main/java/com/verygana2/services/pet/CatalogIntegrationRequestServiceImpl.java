@@ -3,6 +3,7 @@ package com.verygana2.services.pet;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
+import com.verygana2.dtos.pet.PetProductMetricsDTO;
 import com.verygana2.dtos.pet.ApprovePetRequestDTO;
 import com.verygana2.dtos.pet.CatalogIntegrationRequestDTO;
 import com.verygana2.dtos.pet.CatalogIntegrationResponseDTO;
@@ -15,6 +16,7 @@ import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.pets.CatalogIntegrationRequest;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
+import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.repositories.pet.CatalogIntegrationRequestRepository;
@@ -35,6 +37,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZonedDateTime;
+import com.verygana2.dtos.pet.PetSalesPointDTO;
+import java.time.LocalDate;
+import java.util.stream.Collectors;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,6 +73,9 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     @Value("${cloudflare.r2.pets-bucket-name:verygana-pets}")
     private String petsBucketName;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     @Value("${pets.catalog-request-image.max-size-bytes:5242880}")
     private long maxImageSizeBytes;
 
@@ -77,6 +87,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     private final ObjectMapper objectMapper;
     private final CatalogRequestCommentRepository commentRepository;
     private final PetSchemaValidator schemaValidator;
+    private final KeyTransactionRepository keyTransactionRepository;
 
     @Override
     @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
@@ -110,7 +121,8 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                 commercial.getId(), objectKey);
 
         return new PetImageUploadPermissionDTO(
-                objectKey, permission.getUploadUrl(), permission.getExpiresInSeconds());
+                objectKey, permission.getUploadUrl(), permission.getExpiresInSeconds(),
+                buildPublicUrl(objectKey));
     }
 
     @Override
@@ -485,5 +497,89 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                 r.getCreatedAt(),
                 r.getUpdatedAt()
         );
+    }
+
+    /**
+     * Métricas de venta de los productos publicados por el comercial.
+     *
+     * Mide ventas, no exposición: el juego no manda eventos de visualización, así que
+     * no hay impresiones ni tasa de conversión. Conviene no presentarlo como alcance.
+     *
+     * Los ítems aprobados pero aún sin ventas salen igual, con todo en cero: es
+     * información útil para el comercial y esconderlos parecería un fallo.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
+    public List<PetProductMetricsDTO> getMyProductMetrics(Long userId, LocalDate from, LocalDate to) {
+        CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
+
+        return keyTransactionRepository
+                .findPetProductSalesByCommercial(commercial.getId(), startOf(from), endOf(to)).stream()
+                .map(row -> new PetProductMetricsDTO(
+                        row.getCatalogItemId(),
+                        row.getExternalId(),
+                        row.getProductName(),
+                        row.getPriceKeys(),
+                        row.getActive(),
+                        row.getUnitsSold(),
+                        row.getRevenueCents() / keyValueCents,
+                        row.getRevenueCents(),
+                        row.getUniqueBuyers(),
+                        row.getUnitsSold() == 0 ? 0
+                                : keyTransactionRepository.countRepeatBuyers(row.getCatalogItemId()),
+                        toZoned(row.getFirstSale()),
+                        toZoned(row.getLastSale())))
+                .toList();
+    }
+
+    /**
+     * Ventas por día, con los huecos rellenados en cero.
+     *
+     * La consulta solo devuelve los días en que hubo ventas; si se pintaran tal cual,
+     * la gráfica uniría dos días lejanos con una recta y sugeriría actividad continua
+     * donde no la hubo.
+     */
+    @Override
+    @Transactional(readOnly = true)
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
+    public List<PetSalesPointDTO> getMyDailySales(Long userId, LocalDate from, LocalDate to) {
+        CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
+
+        LocalDate desde = from != null ? from : LocalDate.now().minusDays(29);
+        LocalDate hasta = to != null ? to : LocalDate.now();
+
+        Map<LocalDate, KeyTransactionRepository.PetDailySalesRow> porDia =
+                keyTransactionRepository
+                        .findPetDailySalesByCommercial(commercial.getId(), startOf(desde), endOf(hasta))
+                        .stream()
+                        .collect(Collectors.toMap(r -> r.getDay().toLocalDate(), r -> r, (a, b) -> a));
+
+        List<PetSalesPointDTO> serie = new ArrayList<>();
+        for (LocalDate d = desde; !d.isAfter(hasta); d = d.plusDays(1)) {
+            var row = porDia.get(d);
+            long cents = row == null ? 0 : row.getRevenueCents();
+            serie.add(new PetSalesPointDTO(
+                    d, row == null ? 0 : row.getUnitsSold(), cents / keyValueCents, cents));
+        }
+        return serie;
+    }
+
+    /** Inicio del día en UTC; null = sin límite inferior. */
+    private static ZonedDateTime startOf(LocalDate date) {
+        return date == null ? ZonedDateTime.of(1970, 1, 1, 0, 0, 0, 0, java.time.ZoneOffset.UTC)
+                            : date.atStartOfDay(java.time.ZoneOffset.UTC);
+    }
+
+    /** Exclusivo: el día siguiente a las 00:00, para incluir `to` completo. */
+    private static ZonedDateTime endOf(LocalDate date) {
+        return date == null ? ZonedDateTime.now(java.time.ZoneOffset.UTC).plusYears(100)
+                            : date.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC);
+    }
+
+    private static ZonedDateTime toZoned(java.sql.Timestamp ts) {
+        return ts == null ? null : ts.toInstant().atZone(java.time.ZoneOffset.UTC);
     }
 }

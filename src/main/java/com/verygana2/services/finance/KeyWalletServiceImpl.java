@@ -118,7 +118,8 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
         KeyWallet wallet = getByConsumerId(consumerId);
 
-        long amountCents = resolvePriceCents(request);
+        PetCatalogItem item = resolveCatalogItem(request);
+        long amountCents = priceCentsFor(item, request);
 
         log.info("PetGame spend: itemId={} itemName={} qty={} amountCents={} consumerId={}",
                 request.itemId(), request.itemName(), request.quantityOrOne(), amountCents, consumerId);
@@ -131,7 +132,8 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         keyWalletRepository.save(wallet);
 
         keyTransactionRepository.save(
-                KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName()));
+                KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName(),
+                        item != null ? item.getId() : null));
 
         // Mismo criterio que getBalance, para que el saldo que devuelve la compra
         // coincida con el que el juego consulta después.
@@ -139,27 +141,51 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     }
 
     /**
-     * El precio lo pone el servidor, no el cliente: sin esto cualquiera puede
-     * comprar un ítem de 75 llaves mandando amount=1.
+     * Localiza el ítem comprado en nuestro catálogo. Devuelve null si no lo tenemos
+     * registrado, que es el caso en el que se acaba cobrando el monto del cliente.
      *
-     * Los ítems horneados en el build no están en pet_catalog_items y por ahora
-     * caen al monto del cliente — es el comportamiento viejo, acotado a ese caso.
-     * Se cierra del todo cuando el catálogo del juego venga solo de la API.
+     * Dos vías porque el juego identifica de dos formas distintas: la comida manda un
+     * id numérico y la tienda de ropa manda el nombre interno de la prenda.
      */
-    private long resolvePriceCents(SpendKeysRequestDTO request) {
+    private PetCatalogItem resolveCatalogItem(SpendKeysRequestDTO request) {
         Integer externalId = request.resolveCatalogId();
 
         if (externalId != null) {
-            PetCatalogItem item = petCatalogItemRepository
-                    .findByExternalId(externalId).orElse(null);
-
-            if (item != null && item.getPrice() != null) {
-                return item.getPrice() * keyValueCents * request.quantityOrOne();
+            PetCatalogItem item = petCatalogItemRepository.findByExternalId(externalId).orElse(null);
+            if (item == null) {
+                log.warn("PetGame spend: externalId={} no está en el catálogo (¿ítem horneado "
+                        + "en el build?), se cobra el monto del cliente", externalId);
             }
-            log.warn("PetGame spend: externalId={} no está en el catálogo (¿ítem horneado "
-                    + "en el build?), se cobra el monto del cliente", externalId);
+            return item;
         }
 
+        if (request.itemName() != null && !request.itemName().isBlank()) {
+            PetCatalogItem item = petCatalogItemRepository
+                    .findByNameIgnoreCase(request.itemName().trim()).orElse(null);
+            if (item == null) {
+                // Este WARN es además el inventario de lo que falta por sembrar: cada
+                // prenda que alguien compre y no esté en la tabla deja aquí su nombre
+                // exacto, que es el que hay que registrar.
+                log.warn("PetGame spend: itemName='{}' no está en el catálogo, se cobra el "
+                        + "monto del cliente ({} llaves)", request.itemName(), request.quantityOrOne());
+            }
+            return item;
+        }
+
+        return null;
+    }
+
+    /**
+     * El precio lo pone el servidor, no el cliente: sin esto cualquiera puede comprar
+     * un ítem de 75 llaves mandando amount=1.
+     *
+     * Lo que no está en el catálogo cae al monto del cliente. Es el comportamiento
+     * viejo y se cierra del todo cuando el catálogo del juego venga solo de la API.
+     */
+    private long priceCentsFor(PetCatalogItem item, SpendKeysRequestDTO request) {
+        if (item != null && item.getPrice() != null) {
+            return item.getPrice() * keyValueCents * request.quantityOrOne();
+        }
         return request.resolveAmountCents(keyValueCents);
     }
 }
