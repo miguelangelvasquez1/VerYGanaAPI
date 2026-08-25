@@ -44,6 +44,7 @@ public class PetAssetServiceImpl implements PetAssetService {
 
     private final GameDesignerDetailsRepository designerDetailsRepository;
     private final R2Service r2Service;
+    private final PetAssetUrlResolver urlResolver;
 
     @Override
     public PetImageUploadPermissionDTO prepareUpload(Long designerUserId, PetAssetUploadRequestDTO dto) {
@@ -71,7 +72,8 @@ public class PetAssetServiceImpl implements PetAssetService {
                 kind, designer.getId(), objectKey);
 
         return new PetImageUploadPermissionDTO(
-                objectKey, permission.getUploadUrl(), permission.getExpiresInSeconds());
+                objectKey, permission.getUploadUrl(), permission.getExpiresInSeconds(),
+                urlResolver.resolve(objectKey));
     }
 
     private SupportedMimeType resolveMime(String contentType, PetAssetKind kind) {

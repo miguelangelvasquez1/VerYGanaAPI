@@ -1,0 +1,120 @@
+name: CI
+
+# Puerta de calidad de la API. Corre en cada PR y en cada push a main.
+#
+# Los tests son 737 unitarios con Mockito: no hay @SpringBootTest, ni Testcontainers,
+# ni base de datos. Por eso este workflow no necesita servicios y corre en ~3 minutos.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Si se empuja dos veces seguidas a la misma rama, cancela la corrida vieja.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Mínimo privilegio: el workflow solo lee el repo. Cuando se agregue el push a ECR
+# ese job necesitará `id-token: write` para OIDC, pero se le da a ese job, no a todos.
+permissions:
+  contents: read
+
+env:
+  # -ntp = sin logs de descarga de dependencias, que son el 80% del ruido del build.
+  # No se llama MAVEN_ARGS porque Maven 3.9+ lee esa variable del entorno por su
+  # cuenta, y al pasarla además explícita los flags saldrían duplicados.
+  MVN_FLAGS: -B -ntp
+
+jobs:
+  build-test:
+    name: Build y tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          # Cachea ~/.m2/repository con la clave derivada del pom.xml.
+          cache: maven
+
+      # `verify` = compilar + surefire (unitarios) + failsafe (ITs) + repackage del jar.
+      # Se usa en vez de `test` para que el empaquetado de Spring Boot también quede
+      # validado acá y no explote recién al construir la imagen.
+      - name: Compilar y correr tests
+        run: ./mvnw $MVN_FLAGS verify
+
+      # `always()` para que los reportes suban también cuando los tests fallan,
+      # que es justo cuando hacen falta.
+      - name: Subir reportes de test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: |
+            target/surefire-reports/
+            target/failsafe-reports/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Subir el jar
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+          retention-days: 7
+
+  pmd:
+    name: PMD (código muerto)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # No bloqueante a propósito: hoy hay 7 violaciones preexistentes. Reporta sin
+    # frenar los PRs. Cuando lleguen a cero, borrar esta línea para volverlo puerta.
+    continue-on-error: true
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Analizar con PMD
+        run: ./mvnw $MVN_FLAGS pmd:check
+
+      - name: Subir reporte de PMD
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pmd-report
+          path: target/pmd.xml
+          retention-days: 7
+          if-no-files-found: ignore
+
+  docker:
+    name: Construir imagen
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Solo en main: el `mvn package` dentro del Dockerfile duplica el trabajo del job
+    # de arriba, así que no vale la pena pagarlo en cada push de un PR.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: build-test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Valida que el Dockerfile siga construyendo. Todavía no publica a ningún
+      # registry: eso se agrega cuando exista la cuenta de AWS y el repositorio ECR
+      # (ver el workflow release.yml comentado abajo en el README de despliegue).
+      - name: Construir la imagen
+        run: docker build -t verygana-api:${{ github.sha }} .

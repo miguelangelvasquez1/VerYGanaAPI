@@ -111,6 +111,15 @@ public class PetCatalogServiceImpl implements PetCatalogService {
         if (spriteObjectKey != null && !spriteObjectKey.isBlank()) {
             item.setSpriteObjectKey(spriteObjectKey);
         }
+
+        // El externalId lo asigna el servidor. Lo tecleaba el diseñador, y nada impedía
+        // repetir un número: dos filas con el mismo id hacen que findByExternalId falle
+        // y toda compra de ese ítem devuelva 500. Se respeta el valor si viene en el DTO
+        // —hace falta para mapear un ítem nuestro sobre uno horneado en el build—, pero
+        // el formulario ya no lo pide.
+        if (item.getExternalId() == null) {
+            item.setExternalId(catalogRepository.nextExternalId());
+        }
         // El DTO trae active como Boolean: si el diseñador lo omite, MapStruct pisa el
         // default de la entidad con null y findAllByActiveTrue() lo dejaría invisible.
         if (item.getActive() == null) {

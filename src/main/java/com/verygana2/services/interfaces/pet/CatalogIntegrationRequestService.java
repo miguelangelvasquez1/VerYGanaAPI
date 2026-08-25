@@ -58,4 +58,20 @@ public interface CatalogIntegrationRequestService {
     List<CatalogRequestCommentDTO> getComments(Long requestId, Long userId, CommentAuthorRole role);
     CatalogRequestCommentDTO addComment(Long requestId, Long authorUserId,
                                         CommentAuthorRole role, String content);
+
+    /**
+     * Métricas de venta de los productos que el comercial publicó en el juego.
+     * Requiere plan con CAN_HAVE_PETS, igual que crear la solicitud.
+     *
+     * @param userId id del usuario comercial autenticado
+     */
+    java.util.List<com.verygana2.dtos.pet.PetProductMetricsDTO> getMyProductMetrics(
+            Long userId, java.time.LocalDate from, java.time.LocalDate to);
+
+    /**
+     * Ventas por día para la gráfica de evolución, con los días sin ventas rellenados
+     * en cero. Mismo requisito de plan que {@link #getMyProductMetrics}.
+     */
+    java.util.List<com.verygana2.dtos.pet.PetSalesPointDTO> getMyDailySales(
+            Long userId, java.time.LocalDate from, java.time.LocalDate to);
 }

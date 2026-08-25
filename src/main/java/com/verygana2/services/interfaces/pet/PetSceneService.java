@@ -5,6 +5,7 @@ import com.verygana2.dtos.pet.PetSceneResponseDTO;
 import java.util.List;
 
 import com.verygana2.dtos.pet.PetSceneAdminResponseDTO;
+import com.verygana2.dtos.pet.PetSceneCanvasDTO;
 import com.verygana2.dtos.pet.PetSceneRequestDTO;
 
 public interface PetSceneService {
@@ -23,4 +24,10 @@ public interface PetSceneService {
     PetSceneAdminResponseDTO createScene(PetSceneRequestDTO dto);
     PetSceneAdminResponseDTO updateScene(Long id, PetSceneRequestDTO dto);
     void deleteScene(Long id);
+
+    /**
+     * Área de juego contra la que el editor dibuja los objetos de una escena.
+     * Es configuración, no datos: describe el build, no una escena concreta.
+     */
+    PetSceneCanvasDTO getSceneCanvas();
 }

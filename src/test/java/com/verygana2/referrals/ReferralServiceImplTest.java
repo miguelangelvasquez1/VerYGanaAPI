@@ -2,9 +2,7 @@ package com.verygana2.referrals;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,27 +13,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
-import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.mappers.ReferralMapper;
 import com.verygana2.models.User;
-import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.referrals.ReferralServiceImpl;
 
+/**
+ * El XP del referidor NO se otorga aquí: {@code prepareNewConsumer} solo deja el
+ * vínculo listo durante el registro. La recompensa se dispara cuando la cuenta se
+ * confirma, en {@code UserServiceImpl.triggerReferralRewardsIfApplicable} — así un
+ * registro que nunca verifica su correo no paga XP ni tickets.
+ */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("ReferralServiceImpl")
 class ReferralServiceImplTest {
 
     @Mock ConsumerDetailsRepository consumerDetailsRepository;
     @Mock ReferralMapper referralMapper;
-    @Mock ApplicationEventPublisher eventPublisher;
 
     @InjectMocks ReferralServiceImpl service;
 
@@ -92,7 +91,7 @@ class ReferralServiceImplTest {
     class PrepareNewConsumer {
 
         @Test
-        @DisplayName("sin código de referido: asigna código propio y no publica evento")
+        @DisplayName("sin código de referido: asigna código propio y deja referredBy vacío")
         void withoutReferralCodeOnlyAssignsOwnCode() {
             when(consumerDetailsRepository.existsByReferralCode(anyString())).thenReturn(false);
 
@@ -100,8 +99,6 @@ class ReferralServiceImplTest {
 
             assertThat(newConsumer.getReferralCode()).isNotBlank();
             assertThat(newConsumer.getReferredBy()).isNull();
-            verify(eventPublisher, never())
-                    .publishEvent(any(org.springframework.context.ApplicationEvent.class));
         }
 
         @Test
@@ -112,13 +109,11 @@ class ReferralServiceImplTest {
             service.prepareNewConsumer(newUser, newConsumer, "   ");
 
             assertThat(newConsumer.getReferredBy()).isNull();
-            verify(eventPublisher, never())
-                    .publishEvent(any(org.springframework.context.ApplicationEvent.class));
         }
 
         @Test
-        @DisplayName("con código válido: asigna referredBy y publica XP REFERRAL_ACTIVE al referidor")
-        void validCodeAssignsReferrerAndPublishesXp() {
+        @DisplayName("con código válido: asigna referredBy (el XP llega al confirmar la cuenta)")
+        void validCodeAssignsReferrer() {
             when(consumerDetailsRepository.existsByReferralCode(anyString())).thenReturn(false);
             when(consumerDetailsRepository.findByReferralCode("ABCD1234"))
                     .thenReturn(Optional.of(referrer));
@@ -126,13 +121,9 @@ class ReferralServiceImplTest {
             service.prepareNewConsumer(newUser, newConsumer, "abcd1234");
 
             assertThat(newConsumer.getReferredBy()).isSameAs(referrer);
-
-            ArgumentCaptor<XpAwardRequestedEvent> captor =
-                    ArgumentCaptor.forClass(XpAwardRequestedEvent.class);
-            verify(eventPublisher).publishEvent(captor.capture());
-            XpAwardRequestedEvent event = captor.getValue();
-            assertThat(event.getConsumerId()).isEqualTo(referrer.getId());
-            assertThat(event.getActivityType()).isEqualTo(ActivityType.REFERRAL_ACTIVE);
+            assertThat(newConsumer.getReferralCode())
+                    .isNotBlank()
+                    .isNotEqualTo(referrer.getReferralCode());
         }
 
         @Test
@@ -161,7 +152,7 @@ class ReferralServiceImplTest {
         }
 
         @Test
-        @DisplayName("auto-referido (mismo email) lanza excepción y no publica evento")
+        @DisplayName("auto-referido (mismo email) lanza excepción")
         void selfReferralThrows() {
             when(consumerDetailsRepository.existsByReferralCode(anyString())).thenReturn(false);
             newUser.setEmail("referidor@test.com"); // mismo email que el dueño del código
@@ -172,13 +163,10 @@ class ReferralServiceImplTest {
                     service.prepareNewConsumer(newUser, newConsumer, "ABCD1234"))
                     .isInstanceOf(RuntimeException.class)
                     .hasMessageContaining("auto-referido");
-
-            verify(eventPublisher, never())
-                    .publishEvent(any(org.springframework.context.ApplicationEvent.class));
         }
 
         @Test
-        @DisplayName("no sobrescribe un referidor ya asignado ni publica evento extra")
+        @DisplayName("no sobrescribe un referidor ya asignado")
         void doesNotOverwriteExistingReferrer() {
             when(consumerDetailsRepository.existsByReferralCode(anyString())).thenReturn(false);
             ConsumerDetails originalReferrer = new ConsumerDetails();
@@ -190,8 +178,6 @@ class ReferralServiceImplTest {
             service.prepareNewConsumer(newUser, newConsumer, "ABCD1234");
 
             assertThat(newConsumer.getReferredBy()).isSameAs(originalReferrer);
-            verify(eventPublisher, never())
-                    .publishEvent(any(org.springframework.context.ApplicationEvent.class));
         }
     }
 

@@ -78,6 +78,108 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
             """)
     List<KeyTransaction> findExpiredNotProcessed(@Param("now") ZonedDateTime now);
 
+    /**
+     * Ventas por producto de un comercial en el juego de mascotas.
+     *
+     * Nativa y no JPQL porque {@code petCatalogItemId} se guarda como id suelto —
+     * finanzas no depende del modelo de mascotas—, así que no hay asociación que
+     * recorrer. El vínculo comercial→producto sale de la solicitud de integración
+     * que dio origen al ítem ({@code result_catalog_item_id}).
+     *
+     * Cuenta solo transacciones con {@code pet_catalog_item_id}: las anteriores a
+     * esa columna quedaron rellenadas, y lo que no se pudo casar es ítem borrado.
+     *
+     * El rango de fechas va en el ON y no en el WHERE a propósito: en el WHERE
+     * convertiría el LEFT JOIN en INNER y los productos sin ventas en ese periodo
+     * desaparecerían del panel, que es justo lo que no queremos mostrarle al
+     * comercial. Con el filtro en el ON salen igual, con los contadores en cero.
+     */
+    @Query(value = """
+            SELECT  i.id                                   AS catalogItemId,
+                    i.external_id                          AS externalId,
+                    i.name                                 AS productName,
+                    i.price                                AS priceKeys,
+                    i.active                               AS active,
+                    COUNT(t.id)                            AS unitsSold,
+                    COALESCE(SUM(-t.purchase_keys_delta_cents), 0) AS revenueCents,
+                    COUNT(DISTINCT w.consumer_id)          AS uniqueBuyers,
+                    MIN(t.created_at)                      AS firstSale,
+                    MAX(t.created_at)                      AS lastSale
+            FROM catalog_integration_requests r
+            JOIN pet_catalog_items i ON i.id = r.result_catalog_item_id
+            LEFT JOIN key_transactions t
+                   ON t.pet_catalog_item_id = i.id
+                  AND t.type = 'DEBIT_PET_GAME'
+                  AND t.created_at >= :from
+                  AND t.created_at < :to
+            LEFT JOIN key_wallets w ON w.id = t.key_wallet_id
+            WHERE r.commercial_id = :commercialId
+            GROUP BY i.id, i.external_id, i.name, i.price, i.active
+            ORDER BY revenueCents DESC
+            """, nativeQuery = true)
+    List<PetProductSalesRow> findPetProductSalesByCommercial(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
+    /**
+     * Ventas por día de todos los productos del comercial, para la gráfica de evolución.
+     *
+     * Solo devuelve los días con ventas; rellenar los huecos es cosa del servicio,
+     * porque una gráfica que se salta los días vacíos miente sobre la tendencia.
+     */
+    @Query(value = """
+            SELECT  DATE(t.created_at)                     AS day,
+                    COUNT(*)                               AS unitsSold,
+                    COALESCE(SUM(-t.purchase_keys_delta_cents), 0) AS revenueCents
+            FROM key_transactions t
+            JOIN pet_catalog_items i ON i.id = t.pet_catalog_item_id
+            JOIN catalog_integration_requests r ON r.result_catalog_item_id = i.id
+            WHERE r.commercial_id = :commercialId
+              AND t.type = 'DEBIT_PET_GAME'
+              AND t.created_at >= :from
+              AND t.created_at < :to
+            GROUP BY DATE(t.created_at)
+            ORDER BY day
+            """, nativeQuery = true)
+    List<PetDailySalesRow> findPetDailySalesByCommercial(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
+    /** Proyección de {@link #findPetDailySalesByCommercial}. */
+    interface PetDailySalesRow {
+        java.sql.Date getDay();
+        long getUnitsSold();
+        long getRevenueCents();
+    }
+
+    /** Compradores que adquirieron el mismo producto más de una vez. */
+    @Query(value = """
+            SELECT COUNT(*) FROM (
+                SELECT w.consumer_id
+                FROM key_transactions t
+                JOIN key_wallets w ON w.id = t.key_wallet_id
+                WHERE t.pet_catalog_item_id = :catalogItemId AND t.type = 'DEBIT_PET_GAME'
+                GROUP BY w.consumer_id HAVING COUNT(*) > 1
+            ) AS repetidores
+            """, nativeQuery = true)
+    long countRepeatBuyers(@Param("catalogItemId") Long catalogItemId);
+
+    /** Proyección de {@link #findPetProductSalesByCommercial}. */
+    interface PetProductSalesRow {
+        Long getCatalogItemId();
+        Integer getExternalId();
+        String getProductName();
+        Integer getPriceKeys();
+        Boolean getActive();
+        long getUnitsSold();
+        long getRevenueCents();
+        long getUniqueBuyers();
+        java.sql.Timestamp getFirstSale();
+        java.sql.Timestamp getLastSale();
+    }
+
     /** Marca en bulk como procesadas todas las transacciones del lote. */
     @Modifying
     @Query("UPDATE KeyTransaction kt SET kt.expiryProcessed = true WHERE kt.id IN :ids")

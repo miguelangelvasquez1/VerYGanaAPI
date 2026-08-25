@@ -1,6 +1,7 @@
 package com.verygana2.services.pet;
 
 import com.verygana2.dtos.pet.PetSceneAdminResponseDTO;
+import com.verygana2.dtos.pet.PetSceneCanvasDTO;
 import com.verygana2.dtos.pet.PetSceneObjectAdminResponseDTO;
 import com.verygana2.dtos.pet.PetSceneObjectRequestDTO;
 import com.verygana2.dtos.pet.PetSceneObjectResponseDTO;
@@ -28,31 +29,36 @@ import java.util.Map;
 @Transactional
 public class PetSceneServiceImpl implements PetSceneService {
 
-    @Value("${cloudflare.r2.pets-cdn-domain:}")
-    private String petsCdnDomain;
+    @Value("${pets.scene-canvas.width:1920}")
+    private int canvasWidth;
 
-    @Value("${cloudflare.r2.pets-bucket-name:verygana-pets}")
-    private String petsBucketName;
+    @Value("${pets.scene-canvas.height:1080}")
+    private int canvasHeight;
+
+    @Value("${pets.scene-canvas.y-axis:UP}")
+    private String canvasYAxis;
+
+    @Value("${pets.scene-canvas.anchor:CENTER}")
+    private String canvasAnchor;
 
     private final PetSceneRepository sceneRepository;
     private final PetSceneMapper sceneMapper;
     private final PetSchemaValidator schemaValidator;
     private final ObjectMapper objectMapper;
+    private final PetAssetUrlResolver urlResolver;
 
     public PetSceneServiceImpl(PetSceneRepository sceneRepository, PetSceneMapper sceneMapper,
-                               PetSchemaValidator schemaValidator, ObjectMapper objectMapper) {
+                               PetSchemaValidator schemaValidator, ObjectMapper objectMapper,
+                               PetAssetUrlResolver urlResolver) {
         this.schemaValidator = schemaValidator;
         this.objectMapper = objectMapper;
         this.sceneRepository = sceneRepository;
         this.sceneMapper = sceneMapper;
+        this.urlResolver = urlResolver;
     }
 
     private String buildPublicUrl(String objectKey) {
-        if (objectKey == null || objectKey.isBlank()) return "";
-        if (petsCdnDomain != null && !petsCdnDomain.isBlank()) {
-            return String.format("https://%s/%s", petsCdnDomain, objectKey);
-        }
-        return String.format("https://%s.r2.dev/%s", petsBucketName, objectKey);
+        return urlResolver.resolve(objectKey);
     }
 
     private List<PetSceneObjectResponseDTO> mapObjects(PetScene scene) {
@@ -190,6 +196,27 @@ public class PetSceneServiceImpl implements PetSceneService {
         PetScene saved = sceneRepository.save(scene);
         return new PetSceneAdminResponseDTO(
                 saved.getId(), saved.getSceneId(), saved.getActive(), mapObjectsAdmin(saved));
+    }
+
+    /**
+     * Sistema de coordenadas que usa el lienzo del editor para situar los objetos.
+     *
+     * Los defectos están verificados contra el juego, no asumidos:
+     *
+     *  - 1920x1080 sale del build. Los CanvasScaler de la escena usan
+     *    ScaleWithScreenSize con referencia (1080,1920) y match 0.5; la media
+     *    geométrica de eso en un marco 16:9 —el que fuerza `fitAspectRatio()` en
+     *    el index.html— da factor 1, así que el espacio lógico es 1920x1080 pese
+     *    a que la referencia esté en vertical.
+     *  - Y hacia arriba y x/y en el centro del objeto se comprobaron comparando
+     *    el lienzo del editor con la previsualización real (2026-08-17). De las
+     *    cuatro combinaciones posibles era la única que cuadraba.
+     *
+     * Siguen siendo configurables por si el juego cambia el montaje de la escena.
+     */
+    @Override
+    public PetSceneCanvasDTO getSceneCanvas() {
+        return new PetSceneCanvasDTO(canvasWidth, canvasHeight, canvasYAxis, canvasAnchor);
     }
 
     @Override

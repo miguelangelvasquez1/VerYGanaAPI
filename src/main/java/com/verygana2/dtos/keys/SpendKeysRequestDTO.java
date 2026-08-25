@@ -12,7 +12,9 @@ import jakarta.validation.constraints.NotNull;
  *   • {@code amount} es la CANTIDAD de unidades (siempre 1), no el precio.
  *   • {@code itemId} llega siempre en 0 — el build no lo puebla (pendiente con el
  *     equipo de Unity). El identificador real viaja en {@code itemName} como
- *     string numérico ("5"), y corresponde a {@code pet_catalog_items.id}.
+ *     string numérico ("14"), y corresponde a {@code pet_catalog_items.external_id},
+ *     NO a la PK: quien resuelve el precio es {@code findByExternalId}. Confirmado
+ *     el 2026-08-17 con una compra real (itemName=14 → Water).
  *
  * Por eso {@link #resolveCatalogId()} mira los dos campos: cuando arreglen el
  * build y empiecen a poblar {@code itemId}, sigue funcionando sin cambios acá.

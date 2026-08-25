@@ -13,6 +13,7 @@ public record CatalogIntegrationRequestDTO(
         @Size(max = 500)
         String description,
 
+        @NotBlank(message = "La imagen del producto es requerida")
         String imageObjectKey,
 
         @NotBlank(message = "Debe describir los efectos deseados en el juego")

@@ -7,8 +7,7 @@
   "properties": {
     "sceneId": {
       "type": "integer",
-      "minimum": 0,
-      "description": "Número de escena que el juego usa para agrupar sus objetos."
+      "description": "Número con el que el juego agrupa los objetos de una escena. Lo elige el equipo del juego, no la base de datos: no es la clave primaria de la fila (esa es `id`, y solo aparece en las respuestas del panel). Admite negativos porque el juego los usa para escenas especiales; restringirlo a >= 0 rechazaba escenas legítimas."
     },
     "active": {
       "type": ["boolean", "null"],

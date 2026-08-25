@@ -15,6 +15,12 @@ public class PetCatalogItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /**
+     * Id con el que el juego identifica el ítem. Único: {@code findByExternalId}
+     * devuelve un Optional, así que dos filas con el mismo número hacen fallar toda
+     * compra de ese ítem con un 500. Admite null — la ropa se resuelve por nombre.
+     */
+    @Column(unique = true)
     private Integer externalId;
     private String name;
 

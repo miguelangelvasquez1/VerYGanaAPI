@@ -17,6 +17,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.verygana2.dtos.keys.SpendKeysRequestDTO;
 import com.verygana2.dtos.keys.SpendKeysResponseDTO;
+import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.finance.KeyTransactionRepository;
@@ -141,6 +142,16 @@ class KeyWalletServiceImplTest {
         assertThatThrownBy(() -> service.getByConsumerId(99L)).isInstanceOf(EntityNotFoundException.class);
     }
 
+    /** Prenda de la tienda de ropa: sin externalId, se identifica por nombre. */
+    private static PetCatalogItem monoculo() {
+        PetCatalogItem item = new PetCatalogItem();
+        item.setId(40L);
+        item.setName("monoculo");
+        item.setPrice(12);
+        item.setActive(false);
+        return item;
+    }
+
     /** Ítem del catálogo: PK interna 5, externalId 1005 (lo que ve el juego), 25 llaves. */
     private static PetCatalogItem pizza() {
         PetCatalogItem item = new PetCatalogItem();
@@ -232,6 +243,102 @@ class KeyWalletServiceImplTest {
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "monoculo"));
 
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(99L * KEY_VALUE_CENTS);
+        }
+
+        /**
+         * Sin este id, medir ventas por producto obligaba a partir el texto de `reason`
+         * ("Mascota virtual: 1005 (itemId=0)"): si alguien cambiaba ese formato, los
+         * informes devolvían cero sin fallar.
+         */
+        @Test
+        @DisplayName("la transacción guarda el id del ítem del catálogo")
+        void transactionKeepsCatalogItemId() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
+
+            org.mockito.ArgumentCaptor<KeyTransaction> captor =
+                    org.mockito.ArgumentCaptor.forClass(KeyTransaction.class);
+            verify(keyTransactionRepository).save(captor.capture());
+            assertThat(captor.getValue().getPetCatalogItemId()).isEqualTo(5L);
+        }
+
+        @Test
+        @DisplayName("un ítem sin registrar deja el id nulo, no inventa uno")
+        void unknownItem_leavesCatalogItemIdNull() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "no_existe"));
+
+            org.mockito.ArgumentCaptor<KeyTransaction> captor =
+                    org.mockito.ArgumentCaptor.forClass(KeyTransaction.class);
+            verify(keyTransactionRepository).save(captor.capture());
+            assertThat(captor.getValue().getPetCatalogItemId()).isNull();
+        }
+
+        /**
+         * La tienda de ropa manda el nombre interno de la prenda en vez de un id
+         * numérico, así que resolveCatalogId() devuelve null. Buscando por nombre se
+         * cobra igualmente el precio del servidor.
+         */
+        @Test
+        @DisplayName("ropa: cobra el precio del catálogo buscando por nombre")
+        void clothing_chargesCatalogPriceByName() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
+                    .thenReturn(Optional.of(monoculo()));
+
+            // El cliente dice 1 llave; el catálogo dice 12.
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "monoculo"));
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(88L * KEY_VALUE_CENTS);
+        }
+
+        @Test
+        @DisplayName("ropa: multiplica por la cantidad")
+        void clothing_multipliesByQuantity() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
+                    .thenReturn(Optional.of(monoculo()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 2L, 0, "monoculo"));
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(76L * KEY_VALUE_CENTS);
+        }
+
+        @Test
+        @DisplayName("ropa: el nombre se recorta antes de buscarlo")
+        void clothing_trimsName() {
+            // El build manda algún nombre con espacios sobrantes (el objeto de escena
+            // 'camita ' ya venía así); sin recortar, la búsqueda falla y se vuelve a
+            // cobrar el precio del cliente sin que nadie lo note.
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
+                    .thenReturn(Optional.of(monoculo()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "  monoculo  "));
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(88L * KEY_VALUE_CENTS);
+        }
+
+        @Test
+        @DisplayName("un id numérico sigue resolviéndose por externalId, no por nombre")
+        void numericName_stillUsesExternalId() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(75L * KEY_VALUE_CENTS);
+            verify(petCatalogItemRepository, org.mockito.Mockito.never())
+                    .findByNameIgnoreCase(org.mockito.ArgumentMatchers.anyString());
         }
     }
 

@@ -72,6 +72,7 @@ class CatalogIntegrationRequestServiceImplTest {
     @Mock private PetCatalogService catalogService;
     @Mock private R2Service r2Service;
     @Mock private CatalogRequestCommentRepository commentRepository;
+    @Mock private com.verygana2.repositories.finance.KeyTransactionRepository keyTransactionRepository;
 
     private CatalogIntegrationRequestServiceImpl service;
     private CommercialDetails commercial;
@@ -92,7 +93,8 @@ class CatalogIntegrationRequestServiceImplTest {
 
         service = new CatalogIntegrationRequestServiceImpl(
                 requestRepository, commercialDetailsRepository, designerDetailsRepository,
-                catalogService, r2Service, mapper, commentRepository, draftValidator);
+                catalogService, r2Service, mapper, commentRepository, draftValidator,
+                keyTransactionRepository);
         ReflectionTestUtils.setField(service, "petsBucketName", PETS_BUCKET);
         ReflectionTestUtils.setField(service, "petsCdnDomain", "");
         ReflectionTestUtils.setField(service, "maxImageSizeBytes", MAX_SIZE);
@@ -244,21 +246,17 @@ class CatalogIntegrationRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("la imagen es opcional: sin clave no toca R2 y guarda null")
-        void imagenOpcional() {
+        @DisplayName("la imagen es obligatoria: sin clave no toca R2 y no crea la solicitud")
+        void imagenObligatoria() {
             commercialExists();
-            when(requestRepository.save(any(CatalogIntegrationRequest.class)))
-                    .thenAnswer(inv -> inv.getArgument(0));
 
-            service.submit(USER_ID, requestWithImage("   "));
+            assertThatThrownBy(() -> service.submit(USER_ID, requestWithImage("   ")))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("imagen del producto es requerida");
 
             verify(r2Service, never())
                     .validateUploadedObjectInBucket(any(), any(), anyLong(), anySet());
-
-            ArgumentCaptor<CatalogIntegrationRequest> saved =
-                    ArgumentCaptor.forClass(CatalogIntegrationRequest.class);
-            verify(requestRepository).save(saved.capture());
-            assertThat(saved.getValue().getImageObjectKey()).isNull();
+            verify(requestRepository, never()).save(any());
         }
     }
 
