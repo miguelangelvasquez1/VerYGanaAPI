@@ -170,11 +170,24 @@ games:
 
 pets:
   cdn-domain: ${R2_PETS_CDN_DOMAIN}
+  # Si se define, los assets se sirven desde acá en vez de desde el dominio de R2.
+  # En desarrollo: http://localhost:3000/pet-assets (el proxy del front), que evita
+  # el bloqueo por CORS al pedirlos con fetch desde el juego.
+  asset-base-url: ${PETS_ASSET_BASE_URL:}
   game-path: ${PETS_GAME_PATH:index.html}
   # Imagen del producto que el comercial adjunta al pedir integración al catálogo.
   # Se sube al bucket de mascotas (cloudflare.r2.pets-bucket-name).
   catalog-request-image:
     max-size-bytes: ${PETS_CATALOG_REQUEST_IMAGE_MAX_BYTES:5242880} # 5 MB
+
+  # Sistema de coordenadas del área de juego, para el lienzo del editor de escenas.
+  # Verificado contra el juego el 2026-08-17 (CanvasScaler del build + comparación
+  # con la previsualización real). Se corrige por variable de entorno si cambia.
+  scene-canvas:
+    width: ${PETS_SCENE_CANVAS_WIDTH:1920}
+    height: ${PETS_SCENE_CANVAS_HEIGHT:1080}
+    y-axis: ${PETS_SCENE_CANVAS_Y_AXIS:UP}        # DOWN = 0 arriba | UP = 0 abajo
+    anchor: ${PETS_SCENE_CANVAS_ANCHOR:CENTER}    # TOP_LEFT | CENTER
 
 
 app:
@@ -318,3 +331,11 @@ zapsign:
   background-check-country: CO
   webhook-header-name: X-VeryGana-Secret
   webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
+
+  # ============================================
+  # reCAPTCHA
+  # ============================================
+  recaptcha:
+    secret-key: ${RECAPTCHA_SECRET_KEY:}
+    min-score: 0.5
+    login-action: login
