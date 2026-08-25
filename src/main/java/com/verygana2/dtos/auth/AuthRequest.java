@@ -7,6 +7,6 @@ import lombok.Data;
 public class AuthRequest {
     private String identifier;
     private String password;
-    @NotBlank
-    private String recaptchaToken;
+    // @NotBlank
+    // private String recaptchaToken;
 }

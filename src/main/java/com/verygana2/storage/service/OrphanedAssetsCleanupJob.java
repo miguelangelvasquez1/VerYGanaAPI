@@ -17,12 +17,16 @@ import com.verygana2.models.enums.pqrs.PqrsAssetStatus;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.pqrs.PqrsAsset;
+import com.verygana2.models.raffles.PrizeImageAsset;
+import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
 import com.verygana2.repositories.pqrs.PqrsAssetRepository;
+import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
+import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,6 +52,8 @@ public class OrphanedAssetsCleanupJob {
     private final ProductImageAssetRepository productImageAssetRepository;
     private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
     private final PqrsAssetRepository pqrsAssetRepository;
+    private final RaffleImageAssetRepository raffleImageAssetRepository;
+    private final PrizeImageAssetRepository prizeImageAssetRepository;
     private final R2Service r2Service;
 
     @Value("${cleanup.orphaned-assets.max-age-hours:24}")
@@ -205,6 +211,54 @@ public class OrphanedAssetsCleanupJob {
                 pqrsAssetRepository.save(asset);
 
                 log.info("PQRS Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    }
+
+    // For raffle cover images
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupRaffleImageAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<RaffleImageAsset> assets = raffleImageAssetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} candidate raffle image assets", assets.size());
+
+        for (RaffleImageAsset asset : assets) {
+            try {
+                r2Service.deleteObject("public/" + asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                raffleImageAssetRepository.save(asset);
+
+                log.info("Raffle Image Asset {} deleted from R2", asset.getId());
+
+            } catch (Exception e) {
+                log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());
+            }
+        }
+    }
+
+    // For raffle prize images
+    @Transactional
+    @Scheduled(cron = "0 0 * * * *") // every hour
+    public void cleanupPrizeImageAssets() {
+
+        ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
+
+        List<PrizeImageAsset> assets = prizeImageAssetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
+        log.info("Cleanup job: {} candidate prize image assets", assets.size());
+
+        for (PrizeImageAsset asset : assets) {
+            try {
+                r2Service.deleteObject("public/" + asset.getObjectKey());
+                asset.setStatus(AssetStatus.DELETED);
+                prizeImageAssetRepository.save(asset);
+
+                log.info("Prize Image Asset {} deleted from R2", asset.getId());
 
             } catch (Exception e) {
                 log.warn("Failed to delete asset {} ({}): {}", asset.getId(), asset.getObjectKey(), e.getMessage());

@@ -263,6 +263,10 @@ wompi:
     cron: "0 0 23 * * *"          # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
     retry-cron: "0 30 23 * * *"   # reintentos 30 min después
     min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
+    connect-timeout-ms: 5000      # timeout de conexión TCP
+    response-timeout-ms: 20000    # timeout esperando la respuesta completa
+    max-retries: 5                # tope de reintentos antes de marcar EXHAUSTED
+    rate-limit-delay-ms: 300       # pausa entre llamadas consecutivas a POST /payouts
 
 payment:
   min-deposit: 5000      # $5.000 COP

@@ -115,9 +115,8 @@ class WompiPayoutWebhookControllerTest {
     }
 
     @Test
-    @DisplayName("evento payout.updated (a nivel de lote): se ignora, responde 200")
+    @DisplayName("evento payout.updated (a nivel de lote): se ignora antes de validar firma, responde 200")
     void batchLevelEvent_ignored() {
-        when(wompiPayoutClient.isValidWebhookSignature(any(), any())).thenReturn(true);
         String body = """
                 {
                   "event": "payout.updated",
@@ -131,6 +130,7 @@ class WompiPayoutWebhookControllerTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         verify(payoutService, never()).handleWompiResult(any());
+        verify(wompiPayoutClient, never()).isValidWebhookSignature(any(), any());
     }
 
     @Test

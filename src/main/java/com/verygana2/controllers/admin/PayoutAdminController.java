@@ -4,11 +4,14 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -76,5 +79,17 @@ public class PayoutAdminController {
     public ResponseEntity<Void> retryNow() {
         payoutService.retryFailedPayouts();
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Consulta directo en Wompi el estado real de un Payout ya enviado
+     * (GET /payouts/{id} de Wompi), sin depender del webhook — para
+     * diagnosticar cuando la confirmación no llega o no correlaciona.
+     *
+     * GET /api/admin/payouts/{id}/wompi-status
+     */
+    @GetMapping("/{id}/wompi-status")
+    public ResponseEntity<Map<String, Object>> getWompiStatus(@PathVariable UUID id) {
+        return ResponseEntity.ok(payoutService.getWompiStatus(id));
     }
 }

@@ -39,7 +39,12 @@ public interface RaffleService {
      * inicializados, pensado para usarse fuera de un contexto transaccional.
      */
     Raffle getRaffleWithPrizesById(Long raffleId);
-    RaffleResponseDTO getRaffleResponseDTOById(Long raffleId);
+    /**
+     * @param isAdmin si es false, las rifas en estados no públicos (DRAFT,
+     *                CLOSED, CANCELLED, MISSED_DRAW) se tratan como
+     *                inexistentes (404) en vez de exponer su información.
+     */
+    RaffleResponseDTO getRaffleResponseDTOById(Long raffleId, boolean isAdmin);
     PagedResponse<RaffleSummaryResponseDTO> getSummaryRafflesByFilters(RaffleStatus status, String search, LocalDate drawDate, RaffleType type, Pageable pageable);
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);

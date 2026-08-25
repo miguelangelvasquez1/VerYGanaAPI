@@ -8,7 +8,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.verygana2.dtos.PagedResponse;
@@ -67,13 +73,36 @@ class RaffleControllerTest {
         assertThat(response.getBody()).isSameAs(expected);
     }
 
-    @Test
-    @DisplayName("getRaffleById: delega en el service con el raffleId del path")
-    void getRaffleById_delegates() {
-        RaffleResponseDTO expected = new RaffleResponseDTO();
-        when(raffleService.getRaffleResponseDTOById(1L)).thenReturn(expected);
+    /** Deja el SecurityContext con la(s) authority(ies) dadas, y lo limpia con el AutoCloseable. */
+    private AutoCloseable withAuthorities(GrantedAuthority... authorities) {
+        SecurityContext context = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        org.mockito.Mockito.doReturn(List.of(authorities)).when(authentication).getAuthorities();
+        when(context.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(context);
+        return SecurityContextHolder::clearContext;
+    }
 
-        assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+    @Test
+    @DisplayName("getRaffleById: admin delega en el service con isAdmin=true")
+    void getRaffleById_admin_delegatesWithIsAdminTrue() throws Exception {
+        try (AutoCloseable ignored = withAuthorities(() -> "ROLE_ADMIN")) {
+            RaffleResponseDTO expected = new RaffleResponseDTO();
+            when(raffleService.getRaffleResponseDTOById(1L, true)).thenReturn(expected);
+
+            assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+        }
+    }
+
+    @Test
+    @DisplayName("getRaffleById: consumer/anónimo delega en el service con isAdmin=false")
+    void getRaffleById_nonAdmin_delegatesWithIsAdminFalse() throws Exception {
+        try (AutoCloseable ignored = withAuthorities(() -> "ROLE_CONSUMER")) {
+            RaffleResponseDTO expected = new RaffleResponseDTO();
+            when(raffleService.getRaffleResponseDTOById(1L, false)).thenReturn(expected);
+
+            assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+        }
     }
 
     @Test

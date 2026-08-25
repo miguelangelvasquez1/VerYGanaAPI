@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.verygana2.dtos.payout.PayoutResponseDTO;
@@ -32,4 +33,11 @@ public interface PayoutService {
 
     /** Para el endpoint de monitoreo del admin. */
     List<PayoutResponseDTO> getPayoutsForDate(LocalDate date);
+
+    /**
+     * Consulta directo en Wompi el estado real de un Payout ya enviado, sin
+     * depender del webhook — para diagnóstico cuando la confirmación no llega
+     * o no correlaciona.
+     */
+    Map<String, Object> getWompiStatus(UUID payoutId);
 }

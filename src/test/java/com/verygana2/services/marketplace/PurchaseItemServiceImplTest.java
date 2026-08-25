@@ -348,22 +348,27 @@ class PurchaseItemServiceImplTest {
         }
 
         @Test
-        @DisplayName("ítem CLAIMED dentro de la ventana de 48h: lo retorna")
-        void claimedWithinWindow_returnsItem() {
+        @DisplayName("ítem CLAIMED antes del próximo corte de payout (11 PM Colombia): lo retorna")
+        void claimedBeforeNextPayoutCutoff_returnsItem() {
             PurchaseItem item = new PurchaseItem();
             item.setStatus(PurchaseItemStatus.CLAIMED);
-            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusHours(10));
+            // El corte de payout más próximo después de "hace 1 minuto" siempre
+            // está en el futuro respecto a "ahora" — reportable sin importar la
+            // hora del día en que corra el test.
+            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusMinutes(1));
             when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
 
             assertThat(service.getReportableItem(1L, 9L)).isSameAs(item);
         }
 
         @Test
-        @DisplayName("ítem CLAIMED fuera de la ventana de 48h: lanza InvalidStatusException")
-        void claimedPastWindow_throwsInvalidStatusException() {
+        @DisplayName("ítem CLAIMED después de que ya pasó el corte de payout de esa noche: lanza InvalidStatusException")
+        void claimedPastPayoutCutoff_throwsInvalidStatusException() {
             PurchaseItem item = new PurchaseItem();
             item.setStatus(PurchaseItemStatus.CLAIMED);
-            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusHours(49));
+            // Hace 2 días: el corte de payout siguiente a ese reclamo (a más
+            // tardar 1 día después) ya pasó hace rato respecto a "ahora".
+            item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC).minusDays(2));
             when(purchaseItemRepository.findByIdAndConsumerId(1L, 9L)).thenReturn(Optional.of(item));
 
             assertThatThrownBy(() -> service.getReportableItem(1L, 9L))

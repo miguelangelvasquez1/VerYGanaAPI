@@ -22,6 +22,8 @@ public class PublicPaths {
         "/game-designers/password/reset",
         "/api/payments/webhook",
         "/api/raffles/**",
+        "/results/**",
+        "/winners/last",
         "/ws/**",
         "/ws/info/**",
             "/pet/catalog",

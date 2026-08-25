@@ -14,6 +14,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,7 +44,11 @@ public class RaffleController {
     private final RaffleDrawStateCache drawStateCache;
     private final WaitingRoomService waitingRoomService;
 
-    // Para admin
+    // Para admin. /api/raffles/** es público (PublicPaths), pero este filtro
+    // permite consultar rifas en cualquier estado (incluido DRAFT) sin
+    // restricción, así que se protege a nivel de método: @PreAuthorize se
+    // sigue aplicando aunque la ruta esté en permitAll() (ver /me más abajo).
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByFilters(
             @RequestParam(required = false) RaffleStatus status,
@@ -56,7 +61,12 @@ public class RaffleController {
 
     @GetMapping("/{raffleId}")
     public ResponseEntity<RaffleResponseDTO> getRaffleById(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId));
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId, isAdmin));
     }
 
     // Para usuarios

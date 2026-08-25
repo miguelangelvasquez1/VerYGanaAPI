@@ -17,25 +17,19 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.payout.PayoutResponseDTO;
-import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
-import com.verygana2.dtos.wompi.WompiPayoutRequestDTO.WompiPayoutTransactionDTO;
 import com.verygana2.mappers.PayoutMapper;
-import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
-import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.finance.PayoutItem;
-import com.verygana2.models.finance.PayoutMethod;
-import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.finance.PayoutItemRepository;
-import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.services.interfaces.finance.PayoutExecutionService;
 import com.verygana2.services.interfaces.finance.PayoutService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.wompi.WompiPayoutClient;
@@ -55,15 +49,18 @@ public class PayoutServiceImpl implements PayoutService {
     private final TreasuryService treasuryService;
     private final WompiPayoutClient wompiPayoutClient;
     private final WompiTransactionRepository wompiTransactionRepository;
-    private final WompiPayoutConfig wompiPayoutConfig;
-    private final PayoutMethodRepository payoutMethodRepository;
     private final PayoutMapper payoutMapper;
+    private final PayoutExecutionService payoutExecutionService;
+    private final WompiPayoutConfig wompiPayoutConfig;
 
-    private static final Long WOMPI_COMMISSION_AMOUNT_BASE = 184900L; 
-    private static final double WOMPI_COMMISSION_PCT = 0.04;
+    /** Tarifa fija que Wompi cobra por ejecutar cada transferencia de payout. */
+    private static final Long WOMPI_COMMISSION_AMOUNT_BASE = 184900L;
+    /** Porcentaje de la tarifa de Wompi, sobre el neto transferido al comercial. */
+    private static final double WOMPI_COMMISSION_PCT = 0.004;
 
-    @Value("taxes.iva")
-    private static double iva;
+    /** IVA colombiano sobre la porción variable de la tarifa de Wompi (ej. 0.19). */
+    @Value("${taxes.iva}")
+    private double iva;
 
     @Override
     public BigDecimal getCommercialEarningsForDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
@@ -123,10 +120,20 @@ public class PayoutServiceImpl implements PayoutService {
                         commercial.getId(), commercial.getCompanyName());
             }
 
+            // Tarifa de Wompi por ejecutar la transferencia: fija + % sobre el neto
+            // transferido, con IVA sobre la porción variable. Se calcula una sola
+            // vez por Payout (Wompi solo ve 1 transacción por comercial por día),
+            // no por ítem — de ahí que viva acá y no dentro de CommercialGroup.
+            long wompiFeeCents = WOMPI_COMMISSION_AMOUNT_BASE
+                    + BigDecimal.valueOf(group.totalNetCents)
+                            .multiply(BigDecimal.valueOf(WOMPI_COMMISSION_PCT))
+                            .multiply(BigDecimal.valueOf(1 + iva))
+                            .longValue();
+
             Payout payout = Payout.builder()
                     .commercial(commercial)
-                    .grossAmountCents(group.totalGrossCents)
-                    .commissionAmountCents(group.totalCommissionCents)
+                    .grossAmountCents(group.totalNetCents + wompiFeeCents)
+                    .commissionAmountCents(wompiFeeCents)
                     .netAmountCents(group.totalNetCents)
                     .commissionPctApplied(group.commissionPctSnapshot)
                     .status(PayoutStatus.SCHEDULED)
@@ -151,9 +158,18 @@ public class PayoutServiceImpl implements PayoutService {
         }
     }
 
-    /** Fase 2 del job diario: ejecuta las transferencias Wompi para todos los payouts SCHEDULED. */
+    /**
+     * Fase 2 del job diario: ejecuta las transferencias Wompi para todos los
+     * payouts SCHEDULED.
+     *
+     * A propósito NO es @Transactional: cada payout se envía a Wompi y se
+     * persiste en su propia transacción (ver {@link PayoutExecutionService}),
+     * aislada del resto del batch. Si el método completo corriera en una sola
+     * transacción, un fallo a mitad del lote (ej. la sesión de Hibernate
+     * corrompiéndose en el payout #47) podría dejarla rollback-only y revertir
+     * en BD los payouts #1-#46 aunque el dinero ya hubiera salido por Wompi.
+     */
     @Override
-    @Transactional
     public void processScheduledPayouts() {
         List<Payout> scheduled = payoutRepository.findByStatus(PayoutStatus.SCHEDULED);
 
@@ -164,16 +180,24 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.info("[PAYOUT-SCHEDULER] Procesando {} payouts SCHEDULED.", scheduled.size());
 
+        Long remainingBalanceCents = fetchWompiBalanceCentsOrNull();
+
         for (Payout payout : scheduled) {
+            if (skipIfInsufficientBalance(payout, remainingBalanceCents)) continue;
+
+            UUID payoutId = payout.getId();
             try {
-                processOnePayout(payout);
+                PayoutStatus result = payoutExecutionService.executeScheduledPayout(payoutId);
+                remainingBalanceCents = debit(remainingBalanceCents, payout, result);
             } catch (Exception e) {
-                log.error("[PAYOUT-SCHEDULER] Error procesando payout {}: {}",
-                        payout.getId(), e.getMessage(), e);
-                payout.setStatus(PayoutStatus.FAILED);
-                payout.setFailureReason(e.getMessage());
-                payoutRepository.save(payout);
+                // La transacción aislada de este payout no logró ni siquiera
+                // confirmarse como FAILED (ej. sesión de BD corrompida) — se
+                // deja para el próximo ciclo en vez de abortar el resto del lote.
+                log.error("[PAYOUT-SCHEDULER] Fallo irrecuperable procesando payout {}: {}",
+                        payoutId, e.getMessage(), e);
             }
+
+            if (!pauseBetweenWompiCalls()) break;
         }
     }
 
@@ -189,7 +213,6 @@ public class PayoutServiceImpl implements PayoutService {
      * primer ciclo de reintento disponible, sin depender de en qué día cayó.
      */
     @Override
-    @Transactional
     public void retryFailedPayouts() {
         List<Payout> failed = payoutRepository.findByStatus(PayoutStatus.FAILED);
 
@@ -200,21 +223,88 @@ public class PayoutServiceImpl implements PayoutService {
 
         log.info("[PAYOUT-RETRY] Reintentando {} payouts FAILED.", failed.size());
 
-        for (Payout payout : failed) {
-            payout.setRetryCount(payout.getRetryCount() + 1);
-            payout.setStatus(PayoutStatus.SCHEDULED);
-            payout.setFailureReason(null);
-            payoutRepository.save(payout);
+        Long remainingBalanceCents = fetchWompiBalanceCentsOrNull();
 
+        for (Payout payout : failed) {
+            if (skipIfInsufficientBalance(payout, remainingBalanceCents)) continue;
+
+            UUID payoutId = payout.getId();
             try {
-                processOnePayout(payout);
+                PayoutStatus result = payoutExecutionService.executeRetry(payoutId);
+                remainingBalanceCents = debit(remainingBalanceCents, payout, result);
             } catch (Exception e) {
-                log.error("[PAYOUT-RETRY] Reintento fallido para payout {}: {}",
-                        payout.getId(), e.getMessage(), e);
-                payout.setStatus(PayoutStatus.FAILED);
-                payout.setFailureReason(e.getMessage());
-                payoutRepository.save(payout);
+                log.error("[PAYOUT-RETRY] Fallo irrecuperable reintentando payout {}: {}",
+                        payoutId, e.getMessage(), e);
             }
+
+            if (!pauseBetweenWompiCalls()) break;
+        }
+    }
+
+    /**
+     * Consulta el balance de la cuenta de dispersión una sola vez al inicio del
+     * batch. Si no se puede consultar, se degrada a {@code null} (sin chequeo
+     * local de saldo) en vez de bloquear el batch entero — el mismo criterio
+     * conservador que ya usaba {@code PayoutScheduler.checkWompiBalance()}.
+     */
+    private Long fetchWompiBalanceCentsOrNull() {
+        try {
+            return wompiPayoutClient.getBalance().getBalanceInCents();
+        } catch (Exception e) {
+            log.warn("[PAYOUT-SCHEDULER] No se pudo consultar el balance de Wompi Payouts para el corte "
+                    + "por saldo insuficiente: {}. Se procesará sin ese chequeo local.", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Si ya sabemos (por el balance corriendo local) que este payout no
+     * alcanza a cubrirse, lo marca FAILED sin llamar a Wompi — en vez de
+     * esperar a que Wompi lo rechace uno por uno con un motivo genérico a
+     * mitad del batch. remainingBalanceCents null significa "no se pudo
+     * determinar el balance": en ese caso no se corta nada, igual que antes.
+     */
+    private boolean skipIfInsufficientBalance(Payout payout, Long remainingBalanceCents) {
+        if (remainingBalanceCents == null || payout.getNetAmountCents() <= remainingBalanceCents) {
+            return false;
+        }
+
+        UUID payoutId = payout.getId();
+        try {
+            payoutExecutionService.markInsufficientBalance(payoutId, payout.getNetAmountCents(), remainingBalanceCents);
+        } catch (Exception e) {
+            log.error("[PAYOUT-SCHEDULER] Fallo irrecuperable marcando balance insuficiente para payout {}: {}",
+                    payoutId, e.getMessage(), e);
+        }
+        return true;
+    }
+
+    /** Descuenta del balance corriente solo si el payout realmente movió dinero (quedó PROCESSING). */
+    private Long debit(Long remainingBalanceCents, Payout payout, PayoutStatus result) {
+        if (remainingBalanceCents == null || result != PayoutStatus.PROCESSING) {
+            return remainingBalanceCents;
+        }
+        return remainingBalanceCents - payout.getNetAmountCents();
+    }
+
+    /**
+     * Pausa entre llamadas consecutivas a Wompi dentro del batch. Sin esto,
+     * ~100 POST /payouts seguidos sin ninguna pausa pueden empezar a recibir
+     * 429 a mitad de la corrida si Wompi tiene un límite de requests por
+     * segundo/minuto. Devuelve false si el hilo fue interrumpido (ej. shutdown
+     * de la app), para que el loop que llama corte en vez de seguir intentando.
+     */
+    private boolean pauseBetweenWompiCalls() {
+        long delayMs = wompiPayoutConfig.getPayout().getRateLimitDelayMs();
+        if (delayMs <= 0) return true;
+
+        try {
+            Thread.sleep(delayMs);
+            return true;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            log.warn("[PAYOUT-SCHEDULER] Pausa entre llamadas a Wompi interrumpida — se corta el batch.");
+            return false;
         }
     }
 
@@ -271,117 +361,18 @@ public class PayoutServiceImpl implements PayoutService {
         payoutRepository.save(payout);
     }
 
-    // ─── Privados ─────────────────────────────────────────────────────────────
+    @Override
+    @Transactional(readOnly = true)
+    public Map<String, Object> getWompiStatus(UUID payoutId) {
+        Payout payout = payoutRepository.findById(payoutId)
+                .orElseThrow(() -> new EntityNotFoundException("Payout no encontrado: " + payoutId));
 
-    private void processOnePayout(Payout payout) {
-        CommercialDetails commercial = payout.getCommercial();
-
-        PayoutMethod method = resolvePayoutMethod(commercial);
-
-        String internalReference = payout.getId().toString();
-
-        // Paso único — Wompi no requiere tokenizar la cuenta antes de transferir
-        WompiPayoutRequestDTO request = buildPayoutRequest(payout, commercial, method, internalReference);
-        WompiPayoutResponseDTO response = wompiPayoutClient.createPayout(request);
-
-        WompiTransactionStatus initialStatus = response.isAccepted()
-                ? WompiTransactionStatus.PENDING
-                : WompiTransactionStatus.ERROR;
-
-        WompiTransaction tx = WompiTransaction.builder()
-                .wompiId(response.getPayoutId() != null ? response.getPayoutId() : internalReference)
-                .type(WompiTransactionType.TRANSFER_PAYOUT)
-                .amountInCents(payout.getNetAmountCents())
-                .status(initialStatus)
-                .reference(internalReference)
-                .build();
-
-        tx = wompiTransactionRepository.save(tx);
-
-        payout.setWompiTransaction(tx);
-        payout.setStatus(response.isAccepted() ? PayoutStatus.PROCESSING : PayoutStatus.FAILED);
-        if (!response.isAccepted()) payout.setFailureReason(response.getCode() + ": " + response.getMessage());
-        payoutRepository.save(payout);
-
-        log.info("[PAYOUT-SCHEDULER] Payout → {}: id={}, commercial={}, wompiId={}",
-                payout.getStatus(), payout.getId(), commercial.getCompanyName(), response.getPayoutId());
-    }
-
-    /**
-     * Usa el método marcado como default si sigue VERIFIED y activo; si no hay
-     * default (dato legado de antes de que existiera este concepto) o quedó
-     * inválido, cae al primer VERIFIED activo como antes.
-     */
-    private PayoutMethod resolvePayoutMethod(CommercialDetails commercial) {
-        PayoutMethod defaultMethod = commercial.getDefaultPayoutMethod();
-        if (defaultMethod != null && defaultMethod.canBeUsedForPayout()) {
-            return defaultMethod;
+        if (payout.getWompiTransaction() == null) {
+            throw new IllegalStateException(
+                    "Payout " + payoutId + " todavía no se envió a Wompi (sin WompiTransaction asociada).");
         }
 
-        return payoutMethodRepository
-                .findFirstByCommercialIdAndVerificationStatusAndActiveTrue(
-                        commercial.getId(), VerificationStatus.VERIFIED)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Empresario " + commercial.getId() + " no tiene método de pago verificado."));
-    }
-
-    /**
-     * Arma el request de POST /payouts para el método de pago del empresario.
-     * Para NEQUI/DAVIPLATA el bankId es una constante configurada (no hay
-     * selección de banco: el beneficiario solo aporta su número de celular).
-     */
-    private WompiPayoutRequestDTO buildPayoutRequest(Payout payout, CommercialDetails commercial,
-            PayoutMethod method, String internalReference) {
-
-        String bankId;
-        String accountNumber;
-        String accountType;
-
-        switch (method.getType()) {
-            case NEQUI -> {
-                bankId = wompiPayoutConfig.getNequiBankId();
-                accountNumber = method.getPhoneNumber();
-                // Confirmado en sandbox: la API solo acepta AHORROS/CORRIENTE — "DEPOSITO_ELECTRONICO"
-                // (documentado en el spec de SwaggerHub) es rechazado con 400. Nequi/Daviplata van como AHORROS.
-                accountType = "AHORROS";
-            }
-            case DAVIPLATA -> {
-                bankId = wompiPayoutConfig.getDaviplataBankId();
-                accountNumber = method.getPhoneNumber();
-                accountType = "AHORROS";
-            }
-            default -> { // BANK_TRANSFER
-                bankId = method.getBankCode();
-                accountNumber = method.getAccountNumber();
-                accountType = method.getBankAccountType() == PayoutMethod.BankAccountType.CHECKING
-                        ? "CORRIENTE"
-                        : "AHORROS";
-            }
-        }
-
-        // JURIDICA cuando el titular se identifica con NIT (empresa), NATURAL en el resto de casos.
-        String personType = method.getAccountHolderDocType() == PayoutMethod.DocType.NIT
-                ? "JURIDICA"
-                : "NATURAL";
-
-        WompiPayoutTransactionDTO transaction = WompiPayoutTransactionDTO.builder()
-                .legalIdType(method.getAccountHolderDocType().name())
-                .legalId(method.getAccountHolderDoc())
-                .bankId(bankId)
-                .accountType(accountType)
-                .accountNumber(accountNumber)
-                .name(method.getAccountHolderName())
-                .amount(payout.getNetAmountCents())
-                .personType(personType)
-                .email(commercial.getUser().getEmail())
-                .reference(internalReference)
-                .build();
-
-        return WompiPayoutRequestDTO.builder()
-                .reference(internalReference)
-                .accountId(wompiPayoutConfig.getAccountId())
-                .transactions(List.of(transaction))
-                .build();
+        return wompiPayoutClient.getPayoutStatus(payout.getWompiTransaction().getWompiId());
     }
 
     // ─── Clase auxiliar de agrupación (sólo usada dentro del job) ─────────────
@@ -389,8 +380,6 @@ public class PayoutServiceImpl implements PayoutService {
     private static class CommercialGroup {
         final CommercialDetails commercial;
         final List<PurchaseItem> items = new ArrayList<>();
-        long totalGrossCents = 0;
-        long totalCommissionCents = WOMPI_COMMISSION_AMOUNT_BASE;
         long totalNetCents = 0;
         int commissionPctSnapshot = 0;
 
@@ -400,10 +389,9 @@ public class PayoutServiceImpl implements PayoutService {
 
         void addItem(PurchaseItem item) {
             items.add(item);
-            Long commissionPerItem = BigDecimal.valueOf(item.getNetToCommercialCents()).multiply(BigDecimal.valueOf(WOMPI_COMMISSION_PCT)).longValue();
             totalNetCents += item.getNetToCommercialCents();
-            totalCommissionCents += BigDecimal.valueOf(commissionPerItem).multiply(BigDecimal.valueOf(iva)).longValue();
-            totalGrossCents += totalNetCents + totalCommissionCents;
+            // Usar el último pct aplicado como snapshot (todos los ítems del mismo
+            // comercial en el mismo plan tienen el mismo pct)
             commissionPctSnapshot = item.getCommissionPctApplied();
         }
     }

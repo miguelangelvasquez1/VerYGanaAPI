@@ -115,7 +115,7 @@ models/enums/marketplace/
   PurchaseItemStatus.java          → PENDING | CLAIMED | EXPIRED_UNCLAIMED | REFUNDED | CANCELLED
 
 models/enums/finance/
-  PayoutStatus.java                → SCHEDULED | PROCESSING | PAID | FAILED
+  PayoutStatus.java                → SCHEDULED | PROCESSING | PAID | FAILED | EXHAUSTED
   CashRefundStatus.java            → PENDING_PAYMENT | PAID
   WompiTransactionType.java        → CHARGE_* | TRANSFER_PAYOUT
   WompiTransactionStatus.java      → PENDING | APPROVED | DECLINED | ERROR | VOIDED
@@ -533,7 +533,7 @@ Dependiendo del tipo:
 ### Verificación BANK_TRANSFER
 
 1. El commercial registra la cuenta → `PENDING_VERIFICATION`
-2. Un admin revisa desde `GET /api/admin/payout-methods?status=UNDER_REVIEW`
+2. Un admin revisa desde `GET /admin/payout-methods?status=UNDER_REVIEW`
 3. Admin aprueba → `VERIFIED` | Admin rechaza → `REJECTED` con razón
 
 ### Verificación NEQUI / DAVIPLATA (automática)
@@ -583,7 +583,7 @@ user-id: {WOMPI_PAYOUT_USER_ID}
 
 `PayoutMethodServiceImpl` valida todo lo que se puede validar en el momento del registro, para no descubrir datos inválidos recién el día del payout:
 
-- **`GET /api/commercial/payout-methods/banks`** (nuevo, `PayoutMethodController`): expone el catálogo real de `GET /banks` de Wompi para que el frontend deje elegir el `bankCode` correcto en vez de que el commercial lo escriba a mano.
+- **`GET /commercial/payout-methods/banks`** (nuevo, `PayoutMethodController`): expone el catálogo real de `GET /banks` de Wompi para que el frontend deje elegir el `bankCode` correcto en vez de que el commercial lo escriba a mano.
 - **Cross-check de `bankCode` contra el catálogo real** al registrar un método `BANK_TRANSFER`: si el `bankCode` enviado no existe en `GET /banks`, el registro se rechaza con 400 en vez de quedar `UNDER_REVIEW` con un dato que Wompi rechazará después.
 - **Validación de formato de `accountHolderDoc`** según `accountHolderDocType` (CC/CE/TI/DNI: solo dígitos 5-15; NIT: dígitos 6-12 con dígito de verificación opcional; PP: alfanumérico 5-20). Antes no había ninguna validación de formato — un documento mal escrito solo se detectaba al ejecutar el payout.
 - **Screening SARLAFT/OFAC también en NEQUI/DAVIPLATA**: antes `verifyOtp()` marcaba el método `VERIFIED` con solo el OTP de Twilio, sin pasar por `screeningService.screenOrThrow(...)` como sí ocurre en `adminVerifyMethod()` para BANK_TRANSFER. Ahora ambos flujos aplican el mismo screening antes de dejar un método listo para recibir dinero.
@@ -869,7 +869,7 @@ marketplace:
 
 | Método | Path | Descripción |
 |---|---|---|
-| `GET` | `/api/admin/payouts?date=YYYY-MM-DD` | Listar payouts de una fecha (hoy si no se pasa) |
+| `GET` | `/admin/payouts?date=YYYY-MM-DD` | Listar payouts de una fecha (hoy si no se pasa) |
 | `GET` | `/admin/cash-refunds?status=PENDING_PAYMENT` | Reembolsos en efectivo pendientes de pago manual |
 | `PATCH` | `/admin/cash-refunds/{id}/mark-paid` | Confirmar que ya se hizo la transferencia manual |
 
@@ -908,7 +908,7 @@ Estimación de consumo diario con 30 comercials activos:
 ### Consultar estado de un payout
 
 ```
-GET /api/admin/payouts?date=2025-03-15
+GET /admin/payouts?date=2025-03-15
 ```
 
 Respuesta incluye: `id`, `commercial`, `gross`, `commission`, `net`, `status`, `scheduledAt`, `paidAt`, `failureReason`, `retryCount`.
@@ -928,15 +928,16 @@ Un `PurchaseItemCashRefund` en `PENDING_PAYMENT` sin datos bancarios todavía es
 | Commercial sin PayoutMethod verificado | `Payout(FAILED)` | Log WARN — no se reintenta hasta que el commercial verifique un método |
 | Wompi `/payouts` falla (timeout, 5xx) | `WompiApiException` capturada → `Payout(FAILED)` | Se reintenta en el ciclo de reintentos (11:30 PM) |
 | Wompi `/payouts` devuelve status de rechazo | `Payout(FAILED, failureReason)` | Se reintenta en el ciclo de reintentos |
+| Wompi responde 429 (rate limit) | `WompiApiException` (429) con motivo explícito ("rechazó por límite de tasa, no es un rechazo de la transferencia") → `Payout(FAILED)`; `isServerError()` = true (reintentable) | `processScheduledPayouts()`/`retryFailedPayouts()` pausan `wompi.payout.rate-limit-delay-ms` (default 300ms) entre cada llamada consecutiva a Wompi para no provocarlo; si igual ocurre, se reintenta en el ciclo de reintentos |
 | Webhook DECLINED/FAILED de Wompi | `Payout(FAILED)` | Se reintenta en el ciclo siguiente |
-| Balance de la cuenta de dispersión insuficiente | Wompi rechaza `/payouts` | Log WARN antes del ciclo — equipo ops recarga el balance |
+| Balance de la cuenta de dispersión insuficiente | `PayoutScheduler.checkWompiBalance()` loguea WARN antes del ciclo. Además, `processScheduledPayouts()`/`retryFailedPayouts()` llevan un balance corriente local (arranca del balance real de Wompi, se descuenta por cada payout que sí queda PROCESSING): el primer payout de la lista que ya no alcanza se marca `Payout(FAILED, "Balance insuficiente...")` **sin llamar a Wompi**, igual que el resto de los que le siguen y tampoco alcanzan | Equipo ops recarga el balance; esos payouts se reintentan en el ciclo de reintentos como cualquier otro FAILED |
 | Webhook duplicado | Ignorado (idempotencia) | — |
 | PIN de reclamo físico incorrecto | `InvalidClaimException` (400), `claimAttempts++` | Bloquea a los 5 intentos |
 | `expireUnclaimed`/`refund` fallan para un ítem del batch de vencimiento | Log ERROR, el ítem no se marca | El ítem sigue `PENDING`/en disputa y se reintenta en el próximo ciclo del scheduler correspondiente |
 
 ### Límite de reintentos
 
-No existe un límite fijo de reintentos en la implementación actual. Cada noche que el payout esté en `FAILED` se reintentará. Se recomienda agregar un tope (ej: `retryCount >= 5`) y pasar el payout a un estado `EXHAUSTED` para revisión manual del admin.
+`retryFailedPayouts()` → `PayoutExecutionService.executeRetry()` tope el número de reintentos con `wompi.payout.max-retries` (default `5`). Al alcanzarlo, el payout pasa a `EXHAUSTED` (sin volver a llamar a Wompi) y deja de ser recogido por `findByStatus(FAILED)` — requiere revisión manual del admin (ej. corregir la cuenta bancaria del empresario) antes de poder reintentarse de nuevo.
 
 ### Trazabilidad
 

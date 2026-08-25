@@ -14,7 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.FileUploadRequestDTO;
+import com.verygana2.dtos.raffle.requests.ConfirmRaffleCreationRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreatePrizeRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRequestDTO;
 import com.verygana2.dtos.raffle.requests.CreateRaffleRuleRequestDTO;
@@ -27,8 +29,10 @@ import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.PrizeType;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
+import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
+import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
@@ -72,6 +76,8 @@ class RaffleServiceImplTest {
     @Mock private MunicipalityRepository municipalityRepository;
     @Mock private TargetAudienceAssembler targetAudienceAssembler;
 
+    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
     private RaffleServiceImpl service;
 
     @BeforeEach
@@ -79,7 +85,7 @@ class RaffleServiceImplTest {
         service = new RaffleServiceImpl(raffleRepository, prizeRepository, ticketEarningRuleRepository,
                 raffleTicketRepository, raffleImageAssetRepository,
                 prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper, municipalityRepository,
-                targetAudienceAssembler, claimCodeEncryptor);
+                targetAudienceAssembler, claimCodeEncryptor, objectMapper);
     }
 
     private Raffle raffle(Long id, RaffleStatus status) {
@@ -326,6 +332,67 @@ class RaffleServiceImplTest {
             FileUploadRequestDTO raffleImage = new FileUploadRequestDTO("r.jpg", "image/png", 1000L, null, null);
 
             assertThatThrownBy(() -> service.prepareRaffleCreation(1L, request, raffleImage, List.of(raffleImage)))
+                    .isInstanceOf(InvalidRequestException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("confirmRaffleCreation")
+    class ConfirmRaffleCreation {
+
+        private CreateRaffleRequestDTO baseRequest() {
+            ZonedDateTime start = ZonedDateTime.now().plusDays(1);
+            CreatePrizeRequestDTO prize = new CreatePrizeRequestDTO("Prize", "desc", "brand",
+                    BigDecimal.TEN, PrizeType.PHYSICAL, 1, 1, "code", "instructions");
+            CreateRaffleRuleRequestDTO rule = new CreateRaffleRuleRequestDTO(1L, 100L);
+            return new CreateRaffleRequestDTO("t", "d", RaffleType.STANDARD, start, start.plusDays(5),
+                    start.plusDays(6), 100L, 10L, DrawMethod.SYSTEM_RANDOM, List.of(prize), List.of(rule),
+                    "terms", null);
+        }
+
+        @Test
+        @DisplayName("datos de confirm distintos a los usados en prepare: lanza InvalidRequestException")
+        void tamperedRaffleData_throwsInvalidRequestException() throws Exception {
+            when(ticketEarningRuleRepository.existsById(1L)).thenReturn(true);
+
+            CreateRaffleRequestDTO preparedData = baseRequest();
+            String snapshot = objectMapper.writeValueAsString(preparedData);
+
+            RaffleImageAsset raffleAsset = RaffleImageAsset.builder()
+                    .id(1L)
+                    .status(AssetStatus.PENDING)
+                    .raffleDataSnapshot(snapshot)
+                    .build();
+            when(raffleImageAssetRepository.findById(1L)).thenReturn(Optional.of(raffleAsset));
+
+            CreateRaffleRequestDTO tamperedData = baseRequest();
+            tamperedData.setTitle("Titulo modificado en confirm");
+
+            ConfirmRaffleCreationRequestDTO request = new ConfirmRaffleCreationRequestDTO(
+                    1L, List.of(2L), tamperedData);
+
+            assertThatThrownBy(() -> service.confirmRaffleCreation(1L, request))
+                    .isInstanceOf(InvalidRequestException.class);
+
+            verify(raffleRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("sin snapshot persistido en el asset: lanza InvalidRequestException")
+        void missingSnapshot_throwsInvalidRequestException() {
+            when(ticketEarningRuleRepository.existsById(1L)).thenReturn(true);
+
+            RaffleImageAsset raffleAsset = RaffleImageAsset.builder()
+                    .id(1L)
+                    .status(AssetStatus.PENDING)
+                    .raffleDataSnapshot(null)
+                    .build();
+            when(raffleImageAssetRepository.findById(1L)).thenReturn(Optional.of(raffleAsset));
+
+            ConfirmRaffleCreationRequestDTO request = new ConfirmRaffleCreationRequestDTO(
+                    1L, List.of(2L), baseRequest());
+
+            assertThatThrownBy(() -> service.confirmRaffleCreation(1L, request))
                     .isInstanceOf(InvalidRequestException.class);
         }
     }

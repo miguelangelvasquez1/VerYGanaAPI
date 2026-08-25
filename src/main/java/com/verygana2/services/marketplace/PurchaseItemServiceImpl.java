@@ -1,6 +1,8 @@
 package com.verygana2.services.marketplace;
 
 import java.math.BigDecimal;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -34,7 +36,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final PasswordEncoder passwordEncoder;
     private static final String domain = "https://cdn.verygana.com/public/";
     private static final int MAX_CLAIM_ATTEMPTS = 5;
-    private static final int REPORT_WINDOW_HOURS_AFTER_CLAIM = 48;
+
+    /**
+     * Hora de corte del payout diario en Colombia — debe coincidir con
+     * wompi.payout.cron (por defecto "0 0 23 * * *", 11 PM). Si se cambia el
+     * cron, hay que actualizar esto también.
+     */
+    private static final ZoneId COLOMBIA_TZ = ZoneId.of("America/Bogota");
+    private static final LocalTime PAYOUT_CUTOFF_TIME = LocalTime.of(23, 0);
 
     public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, ProductCodeEncryptor codeEncryptor,
             PasswordEncoder passwordEncoder) {
@@ -246,7 +255,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         }
 
         if (item.getStatus() == PurchaseItemStatus.CLAIMED && item.getClaimedAt() != null) {
-            ZonedDateTime reportDeadline = item.getClaimedAt().plusHours(REPORT_WINDOW_HOURS_AFTER_CLAIM);
+            ZonedDateTime reportDeadline = nextPayoutCutoff(item.getClaimedAt());
             if (ZonedDateTime.now(ZoneOffset.UTC).isAfter(reportDeadline)) {
                 throw new InvalidStatusException("The report window for this purchase item has expired");
             }
@@ -255,4 +264,20 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         return item;
     }
 
+    /**
+     * Momento exacto en que el ciclo diario de payouts se llevaría este ítem
+     * (la próxima corrida de las 11 PM Colombia estrictamente después de
+     * claimedAt) — es la fecha límite real para reportar un problema, ya que
+     * después de ese instante el ítem puede quedar pagado al comercial y
+     * reversar el dinero ya no sería seguro. Reemplaza una ventana fija de
+     * horas: si se reclama a las 10 AM, quedan ~13h para reportar; si se
+     * reclama a las 11:30 PM, quedan ~23.5h (hasta la corrida del día siguiente).
+     */
+    private ZonedDateTime nextPayoutCutoff(ZonedDateTime claimedAt) {
+        ZonedDateTime claimedAtColombia = claimedAt.withZoneSameInstant(COLOMBIA_TZ);
+        ZonedDateTime cutoffToday = claimedAtColombia.toLocalDate().atTime(PAYOUT_CUTOFF_TIME).atZone(COLOMBIA_TZ);
+
+        ZonedDateTime cutoff = claimedAtColombia.isBefore(cutoffToday) ? cutoffToday : cutoffToday.plusDays(1);
+        return cutoff.withZoneSameInstant(ZoneOffset.UTC);
+    }
 }

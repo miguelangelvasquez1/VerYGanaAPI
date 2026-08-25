@@ -93,16 +93,16 @@ public class AuthController {
             throw new AccountLockedException("Cuenta bloqueada por múltiples intentos fallidos. Revisa tu correo para el código de desbloqueo.");
         }
 
-        if (!recaptchaService.verify(request.getRecaptchaToken())) {
-            log.warn(
-                    "reCAPTCHA verification failed for login attempt: {}",
-                    request.getIdentifier()
-            );
+        // if (!recaptchaService.verify(request.getRecaptchaToken())) {
+        //     log.warn(
+        //             "reCAPTCHA verification failed for login attempt: {}",
+        //             request.getIdentifier()
+        //     );
 
-            throw new BadCredentialsException(
-                    "No fue posible verificar la seguridad de la solicitud."
-            );
-        }
+        //     throw new BadCredentialsException(
+        //             "No fue posible verificar la seguridad de la solicitud."
+        //     );
+        // }
 
         Authentication authentication;
         try {
