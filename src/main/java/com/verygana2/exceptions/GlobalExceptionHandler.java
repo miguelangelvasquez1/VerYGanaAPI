@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.IncorrectResultSizeDataAccessException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
@@ -80,6 +81,28 @@ public class GlobalExceptionHandler {
         if (!response.isCommitted()) {
             response.setStatus(HttpStatus.SERVICE_UNAVAILABLE.value());
         }
+    }
+
+    /**
+     * Un findByX que devuelve Optional se topó con varias filas: la tabla tiene un
+     * duplicado que debería ser imposible.
+     *
+     * Va aparte del catch-all porque ahí salía como "Unexpected error", que no dice
+     * nada y manda a leer trazas. Pasó el 2026-08-26: pet_catalog_items quedó con los
+     * 14 alimentos por duplicado (faltaba el índice único sobre external_id) y toda
+     * compra de comida respondía 500 sin ninguna pista de por qué.
+     *
+     * Sigue siendo 500 —es un problema de nuestros datos, no de la petición— pero el
+     * mensaje y el log ya nombran la causa.
+     */
+    @ExceptionHandler(IncorrectResultSizeDataAccessException.class)
+    public ResponseEntity<ErrorResponse> handleIncorrectResultSize(
+            IncorrectResultSizeDataAccessException ex, WebRequest request) {
+        log.error("Datos duplicados: se esperaba un único registro y se encontraron {}. "
+                + "Revise duplicados en la tabla implicada.", ex.getActualSize(), ex);
+        return buildError(HttpStatus.INTERNAL_SERVER_ERROR,
+                "Datos inconsistentes: existe más de un registro para el mismo identificador",
+                request);
     }
 
     @ExceptionHandler(Exception.class)
