@@ -26,14 +26,11 @@ public class RecaptchaService {
     @Value("${recaptcha.min-score:0.5}")
     private double minScore;
 
-    @Value("${recaptcha.login-action:login}")
-    private String expectedAction;
-
     public RecaptchaService(RestClient.Builder restClientBuilder) {
         this.restClient = restClientBuilder.build();
     }
 
-    public boolean verify(String token) {
+    public boolean verify(String token, String expectedAction) {
 
         if (token == null || token.isBlank()) {
             log.warn("reCAPTCHA token is missing");

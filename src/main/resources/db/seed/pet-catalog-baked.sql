@@ -18,6 +18,55 @@
 -- BD el 2026-08-19. Idempotente: se puede correr varias veces.
 -- ============================================================================
 
+-- ── Reparación previa: sin esto el resto del archivo no es idempotente ──────
+--
+-- Los INSERT de comida usan ON DUPLICATE KEY UPDATE, que solo deduplica si existe
+-- un índice único sobre external_id. `@Column(unique = true)` en la entidad NO basta:
+-- con ddl-auto=update, Hibernate no puede crear la restricción sobre una columna que
+-- ya trae duplicados, falla en silencio y queda pillado para siempre — una vez
+-- duplicado, nunca más se lo va a poder poner.
+--
+-- Sin el índice, cada arranque volvía a insertar los 14 alimentos. Dos filas con el
+-- mismo external_id hacen que findByExternalId (que devuelve Optional) lance
+-- IncorrectResultSizeDataAccessException y TODA compra de ese ítem responda 500.
+-- Pasó el 2026-08-26 en la máquina de un compañero.
+--
+-- La ropa nunca se duplicó porque su bloque usa WHERE NOT EXISTS, que no depende
+-- de ningún índice.
+
+-- 1. Repuntar las transacciones a la fila que se conserva, antes de borrar nada:
+--    pet_catalog_item_id no tiene FK, así que las referencias colgantes no darían
+--    error, pero romperían las métricas de venta del comercial.
+UPDATE key_transactions t
+JOIN pet_catalog_items dup ON dup.id = t.pet_catalog_item_id
+JOIN (SELECT external_id, MIN(id) AS keep_id FROM pet_catalog_items
+      WHERE external_id IS NOT NULL GROUP BY external_id) k
+  ON k.external_id = dup.external_id
+SET t.pet_catalog_item_id = k.keep_id
+WHERE dup.id <> k.keep_id;
+
+-- 2. Dejar una sola fila por external_id, conservando la más antigua.
+DELETE dup FROM pet_catalog_items dup
+JOIN (SELECT external_id, MIN(id) AS keep_id FROM pet_catalog_items
+      WHERE external_id IS NOT NULL GROUP BY external_id) k
+  ON k.external_id = dup.external_id
+WHERE dup.id <> k.keep_id;
+
+-- 3. Crear el índice si falta. MySQL no tiene CREATE INDEX IF NOT EXISTS, de ahí el
+--    rodeo por information_schema. Ya sin duplicados, el ALTER pasa.
+SET @idx := (SELECT COUNT(*) FROM information_schema.STATISTICS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = 'pet_catalog_items'
+               AND INDEX_NAME = 'uk_pet_catalog_external_id');
+
+SET @ddl := IF(@idx = 0,
+  'ALTER TABLE pet_catalog_items ADD CONSTRAINT uk_pet_catalog_external_id UNIQUE (external_id)',
+  'DO 0');
+
+PREPARE ensure_uk FROM @ddl;
+EXECUTE ensure_uk;
+DEALLOCATE PREPARE ensure_uk;
+
 -- ── Comida y bebida (por external_id) ───────────────────────────────────────
 INSERT INTO pet_catalog_items (external_id, name, description, is_medicine, is_drink, cures_all_parts, price, active)
 VALUES (0, 'Apple', 'Horneado en el build de Unity: el juego lo identifica por external_id', 0, 0, 0, 1, false)
