@@ -65,6 +65,15 @@ public class AuthController {
     @Value("${jwt.refresh-token.expiration}")
     private long refreshTokenExpiration;
 
+    @Value("${recaptcha.login-action:login}")
+    private String loginRecaptchaAction;
+
+    @Value("${recaptcha.register-consumer-action:register_consumer}")
+    private String registerConsumerRecaptchaAction;
+
+    @Value("${recaptcha.register-commercial-action:register_commercial}")
+    private String registerCommercialRecaptchaAction;
+
     public AuthController(TokenService tokenService, AuthenticationManager authManager, UserService userService,
                            TicketDeliveryService ticketDeliveryService, PasswordSetupService passwordSetupService,
                            SecurityAuditService securityAuditService, AccountLockService accountLockService, RecaptchaService recaptchaService) {
@@ -93,7 +102,7 @@ public class AuthController {
             throw new AccountLockedException("Cuenta bloqueada por múltiples intentos fallidos. Revisa tu correo para el código de desbloqueo.");
         }
 
-        if (!recaptchaService.verify(request.getRecaptchaToken())) {
+        if (!recaptchaService.verify(request.getRecaptchaToken(), loginRecaptchaAction)) {
             log.warn(
                     "reCAPTCHA verification failed for login attempt: {}",
                     request.getIdentifier()
@@ -283,7 +292,7 @@ public class AuthController {
     public ResponseEntity<?> registerConsumer(
             @Valid @RequestBody ConsumerRegisterDTO consumerRegisterRequest) {
 
-        if (!recaptchaService.verify(consumerRegisterRequest.getRecaptchaToken())) {
+        if (!recaptchaService.verify(consumerRegisterRequest.getRecaptchaToken(), registerConsumerRecaptchaAction)) {
             log.warn("reCAPTCHA verification failed for consumer registration");
             throw new BadCredentialsException(
                     "No fue posible verificar la seguridad de la solicitud."
@@ -303,7 +312,7 @@ public class AuthController {
     public ResponseEntity<?> registerCommercial(
             @Valid @RequestBody CommercialRegisterDTO dto) {
 
-        if (!recaptchaService.verify(dto.getRecaptchaToken())) {
+        if (!recaptchaService.verify(dto.getRecaptchaToken(), registerCommercialRecaptchaAction)) {
             log.warn("reCAPTCHA verification failed for commercial registration");
             throw new BadCredentialsException(
                     "No fue posible verificar la seguridad de la solicitud."
