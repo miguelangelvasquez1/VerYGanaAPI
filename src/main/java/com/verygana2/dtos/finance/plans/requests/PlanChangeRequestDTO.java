@@ -13,8 +13,10 @@ public class PlanChangeRequestDTO {
     private PlanCode targetPlanCode;
 
     /**
-     * Monto que el comercial planea depositar si el destino es STANDARD/PREMIUM.
-     * Informativo — el abono real se calcula contra el saldo actual del wallet.
+     * Monto que el comercial va a invertir en el plan destino si es STANDARD/PREMIUM.
+     * Es el abono que se cobrará para aplicar el cambio — independiente del saldo
+     * actual o de abonos anteriores. Debe estar dentro del rango [min, max] del plan
+     * destino; si se omite, se toma el mínimo del plan.
      */
     private Long intendedInvestmentAmountCents;
 }

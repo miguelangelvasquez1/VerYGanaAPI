@@ -25,6 +25,9 @@ public class PlanOptionDTO {
     /** true si este es el plan que el motor de reglas recomienda para la ruta del comercial. */
     private boolean recommended;
 
+    /** true si este es el plan actualmente activo del comercial (fuera de onboarding, siempre false ahí). */
+    private boolean currentPlan;
+
     /** Solo aplica a planes de suscripción mensual (BASIC). */
     private Long monthlyFeeCents;
 

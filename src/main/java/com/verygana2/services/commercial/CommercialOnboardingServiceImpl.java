@@ -288,7 +288,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         List<PlanOptionDTO> plans = planRepository.findAllByActiveTrue().stream()
                 .sorted(Comparator.comparing(p -> p.getCode().ordinal()))
-                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, p.getCode() == recommendedCode))
+                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, p.getCode() == recommendedCode, false))
                 .toList();
 
         return new PlanComparisonResponseDTO(

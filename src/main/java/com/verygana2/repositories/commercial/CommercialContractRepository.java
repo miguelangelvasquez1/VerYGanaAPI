@@ -1,5 +1,6 @@
 package com.verygana2.repositories.commercial;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,7 +33,19 @@ public interface CommercialContractRepository extends JpaRepository<CommercialCo
      */
     @Query("SELECT c FROM CommercialContract c WHERE c.commercial.id = :commercialId "
             + "AND c.purpose = com.verygana2.models.enums.commercial.ContractPurpose.RECHARGE "
-            + "AND c.status <> com.verygana2.models.enums.commercial.ContractStatus.REJECTED "
+            + "AND c.status NOT IN (com.verygana2.models.enums.commercial.ContractStatus.REJECTED, "
+            + "com.verygana2.models.enums.commercial.ContractStatus.CANCELLED) "
             + "AND (c.investment IS NULL OR c.investment.confirmed = false)")
     List<CommercialContract> findOpenRechargeContracts(@Param("commercialId") Long commercialId);
+
+    /**
+     * Cuenta contratos de RECHARGE/PLAN_CHANGE generados por un comercial desde
+     * {@code since}, sin importar en qué terminaron (firmado, rechazado o cancelado) —
+     * cada generación dispara un envío real a firma electrónica y tiene costo, así
+     * que se cuentan todos para el rate limit, no solo los que siguen abiertos.
+     */
+    @Query("SELECT COUNT(c) FROM CommercialContract c WHERE c.commercial.id = :commercialId "
+            + "AND c.purpose IN :purposes AND c.generatedAt >= :since")
+    long countGeneratedSince(@Param("commercialId") Long commercialId,
+            @Param("purposes") List<ContractPurpose> purposes, @Param("since") ZonedDateTime since);
 }

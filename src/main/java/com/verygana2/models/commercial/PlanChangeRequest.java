@@ -54,10 +54,11 @@ public class PlanChangeRequest {
     private Long requestedInvestmentAmountCents;
 
     /**
-     * Monto adicional requerido para que el cambio aplique, calculado al crear la
-     * solicitud: para destino BASIC -> toPlan.monthlyPriceCents; para STANDARD/PREMIUM
-     * -> max(0, toPlan.minInvestmentCents - saldoActual). 0/null = el cambio aplica
-     * solo con la firma, sin pago adicional.
+     * Abono requerido para que el cambio aplique, calculado al crear la solicitud e
+     * independiente del saldo actual o de abonos anteriores: para destino BASIC ->
+     * toPlan.monthlyPriceCents; para STANDARD/PREMIUM -> el monto a invertir indicado
+     * por el comercial (acotado al rango del plan) o, si no lo indica,
+     * toPlan.minInvestmentCents. 0/null = el cambio aplica solo con la firma.
      */
     @Column(name = "required_top_up_amount_cents")
     private Long requiredTopUpAmountCents;
@@ -75,6 +76,22 @@ public class PlanChangeRequest {
 
     @Column(name = "applied_at")
     private ZonedDateTime appliedAt;
+
+    /**
+     * Motivo del rechazo copiado del contrato vinculado cuando VerYGana lo rechaza
+     * (status = REJECTED). Se muestra al comercial hasta que lo da por leído.
+     */
+    @Column(name = "rejection_reason", columnDefinition = "TEXT")
+    private String rejectionReason;
+
+    /**
+     * Momento en que el comercial dio por leído el rechazo. Mientras sea null y el
+     * status sea REJECTED, {@code getCurrent} sigue devolviendo esta solicitud con el
+     * motivo; una vez marcado, {@code getCurrent} responde como si no hubiera solicitud
+     * y el comercial puede crear una nueva.
+     */
+    @Column(name = "rejection_acknowledged_at")
+    private ZonedDateTime rejectionAcknowledgedAt;
 
     @PrePersist
     protected void onCreate() {
