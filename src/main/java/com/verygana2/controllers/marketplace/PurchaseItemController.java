@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
@@ -21,6 +22,8 @@ import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsResponseDTO;
 import com.verygana2.dtos.purchase.requests.ClaimPurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.ReportPurchaseItemRequestDTO;
+import com.verygana2.dtos.purchase.responses.CommercialPendingClaimResponseDTO;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.services.interfaces.finance.CashRefundService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
@@ -73,6 +76,13 @@ public class PurchaseItemController {
         Long commercialId = jwt.getClaim("userId");
         purchaseItemService.claimPhysicalItem(purchaseItemId, commercialId, request.getPin());
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
+    }
+
+    @GetMapping("/pending-claims")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<PagedResponse<CommercialPendingClaimResponseDTO>> getPendingClaims (@AuthenticationPrincipal Jwt jwt, @RequestParam(required = false) DocumentType documentType, @RequestParam(required = false) String documentNumber, Pageable pageable) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(purchaseItemService.getPendingClaims(commercialId, documentType, documentNumber, pageable));
     }
 
     /**

@@ -65,11 +65,9 @@ class RaffleControllerTest {
         var drawDate = LocalDate.of(2026, 7, 13);
         var expected = PagedResponse.<RaffleSummaryResponseDTO>builder().build();
         when(raffleService.getSummaryRafflesByFilters(RaffleStatus.ACTIVE, "sorteo", drawDate, RaffleType.STANDARD,
-                pageable)).thenReturn(expected);
-
+                pageable)).thenReturn(expected);    
         var response = controller.getSummaryRafflesByFilters(RaffleStatus.ACTIVE, "sorteo", drawDate,
                 RaffleType.STANDARD, pageable);
-
         assertThat(response.getBody()).isSameAs(expected);
     }
 
@@ -89,7 +87,6 @@ class RaffleControllerTest {
         try (AutoCloseable ignored = withAuthorities(() -> "ROLE_ADMIN")) {
             RaffleResponseDTO expected = new RaffleResponseDTO();
             when(raffleService.getRaffleResponseDTOById(1L, true)).thenReturn(expected);
-
             assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
         }
     }
@@ -100,7 +97,6 @@ class RaffleControllerTest {
         try (AutoCloseable ignored = withAuthorities(() -> "ROLE_CONSUMER")) {
             RaffleResponseDTO expected = new RaffleResponseDTO();
             when(raffleService.getRaffleResponseDTOById(1L, false)).thenReturn(expected);
-
             assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
         }
     }
@@ -114,9 +110,7 @@ class RaffleControllerTest {
         raffle.setTotalParticipants(10);
         when(raffleService.getRaffleById(1L)).thenReturn(raffle);
         when(waitingRoomService.getViewerCount(1L)).thenReturn(7);
-
         var response = controller.getDrawStatus(1L);
-
         assertThat(response.getBody().getViewerCount()).isEqualTo(7);
     }
 
@@ -126,9 +120,7 @@ class RaffleControllerTest {
         var pageable = PageRequest.of(0, 10);
         var expected = PagedResponse.<UserRaffleSummaryResponseDTO>builder().build();
         when(raffleService.getMyRafflesByStatus(9L, RaffleStatus.ACTIVE, pageable)).thenReturn(expected);
-
         var response = controller.getMyRafflesByStatus(jwtWithUserId(9L), RaffleStatus.ACTIVE, pageable);
-
         assertThat(response.getBody()).isSameAs(expected);
     }
 
@@ -136,9 +128,7 @@ class RaffleControllerTest {
     @DisplayName("countMyRafflesByStatus: extrae el consumerId del JWT")
     void countMyRafflesByStatus_delegates() {
         when(raffleService.countMyRafflesByStatus(9L, RaffleStatus.COMPLETED)).thenReturn(3L);
-
         var response = controller.countMyRafflesByStatus(jwtWithUserId(9L), RaffleStatus.COMPLETED);
-
         assertThat(response.getBody()).isEqualTo(3L);
     }
 }

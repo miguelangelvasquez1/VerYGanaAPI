@@ -18,6 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
+import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.marketplace.Product;
@@ -44,8 +45,10 @@ import static org.mockito.Mockito.when;
 class PurchaseItemServiceImplTest {
 
     @Mock private PurchaseItemRepository purchaseItemRepository;
+    @Mock private PurchaseMapper purchaseMapper;
     @Mock private ProductCodeEncryptor codeEncryptor;
     @Mock private PasswordEncoder passwordEncoder;
+
 
     private PurchaseItemServiceImpl service;
 
@@ -54,7 +57,7 @@ class PurchaseItemServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PurchaseItemServiceImpl(purchaseItemRepository, codeEncryptor, passwordEncoder);
+        service = new PurchaseItemServiceImpl(purchaseItemRepository, purchaseMapper, codeEncryptor, passwordEncoder);
     }
 
     private PurchaseItem physicalPendingItem() {

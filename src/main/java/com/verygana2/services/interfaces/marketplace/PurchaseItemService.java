@@ -8,7 +8,9 @@ import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.dtos.purchase.responses.CommercialPendingClaimResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.marketplace.PurchaseItem;
 
 public interface PurchaseItemService {
@@ -27,6 +29,7 @@ public interface PurchaseItemService {
      */
     void claimPhysicalItem(Long purchaseItemId, Long commercialId, String pin);
 
+    PagedResponse<CommercialPendingClaimResponseDTO> getPendingClaims (Long commercialId, DocumentType documentType, String documentNumber, Pageable pageable);
     /**
      * Valida que un PurchaseItem pueda reportarse (POST /purchaseItems/{id}/report):
      * pertenece al consumidor autenticado, no está REFUNDED/CANCELLED, y si ya

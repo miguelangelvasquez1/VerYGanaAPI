@@ -8,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -16,9 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
+import com.verygana2.dtos.purchase.responses.CommercialPendingClaimResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
+import com.verygana2.mappers.marketplace.PurchaseMapper;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.marketplace.PurchaseItem;
@@ -32,6 +36,7 @@ import jakarta.persistence.EntityNotFoundException;
 public class PurchaseItemServiceImpl implements PurchaseItemService {
 
     private final PurchaseItemRepository purchaseItemRepository;
+    private final PurchaseMapper purchaseMapper;
     private final ProductCodeEncryptor codeEncryptor;
     private final PasswordEncoder passwordEncoder;
     private static final String domain = "https://cdn.verygana.com/public/";
@@ -45,9 +50,10 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private static final ZoneId COLOMBIA_TZ = ZoneId.of("America/Bogota");
     private static final LocalTime PAYOUT_CUTOFF_TIME = LocalTime.of(23, 0);
 
-    public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, ProductCodeEncryptor codeEncryptor,
+    public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, @Lazy PurchaseMapper purchaseMapper, ProductCodeEncryptor codeEncryptor,
             PasswordEncoder passwordEncoder) {
         this.purchaseItemRepository = purchaseItemRepository;
+        this.purchaseMapper = purchaseMapper;
         this.codeEncryptor = codeEncryptor;
         this.passwordEncoder = passwordEncoder;
     }
@@ -228,12 +234,21 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         if (item.getClaimPinHash() == null || !passwordEncoder.matches(pin, item.getClaimPinHash())) {
             item.setClaimAttempts(item.getClaimAttempts() + 1);
             purchaseItemRepository.save(item);
-            throw new InvalidClaimException("Incorrect PIN");
+            throw new InvalidClaimException("PIN incorrecto");
         }
 
         item.setStatus(PurchaseItemStatus.CLAIMED);
         item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC));
         purchaseItemRepository.save(item);
+    }
+
+    @Override
+    public PagedResponse<CommercialPendingClaimResponseDTO> getPendingClaims(Long commercialId, DocumentType documentType, String documentNumber, Pageable pageable) {
+        if (commercialId == null || commercialId <= 0) {
+            throw new IllegalArgumentException("Commercial id must be positive");
+        }
+
+        return PagedResponse.from(purchaseItemRepository.findPendingPhysicalItems(commercialId, documentType, documentNumber, pageable).map(purchaseMapper::toCommercialPendingClaimResponseDTO));
     }
 
     @Override
@@ -280,4 +295,5 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         ZonedDateTime cutoff = claimedAtColombia.isBefore(cutoffToday) ? cutoffToday : cutoffToday.plusDays(1);
         return cutoff.withZoneSameInstant(ZoneOffset.UTC);
     }
+
 }

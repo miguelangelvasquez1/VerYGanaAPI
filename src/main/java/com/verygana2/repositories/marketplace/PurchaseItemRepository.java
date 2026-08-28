@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.marketplace.PurchaseItem;
 
 @Repository
@@ -241,5 +242,18 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             WHERE pi.product.id = :productId
             """)
     void detachProductReferences(@Param("productId") Long productId);
+
+    @Query("""
+           SELECT pi FROM PurchaseItem pi
+           JOIN FETCH pi.product p
+           JOIN FETCH pi.purchase pu
+           JOIN FETCH pu.consumer c
+           WHERE pi.commercialId = :commercialId
+           AND pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.PENDING
+           AND p.productType = com.verygana2.models.enums.marketplace.ProductType.PHYSICAL
+           AND (:documentType IS NULL OR c.documentType = :documentType)
+           AND (:documentNumber IS NULL OR :documentNumber = '' OR LOWER(c.documentNumber) LIKE LOWER(CONCAT('%', :documentNumber, '%')))
+                    """)
+    Page<PurchaseItem> findPendingPhysicalItems (@Param("commercialId") Long commercialId, @Param("documentType") DocumentType documentType, @Param("documentNumber") String documentNumber, Pageable pageable);
 
 }

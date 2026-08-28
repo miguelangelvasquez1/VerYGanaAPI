@@ -908,7 +908,7 @@ Estimación de consumo diario con 30 comercials activos:
 ### Consultar estado de un payout
 
 ```
-GET /admin/payouts?date=2025-03-15
+GET api/admin/payouts?date=2025-03-15
 ```
 
 Respuesta incluye: `id`, `commercial`, `gross`, `commission`, `net`, `status`, `scheduledAt`, `paidAt`, `failureReason`, `retryCount`.
