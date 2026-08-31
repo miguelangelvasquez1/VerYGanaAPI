@@ -12,8 +12,22 @@ public class EffectivePlanStateResponseDTO {
      */
     private String effectivePlan;
  
-    /** true si tiene un plan activo y vigente */
+    /**
+     * true si el comercial tiene un plan contratado y vigente.
+     * NO implica que tenga saldo publicitario — un STANDARD/PREMIUM con la
+     * billetera en EXHAUSTED sigue teniendo {@code hasActivePlan = true}.
+     * Para saber si debe bloquearse la creación de activos nuevos usar
+     * {@link #budgetSuspended} / {@link #walletStatus}.
+     */
     private boolean hasActivePlan;
+
+    /**
+     * true cuando el plan no es BASIC y el saldo de la billetera es 0.
+     * El frontend lo usa para bloquear SOLO la creación de activos nuevos
+     * (anuncios, encuestas, juegos branded, productos, export PDF); ver/editar/
+     * pausar lo ya creado sigue disponible.
+     */
+    private boolean budgetSuspended;
  
     // ─── Financiero ───────────────────────────────────────────────────────────
  

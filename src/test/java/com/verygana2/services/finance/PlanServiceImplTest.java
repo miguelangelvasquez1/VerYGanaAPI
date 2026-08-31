@@ -478,6 +478,27 @@ class PlanServiceImplTest {
             assertThat(state.getRemainingBudgetCents()).isEqualTo(300_000L);
             assertThat(state.getWalletStatus()).isEqualTo("ACTIVE");
             assertThat(state.getMaxKeysPct()).isEqualTo(35);
+            assertThat(state.isHasActivePlan()).isTrue();
+            assertThat(state.isBudgetSuspended()).isFalse();
+        }
+
+        @Test
+        @DisplayName("STANDARD/PREMIUM con saldo agotado: hasActivePlan sigue true, budgetSuspended true")
+        void standardPlan_exhaustedWallet_keepsPlanActiveButSuspendsBudget() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            commercial.setWallet(wallet);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isHasActivePlan()).isTrue();
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.getWalletStatus()).isEqualTo("EXHAUSTED");
+            assertThat(state.getRemainingBudgetCents()).isZero();
         }
     }
 }

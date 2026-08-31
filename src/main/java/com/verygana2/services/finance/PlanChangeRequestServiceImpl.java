@@ -3,11 +3,13 @@ package com.verygana2.services.finance;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.finance.plans.responses.PlanChangeBlockerDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.event.ContractRejectedEvent;
@@ -26,6 +28,7 @@ import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.finance.PlanChangeRequestService;
+import com.verygana2.services.plans.PlanChangeAssetValidator;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
@@ -52,6 +55,7 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
     private final CommercialContractService commercialContractService;
     private final CommercialContractRepository commercialContractRepository;
     private final NotificationService notificationService;
+    private final PlanChangeAssetValidator planChangeAssetValidator;
 
     @Override
     @Transactional
@@ -75,6 +79,19 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
             throw new ValidationException(
                     "Para cambiar a BASIC su saldo publicitario debe estar en $0. Saldo actual: $"
                             + centsToPesos(walletBalanceCents(commercial)) + ".");
+        }
+
+        // El plan destino puede permitir menos activos (o ninguno) de los que el comercial
+        // tiene activos ahora. Los activos no se pueden borrar: debe esperar a que finalicen
+        // (o pedir su cancelación al soporte) antes de poder pedir el cambio. Aplica en
+        // cualquier dirección: PREMIUM→STANDARD baja los máximos, STANDARD→PREMIUM quita los
+        // productos, cualquiera→BASIC quita anuncios/juegos/encuestas.
+        List<PlanChangeBlockerDTO> blockers = planChangeAssetValidator.findBlockers(commercialId, targetPlan);
+        if (!blockers.isEmpty()) {
+            throw new BusinessException("No puede cambiar al plan " + targetPlanCode
+                    + " mientras tenga activos que exceden lo que ese plan permite. "
+                    + blockers.stream().map(PlanChangeBlockerDTO::getMessage).collect(Collectors.joining(" "))
+                    + " Si necesita cancelar activos antes de que finalicen, contacte al soporte de VerYGana.");
         }
 
         if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercialId, OPEN_EXCLUDED_STATUSES).isEmpty()) {
@@ -122,19 +139,14 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         long requiredTopUp = computeRequiredTopUp(targetPlan, intendedInvestmentAmountCents);
 
         boolean downgradeToBasic = targetPlanCode == PlanCode.BASIC && fromPlan != null && fromPlan.getCode() != PlanCode.BASIC;
-        boolean eligible = !downgradeToBasic || balance == 0L;
+        boolean balanceBlocksBasic = downgradeToBasic && balance != 0L;
 
-        String message;
-        if (downgradeToBasic) {
-            message = eligible
-                    ? "Su saldo está en $0 — puede continuar. El cambio aplicará una vez pague la tarifa mensual de BASIC tras firmar el otrosí."
-                    : "Para cambiar a BASIC su saldo publicitario debe estar en $0 antes de solicitar el cambio. Saldo actual: $"
-                            + centsToPesos(balance) + ".";
-        } else {
-            // El abono del cambio de plan no depende del saldo actual: siempre se paga el
-            // monto a invertir en el plan destino (o su mínimo) para que el cambio aplique.
-            message = "El cambio se aplicará de inmediato una vez se confirme el pago del abono, después de firmar el otrosí.";
-        }
+        // Activos activos que no cabrían en el plan destino — deben finalizar antes de solicitar.
+        List<PlanChangeBlockerDTO> blockers = planChangeAssetValidator.findBlockers(commercialId, targetPlan);
+
+        boolean eligible = !balanceBlocksBasic && blockers.isEmpty();
+
+        String message = buildPreviewMessage(targetPlanCode, downgradeToBasic, balanceBlocksBasic, balance, blockers);
 
         return new PlanChangePreviewResponseDTO(
                 fromPlan != null ? fromPlan.getCode() : null,
@@ -146,7 +158,38 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
                 targetPlan.getCode() == PlanCode.BASIC ? centsToPesos(targetPlan.getMonthlyPriceCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMinInvestmentCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMaxInvestmentCents()) : null,
-                targetPlan.getSaleCommissionPct());
+                targetPlan.getSaleCommissionPct(),
+                blockers);
+    }
+
+    /**
+     * Arma el mensaje del preview. Si hay algo que impide el cambio (saldo &gt; $0 al bajar
+     * a BASIC y/o activos que sobran) lo explica todo junto; si no, describe cuándo
+     * aplicará el cambio.
+     */
+    private String buildPreviewMessage(PlanCode targetPlanCode, boolean downgradeToBasic,
+            boolean balanceBlocksBasic, long balance, List<PlanChangeBlockerDTO> blockers) {
+
+        if (balanceBlocksBasic || !blockers.isEmpty()) {
+            StringBuilder sb = new StringBuilder("Antes de solicitar el cambio al plan ")
+                    .append(targetPlanCode).append(": ");
+            if (balanceBlocksBasic) {
+                sb.append("deje su saldo publicitario en $0 (actual: $").append(centsToPesos(balance)).append("). ");
+            }
+            blockers.forEach(b -> sb.append(b.getMessage()).append(" "));
+            if (!blockers.isEmpty()) {
+                sb.append("Si necesita cancelar activos antes de que finalicen, contacte al soporte de VerYGana.");
+            }
+            return sb.toString().trim();
+        }
+
+        if (downgradeToBasic) {
+            return "Su saldo está en $0 y sus activos caben en BASIC — puede continuar. "
+                    + "El cambio aplicará una vez pague la tarifa mensual de BASIC tras firmar el otrosí.";
+        }
+        // El abono del cambio de plan no depende del saldo actual: siempre se paga el
+        // monto a invertir en el plan destino (o su mínimo) para que el cambio aplique.
+        return "El cambio se aplicará de inmediato una vez se confirme el pago del abono, después de firmar el otrosí.";
     }
 
     /** El preview del cambio de plan se muestra al comercial en pesos, no en centavos. */

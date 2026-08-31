@@ -7,11 +7,13 @@ import org.springframework.stereotype.Service;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
 import com.verygana2.models.enums.CampaignStatus;
+import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
 import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.surveys.Survey.SurveyStatus;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
+import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.surveys.SurveyRepository;
@@ -38,12 +40,17 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class PlanFeatureGuard {
 
+    /** Estados terminales de una solicitud de cambio de plan: ya no "está en curso". */
+    private static final List<PlanChangeRequestStatus> PLAN_CHANGE_TERMINAL_STATUSES = List.of(
+            PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
+
     private final EffectivePlanResolver planResolver;
     private final ProductRepository productRepository;
     private final AdRepository adRepository;
     private final CampaignRepository campaignRepository;
     private final BrandingRequestRepository brandingRequestRepository;
     private final SurveyRepository surveyRepository;
+    private final PlanChangeRequestRepository planChangeRequestRepository;
 
     public void assertCapability(Long commercialId, RequirePlanCapability.Capability capability) {
         EffectivePlanState state = planResolver.resolve(commercialId);
@@ -92,7 +99,7 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_PRODUCTS -> {
-                long current = productRepository.countByCommercialIdAndIsActive(commercialId);
+                long current = countSlotOccupyingProducts(commercialId);
                 if (current >= state.getMaxProducts()) {
                     throw new PlanCapabilityException(
                         "Límite de productos alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -100,7 +107,7 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_ADS -> {
-                long current = adRepository.countByCommercialIdAndStatus(commercialId, AdStatus.ACTIVE);
+                long current = countSlotOccupyingAds(commercialId);
                 if (current >= state.getMaxAds()) {
                     throw new PlanCapabilityException(
                         "Límite de anuncios alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -108,17 +115,7 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_BRANDED_GAMES -> {
-                // Cuenta campañas no finalizadas (DRAFT/ACTIVE/PAUSED) + solicitudes de branding
-                // aún en curso (todo lo que no sea REJECTED/CANCELLED/CAMPAIGN_CREATED, ya que
-                // esta última ya está representada por su Campaign correspondiente).
-                long nonFinalCampaigns = campaignRepository.countByCommercialIdAndStatusNotIn(
-                    commercialId, List.of(CampaignStatus.COMPLETED, CampaignStatus.CANCELLED));
-                long activeRequests = brandingRequestRepository.countByCommercial_User_IdAndStatusNotIn(
-                    commercialId, List.of(
-                        BrandingRequestStatus.REJECTED,
-                        BrandingRequestStatus.CANCELLED,
-                        BrandingRequestStatus.CAMPAIGN_CREATED));
-                long current = nonFinalCampaigns + activeRequests;
+                long current = countSlotOccupyingBrandedGames(commercialId);
                 if (current >= state.getMaxBrandedGames()) {
                     throw new PlanCapabilityException(
                         "Límite de juegos branded alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -126,9 +123,7 @@ public class PlanFeatureGuard {
                 }
             }
             case MAX_SURVEYS -> {
-                // Cuenta encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: REJECTED y COMPLETED).
-                long current = surveyRepository.countByCreatorIdAndStatusNotIn(
-                    commercialId, List.of(SurveyStatus.REJECTED, SurveyStatus.COMPLETED));
+                long current = countSlotOccupyingSurveys(commercialId);
                 if (current >= state.getMaxSurveys()) {
                     throw new PlanCapabilityException(
                         "Límite de encuestas alcanzado. Plan " + state.getEffectivePlan().name() +
@@ -136,6 +131,66 @@ public class PlanFeatureGuard {
                 }
             }
 
+        }
+    }
+
+    // ── Conteo de activos que ocupan un cupo del plan ─────────────────────────
+    // La fuente única de verdad de "qué cuenta como un activo" — la usan tanto la
+    // guardia de creación (assertCapability) como la validación de bajada de plan
+    // (PlanChangeAssetValidator), para que ambos midan exactamente lo mismo.
+
+    /** Productos activos (status ACTIVE) del comercial. */
+    public long countSlotOccupyingProducts(Long commercialId) {
+        return productRepository.countByCommercialIdAndIsActive(commercialId);
+    }
+
+    /** Anuncios en circulación (status ACTIVE) del comercial. */
+    public long countSlotOccupyingAds(Long commercialId) {
+        return adRepository.countByCommercialIdAndStatus(commercialId, AdStatus.ACTIVE);
+    }
+
+    /**
+     * Juegos brandeados que ocupan un cupo: campañas no finalizadas
+     * (DRAFT/ACTIVE/PAUSED) + solicitudes de branding aún en curso (todo lo que no
+     * sea REJECTED/CANCELLED/CAMPAIGN_CREATED, ya que esta última ya está
+     * representada por su Campaign correspondiente).
+     */
+    public long countSlotOccupyingBrandedGames(Long commercialId) {
+        long nonFinalCampaigns = campaignRepository.countByCommercialIdAndStatusNotIn(
+            commercialId, List.of(CampaignStatus.COMPLETED, CampaignStatus.CANCELLED));
+        long activeRequests = brandingRequestRepository.countByCommercial_User_IdAndStatusNotIn(
+            commercialId, List.of(
+                BrandingRequestStatus.REJECTED,
+                BrandingRequestStatus.CANCELLED,
+                BrandingRequestStatus.CAMPAIGN_CREATED));
+        return nonFinalCampaigns + activeRequests;
+    }
+
+    /** Encuestas que siguen consumiendo un cupo del plan (todo menos estados finales: REJECTED y COMPLETED). */
+    public long countSlotOccupyingSurveys(Long commercialId) {
+        return surveyRepository.countByCreatorIdAndStatusNotIn(
+            commercialId, List.of(SurveyStatus.REJECTED, SurveyStatus.COMPLETED));
+    }
+
+    /**
+     * Mientras el comercial tenga una solicitud de cambio de plan abierta (cualquier
+     * estado que no sea APPLIED/REJECTED/CANCELLED) no puede crear ni reactivar activos:
+     * el plan destino podría admitir menos —o ninguno— y quedaría por encima del límite
+     * justo cuando el cambio se aplique. Debe esperar a que se resuelva o cancelar la
+     * solicitud (POST /plans/change-request/{id}/cancel).
+     *
+     * <p>Se aplica en todos los puntos que verifican un límite {@code MAX_*}
+     * (ver {@link PlanGuardAspect}): crear anuncio/producto/encuesta, solicitar branding,
+     * reactivar un anuncio pausado, etc.
+     */
+    public void assertNoOpenPlanChangeRequest(Long commercialId) {
+        boolean hasOpenRequest = !planChangeRequestRepository
+                .findByCommercial_IdAndStatusNotIn(commercialId, PLAN_CHANGE_TERMINAL_STATUSES)
+                .isEmpty();
+        if (hasOpenRequest) {
+            throw new PlanCapabilityException(
+                "Tiene una solicitud de cambio de plan en curso. No puede crear ni activar " +
+                "nuevos activos hasta que se resuelva o cancele la solicitud.");
         }
     }
 

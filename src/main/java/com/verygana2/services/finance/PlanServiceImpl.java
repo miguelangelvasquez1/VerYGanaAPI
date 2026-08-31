@@ -834,6 +834,7 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(null)
                                         .hasActivePlan(false)
+                                        .budgetSuspended(true)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(0)
                                         .canAdvertise(false)
@@ -860,6 +861,7 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(PlanCode.BASIC.name())
                                         .hasActivePlan(hasActive)
+                                        .budgetSuspended(false) // BASIC no tiene presupuesto publicitario
                                         .remainingBudgetCents(0L)
                                         .commissionRate(currentPlan.getSaleCommissionPct())
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
@@ -876,14 +878,18 @@ public class PlanServiceImpl implements PlanService {
                 }
 
                 // ── Plan STANDARD / PREMIUM ───────────────────────────────────────────────
+                // hasActivePlan refleja "tiene plan contratado", no el saldo. El saldo
+                // agotado se comunica vía budgetSuspended + walletStatus para que el
+                // frontend bloquee solo la creación de activos nuevos, no todo.
                 Wallet wallet = commercial.getWallet();
-                boolean hasActivePlan = wallet != null && wallet.isOperational();
                 String walletStatus = wallet != null ? wallet.getStatus().name() : "INACTIVE";
                 long remainingBudgetCents = wallet != null ? wallet.getBalanceCents() : 0L;
+                boolean budgetSuspended = wallet == null || wallet.isExhausted();
 
                 return EffectivePlanStateResponseDTO.builder()
                                 .effectivePlan(currentPlan.getCode().name())
-                                .hasActivePlan(hasActivePlan)
+                                .hasActivePlan(true)
+                                .budgetSuspended(budgetSuspended)
                                 .remainingBudgetCents(remainingBudgetCents)
                                 .commissionRate(currentPlan.getSaleCommissionPct())
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))

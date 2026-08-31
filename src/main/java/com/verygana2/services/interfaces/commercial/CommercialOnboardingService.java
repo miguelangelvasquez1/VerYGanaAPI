@@ -2,6 +2,7 @@ package com.verygana2.services.interfaces.commercial;
 
 import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticQuestionnaireResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
@@ -18,6 +19,12 @@ public interface CommercialOnboardingService {
     CommercialOnboardingStatusResponseDTO acceptTerms(Long userId, TermsAcceptanceRequestDTO dto, String ipAddress, String userAgent);
 
     CommercialOnboardingStatusResponseDTO submitLegalIdentification(Long userId, LegalIdentificationRequestDTO dto);
+
+    /**
+     * Catálogo versionado del cuestionario de diagnóstico (secciones, preguntas,
+     * opciones, ayudas y adaptividad) para que el front renderice el paso 4.
+     */
+    DiagnosticQuestionnaireResponseDTO getDiagnosticQuestionnaire();
 
     RouteClassificationResponseDTO submitDiagnostic(Long userId, CommercialDiagnosticRequestDTO dto);
 

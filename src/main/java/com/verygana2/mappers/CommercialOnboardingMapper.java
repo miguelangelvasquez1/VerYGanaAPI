@@ -1,6 +1,7 @@
 package com.verygana2.mappers;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.HashSet;
 
 import org.mapstruct.BeanMapping;
@@ -17,7 +18,9 @@ import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryD
 import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
+import com.verygana2.models.commercial.CommercialDiagnosticAnswers;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.finance.plans.PlanFeature;
 import com.verygana2.models.legal.LegalDocument;
@@ -69,12 +72,29 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "pep", expression = "java(Boolean.TRUE.equals(dto.getLegalRepPepDeclaration()))")
     void applyLegalIdentificationToDetails(LegalIdentificationRequestDTO dto, @MappingTarget CommercialDetails details);
 
-    // ===== Paso 3: Diagnóstico comercial =====
+    // ===== Paso 4: Diagnóstico comercial =====
+    // Las respuestas de una sola opción se copian por nombre al @Embeddable; las de
+    // selección múltiple van a las colecciones de CommercialOnboarding. Se mantiene
+    // la firma void + @MappingTarget que ya usaba el servicio.
 
     @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
-    @Mapping(target = "techIntegrationNeeds",
-            expression = "java(dto.getTechIntegrationNeeds() == null ? new HashSet<>() : new HashSet<>(dto.getTechIntegrationNeeds()))")
-    void applyDiagnostic(CommercialDiagnosticRequestDTO dto, @MappingTarget CommercialOnboarding onboarding);
+    CommercialDiagnosticAnswers toDiagnosticAnswers(CommercialDiagnosticRequestDTO dto);
+
+    default void applyDiagnostic(CommercialDiagnosticRequestDTO dto, @MappingTarget CommercialOnboarding onboarding) {
+        onboarding.setDiagnosticAnswers(toDiagnosticAnswers(dto));
+        onboarding.setBusinessGoals(dto.getBusinessGoals() == null
+                ? new ArrayList<>() : new ArrayList<>(dto.getBusinessGoals()));
+        onboarding.setGrowthTools(dto.getGrowthTools() == null
+                ? new ArrayList<>() : new ArrayList<>(dto.getGrowthTools()));
+        onboarding.setInstitutionalTools(dto.getInstitutionalTools() == null
+                ? new HashSet<>() : new HashSet<>(dto.getInstitutionalTools()));
+        onboarding.setCommercialNetworkActors(dto.getCommercialNetworkActors() == null
+                ? new HashSet<>() : new HashSet<>(dto.getCommercialNetworkActors()));
+        // Ruta alternativa de integración técnica (Ruta D): vacía si es cuestionario normal.
+        onboarding.setTechIntegrationNeeds(dto.getTechIntegrationNeeds() == null
+                ? new HashSet<>() : new HashSet<>(dto.getTechIntegrationNeeds()));
+        onboarding.setIntegrationDetails(dto.getIntegrationDetails());
+    }
 
     // ===== Resúmenes de solo lectura =====
 
@@ -83,8 +103,24 @@ public interface CommercialOnboardingMapper {
 
     @Mapping(target = "explanation", source = "routeExplanation")
     @Mapping(target = "confirmed", source = "routeConfirmed")
+    @Mapping(target = "preliminary", source = "routePreliminary")
     @Mapping(target = "routeLabel", expression = "java(onboarding.getRoute() != null ? onboarding.getRoute().name() : null)")
+    @Mapping(target = "modalityLabel", expression = "java(modalityLabel(onboarding.getRoute()))")
     RouteClassificationResponseDTO toRouteClassification(CommercialOnboarding onboarding);
+
+    /** Nombre visible de la modalidad recomendada, derivado de la ruta. */
+    default String modalityLabel(CommercialRoute route) {
+        if (route == null) {
+            return null;
+        }
+        return switch (route) {
+            case A -> "Empresa Tipo A";
+            case B -> "Empresa Tipo B";
+            case C -> "Candidata a Empresa Premium";
+            case D -> "Integración técnica";
+            case E -> "Alianza o negociación especial";
+        };
+    }
 
     /** Arma una fila del catálogo comparativo a partir del plan y sus features dinámicas. */
     @Mapping(target = "planCode", source = "plan.code")
