@@ -33,6 +33,7 @@ import com.verygana2.exceptions.UnauthorizedException;
 import com.verygana2.models.Category;
 import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.branding.Campaign;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.enums.Gender;
@@ -171,16 +172,23 @@ public class GameServiceImpl implements GameService {
                 .orElseThrow(() -> new ObjectNotFoundException("Campaign not found with id: " + req.getCampaignId(), Campaign.class));
         
         Map<String, Object> assets = new java.util.HashMap<>(campaign.getConfigData());
+        assets.put("reward_popup", buildRewardPopup(campaign.getCommercial()));
 
-        List<RewardCardResponseDTO> rewards = getGameRewards(campaign);
-
-        Map<String, Object> rewardPopup = Map.of(
-                "popup_title", "Recompensas desbloqueadas",
-                "products", rewards
-        );
-        assets.put("reward_popup", rewardPopup);
-    
         return assets;
+    }
+
+    /**
+     * El bloque de recompensas que el build espera bajo {@code reward_popup}.
+     *
+     * No sale del schema del juego: lo arma el backend con los productos del
+     * comercial. Por eso tiene que agregarse en los dos caminos —campaña real y
+     * preview—, o la preview entrega una estructura distinta a la del juego.
+     */
+    private Map<String, Object> buildRewardPopup(CommercialDetails commercial) {
+        return Map.of(
+                "popup_title", "Recompensas desbloqueadas",
+                "products", getGameRewards(commercial)
+        );
     }
 
     /**
@@ -259,7 +267,10 @@ public class GameServiceImpl implements GameService {
         Map<String, Object> draft = request.getDraftFormData();
         if (draft == null || draft.isEmpty()) return Map.of();
 
-        return stripPreviewMap(draft);
+        Map<String, Object> assets = new java.util.HashMap<>(stripPreviewMap(draft));
+        assets.put("reward_popup", buildRewardPopup(request.getCommercial()));
+
+        return assets;
     }
 
     private Map<String, Object> stripPreviewMap(Map<String, Object> map) {
@@ -403,9 +414,9 @@ public class GameServiceImpl implements GameService {
                 : objectMapper.valueToTree(value);
     }
 
-    private List<RewardCardResponseDTO> getGameRewards(Campaign campaign) {
+    private List<RewardCardResponseDTO> getGameRewards(CommercialDetails commercial) {
 
-        Long commercialId = campaign.getCommercial().getId();
+        Long commercialId = commercial.getId();
 
         List<Product> gameRewards = new java.util.ArrayList<>(
                 productRepository.findGameRewardsProducts(commercialId));
@@ -413,8 +424,8 @@ public class GameServiceImpl implements GameService {
         // Comerciales Premium no venden productos propios (CAN_SELL_DIRECTLY=false),
         // así que su popup de recompensas se completa con productos de aliados que
         // hayan elegido promocionar (ver CAN_PROMOTE_ALLY_PRODUCTS / AllyPromotionService).
-        boolean canPromoteAllyProducts = campaign.getCommercial().getCurrentPlan() != null
-                && campaign.getCommercial().getCurrentPlan().getBoolFeature("CAN_PROMOTE_ALLY_PRODUCTS", false);
+        boolean canPromoteAllyProducts = commercial.getCurrentPlan() != null
+                && commercial.getCurrentPlan().getBoolFeature("CAN_PROMOTE_ALLY_PRODUCTS", false);
 
         if (canPromoteAllyProducts) {
             gameRewards.addAll(allyProductPromotionRepository.findPromotedActiveProducts(commercialId));

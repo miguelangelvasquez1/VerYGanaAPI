@@ -64,6 +64,7 @@ import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.plans.BudgetService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
+import com.verygana2.utils.validators.games.GameConfigValidator;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
@@ -104,6 +105,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final NotificationService notificationService;
     private final WalletRepository walletRepository;
     private final BudgetService budgetService;
+    private final GameConfigValidator gameConfigValidator;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -433,9 +435,10 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new ValidationException("Design cannot be approved from status: " + request.getStatus());
         }
 
-        if (request.getGameConfig() == null || request.getGameConfig().isEmpty()) {
-            throw new IllegalStateException("La configuración del juego no está completa");
-        }
+        // Segunda puerta, a propósito: de acá sale la Campaign que consume el juego,
+        // y un gameConfig guardado antes de que existiera validación —o editado por
+        // otra vía— no debe convertirse en campaña activa.
+        gameConfigValidator.validateOrThrow(request.getGame(), request.getGameConfig());
 
         Campaign campaign = campaignRepository.save(brandingMapper.toCampaign(request));
 
