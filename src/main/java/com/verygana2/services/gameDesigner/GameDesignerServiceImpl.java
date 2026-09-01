@@ -52,6 +52,7 @@ import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.validators.games.GameConfigValidator;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
@@ -77,6 +78,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     private final GameService gameService;
     private final EmailService emailService;
     private final NotificationService notificationService;
+    private final GameConfigValidator gameConfigValidator;
 
     // ===== PERFIL =====
 
@@ -147,8 +149,13 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         log.info("Generating asset upload URL for designer user {}: {}", userId, request.getOriginalFileName());
 
         MediaType assetType = MediaType.fromMimeType(request.getContentType());
-        String objectKey = String.format("campaigns/designer-%s/%s/%s",
-            userId, assetType.getValue(), UUID.randomUUID());
+        SupportedMimeType mimeType = SupportedMimeType.fromValue(request.getContentType());
+
+        // La extensión es obligatoria en el objectKey: el build resuelve el AudioType
+        // por la extensión de la URL, y sin ella el clip no carga y el juego usa el
+        // sonido por defecto sin reportar ningún error.
+        String objectKey = String.format("campaigns/designer-%s/%s/%s%s",
+            userId, assetType.getValue(), UUID.randomUUID(), mimeType.getExtension());
 
         FileUploadPermissionDTO permission = r2Service.generateUploadUrl(false, objectKey, request.getContentType());
         String publicUrl = r2Service.buildPublicUrl(objectKey);
@@ -156,7 +163,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         Asset.AssetBuilder assetBuilder = Asset.builder()
             .objectKey(objectKey)
             .mediaType(assetType)
-            .mimeType(SupportedMimeType.fromValue(request.getContentType()))
+            .mimeType(mimeType)
             .sizeBytes(request.getSizeBytes())
             .status(AssetStatus.PENDING)
             .uploadedBy(userId);
@@ -288,7 +295,16 @@ public class GameDesignerServiceImpl implements GameDesignerService {
             throw new IllegalStateException("The form must have saved data before submitting for review");
         }
 
-        request.setGameConfig(stripAssetMetadata(request.getDraftFormData()));
+        // El aplanado va antes de validar: el schema declara los assets como string,
+        // y el borrador los guarda como {assetId, url}.
+        Map<String, Object> gameConfig = stripAssetMetadata(request.getDraftFormData());
+
+        // Hasta acá el schema solo servía para pintar el formulario. Un diseño con
+        // campos fuera de rango o sin assets se entregaba igual, y el síntoma
+        // aparecía dentro del juego, sin error visible en ningún lado.
+        gameConfigValidator.validateOrThrow(request.getGame(), gameConfig);
+
+        request.setGameConfig(gameConfig);
         request.setStatus(BrandingRequestStatus.PENDING_ADVERTISER_APPROVAL);
         log.info("BrandingRequest {} submitted for advertiser review by designer user {}", requestId, userId);
 
@@ -410,9 +426,10 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     }
 
     private GameSchemaResponse buildGameSchema(Game game) {
-        GameConfigDefinition config = game.getConfigDefinitions().stream()
-            .max(Comparator.comparing(GameConfigDefinition::getVersion))
-            .orElseThrow(() -> new ValidationException("Game has no config definition"));
+        // La misma definición contra la que se valida al entregar. Si el formulario
+        // se pintara con un schema y la validación corriera contra otro, el
+        // diseñador vería errores que no puede corregir.
+        GameConfigDefinition config = gameConfigValidator.latestDefinition(game);
 
         return new GameSchemaResponse(
             game.getId(),

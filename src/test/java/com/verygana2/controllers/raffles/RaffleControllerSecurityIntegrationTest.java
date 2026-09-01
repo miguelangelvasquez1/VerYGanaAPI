@@ -7,9 +7,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
+
+import com.verygana2.testsupport.TestRsaKeys;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -33,12 +36,14 @@ import com.verygana2.services.raffles.RaffleDrawStateCache;
 @WebMvcTest(RaffleController.class)
 @Import({ SecurityConfig.class, RaffleDrawStateCache.class })
 @EnableConfigurationProperties(RsaKeyProperties.class)
-@TestPropertySource(properties = {
-        "rsa.private-key=classpath:certs/private.pem",
-        "rsa.public-key=classpath:certs/public.pem"
-})
+
 @DisplayName("RaffleController — /api/raffles/me sin token (integración MockMvc + Spring Security real)")
 class RaffleControllerSecurityIntegrationTest {
+
+    @DynamicPropertySource
+    static void rsaKeys(DynamicPropertyRegistry registry) {
+        TestRsaKeys.register(registry);
+    }
 
     @Autowired private MockMvc mockMvc;
 

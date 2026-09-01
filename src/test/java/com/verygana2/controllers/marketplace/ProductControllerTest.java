@@ -3,6 +3,7 @@ package com.verygana2.controllers.marketplace;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -58,6 +59,22 @@ class ProductControllerTest {
     @BeforeEach
     void setUp() {
         controller = new ProductController(productService, productStockService);
+    }
+
+    @AfterEach
+    void clearSecurityContext() {
+        SecurityContextHolder.clearContext();
+    }
+
+    /** Deja una autenticación con el rol dado en el SecurityContextHolder. */
+    private void authenticateWithRole(String role) {
+        SecurityContext context = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        GrantedAuthority authority = mock(GrantedAuthority.class);
+        when(authority.getAuthority()).thenReturn(role);
+        org.mockito.Mockito.doReturn(List.of(authority)).when(authentication).getAuthorities();
+        when(context.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(context);
     }
 
     private Jwt jwtWithUserId(Long userId) {
@@ -144,12 +161,25 @@ class ProductControllerTest {
         @Test
         @DisplayName("searchProducts: pasa el consumerId del JWT y todos los filtros de búsqueda al service")
         void searchProducts_passesAllFilters() {
+            authenticateWithRole("ROLE_CONSUMER"); // el controller solo manda consumerId si el rol lo es
             var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
             when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
                     .thenReturn(expected);
 
             var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
                     "price", "ASC");
+
+            assertThat(response.getBody()).isSameAs(expected);
+        }
+
+        @Test
+        @DisplayName("searchProducts sin sesión: no manda consumerId al service")
+        void searchProducts_anonymous_passesNullConsumerId() {
+            var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
+            when(productService.filterProducts(null, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
+                    .thenReturn(expected);
+
+            var response = controller.searchProducts(null, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC");
 
             assertThat(response.getBody()).isSameAs(expected);
         }

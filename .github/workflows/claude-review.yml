@@ -1,0 +1,50 @@
+# Revisión automática de PRs con Claude.
+#
+# Comenta hallazgos inline en el PR; NO aprueba ni bloquea el merge, así que
+# el flujo de review humano queda intacto. Las reglas del repo viven en
+# CLAUDE.md, que la revisión lee en cada corrida.
+#
+# Requiere que un admin del repo instale la Claude GitHub App y agregue UNO
+# de estos secretos:
+#   CLAUDE_CODE_OAUTH_TOKEN  -> suscripción Claude (se genera con `claude setup-token`)
+#   ANTHROPIC_API_KEY        -> API key de console.anthropic.com (facturación por token)
+
+name: Claude Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review, reopened]
+
+# Si se empuja dos veces seguidas al mismo PR, cancela la revisión vieja.
+# Sin esto se paga una revisión por cada push.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+  id-token: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Con API key en vez de suscripción, cambia la línea de arriba por:
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          plugin_marketplaces: "https://github.com/anthropics/claude-code.git"
+          plugins: "code-review@claude-code-plugins"
+          prompt: "/code-review:code-review --comment ${{ github.repository }}/pull/${{ github.event.pull_request.number }}"
+          claude_args: |
+            --model claude-opus-5
+            --max-turns 15
+            --allowedTools "mcp__github_inline_comment__create_inline_comment"
