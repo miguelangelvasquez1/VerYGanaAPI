@@ -28,7 +28,14 @@ public class EffectivePlanStateResponseDTO {
      * pausar lo ya creado sigue disponible.
      */
     private boolean budgetSuspended;
- 
+
+    /**
+     * true cuando el saldo lleva en 0 más del periodo de gracia del plan sin recargar
+     * (estado DORMANT). Implica {@link #budgetSuspended}. El frontend lo usa para bloquear
+     * también la edición de activos ya creados y mostrar el aviso de "cuenta en pausa".
+     */
+    private boolean budgetDormant;
+
     // ─── Financiero ───────────────────────────────────────────────────────────
  
     /**

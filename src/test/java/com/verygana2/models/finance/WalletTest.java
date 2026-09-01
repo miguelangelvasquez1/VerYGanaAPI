@@ -79,6 +79,39 @@ class WalletTest {
     }
 
     @Test
+    @DisplayName("recalculateStatus: sella exhaustedSince al llegar a 0 y lo limpia al recuperar saldo")
+    void recalculateStatus_tracksExhaustedSince() {
+        Wallet wallet = new Wallet();
+        wallet.setLastDepositAmountCents(1_000_000L);
+        wallet.setLowBalanceThresholdPct(10);
+
+        wallet.setBalanceCents(0L);
+        wallet.recalculateStatus();
+        assertThat(wallet.getExhaustedSince()).isNotNull();
+
+        var sealedAt = wallet.getExhaustedSince();
+        wallet.recalculateStatus(); // sigue en 0 — no se re-sella
+        assertThat(wallet.getExhaustedSince()).isEqualTo(sealedAt);
+
+        wallet.setBalanceCents(500_000L);
+        wallet.recalculateStatus();
+        assertThat(wallet.getExhaustedSince()).isNull();
+    }
+
+    @Test
+    @DisplayName("deposit tras agotamiento: limpia exhaustedSince")
+    void deposit_clearsExhaustedSince() {
+        Wallet wallet = new Wallet();
+        wallet.setBalanceCents(0L);
+        wallet.recalculateStatus();
+        assertThat(wallet.getExhaustedSince()).isNotNull();
+
+        wallet.deposit(500_000L);
+
+        assertThat(wallet.getExhaustedSince()).isNull();
+    }
+
+    @Test
     @DisplayName("getLowBalanceThresholdCents: 0 si nunca ha habido depósito")
     void getLowBalanceThresholdCents_zeroWithoutDeposit() {
         Wallet wallet = new Wallet();

@@ -31,4 +31,16 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             @Param("consumerId") Long consumerId,
             @Param("campaignIds") Collection<Long> campaignIds
     );
+
+    /** Partidas completadas de las campañas de un comercial en un rango (panel de inicio). */
+    @Query("""
+        SELECT COUNT(gs) FROM GameSession gs
+        WHERE gs.campaign.commercial.id = :commercialId
+        AND gs.completed = true
+        AND gs.startTime >= :start AND gs.startTime < :end
+    """)
+    long countCompletedByCommercialAndDateRange(
+            @Param("commercialId") Long commercialId,
+            @Param("start") java.time.ZonedDateTime start,
+            @Param("end") java.time.ZonedDateTime end);
 }

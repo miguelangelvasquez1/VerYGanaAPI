@@ -12,6 +12,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
+import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
@@ -75,6 +76,31 @@ class PlanFeatureGuardTest {
             PlanChangeRequest r = new PlanChangeRequest();
             r.setStatus(status);
             return r;
+        }
+    }
+
+    @Nested
+    @DisplayName("assertBudgetNotDormant")
+    class AssertBudgetNotDormant {
+
+        @Test
+        @DisplayName("estado no dormant: no lanza")
+        void notDormant_passes() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().budgetDormant(false).build());
+
+            assertThatCode(() -> guard.assertBudgetNotDormant(COMMERCIAL_ID))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("estado dormant: lanza BudgetDormantException")
+        void dormant_throws() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().budgetDormant(true).build());
+
+            assertThatThrownBy(() -> guard.assertBudgetNotDormant(COMMERCIAL_ID))
+                    .isInstanceOf(PlanFeatureGuard.BudgetDormantException.class);
         }
     }
 }

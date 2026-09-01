@@ -191,6 +191,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.AMOUNT)
                 .build());
 
+        Feature budgetGracePeriodDays = featureRepository.save(Feature.builder()
+                .code("BUDGET_GRACE_PERIOD_DAYS")
+                .name("Días de gracia con saldo agotado antes de pasar a cuenta en pausa (DORMANT)")
+                .type(FeatureType.LIMIT)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -223,6 +229,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, canExportReport, null, false, null),
             pf(standard, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
             pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
+            pf(standard, budgetGracePeriodDays, 15,   null, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
@@ -238,7 +245,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, canPromoteAllyProducts, null, true, null),
             pf(premium, canExportReport, null, true, null),
             pf(premium, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
-            pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00"))
+            pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
+            pf(premium, budgetGracePeriodDays, 30,   null, null)
         );
 
         planFeatureRepository.saveAll(planFeatures);

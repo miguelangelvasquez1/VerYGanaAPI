@@ -48,6 +48,12 @@ public class PlanGuardAspect {
             guard.assertBudgetAvailable(commercialId);
         }
 
+        // Bloqueo adicional de edición cuando la cuenta está en pausa por saldo agotado
+        // durante más del periodo de gracia (DORMANT).
+        if (requireCapability.blockWhenDormant()) {
+            guard.assertBudgetNotDormant(commercialId);
+        }
+
         // Si todo es correcto, continuar con la ejecución del método
         return joinPoint.proceed();
     }

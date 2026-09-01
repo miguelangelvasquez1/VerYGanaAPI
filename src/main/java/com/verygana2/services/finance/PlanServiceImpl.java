@@ -74,6 +74,7 @@ public class PlanServiceImpl implements PlanService {
         private final WalletService walletService;
         private final CommercialOnboardingRepository onboardingRepository;
         private final com.verygana2.services.plans.InvestmentService investmentService;
+        private final com.verygana2.services.plans.EffectivePlanResolver effectivePlanResolver;
         private final com.verygana2.services.interfaces.EmailService emailService;
         private final CommercialContractService commercialContractService;
         private final CommercialContractRepository commercialContractRepository;
@@ -835,6 +836,7 @@ public class PlanServiceImpl implements PlanService {
                                         .effectivePlan(null)
                                         .hasActivePlan(false)
                                         .budgetSuspended(true)
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(0)
                                         .canAdvertise(false)
@@ -862,6 +864,7 @@ public class PlanServiceImpl implements PlanService {
                                         .effectivePlan(PlanCode.BASIC.name())
                                         .hasActivePlan(hasActive)
                                         .budgetSuspended(false) // BASIC no tiene presupuesto publicitario
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(currentPlan.getSaleCommissionPct())
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
@@ -885,11 +888,15 @@ public class PlanServiceImpl implements PlanService {
                 String walletStatus = wallet != null ? wallet.getStatus().name() : "INACTIVE";
                 long remainingBudgetCents = wallet != null ? wallet.getBalanceCents() : 0L;
                 boolean budgetSuspended = wallet == null || wallet.isExhausted();
+                boolean budgetDormant = budgetSuspended && wallet != null && wallet.getExhaustedSince() != null
+                                && wallet.getExhaustedSince().isBefore(ZonedDateTime.now(ZoneOffset.UTC)
+                                                .minusDays(effectivePlanResolver.resolveGracePeriodDays(currentPlan)));
 
                 return EffectivePlanStateResponseDTO.builder()
                                 .effectivePlan(currentPlan.getCode().name())
                                 .hasActivePlan(true)
                                 .budgetSuspended(budgetSuspended)
+                                .budgetDormant(budgetDormant)
                                 .remainingBudgetCents(remainingBudgetCents)
                                 .commissionRate(currentPlan.getSaleCommissionPct())
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))

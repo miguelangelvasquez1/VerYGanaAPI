@@ -35,6 +35,7 @@ docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
 
+ver el plan y ver lo que hizo el front
 revisar sistema de recomendacion
 - ver si funciona la suspension de plan(niveles de suspension), umbrales de saldo, ver que revisar segun claude, abonos de cambio de plan.
 - cada recarga genera un nuevo contrato?, plan especial si recarga de mas, notific de presupuesto.
@@ -44,10 +45,10 @@ revisar sistema de recomendacion
 - flujo juegos full
 - ver lo de antecedentes.
 - flujo de jugar, metricas, casos de juego, etc.
-- timer de saldo para incentivar su uso? o no permitir ediciones, cambios de estado?
+- timer de saldo para incentivar su uso? o no permitir ediciones y cambios de estado?
 
-
-- probar max_ads(state del plan lo devuelve), flujo de sesiones y recompensa bien revisar.
+- aumentar presupuestos?
+- flujo de sesiones y recompensa bien revisar.
 
 - ver que los asstes se borren del cdn.
 - ver que se puede editar o no despues de los contratos

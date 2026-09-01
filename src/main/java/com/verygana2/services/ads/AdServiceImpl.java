@@ -371,7 +371,7 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional
-    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
+    @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_ADVERTISE}, blockWhenDormant = true)
     public AdResponseDTO updateAd(Long adId, AdUpdateDTO updateDto, Long commercialId) {
         log.info("Updating ad {} for commercial {}", adId, commercialId);
 

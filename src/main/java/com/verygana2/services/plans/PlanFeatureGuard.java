@@ -207,6 +207,20 @@ public class PlanFeatureGuard {
         }
     }
 
+    /**
+     * Exige que la billetera del comercial no lleve agotada más del periodo de gracia de
+     * su plan (estado DORMANT). Se aplica a la edición de activos ya creados — nunca a
+     * pausar/reactivar activos ya financiados, que sigue permitido.
+     */
+    public void assertBudgetNotDormant(Long commercialId) {
+        EffectivePlanState state = planResolver.resolve(commercialId);
+        if (state.isBudgetDormant()) {
+            throw new BudgetDormantException(
+                "Tu billetera lleva demasiado tiempo agotada y tu cuenta está en pausa. " +
+                "Recárgala para volver a crear y editar anuncios, campañas y encuestas.");
+        }
+    }
+
     // Excepción personalizada
     public static class PlanCapabilityException extends RuntimeException {
         public PlanCapabilityException(String message) {
@@ -217,6 +231,16 @@ public class PlanFeatureGuard {
     /** Subtipo específico para cuando el bloqueo es por presupuesto agotado, no por plan. */
     public static class BudgetSuspendedException extends PlanCapabilityException {
         public BudgetSuspendedException(String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * Subtipo de {@link BudgetSuspendedException} para cuando el saldo lleva agotado más
+     * del periodo de gracia del plan (estado DORMANT) — además de crear, tampoco se puede editar.
+     */
+    public static class BudgetDormantException extends BudgetSuspendedException {
+        public BudgetDormantException(String message) {
             super(message);
         }
     }

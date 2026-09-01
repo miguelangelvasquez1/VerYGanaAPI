@@ -201,4 +201,38 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             """)
     void detachProductReferences(@Param("productId") Long productId);
 
+    // ── Panel de inicio del comercial (CommercialDashboardService) ────────────
+
+    /** Ganancia neta del comercial (subtotal - comisión) en el rango; null si no hubo ventas. */
+    @Query("""
+            SELECT SUM(p.netToCommercialCents)
+            FROM PurchaseItem p
+            WHERE p.commercialId = :commercialId
+            AND p.deliveredAt >= :startDate
+            AND p.deliveredAt < :endDate
+            """)
+    Long sumNetToCommercialCents(
+            @Param("commercialId") Long commercialId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate);
+
+    /**
+     * Instantes de entrega + subtotal de cada venta DELIVERED del rango, sin agregar.
+     * El servicio los agrupa por día natural en zona local para la serie de tendencia
+     * (rango acotado: máx. ~31 días de un solo comercial).
+     * Cada fila: {@code [deliveredAt (temporal), subtotalCents (Number)]}.
+     */
+    @Query("""
+            SELECT p.deliveredAt, p.subtotalCents
+            FROM PurchaseItem p
+            WHERE p.commercialId = :commercialId
+            AND p.status = 'DELIVERED'
+            AND p.deliveredAt >= :startDate
+            AND p.deliveredAt < :endDate
+            """)
+    List<Object[]> findDeliveredSaleInstants(
+            @Param("commercialId") Long commercialId,
+            @Param("startDate") ZonedDateTime startDate,
+            @Param("endDate") ZonedDateTime endDate);
+
 }

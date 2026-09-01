@@ -67,6 +67,7 @@ class PlanServiceImplTest {
     @Mock private WalletService walletService;
     @Mock private CommercialOnboardingRepository onboardingRepository;
     @Mock private com.verygana2.services.plans.InvestmentService investmentService;
+    @Mock private com.verygana2.services.plans.EffectivePlanResolver effectivePlanResolver;
     @Mock private com.verygana2.services.interfaces.EmailService emailService;
     @Mock private com.verygana2.services.interfaces.commercial.CommercialContractService commercialContractService;
     @Mock private com.verygana2.repositories.commercial.CommercialContractRepository commercialContractRepository;
@@ -80,8 +81,8 @@ class PlanServiceImplTest {
     void setUp() {
         service = new PlanServiceImpl(wompiService, wompiTransactionRepository, commercialDetailsRepository,
                 treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
-                walletRepository, walletService, onboardingRepository, investmentService, emailService,
-                commercialContractService, commercialContractRepository, planChangeRequestRepository,
+                walletRepository, walletService, onboardingRepository, investmentService, effectivePlanResolver,
+                emailService, commercialContractService, commercialContractRepository, planChangeRequestRepository,
                 planChangeRequestService, commercialOnboardingMapper);
     }
 
@@ -497,8 +498,47 @@ class PlanServiceImplTest {
 
             assertThat(state.isHasActivePlan()).isTrue();
             assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isFalse();
             assertThat(state.getWalletStatus()).isEqualTo("EXHAUSTED");
             assertThat(state.getRemainingBudgetCents()).isZero();
+        }
+
+        @Test
+        @DisplayName("saldo agotado más allá del periodo de gracia del plan: budgetDormant true")
+        void standardPlan_exhaustedBeyondGrace_setsBudgetDormant() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            wallet.setExhaustedSince(java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).minusDays(20));
+            commercial.setWallet(wallet);
+            when(effectivePlanResolver.resolveGracePeriodDays(standard)).thenReturn(15);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isTrue();
+        }
+
+        @Test
+        @DisplayName("saldo agotado dentro del periodo de gracia: budgetDormant false")
+        void standardPlan_exhaustedWithinGrace_notDormant() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            wallet.setExhaustedSince(java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).minusDays(3));
+            commercial.setWallet(wallet);
+            when(effectivePlanResolver.resolveGracePeriodDays(standard)).thenReturn(15);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isFalse();
         }
     }
 }
