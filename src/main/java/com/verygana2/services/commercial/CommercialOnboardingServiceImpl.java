@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticQuestionnaireResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
@@ -28,17 +29,19 @@ import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.commercial.diagnostic.DiagnosticQuestion;
+import com.verygana2.models.commercial.diagnostic.DiagnosticQuestionnaire;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.enums.commercial.PersonType;
-import com.verygana2.models.enums.commercial.PrimaryGoal;
 import com.verygana2.models.enums.legal.LegalDocumentType;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.legal.LegalDocument;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
+import com.verygana2.repositories.commercial.DiagnosticQuestionnaireRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.legal.LegalDocumentRepository;
@@ -70,6 +73,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final CommercialDocumentService documentService;
     private final CommercialOnboardingMapper commercialOnboardingMapper;
     private final PlanService planService;
+    private final CommercialDiagnosticClassifier diagnosticClassifier;
+    private final DiagnosticQuestionnaireRepository diagnosticQuestionnaireRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -194,7 +199,44 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         return toStatusDTO(onboarding);
     }
 
-    // 3. DIAGNÓSTICO COMERCIAL Y CLASIFICACIÓN AUTOMÁTICA DE RUTA (A-E)
+    // 3a. CATÁLOGO DEL CUESTIONARIO DE DIAGNÓSTICO (para renderizar el paso 4)
+    @Override
+    @Transactional(readOnly = true)
+    public DiagnosticQuestionnaireResponseDTO getDiagnosticQuestionnaire() {
+        DiagnosticQuestionnaire questionnaire = diagnosticQuestionnaireRepository
+                .findFirstByActiveTrueOrderByVersionDesc()
+                .orElseThrow(() -> new OnboardingStepException(
+                        "El cuestionario de diagnóstico comercial no está disponible en este momento."));
+        return toQuestionnaireDTO(questionnaire);
+    }
+
+    private DiagnosticQuestionnaireResponseDTO toQuestionnaireDTO(DiagnosticQuestionnaire q) {
+        List<DiagnosticQuestionnaireResponseDTO.Section> sections = q.getSections().stream()
+                .map(s -> new DiagnosticQuestionnaireResponseDTO.Section(
+                        s.getCode(), s.getTitle(), s.getSubtitle(),
+                        s.getQuestions().stream().map(this::toQuestionDTO).toList()))
+                .toList();
+        return new DiagnosticQuestionnaireResponseDTO(
+                q.getVersion(), q.getOpeningMessage(), List.copyOf(q.getOpeningActions()), sections);
+    }
+
+    private DiagnosticQuestionnaireResponseDTO.Question toQuestionDTO(DiagnosticQuestion question) {
+        DiagnosticQuestionnaireResponseDTO.Dependency dependsOn = question.getDependsOnQuestionCode() == null
+                ? null
+                : new DiagnosticQuestionnaireResponseDTO.Dependency(
+                        question.getDependsOnQuestionCode(),
+                        List.of(question.getDependsOnValues().split(",")));
+        List<DiagnosticQuestionnaireResponseDTO.Option> options = question.getOptions().stream()
+                .map(o -> new DiagnosticQuestionnaireResponseDTO.Option(o.getValue(), o.getLabel(), o.isExclusive()))
+                .toList();
+        return new DiagnosticQuestionnaireResponseDTO.Question(
+                question.getCode(), question.getFieldName(), question.getText(), question.getHelpText(),
+                question.getType(), question.isRequired(), question.getMaxSelections(), question.isOrdered(),
+                dependsOn, options);
+    }
+
+    // 3b. DIAGNÓSTICO COMERCIAL: cuestionario → modalidad A/B/C, o ruta alternativa
+    //     de integración técnica (techIntegrationNeeds) → Ruta D.
     @Override
     public RouteClassificationResponseDTO submitDiagnostic(Long userId, CommercialDiagnosticRequestDTO dto) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
@@ -208,6 +250,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         RouteClassificationResponseDTO classification = classify(onboarding);
         onboarding.setRoute(classification.getRoute());
         onboarding.setRouteExplanation(classification.getExplanation());
+        onboarding.setRoutePreliminary(classification.isPreliminary());
+        onboarding.setVerificationRequired(classification.isVerificationRequired());
         onboarding.setClassifiedAt(ZonedDateTime.now());
 
         // La ruta pudo cambiar: cualquier plan ya aceptado queda invalidado y debe re-aceptarse,
@@ -219,10 +263,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         onboarding.setSpecialNegotiationDetails(null);
 
         if (classification.getRoute() == CommercialRoute.D) {
-            // Ruta D (integración técnica): no hay clasificación que confirmar ni plan que
-            // aceptar, y tampoco continúa por documentos/contrato/pago dentro de la
-            // plataforma — todo eso se coordina manualmente por fuera con un asesor.
-            // Queda en ADVISOR_CONTACT_PENDING, terminal para el wizard de onboarding.
+            // Ruta D (integración técnica), vía la bifurcación techIntegrationNeeds: no hay
+            // clasificación de modalidad que confirmar ni plan que aceptar, y tampoco
+            // continúa por documentos/contrato/pago dentro de la plataforma — todo eso se
+            // coordina manualmente por fuera con un asesor. Queda en ADVISOR_CONTACT_PENDING,
+            // terminal para el wizard de onboarding.
             onboarding.setRouteConfirmed(true);
             onboarding.setRouteConfirmedAt(ZonedDateTime.now());
             onboarding.setRequiresSpecialNegotiation(true);
@@ -288,7 +333,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         List<PlanOptionDTO> plans = planRepository.findAllByActiveTrue().stream()
                 .sorted(Comparator.comparing(p -> p.getCode().ordinal()))
-                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, p.getCode() == recommendedCode))
+                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, p.getCode() == recommendedCode, false))
                 .toList();
 
         return new PlanComparisonResponseDTO(
@@ -369,10 +414,14 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     }
 
     private Plan resolvePlanForRoute(CommercialRoute route) {
+        // Modalidades del "Insumo técnico de caracterización empresarial":
+        // A = Empresa Tipo A, B = Empresa Tipo B, C = candidata a Empresa Premium.
+        // D/E no se asignan desde el diagnóstico; si aparecen (asignación manual)
+        // se tratan como Premium para la orientación de plan.
         Plan.PlanCode code = switch (route) {
             case A -> Plan.PlanCode.BASIC;
-            case C -> Plan.PlanCode.STANDARD;
-            case B, D, E -> Plan.PlanCode.PREMIUM;
+            case B -> Plan.PlanCode.STANDARD;
+            case C, D, E -> Plan.PlanCode.PREMIUM;
         };
         return planRepository.findByCodeAndActiveTrue(code)
                 .orElseThrow(() -> new ObjectNotFoundException("No hay un plan activo configurado para: " + code, Plan.class));
@@ -440,84 +489,73 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 onboarding.getPlanAcceptedAt());
     }
 
-    private void validateDiagnostic(CommercialDiagnosticRequestDTO dto) {
-        boolean needsTechIntegration = dto.getTechIntegrationNeeds() != null && !dto.getTechIntegrationNeeds().isEmpty();
+    private static boolean requestsTechIntegration(CommercialDiagnosticRequestDTO dto) {
+        return dto.getTechIntegrationNeeds() != null && !dto.getTechIntegrationNeeds().isEmpty();
+    }
 
-        if (needsTechIntegration) {
+    /**
+     * Exige respondidas las preguntas del cuestionario de caracterización sin las
+     * cuales la recomendación sería una adivinanza. El resto son adaptativas
+     * (§2: "el sistema omitirá las que no correspondan") y el motor de reglas las
+     * trata como no respondidas si vienen nulas.
+     *
+     * En la ruta alternativa de integración técnica no se valida el cuestionario:
+     * solo se exige la descripción de la integración.
+     */
+    private void validateDiagnostic(CommercialDiagnosticRequestDTO dto) {
+        if (requestsTechIntegration(dto)) {
             if (dto.getIntegrationDetails() == null || dto.getIntegrationDetails().isBlank()) {
                 throw new OnboardingStepException(
                         "Debe describir la integración técnica que necesita para que un asesor la evalúe.");
             }
             return;
         }
+        requireAnswered(dto.getMainActivity(), "la actividad principal de su empresa");
+        requireAnswered(dto.getMarketReachStructure(), "quién hace posible que sus productos lleguen al mercado");
+        requireAnswered(dto.getSellsDirectlyAndConcentrated(), "si vende directamente y concentra la operación");
+        requireAnswered(dto.getDirectSaleToConsumer(), "si vende principalmente de manera directa al consumidor");
+        requireAnswered(dto.getDesiredActiveOffers(), "cuántas ofertas desea mantener activas");
+        requireAnswered(dto.getMetricsNeeded(), "qué información necesita para decidir");
+        requireAnswered(dto.getIndependentEntrepreneursHelp(), "si otros empresarios independientes ayudan a llevar sus productos al consumidor");
+        requireAnswered(dto.getTypeAMonthlyFeeViable(), "si considera viable la cuota mensual de Tipo A");
+        requireAnswered(dto.getTypeBInvestmentCapacity(), "si está en capacidad de realizar una inversión Tipo B");
+        requireAnswered(dto.getAcceptsPremiumBrandFocus(), "si acepta el enfoque de marca de la modalidad Premium");
+    }
 
-        if (dto.getPrimaryGoal() == null) {
-            throw new OnboardingStepException("El objetivo principal es requerido");
-        }
-        if (dto.getWantsFixedFee() == null) {
-            throw new OnboardingStepException("Debe indicar si desea pagar una tarifa fija");
-        }
-        if (dto.getRequiresCustomGames() == null) {
-            throw new OnboardingStepException("Debe indicar si requiere juegos personalizados");
-        }
-        if (dto.getRequiresPets() == null) {
-            throw new OnboardingStepException("Debe indicar si requiere mascotas");
-        }
-        if (dto.getRequiresSurveys() == null) {
-            throw new OnboardingStepException("Debe indicar si requiere encuestas");
+    private void requireAnswered(Object answer, String what) {
+        if (answer == null) {
+            throw new OnboardingStepException("Debe responder " + what + " para completar el diagnóstico.");
         }
     }
 
-    // ==================== CLASIFICACIÓN AUTOMÁTICA (RUTA A-D; E SE DECIDE EN EL PASO DE PLAN) ====================
+    // ==================== CLASIFICACIÓN AUTOMÁTICA (MODALIDAD A/B/C o RUTA D) ====================
 
     /**
-     * Motor de reglas de clasificación. Evaluado en orden de prioridad: integración
-     * técnica > personalización (juegos/mascotas — Básico no soporta ninguna de las
-     * dos, CAN_USE_GAMES/CAN_HAVE_PETS=false en PlanDataInitializer, así que siempre
-     * va a un plan de inversión con esa capacidad) > tarifa fija (solo Básico tiene
-     * una tarifa fija real, y tampoco soporta encuestas: CAN_USE_SURVEYS=false) >
-     * objetivo de venta > caso por defecto. La Ruta E (negociación especial) no se
-     * calcula aquí: el empresario la solicita en acceptPlan(), junto con el plan que
-     * elija, una vez ve el detalle de cada uno.
+     * Ruta alternativa de integración técnica ({@code techIntegrationNeeds} no
+     * vacío) → Ruta D: proveedor/aliado cuya implementación y condiciones económicas
+     * las coordina un asesor de VERYGANA por fuera de la plataforma. En caso
+     * contrario delega en {@link CommercialDiagnosticClassifier}, que aplica las
+     * "Reglas decisivas de clasificación" (§13) y las "Reglas de recomendación"
+     * (§14) del insumo técnico y siempre devuelve A, B o C. La Ruta E (negociación
+     * especial) no se calcula aquí: el empresario la solicita en acceptPlan().
      */
     private RouteClassificationResponseDTO classify(CommercialOnboarding o) {
-        boolean needsTechIntegration = o.getTechIntegrationNeeds() != null && !o.getTechIntegrationNeeds().isEmpty();
-        boolean sells = o.getPrimaryGoal() == PrimaryGoal.VENDER || o.getPrimaryGoal() == PrimaryGoal.AMBAS;
-        boolean visibilityGoal = o.getPrimaryGoal() == PrimaryGoal.PUBLICIDAD;
-        boolean fixedFee = Boolean.TRUE.equals(o.getWantsFixedFee());
-        boolean customGames = Boolean.TRUE.equals(o.getRequiresCustomGames());
-        boolean pets = Boolean.TRUE.equals(o.getRequiresPets());
-        boolean surveys = Boolean.TRUE.equals(o.getRequiresSurveys());
-
-        CommercialRoute route;
-        String explanation;
-
-        if (needsTechIntegration) {
-            route = CommercialRoute.D;
-            explanation = "El equipo técnico de VERYGANA coordinará la implementación y las "
-                    + "condiciones económicas se definirán según el tipo de integración.";
-        } else if (customGames || pets) {
-            route = CommercialRoute.B;
-            explanation = "Ruta B: requiere juegos personalizados y/o mascotas en su operación, así que se "
-                    + "asigna un plan de inversión con soporte completo de gamificación.";
-        } else if (fixedFee && sells && !surveys) {
-            route = CommercialRoute.A;
-            explanation = "Ruta A: paga una tarifa fija y vende directamente en la plataforma. "
-                    + "Es el camino de activación más simple y rápido.";
-        } else if (!sells) {
-            route = CommercialRoute.C;
-            explanation = visibilityGoal
-                    ? "Ruta C: es una gran marca enfocada en visibilidad. No paga tarifa fija sino una "
-                            + "inversión dentro del plan asignado, y normalmente no vende directamente en la plataforma."
-                    : "Ruta C: su objetivo principal no es la venta directa, por lo que se clasifica como "
-                            + "marca de visibilidad.";
-        } else {
-            route = CommercialRoute.C;
-            explanation = "Ruta C: vende en la plataforma bajo el modelo estándar de VERYGANA, sin tarifa "
-                    + "fija ni requisitos técnicos especiales.";
+        if (o.getTechIntegrationNeeds() != null && !o.getTechIntegrationNeeds().isEmpty()) {
+            return new RouteClassificationResponseDTO(
+                    CommercialRoute.D, CommercialRoute.D.name(), "Integración técnica",
+                    "El equipo técnico de VERYGANA coordinará la implementación y las condiciones "
+                            + "económicas se definirán según el tipo de integración.",
+                    false, false, false);
         }
-
-        return new RouteClassificationResponseDTO(route, route.name(), explanation, false);
+        CommercialDiagnosticClassifier.Result r = diagnosticClassifier.classify(
+                o.getDiagnosticAnswers(),
+                o.getBusinessGoals(),
+                o.getInstitutionalTools(),
+                o.getCommercialNetworkActors(),
+                o.getGrowthTools());
+        return new RouteClassificationResponseDTO(
+                r.route(), r.route().name(), r.modalityLabel(), r.explanation(),
+                r.preliminary(), r.verificationRequired(), false);
     }
 
     // ==================== HELPERS ====================

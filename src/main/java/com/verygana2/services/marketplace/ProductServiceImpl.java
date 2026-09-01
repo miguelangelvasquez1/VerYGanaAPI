@@ -335,6 +335,7 @@ public class ProductServiceImpl implements ProductService {
     }
 
     @Override
+    @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_SELL_DIRECTLY}, blockWhenDormant = true)
     public EntityUpdatedResponseDTO edit(Long productId, Long commercialId, UpdateProductRequestDTO request) {
 
         Product product = getByIdAndCommercialId(productId, commercialId);

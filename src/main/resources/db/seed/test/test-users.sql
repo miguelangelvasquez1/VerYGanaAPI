@@ -165,16 +165,14 @@ INSERT INTO commercial_onboarding (
     economic_activity_description,
     address,
     legal_identification_completed_at,
-    -- Paso 4: Diagnóstico comercial
-    primary_goal,
-    wants_fixed_fee,
-    requires_custom_games,
-    requires_pets,
-    requires_surveys,
+    -- Paso 4: Diagnóstico comercial (respuestas del cuestionario en columnas diag_* / tablas
+    -- commercial_onboarding_*; este seed deja la modalidad ya calculada y no las respuestas crudas)
     diagnostic_completed_at,
     -- Paso 5: Clasificación automática
     route,
     route_explanation,
+    route_preliminary,
+    verification_required,
     classified_at,
     route_confirmed,
     route_confirmed_at,
@@ -212,15 +210,12 @@ SELECT
     'Calle 100 # 20-30, Bogotá',
     NOW(),
     -- Diagnóstico
-    'AMBAS',
-    false,
-    false,
-    false,
-    false,
     NOW(),
     -- Clasificación
     'B',
-    'Ruta B: pagará comisión únicamente cuando exista una venta, bajo el modelo estándar de VERYGANA, sin requisitos técnicos ni regulatorios especiales.',
+    'Su empresa presenta un perfil compatible con Tipo B: una modalidad para vender directamente y crecer mediante más campañas, juegos y herramientas promocionales. La recomendación es preliminar y no constituye activación automática.',
+    false,
+    false,
     NOW(),
     true,
     NOW(),
@@ -254,14 +249,11 @@ ON DUPLICATE KEY UPDATE
     economic_activity_description = VALUES(economic_activity_description),
     address = VALUES(address),
     legal_identification_completed_at = VALUES(legal_identification_completed_at),
-    primary_goal = VALUES(primary_goal),
-    wants_fixed_fee = VALUES(wants_fixed_fee),
-    requires_custom_games = VALUES(requires_custom_games),
-    requires_pets = VALUES(requires_pets),
-    requires_surveys = VALUES(requires_surveys),
     diagnostic_completed_at = VALUES(diagnostic_completed_at),
     route = VALUES(route),
     route_explanation = VALUES(route_explanation),
+    route_preliminary = VALUES(route_preliminary),
+    verification_required = VALUES(verification_required),
     classified_at = VALUES(classified_at),
     route_confirmed = VALUES(route_confirmed),
     route_confirmed_at = VALUES(route_confirmed_at),
@@ -809,3 +801,588 @@ FROM consumer_details cd
 JOIN users u ON u.id = cd.user_id
 WHERE u.email = 'consumer5@verygana.com'
 ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
+
+
+
+-- ============================================================
+-- 8. COMMERCIAL USER — plan BASIC (Ruta A)
+-- ============================================================
+
+INSERT INTO users (
+    email,
+    phone_number,
+    password,
+    role,
+    user_state,
+    registered_date,
+    public_id
+)
+VALUES (
+    'comercial-basic@verygana.com',
+    '3001000010',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'COMMERCIAL',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('7c9e6679-7425-40de-944b-e07fc1f90ae8')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id
+FROM users
+WHERE email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO commercial_details (
+    user_id,
+    company_name,
+    nit,
+    ciiu_code,
+    mercantile_registration,
+    legal_rep_doc_type,
+    legal_rep_doc_number,
+    is_pep,
+    annual_income_range,
+    municipality_code,
+    municipality_name,
+    department_name,
+    current_plan_id
+)
+SELECT
+    u.id,
+    'Comercio Básico S.A.S',
+    '900123457-2',
+    '4711',
+    '12346-BOG',
+    'CC',
+    '12345690',
+    false,
+    'FROM_500_TO_5000_SMMLV',
+    '11001',
+    'BOGOTÁ, D.C.',
+    'BOGOTÁ, D.C.',
+    (SELECT id FROM plans WHERE code = 'BASIC' AND active = true LIMIT 1)
+FROM users u
+WHERE u.email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE
+    ciiu_code = VALUES(ciiu_code),
+    mercantile_registration = VALUES(mercantile_registration),
+    annual_income_range = VALUES(annual_income_range),
+    municipality_code = VALUES(municipality_code),
+    municipality_name = VALUES(municipality_name),
+    department_name = VALUES(department_name),
+    current_plan_id = VALUES(current_plan_id);
+
+-- COMMERCIAL_ONBOARDING — Ruta A (cuota mensual fija) -> plan BASIC
+INSERT INTO commercial_onboarding (
+    commercial_details_id,
+    current_step,
+    created_at,
+    completed_at,
+    terms_version,
+    terms_document_url,
+    terms_published_date,
+    terms_accepted_at,
+    terms_accepted_ip,
+    terms_accepted_user_agent,
+    person_type,
+    legal_rep_first_name,
+    legal_rep_last_name,
+    economic_activity_description,
+    address,
+    legal_identification_completed_at,
+    diagnostic_completed_at,
+    route,
+    route_explanation,
+    route_preliminary,
+    verification_required,
+    classified_at,
+    route_confirmed,
+    route_confirmed_at,
+    selected_plan_id,
+    requires_special_negotiation,
+    monthly_fee_cents_snapshot,
+    min_investment_cents_snapshot,
+    max_investment_cents_snapshot,
+    investment_amount_cents_snapshot,
+    contract_duration_months,
+    sale_commission_pct_snapshot,
+    max_keys_pct_snapshot,
+    plan_accepted_at,
+    documents_completed_at
+)
+SELECT
+    u.id,
+    'COMPLETED',
+    NOW(),
+    NOW(),
+    ld.version,
+    ld.document_url,
+    ld.published_date,
+    NOW(),
+    '127.0.0.1',
+    'Seed/DataSeeder',
+    'JURIDICA',
+    'Ana',
+    'Gómez',
+    'Comercio al por menor de productos de consumo',
+    'Carrera 15 # 80-40, Bogotá',
+    NOW(),
+    NOW(),
+    'A',
+    'Su empresa presenta un perfil compatible con Tipo A: una modalidad sencilla para comenzar a vender, atraer nuevos clientes y fortalecer su presencia comercial. La recomendación es preliminar y no constituye activación automática.',
+    false,
+    false,
+    NOW(),
+    true,
+    NOW(),
+    p.id,
+    false,
+    p.monthly_price_cents,
+    p.min_investment_cents,
+    p.max_investment_cents,
+    NULL, -- investment_amount_cents_snapshot: no aplica a BASIC
+    12,   -- contract_duration_months: requerido para BASIC
+    p.sale_commission_pct,
+    p.max_keys_pct,
+    NOW(),
+    NOW()
+FROM users u
+JOIN plans p ON p.code = 'BASIC' AND p.active = true
+JOIN legal_documents ld ON ld.type = 'BUSINESS_OWNER_TERMS_AND_CONDITIONS' AND ld.active = true
+WHERE u.email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE
+    current_step = VALUES(current_step),
+    completed_at = VALUES(completed_at),
+    terms_version = VALUES(terms_version),
+    terms_document_url = VALUES(terms_document_url),
+    terms_published_date = VALUES(terms_published_date),
+    terms_accepted_at = VALUES(terms_accepted_at),
+    person_type = VALUES(person_type),
+    legal_rep_first_name = VALUES(legal_rep_first_name),
+    legal_rep_last_name = VALUES(legal_rep_last_name),
+    economic_activity_description = VALUES(economic_activity_description),
+    address = VALUES(address),
+    legal_identification_completed_at = VALUES(legal_identification_completed_at),
+    diagnostic_completed_at = VALUES(diagnostic_completed_at),
+    route = VALUES(route),
+    route_explanation = VALUES(route_explanation),
+    route_preliminary = VALUES(route_preliminary),
+    verification_required = VALUES(verification_required),
+    classified_at = VALUES(classified_at),
+    route_confirmed = VALUES(route_confirmed),
+    route_confirmed_at = VALUES(route_confirmed_at),
+    selected_plan_id = VALUES(selected_plan_id),
+    requires_special_negotiation = VALUES(requires_special_negotiation),
+    monthly_fee_cents_snapshot = VALUES(monthly_fee_cents_snapshot),
+    min_investment_cents_snapshot = VALUES(min_investment_cents_snapshot),
+    max_investment_cents_snapshot = VALUES(max_investment_cents_snapshot),
+    investment_amount_cents_snapshot = VALUES(investment_amount_cents_snapshot),
+    contract_duration_months = VALUES(contract_duration_months),
+    sale_commission_pct_snapshot = VALUES(sale_commission_pct_snapshot),
+    max_keys_pct_snapshot = VALUES(max_keys_pct_snapshot),
+    plan_accepted_at = VALUES(plan_accepted_at),
+    documents_completed_at = VALUES(documents_completed_at);
+
+INSERT INTO commercial_documents (
+    commercial_onboarding_id, document_type, object_key, original_file_name,
+    size_bytes, mime_type, status, uploaded_at
+)
+SELECT co.id, d.document_type, d.object_key, d.original_file_name, d.size_bytes, 'APPLICATION_PDF', 'VALIDATED', NOW()
+FROM commercial_onboarding co
+JOIN users u ON u.id = co.commercial_details_id
+JOIN (
+    SELECT 'RUT' AS document_type, 'legal/seed/commercial-basic/rut.pdf' AS object_key, 'rut.pdf' AS original_file_name, 102400 AS size_bytes
+    UNION ALL
+    SELECT 'CAMARA_COMERCIO', 'legal/seed/commercial-basic/camara-comercio.pdf', 'camara-comercio.pdf', 153600
+    UNION ALL
+    SELECT 'CEDULA_REPRESENTANTE', 'legal/seed/commercial-basic/cedula-representante.pdf', 'cedula-representante.pdf', 81920
+    UNION ALL
+    SELECT 'CERTIFICACION_BANCARIA', 'legal/seed/commercial-basic/certificacion-bancaria.pdf', 'certificacion-bancaria.pdf', 71680
+) d
+WHERE u.email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    mime_type = VALUES(mime_type),
+    original_file_name = VALUES(original_file_name),
+    size_bytes = VALUES(size_bytes);
+
+INSERT INTO commercial_contracts (
+    commercial_id, commercial_onboarding_id, purpose, object_key, version, status, generated_at,
+    business_approved_at, admin_reviewer_user_id, admin_reviewed_at, admin_decision_notes
+)
+SELECT
+    co.commercial_details_id,
+    co.id,
+    'ONBOARDING',
+    'legal/seed/commercial-basic/contrato-marco-v1.pdf',
+    1,
+    'APPROVED',
+    NOW(),
+    NOW(),
+    (SELECT id FROM users WHERE email = 'admin@verygana.com'),
+    NOW(),
+    'Aprobado (seed de datos de prueba)'
+FROM commercial_onboarding co
+JOIN users u ON u.id = co.commercial_details_id
+WHERE u.email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    business_approved_at = VALUES(business_approved_at),
+    admin_reviewer_user_id = VALUES(admin_reviewer_user_id),
+    admin_reviewed_at = VALUES(admin_reviewed_at),
+    admin_decision_notes = VALUES(admin_decision_notes);
+
+INSERT INTO wallets (
+    commercial_id,
+    version,
+    balance_cents,
+    status,
+    low_balance_threshold_pct,
+    last_deposit_amount_cents,
+    last_budget_alert_stage,
+    last_updated,
+    created_at
+)
+SELECT
+    cd.user_id,
+    1,
+    5000000,
+    'ACTIVE',
+    10,
+    5000000,
+    'NONE',
+    NOW(),
+    NOW()
+FROM commercial_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'comercial-basic@verygana.com'
+ON DUPLICATE KEY UPDATE commercial_id = commercial_id;
+
+
+
+-- ============================================================
+-- 9. COMMERCIAL USER — plan PREMIUM (Ruta C)
+-- ============================================================
+
+INSERT INTO users (
+    email,
+    phone_number,
+    password,
+    role,
+    user_state,
+    registered_date,
+    public_id
+)
+VALUES (
+    'comercial-premium@verygana.com',
+    '3001000011',
+    '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
+    'COMMERCIAL',
+    'ACTIVE',
+    NOW(),
+    UUID_TO_BIN('7c9e6679-7425-40de-944b-e07fc1f90ae9')
+)
+ON DUPLICATE KEY UPDATE email = email;
+
+INSERT INTO user_details (user_id)
+SELECT id
+FROM users
+WHERE email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE user_id = user_id;
+
+INSERT INTO commercial_details (
+    user_id,
+    company_name,
+    nit,
+    ciiu_code,
+    mercantile_registration,
+    legal_rep_doc_type,
+    legal_rep_doc_number,
+    is_pep,
+    annual_income_range,
+    municipality_code,
+    municipality_name,
+    department_name,
+    current_plan_id
+)
+SELECT
+    u.id,
+    'Ecosistema Premium S.A.S',
+    '900123458-3',
+    '7310',
+    '12347-BOG',
+    'CC',
+    '12345691',
+    false,
+    'FROM_500_TO_5000_SMMLV',
+    '11001',
+    'BOGOTÁ, D.C.',
+    'BOGOTÁ, D.C.',
+    (SELECT id FROM plans WHERE code = 'PREMIUM' AND active = true LIMIT 1)
+FROM users u
+WHERE u.email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE
+    ciiu_code = VALUES(ciiu_code),
+    mercantile_registration = VALUES(mercantile_registration),
+    annual_income_range = VALUES(annual_income_range),
+    municipality_code = VALUES(municipality_code),
+    municipality_name = VALUES(municipality_name),
+    department_name = VALUES(department_name),
+    current_plan_id = VALUES(current_plan_id);
+
+-- COMMERCIAL_ONBOARDING — Ruta C (candidata a Empresa Premium) -> plan PREMIUM
+INSERT INTO commercial_onboarding (
+    commercial_details_id,
+    current_step,
+    created_at,
+    completed_at,
+    terms_version,
+    terms_document_url,
+    terms_published_date,
+    terms_accepted_at,
+    terms_accepted_ip,
+    terms_accepted_user_agent,
+    person_type,
+    legal_rep_first_name,
+    legal_rep_last_name,
+    economic_activity_description,
+    address,
+    legal_identification_completed_at,
+    diagnostic_completed_at,
+    route,
+    route_explanation,
+    route_preliminary,
+    verification_required,
+    classified_at,
+    route_confirmed,
+    route_confirmed_at,
+    selected_plan_id,
+    requires_special_negotiation,
+    monthly_fee_cents_snapshot,
+    min_investment_cents_snapshot,
+    max_investment_cents_snapshot,
+    investment_amount_cents_snapshot,
+    contract_duration_months,
+    sale_commission_pct_snapshot,
+    max_keys_pct_snapshot,
+    plan_accepted_at,
+    documents_completed_at
+)
+SELECT
+    u.id,
+    'COMPLETED',
+    NOW(),
+    NOW(),
+    ld.version,
+    ld.document_url,
+    ld.published_date,
+    NOW(),
+    '127.0.0.1',
+    'Seed/DataSeeder',
+    'JURIDICA',
+    'Carlos',
+    'Rodríguez',
+    'Actividades de marketing, posicionamiento de marca y patrocinio',
+    'Avenida El Dorado # 68-90, Bogotá',
+    NOW(),
+    NOW(),
+    'C',
+    'Su empresa presenta características preliminares de un ecosistema institucional capaz de fortalecer su marca y a los empresarios que la acercan al consumidor. Puede ser evaluada como candidata Premium. El resultado está sujeto a documentos, verificación y aprobación.',
+    false,
+    false,
+    NOW(),
+    true,
+    NOW(),
+    p.id,
+    false,
+    p.monthly_price_cents,
+    p.min_investment_cents,
+    p.max_investment_cents,
+    p.min_investment_cents, -- investment_amount_cents_snapshot: monto invertido (mínimo del plan)
+    NULL, -- contract_duration_months: solo aplica a BASIC
+    p.sale_commission_pct,
+    p.max_keys_pct,
+    NOW(),
+    NOW()
+FROM users u
+JOIN plans p ON p.code = 'PREMIUM' AND p.active = true
+JOIN legal_documents ld ON ld.type = 'BUSINESS_OWNER_TERMS_AND_CONDITIONS' AND ld.active = true
+WHERE u.email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE
+    current_step = VALUES(current_step),
+    completed_at = VALUES(completed_at),
+    terms_version = VALUES(terms_version),
+    terms_document_url = VALUES(terms_document_url),
+    terms_published_date = VALUES(terms_published_date),
+    terms_accepted_at = VALUES(terms_accepted_at),
+    person_type = VALUES(person_type),
+    legal_rep_first_name = VALUES(legal_rep_first_name),
+    legal_rep_last_name = VALUES(legal_rep_last_name),
+    economic_activity_description = VALUES(economic_activity_description),
+    address = VALUES(address),
+    legal_identification_completed_at = VALUES(legal_identification_completed_at),
+    diagnostic_completed_at = VALUES(diagnostic_completed_at),
+    route = VALUES(route),
+    route_explanation = VALUES(route_explanation),
+    route_preliminary = VALUES(route_preliminary),
+    verification_required = VALUES(verification_required),
+    classified_at = VALUES(classified_at),
+    route_confirmed = VALUES(route_confirmed),
+    route_confirmed_at = VALUES(route_confirmed_at),
+    selected_plan_id = VALUES(selected_plan_id),
+    requires_special_negotiation = VALUES(requires_special_negotiation),
+    monthly_fee_cents_snapshot = VALUES(monthly_fee_cents_snapshot),
+    min_investment_cents_snapshot = VALUES(min_investment_cents_snapshot),
+    max_investment_cents_snapshot = VALUES(max_investment_cents_snapshot),
+    investment_amount_cents_snapshot = VALUES(investment_amount_cents_snapshot),
+    contract_duration_months = VALUES(contract_duration_months),
+    sale_commission_pct_snapshot = VALUES(sale_commission_pct_snapshot),
+    max_keys_pct_snapshot = VALUES(max_keys_pct_snapshot),
+    plan_accepted_at = VALUES(plan_accepted_at),
+    documents_completed_at = VALUES(documents_completed_at);
+
+INSERT INTO commercial_documents (
+    commercial_onboarding_id, document_type, object_key, original_file_name,
+    size_bytes, mime_type, status, uploaded_at
+)
+SELECT co.id, d.document_type, d.object_key, d.original_file_name, d.size_bytes, 'APPLICATION_PDF', 'VALIDATED', NOW()
+FROM commercial_onboarding co
+JOIN users u ON u.id = co.commercial_details_id
+JOIN (
+    SELECT 'RUT' AS document_type, 'legal/seed/commercial-premium/rut.pdf' AS object_key, 'rut.pdf' AS original_file_name, 102400 AS size_bytes
+    UNION ALL
+    SELECT 'CAMARA_COMERCIO', 'legal/seed/commercial-premium/camara-comercio.pdf', 'camara-comercio.pdf', 153600
+    UNION ALL
+    SELECT 'CEDULA_REPRESENTANTE', 'legal/seed/commercial-premium/cedula-representante.pdf', 'cedula-representante.pdf', 81920
+    UNION ALL
+    SELECT 'CERTIFICACION_BANCARIA', 'legal/seed/commercial-premium/certificacion-bancaria.pdf', 'certificacion-bancaria.pdf', 71680
+) d
+WHERE u.email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    mime_type = VALUES(mime_type),
+    original_file_name = VALUES(original_file_name),
+    size_bytes = VALUES(size_bytes);
+
+INSERT INTO commercial_contracts (
+    commercial_id, commercial_onboarding_id, purpose, object_key, version, status, generated_at,
+    business_approved_at, admin_reviewer_user_id, admin_reviewed_at, admin_decision_notes
+)
+SELECT
+    co.commercial_details_id,
+    co.id,
+    'ONBOARDING',
+    'legal/seed/commercial-premium/contrato-marco-v1.pdf',
+    1,
+    'APPROVED',
+    NOW(),
+    NOW(),
+    (SELECT id FROM users WHERE email = 'admin@verygana.com'),
+    NOW(),
+    'Aprobado (seed de datos de prueba)'
+FROM commercial_onboarding co
+JOIN users u ON u.id = co.commercial_details_id
+WHERE u.email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE
+    status = VALUES(status),
+    business_approved_at = VALUES(business_approved_at),
+    admin_reviewer_user_id = VALUES(admin_reviewer_user_id),
+    admin_reviewed_at = VALUES(admin_reviewed_at),
+    admin_decision_notes = VALUES(admin_decision_notes);
+
+INSERT INTO wallets (
+    commercial_id,
+    version,
+    balance_cents,
+    status,
+    low_balance_threshold_pct,
+    last_deposit_amount_cents,
+    last_budget_alert_stage,
+    last_updated,
+    created_at
+)
+SELECT
+    cd.user_id,
+    1,
+    5000000,
+    'ACTIVE',
+    10,
+    5000000,
+    'NONE',
+    NOW(),
+    NOW()
+FROM commercial_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'comercial-premium@verygana.com'
+ON DUPLICATE KEY UPDATE commercial_id = commercial_id;
+
+-- ------------------------------------------------------------
+-- ANUNCIOS del comercial PREMIUM — ocupa el cupo máximo del plan.
+-- Plan PREMIUM: MAX_ADS = 50 (ver PlanDataInitializer). Solo los
+-- anuncios ACTIVE ocupan cupo (PlanFeatureGuard.countSlotOccupyingAds),
+-- así que se siembran 50 anuncios ACTIVE (ids 9500..9549) con su
+-- target_audience y ad_asset. Idempotente vía NOT EXISTS.
+-- ------------------------------------------------------------
+
+SET @premium_commercial_id = (
+    SELECT cd.user_id
+    FROM commercial_details cd
+    JOIN users u ON u.id = cd.user_id
+    WHERE u.email = 'comercial-premium@verygana.com'
+    LIMIT 1
+);
+
+INSERT INTO target_audiences (id, min_age, max_age, target_gender)
+WITH RECURSIVE seq (n) AS (
+    SELECT 0
+    UNION ALL
+    SELECT n + 1 FROM seq WHERE n < 49
+)
+SELECT 9500 + n, NULL, NULL, NULL
+FROM seq
+WHERE NOT EXISTS (SELECT 1 FROM target_audiences ta WHERE ta.id = 9500 + n);
+
+INSERT INTO ads (
+    id, version, title, description,
+    reward_per_like, max_likes, current_likes, max_likes_per_user_per_day,
+    status, created_at, updated_at,
+    start_date, end_date, commercial_id, target_url,
+    target_audience_id
+)
+WITH RECURSIVE seq (n) AS (
+    SELECT 0
+    UNION ALL
+    SELECT n + 1 FROM seq WHERE n < 49
+)
+SELECT
+    9500 + n, 1,
+    CONCAT('Anuncio Premium #', LPAD(n + 1, 2, '0')),
+    'Anuncio de prueba del comercial Premium para ocupar el cupo máximo del plan (MAX_ADS = 50).',
+    10000,        -- reward_per_like: 10 llaves base
+    100, 0, NULL,
+    'ACTIVE', NOW(), NOW(),
+    NULL, NULL, @premium_commercial_id, 'https://verygana.com',
+    9500 + n
+FROM seq
+WHERE @premium_commercial_id IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM ads a WHERE a.id = 9500 + n);
+
+INSERT INTO ad_assets (
+    id, object_key, size_bytes, media_type, mime_type,
+    status, duration_seconds, ad_id, uploaded_at
+)
+WITH RECURSIVE seq (n) AS (
+    SELECT 0
+    UNION ALL
+    SELECT n + 1 FROM seq WHERE n < 49
+)
+SELECT
+    9500 + n,
+    CONCAT('ads/test/premium/video-premium-', LPAD(n + 1, 2, '0'), '.mp4'),
+    1024, 'VIDEO', 'VIDEO_MP4',
+    'ATTACHED', 5, 9500 + n, NOW()
+FROM seq
+WHERE EXISTS (SELECT 1 FROM ads a WHERE a.id = 9500 + n)
+  AND NOT EXISTS (SELECT 1 FROM ad_assets aa WHERE aa.id = 9500 + n);

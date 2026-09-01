@@ -345,6 +345,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(PlanFeatureGuard.BudgetDormantException.class)
+    public ResponseEntity<ErrorResponse> handleBudgetDormantException(
+            PlanFeatureGuard.BudgetDormantException ex, WebRequest request) {
+        log.warn("Budget dormant (account paused) error: {}", ex.getMessage());
+        return buildError(HttpStatus.PAYMENT_REQUIRED, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(PlanFeatureGuard.BudgetSuspendedException.class)
     public ResponseEntity<ErrorResponse> handleBudgetSuspendedException(
             PlanFeatureGuard.BudgetSuspendedException ex, WebRequest request) {

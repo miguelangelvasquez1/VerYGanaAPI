@@ -38,6 +38,7 @@ import com.verygana2.services.wompi.WompiService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -66,11 +67,13 @@ class PlanServiceImplTest {
     @Mock private WalletService walletService;
     @Mock private CommercialOnboardingRepository onboardingRepository;
     @Mock private com.verygana2.services.plans.InvestmentService investmentService;
+    @Mock private com.verygana2.services.plans.EffectivePlanResolver effectivePlanResolver;
     @Mock private com.verygana2.services.interfaces.EmailService emailService;
     @Mock private com.verygana2.services.interfaces.commercial.CommercialContractService commercialContractService;
     @Mock private com.verygana2.repositories.commercial.CommercialContractRepository commercialContractRepository;
     @Mock private com.verygana2.repositories.commercial.PlanChangeRequestRepository planChangeRequestRepository;
     @Mock private com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
+    @Mock private com.verygana2.mappers.CommercialOnboardingMapper commercialOnboardingMapper;
 
     private PlanServiceImpl service;
 
@@ -78,9 +81,9 @@ class PlanServiceImplTest {
     void setUp() {
         service = new PlanServiceImpl(wompiService, wompiTransactionRepository, commercialDetailsRepository,
                 treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
-                walletRepository, walletService, onboardingRepository, investmentService, emailService,
-                commercialContractService, commercialContractRepository, planChangeRequestRepository,
-                planChangeRequestService);
+                walletRepository, walletService, onboardingRepository, investmentService, effectivePlanResolver,
+                emailService, commercialContractService, commercialContractRepository, planChangeRequestRepository,
+                planChangeRequestService, commercialOnboardingMapper);
     }
 
     private CommercialDetails commercial(Long id) {
@@ -273,6 +276,79 @@ class PlanServiceImplTest {
         }
 
         @Test
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: si es el pago de activación del registro "
+                + "(onboarding en PAYMENT_PENDING), asigna el plan del depósito y completa el onboarding")
+        void approvedInvestment_initialOnboardingPayment_setsPlanAndCompletesOnboarding() {
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setWallet(wallet);
+            wallet.setCommercial(commercial);
+            assertThat(commercial.getCurrentPlan()).isNull();
+
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .planAtDeposit(standard).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-DEP-999").amountInCents(11_000_000L).build();
+
+            com.verygana2.models.commercial.CommercialOnboarding onboarding =
+                    new com.verygana2.models.commercial.CommercialOnboarding();
+            onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.PAYMENT_PENDING);
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(investmentRepository.findByWompiReference("VG-DEP-999")).thenReturn(Optional.of(investment));
+            when(treasuryConfig.getKeysReservePct()).thenReturn(60);
+            when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(commercial.getCurrentPlan()).isSameAs(standard);
+            assertThat(onboarding.getCurrentStep()).isEqualTo(com.verygana2.models.enums.commercial.OnboardingStep.COMPLETED);
+            assertThat(onboarding.getCompletedAt()).isNotNull();
+            // Wallet nueva arranca en 0 (wasExhausted=true), pero es la activación inicial,
+            // no una reactivación tras agotamiento — no debe mandar el correo de "saldo restaurado".
+            verify(investmentService, never()).handleWalletReplenished(anyLong());
+        }
+
+        @Test
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: si el wallet SÍ estaba agotado tras uso previo "
+                + "(onboarding ya COMPLETED), notifica la reactivación")
+        void approvedInvestment_realExhaustionRecharge_notifiesReplenished() {
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setWallet(wallet);
+            wallet.setCommercial(commercial);
+
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            commercial.setCurrentPlan(standard);
+
+            Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .planAtDeposit(standard).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-DEP-777").amountInCents(11_000_000L).build();
+
+            com.verygana2.models.commercial.CommercialOnboarding onboarding =
+                    new com.verygana2.models.commercial.CommercialOnboarding();
+            onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.COMPLETED);
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(investmentRepository.findByWompiReference("VG-DEP-777")).thenReturn(Optional.of(investment));
+            when(treasuryConfig.getKeysReservePct()).thenReturn(60);
+            when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(commercial.getCurrentPlan()).isSameAs(standard);
+            verify(investmentService).handleWalletReplenished(1L);
+        }
+
+        @Test
         @DisplayName("DECLINED: marca la Subscription asociada como PAYMENT_FAILED si existe")
         void declined_marksSubscriptionAsPaymentFailed() {
             Subscription sub = Subscription.builder().status(SubscriptionStatus.PENDING_PAYMENT)
@@ -403,6 +479,66 @@ class PlanServiceImplTest {
             assertThat(state.getRemainingBudgetCents()).isEqualTo(300_000L);
             assertThat(state.getWalletStatus()).isEqualTo("ACTIVE");
             assertThat(state.getMaxKeysPct()).isEqualTo(35);
+            assertThat(state.isHasActivePlan()).isTrue();
+            assertThat(state.isBudgetSuspended()).isFalse();
+        }
+
+        @Test
+        @DisplayName("STANDARD/PREMIUM con saldo agotado: hasActivePlan sigue true, budgetSuspended true")
+        void standardPlan_exhaustedWallet_keepsPlanActiveButSuspendsBudget() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            commercial.setWallet(wallet);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isHasActivePlan()).isTrue();
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isFalse();
+            assertThat(state.getWalletStatus()).isEqualTo("EXHAUSTED");
+            assertThat(state.getRemainingBudgetCents()).isZero();
+        }
+
+        @Test
+        @DisplayName("saldo agotado más allá del periodo de gracia del plan: budgetDormant true")
+        void standardPlan_exhaustedBeyondGrace_setsBudgetDormant() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            wallet.setExhaustedSince(java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).minusDays(20));
+            commercial.setWallet(wallet);
+            when(effectivePlanResolver.resolveGracePeriodDays(standard)).thenReturn(15);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isTrue();
+        }
+
+        @Test
+        @DisplayName("saldo agotado dentro del periodo de gracia: budgetDormant false")
+        void standardPlan_exhaustedWithinGrace_notDormant() {
+            CommercialDetails commercial = commercial(1L);
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).saleCommissionPct(10).maxKeysPct(35).build();
+            commercial.setCurrentPlan(standard);
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            wallet.setStatus(com.verygana2.models.enums.finance.WalletStatus.EXHAUSTED);
+            wallet.setExhaustedSince(java.time.ZonedDateTime.now(java.time.ZoneOffset.UTC).minusDays(3));
+            commercial.setWallet(wallet);
+            when(effectivePlanResolver.resolveGracePeriodDays(standard)).thenReturn(15);
+
+            var state = service.getEffectivePlanState(commercial);
+
+            assertThat(state.isBudgetSuspended()).isTrue();
+            assertThat(state.isBudgetDormant()).isFalse();
         }
     }
 }

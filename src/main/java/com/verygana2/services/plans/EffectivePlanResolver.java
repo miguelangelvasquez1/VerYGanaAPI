@@ -2,6 +2,9 @@ package com.verygana2.services.plans;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.Optional;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,6 +52,10 @@ public class EffectivePlanResolver {
     private static final String FEAT_LOW_BALANCE_WARNING_PCT      = "LOW_BALANCE_WARNING_PCT";
     private static final String FEAT_LOW_BALANCE_CRITICAL_PCT     = "LOW_BALANCE_CRITICAL_PCT";
     private static final String FEAT_LOW_BALANCE_WARNING_FIXED_CENTS = "LOW_BALANCE_WARNING_FIXED_CENTS";
+    private static final String FEAT_BUDGET_GRACE_PERIOD_DAYS = "BUDGET_GRACE_PERIOD_DAYS";
+
+    /** Días de gracia por defecto tras agotar el saldo antes de pasar a DORMANT, si el plan no define el feature. */
+    private static final int DEFAULT_BUDGET_GRACE_PERIOD_DAYS = 15;
 
     private static final BigDecimal CENTS_PER_COP = BigDecimal.valueOf(100);
 
@@ -71,24 +78,31 @@ public class EffectivePlanResolver {
         }
 
         long balanceCents = 0L;
+        ZonedDateTime exhaustedSince = null;
         if (currentPlan.getCode() != PlanCode.BASIC) {
-            balanceCents = walletRepository.findByCommercialId(commercialId)
-                    .map(Wallet::getBalanceCents)
-                    .orElse(0L);
+            Optional<Wallet> wallet = walletRepository.findByCommercialId(commercialId);
+            balanceCents = wallet.map(Wallet::getBalanceCents).orElse(0L);
+            exhaustedSince = wallet.map(Wallet::getExhaustedSince).orElse(null);
         }
 
         log.debug("Comercial {} → {} (saldo: {} centavos)", commercialId,
                 currentPlan.getCode(), balanceCents);
 
-        return buildStateForPlan(currentPlan, balanceCents, commercial.getOnboarding());
+        return buildStateForPlan(currentPlan, balanceCents, exhaustedSince, commercial.getOnboarding());
     }
 
     // ── Builder de estado ─────────────────────────────────────────────────────
 
-    private EffectivePlanState buildStateForPlan(Plan plan, long balanceCents, CommercialOnboarding onboarding) {
+    private EffectivePlanState buildStateForPlan(Plan plan, long balanceCents,
+            ZonedDateTime exhaustedSince, CommercialOnboarding onboarding) {
         PlanCode code = plan.getCode();
         BigDecimal remainingCOP = BigDecimal.valueOf(balanceCents)
                 .divide(CENTS_PER_COP, 2, RoundingMode.HALF_UP);
+
+        boolean budgetSuspended = code != PlanCode.BASIC && balanceCents == 0L;
+        boolean budgetDormant = budgetSuspended && exhaustedSince != null
+                && exhaustedSince.isBefore(
+                        ZonedDateTime.now(ZoneOffset.UTC).minusDays(resolveGracePeriodDays(plan)));
 
         return EffectivePlanState.builder()
                 .hasActivePlan(true)
@@ -110,7 +124,8 @@ public class EffectivePlanResolver {
                         () -> getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false)))
                 // Sin override de onboarding todavía — solo depende del feature del Plan.
                 .canExportReport(getFeatureBool(code, FEAT_CAN_EXPORT_REPORT, false))
-                .budgetSuspended(code != PlanCode.BASIC && balanceCents == 0L)
+                .budgetSuspended(budgetSuspended)
+                .budgetDormant(budgetDormant)
                 .maxProducts(resolveInt(onboarding == null ? null : onboarding.getMaxProductsOverride(),
                         () -> getFeatureInt(code, FEAT_MAX_PRODUCTS, 0)))
                 .maxAds(resolveInt(onboarding == null ? null : onboarding.getMaxAdsOverride(),
@@ -197,6 +212,19 @@ public class EffectivePlanResolver {
         long criticalCents = criticalPct.signum() > 0 ? pctOf(lastDeposit, criticalPct) : 0L;
 
         return new BudgetThresholds(warningCents, criticalCents);
+    }
+
+    /**
+     * Días que una billetera STANDARD/PREMIUM puede permanecer en saldo cero antes de
+     * pasar a estado DORMANT (bloqueo de edición). Configurable por plan vía el feature
+     * {@code BUDGET_GRACE_PERIOD_DAYS}; si el plan no lo define se usa
+     * {@link #DEFAULT_BUDGET_GRACE_PERIOD_DAYS}. BASIC / sin plan → 0.
+     */
+    public int resolveGracePeriodDays(Plan plan) {
+        if (plan == null || plan.getCode() == PlanCode.BASIC) {
+            return 0;
+        }
+        return getFeatureInt(plan.getCode(), FEAT_BUDGET_GRACE_PERIOD_DAYS, DEFAULT_BUDGET_GRACE_PERIOD_DAYS);
     }
 
     private long pctOf(long amountCents, BigDecimal pct) {

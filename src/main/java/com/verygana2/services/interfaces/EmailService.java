@@ -35,6 +35,7 @@ public interface EmailService {
     void sendPlanPaymentFailedEmail(String toEmail, String commercialName);
     void sendBudgetLowWarningEmail(String toEmail, String commercialName, boolean critical);
     void sendBudgetExhaustedEmail(String toEmail, String commercialName);
+    void sendBudgetDormantEmail(String toEmail, String commercialName);
     void sendBudgetReplenishedEmail(String toEmail, String commercialName);
 
     // ===== PQRS =====

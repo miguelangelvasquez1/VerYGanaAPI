@@ -3,6 +3,7 @@ package com.verygana2.services.finance;
 import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -14,10 +15,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
+import com.verygana2.dtos.finance.plans.responses.PlanCatalogResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
+import com.verygana2.dtos.finance.plans.responses.RechargePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.exceptions.BusinessException;
+import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.enums.commercial.ContractPurpose;
@@ -68,11 +74,13 @@ public class PlanServiceImpl implements PlanService {
         private final WalletService walletService;
         private final CommercialOnboardingRepository onboardingRepository;
         private final com.verygana2.services.plans.InvestmentService investmentService;
+        private final com.verygana2.services.plans.EffectivePlanResolver effectivePlanResolver;
         private final com.verygana2.services.interfaces.EmailService emailService;
         private final CommercialContractService commercialContractService;
         private final CommercialContractRepository commercialContractRepository;
         private final PlanChangeRequestRepository planChangeRequestRepository;
         private final com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
+        private final CommercialOnboardingMapper commercialOnboardingMapper;
 
         // =========================================================================
         // PASO 1: INICIAR PAGO
@@ -314,7 +322,7 @@ public class PlanServiceImpl implements PlanService {
                                 subscription.getCommercial(),
                                 wompiTx.getId());
 
-                completeOnboardingIfPending(commercial);
+                completeOnboardingIfPending(commercial, basicPlan);
                 applyPlanChangeIfLinked(null, subscription.getId());
         }
 
@@ -349,6 +357,65 @@ public class PlanServiceImpl implements PlanService {
         // =========================================================================
 
         @Override
+        @Transactional(readOnly = true)
+        public RechargePreviewResponseDTO previewRecharge(CommercialDetails commercial, Long amountCents) {
+                Plan plan = commercial.getCurrentPlan();
+                long currentBalance = commercial.getWallet() != null && commercial.getWallet().getBalanceCents() != null
+                                ? commercial.getWallet().getBalanceCents() : 0L;
+
+                boolean eligible;
+                String message;
+
+                if (plan == null || plan.getCode() == PlanCode.BASIC) {
+                        eligible = false;
+                        message = "Solo los planes STANDARD y PREMIUM pueden recargar presupuesto.";
+                } else {
+                        try {
+                                validateInvestmentAmount(amountCents, plan);
+                                if (!commercialContractRepository.findOpenRechargeContracts(commercial.getId()).isEmpty()) {
+                                        eligible = false;
+                                        message = "Ya tiene una recarga en curso — fírmela o espere a que se resuelva antes de pedir otra.";
+                                } else {
+                                        List<PlanChangeRequestStatus> terminal = List.of(PlanChangeRequestStatus.APPLIED,
+                                                        PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
+                                        if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercial.getId(), terminal).isEmpty()) {
+                                                eligible = false;
+                                                message = "Tiene una solicitud de cambio de plan en curso — resuélvala antes de recargar.";
+                                        } else {
+                                                eligible = true;
+                                                message = "Podrá continuar: se generará el otrosí de recarga y se enviará a firma electrónica de inmediato.";
+                                        }
+                                }
+                        } catch (IllegalArgumentException ex) {
+                                eligible = false;
+                                message = ex.getMessage();
+                        }
+                }
+
+                boolean planIsFunded = plan != null && plan.getCode() != PlanCode.BASIC;
+                long estimatedCreditedAmountCents = planIsFunded && amountCents != null && amountCents > 0
+                                ? BigDecimal.valueOf(amountCents).multiply(BigDecimal.valueOf(treasuryConfig.getKeysReservePct()))
+                                                .divide(BigDecimal.valueOf(100)).longValue()
+                                : 0L;
+
+                return new RechargePreviewResponseDTO(
+                                plan != null ? plan.getCode() : null,
+                                eligible,
+                                message,
+                                centsToPesos(amountCents),
+                                plan != null ? centsToPesos(plan.getMinInvestmentCents()) : null,
+                                plan != null ? centsToPesos(plan.getMaxInvestmentCents()) : null,
+                                centsToPesos(currentBalance),
+                                centsToPesos(estimatedCreditedAmountCents),
+                                centsToPesos(currentBalance + estimatedCreditedAmountCents));
+        }
+
+        /** Los previews de recarga se muestran al comercial en pesos, no en centavos. */
+        private static Long centsToPesos(Long cents) {
+                return cents != null ? cents / 100 : null;
+        }
+
+        @Override
         @Transactional
         public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercial, Long amountCents) {
                 Plan plan = commercial.getCurrentPlan();
@@ -358,13 +425,13 @@ public class PlanServiceImpl implements PlanService {
                 validateInvestmentAmount(amountCents, plan);
 
                 if (!commercialContractRepository.findOpenRechargeContracts(commercial.getId()).isEmpty()) {
-                        throw new IllegalStateException(
+                        throw new BusinessException(
                                         "Ya tiene una recarga en curso — fírmela o espere a que se resuelva antes de pedir otra.");
                 }
                 List<PlanChangeRequestStatus> terminal = List.of(
                                 PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
                 if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercial.getId(), terminal).isEmpty()) {
-                        throw new IllegalStateException(
+                        throw new BusinessException(
                                         "Tiene una solicitud de cambio de plan en curso — resuélvala antes de recargar.");
                 }
 
@@ -509,18 +576,23 @@ public class PlanServiceImpl implements PlanService {
                 CommercialDetails commercial = wallet.getCommercial();
 
                 // 5. Acreditar saldo nunca cambia el plan por sí solo — salvo que este
-                // Investment sea justo el abono de un cambio de plan explícito ya aprobado
-                // y firmado, en cuyo caso applyPlanChangeIfLinked() lo detecta y aplica.
-                completeOnboardingIfPending(commercial);
+                // Investment sea el abono de activación del registro inicial (onboarding
+                // en PAYMENT_PENDING, ver completeOnboardingIfPending) o el abono de un
+                // cambio de plan explícito ya aprobado y firmado, en cuyo caso
+                // applyPlanChangeIfLinked() lo detecta y aplica.
+                boolean isInitialActivation = completeOnboardingIfPending(commercial, investment.getPlanAtDeposit());
 
                 log.info("[PLAN] Inversión activada: commercialId={}, amount={}, " +
                                 "plan={}, walletStatus={}",
                                 commercial.getId(), wompiTx.getAmountInCents(),
                                 investment.getPlanAtDeposit().getCode(), wallet.getStatus());
 
-                // 6. Si el wallet estaba EXHAUSTED, reactivar todas las interacciones pausadas
-                // El dispatcher de interacciones escucha este evento y reactiva todo
-                if (wasExhausted) {
+                // 6. Si el wallet estaba EXHAUSTED, reactivar todas las interacciones pausadas.
+                // wasExhausted también es true en el primer depósito de una wallet recién
+                // creada (balance arranca en 0) — eso no es una "reactivación", es la
+                // activación inicial, así que se excluye para no mandar el correo de
+                // "saldo restaurado" a alguien que nunca tuvo saldo.
+                if (wasExhausted && !isInitialActivation) {
                         log.info("[PLAN] Wallet reactivado después de agotamiento: " +
                                         "commercialId={} — reactivando interacciones", commercial.getId());
                         investmentService.handleWalletReplenished(commercial.getId());
@@ -540,11 +612,6 @@ public class PlanServiceImpl implements PlanService {
         }
 
         /**
-         * Si este pago era el de activación del registro comercial (onboarding en
-         * PAYMENT_PENDING), lo completa. Para pagos posteriores — renovación de BASIC,
-         * recarga de inversión — el onboarding ya está COMPLETED y esto no hace nada.
-         */
-        /**
          * Si el Investment/Subscription recién confirmado es el abono de un cambio de
          * plan explícito ya firmado (contrato PLAN_CHANGE con esa referencia vinculada),
          * aplica el cambio ahora. No-op para cualquier otro pago (recarga normal,
@@ -560,16 +627,32 @@ public class PlanServiceImpl implements PlanService {
                                 .ifPresent(request -> planChangeRequestService.applyIfPending(request.getId()));
         }
 
-        private void completeOnboardingIfPending(CommercialDetails commercial) {
-                onboardingRepository.findByCommercialDetails_Id(commercial.getId())
+        /**
+         * Si este pago era el de activación del registro comercial (onboarding en
+         * PAYMENT_PENDING), lo completa y fija {@code activatedPlan} como plan vigente
+         * del comercial — es la primera vez que el comercial tiene un plan, así que no
+         * hay "cambio" que pasar por el flujo explícito de PlanChangeRequest. Para pagos
+         * posteriores — renovación de BASIC, recarga de inversión — el onboarding ya
+         * está COMPLETED y esto no hace nada (el plan no se toca).
+         *
+         * @return true si este pago era la activación inicial del registro.
+         */
+        private boolean completeOnboardingIfPending(CommercialDetails commercial, Plan activatedPlan) {
+                return onboardingRepository.findByCommercialDetails_Id(commercial.getId())
                                 .filter(o -> o.getCurrentStep() == OnboardingStep.PAYMENT_PENDING)
-                                .ifPresent(onboarding -> {
+                                .map(onboarding -> {
                                         onboarding.setCurrentStep(OnboardingStep.COMPLETED);
                                         onboarding.setCompletedAt(ZonedDateTime.now());
                                         onboardingRepository.save(onboarding);
-                                        log.info("[PLAN] Onboarding completado tras pago de activación: commercialId={}",
-                                                        commercial.getId());
-                                });
+
+                                        commercial.setCurrentPlan(activatedPlan);
+                                        commercialDetailsRepository.save(commercial);
+
+                                        log.info("[PLAN] Onboarding completado tras pago de activación: commercialId={}, plan={}",
+                                                        commercial.getId(), activatedPlan.getCode());
+                                        return true;
+                                })
+                                .orElse(false);
         }
 
         // =========================================================================
@@ -707,14 +790,14 @@ public class PlanServiceImpl implements PlanService {
                 if (plan.getMinInvestmentCents() != null
                                 && amountCents < plan.getMinInvestmentCents()) {
                         throw new IllegalArgumentException(
-                                        "Monto mínimo para " + plan.getCode() + ": " +
-                                                        plan.getMinInvestmentCents() + " centavos.");
+                                        "Monto mínimo para " + plan.getCode() + ": $" +
+                                                        centsToPesos(plan.getMinInvestmentCents()) + ".");
                 }
                 if (plan.getMaxInvestmentCents() != null
                                 && amountCents > plan.getMaxInvestmentCents()) {
                         throw new IllegalArgumentException(
-                                        "Monto máximo para " + plan.getCode() + ": " +
-                                                        plan.getMaxInvestmentCents() + " centavos.");
+                                        "Monto máximo para " + plan.getCode() + ": $" +
+                                                        centsToPesos(plan.getMaxInvestmentCents()) + ".");
                 }
         }
 
@@ -752,6 +835,8 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(null)
                                         .hasActivePlan(false)
+                                        .budgetSuspended(true)
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(0)
                                         .canAdvertise(false)
@@ -778,6 +863,8 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(PlanCode.BASIC.name())
                                         .hasActivePlan(hasActive)
+                                        .budgetSuspended(false) // BASIC no tiene presupuesto publicitario
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(currentPlan.getSaleCommissionPct())
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
@@ -794,14 +881,22 @@ public class PlanServiceImpl implements PlanService {
                 }
 
                 // ── Plan STANDARD / PREMIUM ───────────────────────────────────────────────
+                // hasActivePlan refleja "tiene plan contratado", no el saldo. El saldo
+                // agotado se comunica vía budgetSuspended + walletStatus para que el
+                // frontend bloquee solo la creación de activos nuevos, no todo.
                 Wallet wallet = commercial.getWallet();
-                boolean hasActivePlan = wallet != null && wallet.isOperational();
                 String walletStatus = wallet != null ? wallet.getStatus().name() : "INACTIVE";
                 long remainingBudgetCents = wallet != null ? wallet.getBalanceCents() : 0L;
+                boolean budgetSuspended = wallet == null || wallet.isExhausted();
+                boolean budgetDormant = budgetSuspended && wallet != null && wallet.getExhaustedSince() != null
+                                && wallet.getExhaustedSince().isBefore(ZonedDateTime.now(ZoneOffset.UTC)
+                                                .minusDays(effectivePlanResolver.resolveGracePeriodDays(currentPlan)));
 
                 return EffectivePlanStateResponseDTO.builder()
                                 .effectivePlan(currentPlan.getCode().name())
-                                .hasActivePlan(hasActivePlan)
+                                .hasActivePlan(true)
+                                .budgetSuspended(budgetSuspended)
+                                .budgetDormant(budgetDormant)
                                 .remainingBudgetCents(remainingBudgetCents)
                                 .commissionRate(currentPlan.getSaleCommissionPct())
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
@@ -815,6 +910,20 @@ public class PlanServiceImpl implements PlanService {
                                 .subscriptionDaysRemaining(null)
                                 .walletStatus(walletStatus)
                                 .build();
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public PlanCatalogResponseDTO getPlanCatalog(CommercialDetails commercial) {
+                Plan currentPlan = commercial.getCurrentPlan();
+                PlanCode currentPlanCode = currentPlan != null ? currentPlan.getCode() : null;
+
+                List<PlanOptionDTO> plans = planRepository.findAllByActiveTrue().stream()
+                                .sorted(Comparator.comparing(p -> p.getCode().ordinal()))
+                                .map(p -> commercialOnboardingMapper.toPlanOptionDTO(p, false, p.getCode() == currentPlanCode))
+                                .toList();
+
+                return new PlanCatalogResponseDTO(currentPlanCode, plans);
         }
 
 }

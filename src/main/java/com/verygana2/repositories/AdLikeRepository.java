@@ -89,4 +89,16 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
     // Total ganado por usuario
     @Query("SELECT SUM(al.rewardAmount) FROM AdLike al WHERE al.consumer.id = :consumerId")
     java.math.BigDecimal sumRewardsByConsumerId(@Param("consumerId") Long consumerId);
+
+    // Likes recibidos por todos los anuncios de un comercial en un rango (panel de inicio).
+    @Query("""
+        SELECT COUNT(al) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+    """)
+    long countByCommercialIdAndCreatedAtRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
 }

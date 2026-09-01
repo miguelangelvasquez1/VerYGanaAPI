@@ -37,6 +37,18 @@ public interface SurveySessionRepository extends JpaRepository<SurveySession, Lo
     @Query("SELECT COUNT(s) FROM SurveySession s WHERE s.consumer.id = :consumerId AND s.status = 'COMPLETED'")
     long countCompletedByConsumer(@Param("consumerId") Long consumerId);
 
+    /** Respuestas completadas recibidas por las encuestas de un comercial en un rango (panel de inicio). */
+    @Query("""
+        SELECT COUNT(s) FROM SurveySession s
+        WHERE s.survey.creator.id = :commercialId
+        AND s.status = 'COMPLETED'
+        AND s.completedAt >= :start AND s.completedAt < :end
+    """)
+    long countCompletedByCreatorAndDateRange(
+            @Param("commercialId") Long commercialId,
+            @Param("start") ZonedDateTime start,
+            @Param("end") ZonedDateTime end);
+
     Page<SurveySession> findByConsumerId(Long consumerId, Pageable pageable);
 
     @Query("""

@@ -418,6 +418,22 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
+    public void sendBudgetDormantEmail(String toEmail, String commercialName) {
+        log.info("Sending budget dormant email to: {}", toEmail);
+        try {
+            String html = templateLoader.render("budget-dormant.html", Map.of(
+                    "commercialName", escapeHtml(commercialName),
+                    "platformUrl", frontendUrl,
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+            sendEmail(toEmail, "Tu cuenta está en pausa por saldo agotado — VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending budget dormant email to: {}", toEmail, e);
+        }
+    }
+
+    @Override
+    @Async
     public void sendBudgetReplenishedEmail(String toEmail, String commercialName) {
         log.info("Sending budget replenished email to: {}", toEmail);
         try {

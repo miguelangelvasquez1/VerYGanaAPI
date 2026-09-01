@@ -12,4 +12,8 @@ public interface PlanChangeRequestRepository extends JpaRepository<PlanChangeReq
     List<PlanChangeRequest> findByCommercial_IdAndStatusNotIn(Long commercialId, List<PlanChangeRequestStatus> statuses);
     List<PlanChangeRequest> findByStatusNotIn(List<PlanChangeRequestStatus> statuses);
     Optional<PlanChangeRequest> findByContract_Id(Long contractId);
+
+    /** El rechazo más reciente que el comercial todavía no ha dado por leído. */
+    Optional<PlanChangeRequest> findFirstByCommercial_IdAndStatusAndRejectionAcknowledgedAtIsNullOrderByRequestedAtDesc(
+            Long commercialId, PlanChangeRequestStatus status);
 }

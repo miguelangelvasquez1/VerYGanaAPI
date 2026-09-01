@@ -88,6 +88,15 @@ public class Wallet {
     @Column(name = "last_budget_alert_at")
     private ZonedDateTime lastBudgetAlertAt;
 
+    /**
+     * Momento en que el saldo llegó a 0. Se sella la primera vez que el balance
+     * cae a cero y se limpia en cuanto vuelve a haber saldo. Permite medir cuánto
+     * lleva la billetera agotada para escalar a estado DORMANT (bloqueo de edición)
+     * pasado el periodo de gracia del plan.
+     */
+    @Column(name = "exhausted_since")
+    private ZonedDateTime exhaustedSince;
+
     @Column(name = "last_updated", nullable = false)
     private ZonedDateTime lastUpdated;
 
@@ -154,12 +163,18 @@ public class Wallet {
     }
 
     public void recalculateStatus() {
-        if (balanceCents == 0)
+        if (balanceCents == 0) {
             this.status = WalletStatus.EXHAUSTED;
-        else if (balanceCents < getLowBalanceThresholdCents())
+            if (this.exhaustedSince == null) {
+                this.exhaustedSince = ZonedDateTime.now(ZoneOffset.UTC);
+            }
+        } else if (balanceCents < getLowBalanceThresholdCents()) {
             this.status = WalletStatus.LOW_BALANCE;
-        else
+            this.exhaustedSince = null;
+        } else {
             this.status = WalletStatus.ACTIVE;
+            this.exhaustedSince = null;
+        }
     }
 
     /**

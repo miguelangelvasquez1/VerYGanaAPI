@@ -254,7 +254,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     // PENDING_ADVERTISER_APPROVAL	❌	Solo botones de aprobar/rechazar diseño
     // CAMPAIGN_CREATED	❌	Solo lectura
     @Override
-    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "commercialId")
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "commercialId", blockWhenDormant = true)
     public void updateConfig(Long requestId, UpdateBrandingRequestConfigDTO dto, Long commercialId) {
         BrandingRequest request = findOwnedRequest(requestId, commercialId);
 

@@ -7,5 +7,6 @@ public enum ContractStatus {
     APPROVED,                  // Contenido aprobado por VERYGANA; dispara el envío a firma electrónica
     PENDING_SIGNATURE,         // Enviado al proveedor de firma electrónica, esperando firma del empresario
     SIGNED,                    // Firmado; el onboarding pasa a PAYMENT_PENDING
-    REJECTED
+    REJECTED,
+    CANCELLED                  // Cancelado por el comercial antes de firmar: RECHARGE (autocancelación) o PLAN_CHANGE (al cancelar su solicitud)
 }
