@@ -102,9 +102,9 @@ public class Plan {
      * Modificable por el admin vía endpoint dedicado.
      *
      * Valores iniciales:
-     *   BASIC    → 15
+     *   BASIC    → 20
      *   STANDARD → 10
-     *   PREMIUM  → 5
+     *   PREMIUM  → 0  (no aplica: Premium no vende productos propios)
      */
     @Column(name = "sale_commission_pct", nullable = false)
     private int saleCommissionPct;

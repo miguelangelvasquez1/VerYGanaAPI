@@ -14,6 +14,7 @@ import com.verygana2.dtos.user.commercial.onboarding.AcceptPlanRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticQuestionnaireResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanComparisonResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
@@ -77,6 +78,17 @@ public class CommercialOnboardingController {
             @Valid @RequestBody LegalIdentificationRequestDTO dto) {
         Long userId = jwt.getClaim("userId");
         return ResponseEntity.ok(onboardingService.submitLegalIdentification(userId, dto));
+    }
+
+    /**
+     * Paso 4: catálogo versionado del cuestionario de diagnóstico (secciones,
+     * preguntas, opciones, ayudas y reglas de adaptividad) para renderizar el
+     * formulario. El cuerpo del POST siguiente ({@code CommercialDiagnosticRequestDTO})
+     * usa los mismos {@code fieldName} y valores de opción.
+     */
+    @GetMapping("/diagnostic/questionnaire")
+    public ResponseEntity<DiagnosticQuestionnaireResponseDTO> getDiagnosticQuestionnaire() {
+        return ResponseEntity.ok(onboardingService.getDiagnosticQuestionnaire());
     }
 
     /** Paso 4: diagnóstico comercial. Devuelve directamente la clasificación calculada (paso 5). */

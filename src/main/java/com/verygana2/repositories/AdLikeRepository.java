@@ -89,4 +89,68 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
     // Total ganado por usuario
     @Query("SELECT SUM(al.rewardAmount) FROM AdLike al WHERE al.consumer.id = :consumerId")
     java.math.BigDecimal sumRewardsByConsumerId(@Param("consumerId") Long consumerId);
+
+    // Likes recibidos por todos los anuncios de un comercial en un rango (panel de inicio).
+    @Query("""
+        SELECT COUNT(al) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+    """)
+    long countByCommercialIdAndCreatedAtRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
+
+    // ── Reportes de rendimiento del comercial ────────────────────────────────
+
+    /** Suma de recompensas (centavos) pagadas por likes del comercial en el rango. */
+    @Query("""
+        SELECT COALESCE(SUM(al.rewardAmount), 0) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+    """)
+    long sumRewardInRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
+
+    /** Consumers distintos que dieron like a algún anuncio del comercial en el rango. */
+    @Query("""
+        SELECT COUNT(DISTINCT al.consumer.id) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+    """)
+    long countDistinctConsumersInRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
+
+    /** [Long adId, Long count] de likes por anuncio del comercial en el rango. */
+    @Query("""
+        SELECT al.ad.id, COUNT(al) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+        GROUP BY al.ad.id
+    """)
+    List<Object[]> countByAdInRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
+
+    /** [java.sql.Date day, Long count] de likes del comercial por día del rango. */
+    @Query("""
+        SELECT DATE(al.createdAt), COUNT(al) FROM AdLike al
+        WHERE al.ad.commercial.id = :commercialId
+        AND al.createdAt >= :start AND al.createdAt < :end
+        GROUP BY DATE(al.createdAt)
+    """)
+    List<Object[]> countByDayInRange(
+        @Param("commercialId") Long commercialId,
+        @Param("start") java.time.ZonedDateTime start,
+        @Param("end") java.time.ZonedDateTime end
+    );
 }

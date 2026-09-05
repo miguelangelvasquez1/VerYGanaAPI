@@ -5,5 +5,7 @@ public enum WalletBudgetAlertStage {
     NONE,
     WARNING,
     CRITICAL,
-    EXHAUSTED
+    EXHAUSTED,
+    /** Saldo en 0 durante más del periodo de gracia del plan sin recargar — cuenta en pausa. */
+    DORMANT
 }

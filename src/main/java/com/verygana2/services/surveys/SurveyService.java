@@ -140,6 +140,7 @@ public class SurveyService {
     }
 
     @Transactional
+    @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_USE_SURVEYS}, blockWhenDormant = true)
     public SurveyCommercialDetailDTO updateSurvey(Long surveyId, UpdateSurveyRequest request, Long commercialId) {
         Survey survey = findSurveyOrThrow(surveyId);
 

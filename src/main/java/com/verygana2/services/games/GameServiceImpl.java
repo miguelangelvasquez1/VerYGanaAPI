@@ -158,7 +158,7 @@ public class GameServiceImpl implements GameService {
 
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
+                baseUrl, "public", userId.toString(), "true", 14L); //"none", false
     }
 
     @Transactional(readOnly = true)
@@ -291,10 +291,10 @@ public class GameServiceImpl implements GameService {
         //             "justudios.co/test-verygana",
         //             game.getUrl());
 
-            baseUrl = String.format("https://%s/%s/%s/%s/?",
+            baseUrl = String.format("https://%s/%s/%s/?", //poner /%s
                 cdnUrl,
                 "builds/build-bogota",
-                "08-08-2026", // Cambia segun version
+                // "stack-tower", // Cambia segun version
                 game.getUrl()
                 );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {

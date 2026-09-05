@@ -6,6 +6,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Repository;
 import com.verygana2.models.enums.UserState;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
+
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface CommercialDetailsRepository extends JpaRepository<CommercialDetails, Long>{
@@ -43,4 +46,15 @@ public interface CommercialDetailsRepository extends JpaRepository<CommercialDet
                      WHERE c.user.publicId = :publicId
                             """)
     Optional<CommercialDetails> findByPublicId (UUID publicId);
+
+    /**
+     * Carga el comercial con lock pesimista sobre su fila. Lo usan {@code requestRecharge}
+     * y {@code requestPlanChange} para serializar ambos flujos por comercial: los chequeos
+     * de "¿ya tiene una recarga / un cambio de plan en curso?" son read-then-write y sin
+     * este lock dos requests concurrentes podrían crear una recarga y un cambio de plan
+     * a la vez, solapándose.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM CommercialDetails c WHERE c.id = :id")
+    Optional<CommercialDetails> findByIdForUpdate(@Param("id") Long id);
 }

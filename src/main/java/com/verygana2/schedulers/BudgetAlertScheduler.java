@@ -39,17 +39,21 @@ public class BudgetAlertScheduler {
     private final EmailService emailService;
     private final NotificationService notificationService;
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "${budget.alert-cron:0 0 * * * *}", zone = "UTC")
     @Transactional
     public void checkBudgetAlerts() {
+        // "Saldo bajo" no es un estado del wallet: se deriva aquí contra los umbrales
+        // por plan (resolveStage). Por eso se barren todos los wallets financiados
+        // (ACTIVE + EXHAUSTED); resolveStage() → NONE para los sanos, que se saltan.
+        // INACTIVE (sin depósito) queda fuera.
         List<Wallet> atRisk = walletRepository.findByStatusIn(
-                List.of(WalletStatus.LOW_BALANCE, WalletStatus.EXHAUSTED));
+                List.of(WalletStatus.ACTIVE, WalletStatus.EXHAUSTED));
 
         if (atRisk.isEmpty()) {
             return;
         }
 
-        log.info("[BUDGET ALERT JOB] Revisando {} wallets con saldo bajo/agotado.", atRisk.size());
+        log.debug("[BUDGET ALERT JOB] Evaluando {} wallets financiados.", atRisk.size());
 
         for (Wallet wallet : atRisk) {
             try {
@@ -72,6 +76,7 @@ public class BudgetAlertScheduler {
         String name = commercial.getCompanyName();
 
         switch (targetStage) {
+            case DORMANT -> emailService.sendBudgetDormantEmail(email, name);
             case EXHAUSTED -> emailService.sendBudgetExhaustedEmail(email, name);
             case CRITICAL -> emailService.sendBudgetLowWarningEmail(email, name, true);
             case WARNING -> emailService.sendBudgetLowWarningEmail(email, name, false);
@@ -92,6 +97,16 @@ public class BudgetAlertScheduler {
 
     private WalletBudgetAlertStage resolveStage(Wallet wallet) {
         if (wallet.isExhausted()) {
+            // Red de seguridad: sellar exhaustedSince si una billetera llegó a 0 sin pasar
+            // luego por recalculateStatus() (p. ej. datos previos a esta funcionalidad).
+            if (wallet.getExhaustedSince() == null) {
+                wallet.setExhaustedSince(ZonedDateTime.now(ZoneOffset.UTC));
+            }
+            int graceDays = planResolver.resolveGracePeriodDays(wallet.getCommercial().getCurrentPlan());
+            if (graceDays > 0 && wallet.getExhaustedSince()
+                    .isBefore(ZonedDateTime.now(ZoneOffset.UTC).minusDays(graceDays))) {
+                return WalletBudgetAlertStage.DORMANT;
+            }
             return WalletBudgetAlertStage.EXHAUSTED;
         }
         BudgetThresholds thresholds = planResolver.resolveBudgetThresholds(wallet);
@@ -115,6 +130,7 @@ public class BudgetAlertScheduler {
             case WARNING -> 1;
             case CRITICAL -> 2;
             case EXHAUSTED -> 3;
+            case DORMANT -> 4;
         };
     }
 
@@ -123,6 +139,7 @@ public class BudgetAlertScheduler {
             case WARNING -> "bajo";
             case CRITICAL -> "crítico";
             case EXHAUSTED -> "agotado";
+            case DORMANT -> "en pausa";
             case NONE -> "";
         };
     }

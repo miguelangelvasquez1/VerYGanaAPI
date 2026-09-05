@@ -74,6 +74,7 @@ public class PlanServiceImpl implements PlanService {
         private final WalletService walletService;
         private final CommercialOnboardingRepository onboardingRepository;
         private final com.verygana2.services.plans.InvestmentService investmentService;
+        private final com.verygana2.services.plans.EffectivePlanResolver effectivePlanResolver;
         private final com.verygana2.services.interfaces.EmailService emailService;
         private final CommercialContractService commercialContractService;
         private final CommercialContractRepository commercialContractRepository;
@@ -416,7 +417,14 @@ public class PlanServiceImpl implements PlanService {
 
         @Override
         @Transactional
-        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercial, Long amountCents) {
+        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercialArg, Long amountCents) {
+                // Lock pesimista sobre la fila del comercial: serializa esta solicitud con
+                // requestPlanChange (que toma el mismo lock) para que dos requests concurrentes
+                // no puedan crear una recarga y un cambio de plan a la vez — los chequeos de
+                // abajo son read-then-write y sin esto tienen una ventana de carrera.
+                CommercialDetails commercial = commercialDetailsRepository.findByIdForUpdate(commercialArg.getId())
+                                .orElseThrow(() -> new IllegalStateException(
+                                                "Comercial no encontrado: " + commercialArg.getId()));
                 Plan plan = commercial.getCurrentPlan();
                 if (plan == null || plan.getCode() == PlanCode.BASIC) {
                         throw new IllegalStateException("Solo los planes STANDARD/PREMIUM pueden recargar presupuesto.");
@@ -567,8 +575,9 @@ public class PlanServiceImpl implements PlanService {
                                 .multiply(BigDecimal.valueOf(treasuryConfig.getKeysReservePct())) // int exacto
                                 .divide(BigDecimal.valueOf(100));
 
-                // 4. Acreditar saldo — deposit() recalcula el status automáticamente
-                wallet.deposit(amount.longValue());
+                // 4. Acreditar saldo — registerDeposit() recalcula el status y guarda el
+                // monto como referencia para el umbral de aviso de saldo bajo.
+                wallet.registerDeposit(amount.longValue());
 
                 walletRepository.save(wallet);
 
@@ -834,11 +843,15 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(null)
                                         .hasActivePlan(false)
+                                        .budgetSuspended(true)
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(0)
                                         .canAdvertise(false)
                                         .canUseGames(false)
                                         .canUseSurveys(false)
+                                        .canViewPerformanceMetrics(false)
+                                        .canViewPageVisitMetrics(false)
                                         .maxProducts(0)
                                         .maxAds(0)
                                         .maxBrandedGames(0)
@@ -860,11 +873,15 @@ public class PlanServiceImpl implements PlanService {
                         return EffectivePlanStateResponseDTO.builder()
                                         .effectivePlan(PlanCode.BASIC.name())
                                         .hasActivePlan(hasActive)
+                                        .budgetSuspended(false) // BASIC no tiene presupuesto publicitario
+                                        .budgetDormant(false)
                                         .remainingBudgetCents(0L)
                                         .commissionRate(currentPlan.getSaleCommissionPct())
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                         .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                         .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                        .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                        .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                         .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 10))
                                         .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                         .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))
@@ -876,19 +893,29 @@ public class PlanServiceImpl implements PlanService {
                 }
 
                 // ── Plan STANDARD / PREMIUM ───────────────────────────────────────────────
+                // hasActivePlan refleja "tiene plan contratado", no el saldo. El saldo
+                // agotado se comunica vía budgetSuspended + walletStatus para que el
+                // frontend bloquee solo la creación de activos nuevos, no todo.
                 Wallet wallet = commercial.getWallet();
-                boolean hasActivePlan = wallet != null && wallet.isOperational();
                 String walletStatus = wallet != null ? wallet.getStatus().name() : "INACTIVE";
                 long remainingBudgetCents = wallet != null ? wallet.getBalanceCents() : 0L;
+                boolean budgetSuspended = wallet == null || wallet.isExhausted();
+                boolean budgetDormant = budgetSuspended && wallet != null && wallet.getExhaustedSince() != null
+                                && wallet.getExhaustedSince().isBefore(ZonedDateTime.now(ZoneOffset.UTC)
+                                                .minusDays(effectivePlanResolver.resolveGracePeriodDays(currentPlan)));
 
                 return EffectivePlanStateResponseDTO.builder()
                                 .effectivePlan(currentPlan.getCode().name())
-                                .hasActivePlan(hasActivePlan)
+                                .hasActivePlan(true)
+                                .budgetSuspended(budgetSuspended)
+                                .budgetDormant(budgetDormant)
                                 .remainingBudgetCents(remainingBudgetCents)
                                 .commissionRate(currentPlan.getSaleCommissionPct())
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                 .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                 .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                 .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 100))
                                 .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                 .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))

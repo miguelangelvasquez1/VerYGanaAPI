@@ -82,7 +82,7 @@ public class CampaignServiceImpl implements CampaignService {
     }
 
     @Override
-    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId", blockWhenDormant = true)
     public void updateCampaign(Long campaignId, Long userId, UpdateCampaignRequestDTO request) {
 
         Campaign campaign = campaignRepository.findByIdAndCommercialId(Objects.requireNonNull(campaignId), userId)

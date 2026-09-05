@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.models.enums.finance.WalletBudgetAlertStage;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.BudgetTransaction;
 import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
@@ -108,7 +109,12 @@ public class BudgetService {
                 commercialId, amountCents, type, wallet.getBalanceCents());
 
         if (wallet.isExhausted()) {
-            log.info("Wallet comercial {} agotado. Removiendo plan activo.", commercialId);
+            log.info("Wallet comercial {} agotado. Creación de activos nuevos bloqueada.", commercialId);
+            // Sella la etapa para que BudgetAlertScheduler no reenvíe el mismo aviso EXHAUSTED
+            // en su próximo barrido — este correo ya lo manda handleWalletExhausted().
+            wallet.setLastBudgetAlertStage(WalletBudgetAlertStage.EXHAUSTED);
+            wallet.setLastBudgetAlertAt(ZonedDateTime.now(ZoneOffset.UTC));
+            walletRepository.save(wallet);
             investmentService.handleWalletExhausted(commercialId);
         }
     }

@@ -20,7 +20,8 @@
       "Read(//private/etc/**)",
       "Bash(lsof -nP -iTCP -sTCP:LISTEN)",
       "Bash(awk '{print $1, $2, $9}')",
-      "Bash(curl -s -o /dev/null -w \"local  -> %{http_code}\\\\n\" --max-time 5 -X POST http://localhost:8080/pet/session/init)"
+      "Bash(curl -s -o /dev/null -w \"local  -> %{http_code}\\\\n\" --max-time 5 -X POST http://localhost:8080/pet/session/init)",
+      "Bash(./mvnw -o compile)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Usuario\\AppData\\Local\\Temp\\claude\\c--Users-Usuario-Projects-verygana-VerYGanaAPI\\11cd59b1-c084-4d59-a8f7-1e245070e7d6\\scratchpad"

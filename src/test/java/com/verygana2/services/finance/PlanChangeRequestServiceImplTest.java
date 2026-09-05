@@ -30,6 +30,7 @@ import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
+import com.verygana2.services.plans.PlanChangeAssetValidator;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ValidationException;
@@ -62,13 +63,18 @@ class PlanChangeRequestServiceImplTest {
     @Mock private CommercialContractService commercialContractService;
     @Mock private CommercialContractRepository commercialContractRepository;
     @Mock private NotificationService notificationService;
+    @Mock private PlanChangeAssetValidator planChangeAssetValidator;
 
     private PlanChangeRequestServiceImpl service;
 
     @BeforeEach
     void setUp() {
         service = new PlanChangeRequestServiceImpl(planChangeRequestRepository, commercialDetailsRepository,
-                planRepository, commercialContractService, commercialContractRepository, notificationService);
+                planRepository, commercialContractService, commercialContractRepository, notificationService,
+                planChangeAssetValidator);
+        // La mayoría de los tests no ejercitan el bloqueo por activos excedentes — se stubea
+        // en blanco (lenient) para no reventar por NPE en los que sí llegan a llamarlo.
+        lenient().when(planChangeAssetValidator.findBlockers(any(), any())).thenReturn(List.of());
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────
@@ -123,7 +129,7 @@ class PlanChangeRequestServiceImplTest {
         @Test
         @DisplayName("comercial no encontrado: lanza EntityNotFoundException")
         void commercialNotFound_throwsEntityNotFoundException() {
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.empty());
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 0L))
                     .isInstanceOf(EntityNotFoundException.class);
@@ -135,7 +141,7 @@ class PlanChangeRequestServiceImplTest {
         @DisplayName("plan destino no encontrado o inactivo: lanza ValidationException")
         void targetPlanNotFound_throwsValidationException() {
             CommercialDetails commercial = commercial(1L, basicPlan(), wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 0L))
@@ -147,7 +153,7 @@ class PlanChangeRequestServiceImplTest {
         void samePlanAsCurrent_throwsValidationException() {
             Plan basic = basicPlan();
             CommercialDetails commercial = commercial(1L, basic, wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
 
             assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.BASIC, 0L))
@@ -160,7 +166,7 @@ class PlanChangeRequestServiceImplTest {
             Plan standard = standardPlan();
             Plan basic = basicPlan();
             CommercialDetails commercial = commercial(1L, standard, wallet(500_000L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
 
             assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.BASIC, null))
@@ -176,7 +182,7 @@ class PlanChangeRequestServiceImplTest {
             Plan standard = standardPlan();
             Plan basic = basicPlan();
             CommercialDetails commercial = commercial(1L, standard, wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any())).thenReturn(List.of());
             when(commercialContractRepository.findOpenRechargeContracts(1L)).thenReturn(List.of());
@@ -197,7 +203,7 @@ class PlanChangeRequestServiceImplTest {
         void duplicateRequestInProgress_throwsBusinessException() {
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basicPlan(), wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any()))
                     .thenReturn(List.of(new PlanChangeRequest()));
@@ -213,7 +219,7 @@ class PlanChangeRequestServiceImplTest {
         void openRechargeContract_throwsBusinessException() {
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basicPlan(), wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any())).thenReturn(List.of());
             when(commercialContractRepository.findOpenRechargeContracts(1L)).thenReturn(List.of(new CommercialContract()));
@@ -230,7 +236,7 @@ class PlanChangeRequestServiceImplTest {
             Plan basic = basicPlan();
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basic, wallet(500_000_00L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any())).thenReturn(List.of());
             when(commercialContractRepository.findOpenRechargeContracts(1L)).thenReturn(List.of());
@@ -269,7 +275,7 @@ class PlanChangeRequestServiceImplTest {
             Plan standard = standardPlan();
             Plan basic = basicPlan();
             CommercialDetails commercial = commercial(1L, standard, wallet(0L));
-            when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
+            when(commercialDetailsRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any())).thenReturn(List.of());
             when(commercialContractRepository.findOpenRechargeContracts(1L)).thenReturn(List.of());
@@ -380,16 +386,18 @@ class PlanChangeRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("monto a invertir fuera del rango del plan destino: lanza ValidationException")
-        void investmentOutOfRange_throwsValidationException() {
+        @DisplayName("monto a invertir fuera del rango del plan destino: no elegible, con el motivo en el mensaje")
+        void investmentOutOfRange_notEligibleWithReasonInMessage() {
             Plan basic = basicPlan();
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basic, wallet(0L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
-            assertThatThrownBy(() -> service.previewPlanChange(1L, PlanCode.STANDARD, 1L))
-                    .isInstanceOf(ValidationException.class);
+            PlanChangePreviewResponseDTO dto = service.previewPlanChange(1L, PlanCode.STANDARD, 1L);
+
+            assertThat(dto.isEligible()).isFalse();
+            assertThat(dto.getMessage()).contains("debe estar entre");
         }
 
         @Test

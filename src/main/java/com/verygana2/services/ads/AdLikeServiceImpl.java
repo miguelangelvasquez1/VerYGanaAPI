@@ -32,6 +32,7 @@ import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.adsExceptions.WatchSessionResumeLimitException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.User;
@@ -223,7 +224,7 @@ public class AdLikeServiceImpl implements AdLikeService {
     }
 
     @Override
-    @Transactional(noRollbackFor = ValidationException.class)
+    @Transactional(noRollbackFor = {ValidationException.class, WatchSessionResumeLimitException.class})
     public Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId) {
 
         log.debug("Buscando siguiente anuncio disponible para usuario: {}", consumerId);
@@ -259,7 +260,7 @@ public class AdLikeServiceImpl implements AdLikeService {
             session.setExpiresAt(now);
             adWatchSessionRepository.save(session);
             log.info("AdWatchSession {} invalidated due to too many resumes", session.getId());
-            throw new ValidationException("No se pudo reanudar la sesión de visualización. Has alcanzado el límite de reanudaciones permitidas para este anuncio.");
+            throw new WatchSessionResumeLimitException("No se pudo reanudar la sesión de visualización. Has alcanzado el límite de reanudaciones permitidas para este anuncio.");
         }
 
         session.setResumeCount(Optional.ofNullable(session.getResumeCount()).orElse(0) + 1);

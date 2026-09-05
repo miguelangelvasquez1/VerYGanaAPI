@@ -171,6 +171,18 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.BOOLEAN)
                 .build());
 
+        Feature canViewPerformanceMetrics = featureRepository.save(Feature.builder()
+                .code("CAN_VIEW_PERFORMANCE_METRICS")
+                .name("Puede ver métricas de rendimiento de anuncios, encuestas y campañas")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
+        Feature canViewPageVisitMetrics = featureRepository.save(Feature.builder()
+                .code("CAN_VIEW_PAGE_VISIT_METRICS")
+                .name("Puede ver la métrica de visitas a su página oficial (Remisión)")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
         Feature lowBalanceWarningPct = featureRepository.save(Feature.builder()
                 .code("LOW_BALANCE_WARNING_PCT")
                 .name("Umbral de aviso de saldo bajo (% del último depósito)")
@@ -191,6 +203,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.AMOUNT)
                 .build());
 
+        Feature budgetGracePeriodDays = featureRepository.save(Feature.builder()
+                .code("BUDGET_GRACE_PERIOD_DAYS")
+                .name("Días de gracia con saldo agotado antes de pasar a cuenta en pausa (DORMANT)")
+                .type(FeatureType.LIMIT)
+                .build());
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -207,6 +225,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, canHavePets,     null, false, null),
             pf(basic, canPromoteAllyProducts, null, false, null),
             pf(basic, canExportReport, null, false, null),
+            pf(basic, canViewPerformanceMetrics, null, false, null),
+            pf(basic, canViewPageVisitMetrics,   null, false, null),
 
             // ── STANDARD ──────────────────────────────────────────────────────
             pf(standard, canAdvertise,    null, true,  null),
@@ -221,8 +241,11 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, canHavePets,     null, false, null),
             pf(standard, canPromoteAllyProducts, null, false, null),
             pf(standard, canExportReport, null, false, null),
+            pf(standard, canViewPerformanceMetrics, null, true,  null),
+            pf(standard, canViewPageVisitMetrics,   null, false, null),
             pf(standard, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
             pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
+            pf(standard, budgetGracePeriodDays, 15,   null, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
@@ -237,8 +260,11 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, canHavePets,     null, true,  null),
             pf(premium, canPromoteAllyProducts, null, true, null),
             pf(premium, canExportReport, null, true, null),
+            pf(premium, canViewPerformanceMetrics, null, true, null),
+            pf(premium, canViewPageVisitMetrics,   null, true, null),
             pf(premium, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
-            pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00"))
+            pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
+            pf(premium, budgetGracePeriodDays, 30,   null, null)
         );
 
         planFeatureRepository.saveAll(planFeatures);

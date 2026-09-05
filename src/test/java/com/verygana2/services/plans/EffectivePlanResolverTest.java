@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.finance.Wallet;
@@ -54,6 +55,10 @@ class EffectivePlanResolverTest {
     @BeforeEach
     void setUp() {
         resolver = new EffectivePlanResolver(commercialDetailsRepository, walletRepository, planFeatureRepository);
+        // Campos @Value: fuera de un contexto Spring hay que fijarlos a mano (ver convención del proyecto).
+        ReflectionTestUtils.setField(resolver, "defaultWarningPct", new BigDecimal("10"));
+        ReflectionTestUtils.setField(resolver, "defaultCriticalPct", BigDecimal.ZERO);
+        ReflectionTestUtils.setField(resolver, "defaultGracePeriodDays", 15);
     }
 
     private Plan plan(PlanCode code) {
@@ -378,11 +383,10 @@ class EffectivePlanResolverTest {
     @DisplayName("resolveBudgetThresholds")
     class ResolveBudgetThresholds {
 
-        private Wallet walletFor(CommercialDetails commercial, long lastDepositAmountCents, int lowBalanceThresholdPct) {
+        private Wallet walletFor(CommercialDetails commercial, long lastDepositAmountCents) {
             Wallet wallet = new Wallet();
             wallet.setCommercial(commercial);
             wallet.setLastDepositAmountCents(lastDepositAmountCents);
-            wallet.setLowBalanceThresholdPct(lowBalanceThresholdPct);
             return wallet;
         }
 
@@ -390,7 +394,7 @@ class EffectivePlanResolverTest {
         @DisplayName("sin plan: retorna (0,0)")
         void noPlan_returnsZeroZero() {
             CommercialDetails commercial = commercial(null, null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
 
             BudgetThresholds thresholds = resolver.resolveBudgetThresholds(wallet);
 
@@ -401,7 +405,7 @@ class EffectivePlanResolverTest {
         @DisplayName("plan BASIC: retorna (0,0)")
         void basicPlan_returnsZeroZero() {
             CommercialDetails commercial = commercial(plan(PlanCode.BASIC), null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
 
             BudgetThresholds thresholds = resolver.resolveBudgetThresholds(wallet);
 
@@ -412,7 +416,7 @@ class EffectivePlanResolverTest {
         @DisplayName("plan no-BASIC: prioriza el monto fijo (LOW_BALANCE_WARNING_FIXED_CENTS) sobre el porcentaje")
         void nonBasicWithFixedCents_prioritizesFixedOverPct() {
             CommercialDetails commercial = commercial(plan(PlanCode.STANDARD), null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_WARNING_FIXED_CENTS"))
                     .thenReturn(Optional.of(PlanFeature.builder().longValue(5_000L).build()));
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_CRITICAL_PCT"))
@@ -428,7 +432,7 @@ class EffectivePlanResolverTest {
         @DisplayName("plan no-BASIC sin monto fijo: usa el porcentaje configurado (LOW_BALANCE_WARNING_PCT)")
         void nonBasicWithoutFixedCents_usesConfiguredPct() {
             CommercialDetails commercial = commercial(plan(PlanCode.STANDARD), null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_WARNING_FIXED_CENTS"))
                     .thenReturn(Optional.empty());
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_WARNING_PCT"))
@@ -442,10 +446,10 @@ class EffectivePlanResolverTest {
         }
 
         @Test
-        @DisplayName("plan no-BASIC sin monto fijo ni porcentaje configurado: usa el 10% plano de Wallet.lowBalanceThresholdPct")
+        @DisplayName("plan no-BASIC sin monto fijo ni porcentaje configurado: usa el default de la aplicación (budget.low-balance-warning-pct)")
         void nonBasicWithoutFixedOrConfiguredPct_fallsBackToWalletPct() {
             CommercialDetails commercial = commercial(plan(PlanCode.STANDARD), null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_WARNING_FIXED_CENTS"))
                     .thenReturn(Optional.empty());
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.STANDARD, "LOW_BALANCE_WARNING_PCT"))
@@ -455,14 +459,14 @@ class EffectivePlanResolverTest {
 
             BudgetThresholds thresholds = resolver.resolveBudgetThresholds(wallet);
 
-            assertThat(thresholds.warningCents()).isEqualTo(10_000L); // 100_000 * 10% (fallback del wallet)
+            assertThat(thresholds.warningCents()).isEqualTo(10_000L); // 100_000 * 10% (default de la app fijado en setUp)
         }
 
         @Test
         @DisplayName("criticalCents solo se calcula cuando LOW_BALANCE_CRITICAL_PCT > 0")
         void criticalCents_onlyComputedWhenPctPositive() {
             CommercialDetails commercial = commercial(plan(PlanCode.PREMIUM), null);
-            Wallet wallet = walletFor(commercial, 100_000L, 10);
+            Wallet wallet = walletFor(commercial, 100_000L);
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.PREMIUM, "LOW_BALANCE_WARNING_FIXED_CENTS"))
                     .thenReturn(Optional.empty());
             when(planFeatureRepository.findByPlanCodeAndFeatureCode(PlanCode.PREMIUM, "LOW_BALANCE_WARNING_PCT"))

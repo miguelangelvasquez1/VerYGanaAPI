@@ -68,7 +68,7 @@ public class InvestmentService {
                     "Saldo total resultante: " + newTotalCOP);
         }
 
-        wallet.deposit(depositCents);
+        wallet.registerDeposit(depositCents);
         walletRepository.save(wallet);
 
         Investment deposit = Investment.builder()

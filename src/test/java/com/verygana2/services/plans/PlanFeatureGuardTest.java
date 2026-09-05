@@ -20,6 +20,7 @@ import com.verygana2.models.finance.plans.RequirePlanCapability.Capability;
 import com.verygana2.models.surveys.Survey.SurveyStatus;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
+import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.surveys.SurveyRepository;
@@ -46,6 +47,7 @@ class PlanFeatureGuardTest {
     @Mock private CampaignRepository campaignRepository;
     @Mock private BrandingRequestRepository brandingRequestRepository;
     @Mock private SurveyRepository surveyRepository;
+    @Mock private PlanChangeRequestRepository planChangeRequestRepository;
 
     private PlanFeatureGuard guard;
 
@@ -54,7 +56,7 @@ class PlanFeatureGuardTest {
     @BeforeEach
     void setUp() {
         guard = new PlanFeatureGuard(planResolver, productRepository, adRepository, campaignRepository,
-                brandingRequestRepository, surveyRepository);
+                brandingRequestRepository, surveyRepository, planChangeRequestRepository);
     }
 
     private EffectivePlanState.EffectivePlanStateBuilder baseState() {

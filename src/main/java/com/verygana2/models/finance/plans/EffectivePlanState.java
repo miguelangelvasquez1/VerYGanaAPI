@@ -46,12 +46,26 @@ public class EffectivePlanState {
 
     boolean canExportReport;
 
+    /** true si el plan permite ver métricas de rendimiento de anuncios/encuestas/campañas (STANDARD/PREMIUM). */
+    boolean canViewPerformanceMetrics;
+
+    /** true si el plan permite ver la métrica de visitas a la página oficial del empresario (solo PREMIUM). */
+    boolean canViewPageVisitMetrics;
+
     /**
      * true cuando el wallet (STANDARD/PREMIUM) está en saldo cero. Bloquea solo la
      * creación de activos nuevos y la exportación de reportes — nunca BASIC, que no
      * tiene wallet, y nunca la edición/consulta de lo ya creado.
      */
     boolean budgetSuspended;
+
+    /**
+     * true cuando el wallet (STANDARD/PREMIUM) lleva en saldo cero más del periodo de
+     * gracia del plan sin recargar. Implica {@link #budgetSuspended}. Además del bloqueo
+     * de creación, bloquea la edición de activos existentes — nunca pausa lo ya en curso
+     * ni impide reactivar activos ya financiados.
+     */
+    boolean budgetDormant;
 
     int maxProducts;
 
@@ -77,7 +91,10 @@ public class EffectivePlanState {
                 .canHavePets(false)
                 .canPromoteAllyProducts(false)
                 .canExportReport(false)
+                .canViewPerformanceMetrics(false)
+                .canViewPageVisitMetrics(false)
                 .budgetSuspended(true)
+                .budgetDormant(false)
                 .maxProducts(0)
                 .maxAds(0)
                 .maxBrandedGames(0)

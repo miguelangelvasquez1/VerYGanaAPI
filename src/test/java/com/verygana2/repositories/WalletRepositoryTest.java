@@ -154,17 +154,17 @@ class WalletRepositoryTest {
             CommercialDetails commercialActive = TestEntities.persistCommercial(em);
             Wallet active = persistWalletWithStatus(commercialActive, 100_000_00L, WalletStatus.ACTIVE);
 
-            CommercialDetails commercialLow = TestEntities.persistCommercial(em);
-            Wallet lowBalance = persistWalletWithStatus(commercialLow, 100L, WalletStatus.LOW_BALANCE);
+            CommercialDetails commercialExhausted = TestEntities.persistCommercial(em);
+            Wallet exhausted = persistWalletWithStatus(commercialExhausted, 0L, WalletStatus.EXHAUSTED);
 
             CommercialDetails commercialInactive = TestEntities.persistCommercial(em);
             persistWalletWithStatus(commercialInactive, 0L, WalletStatus.INACTIVE);
 
             List<Wallet> found = walletRepository.findByStatusIn(List.of(WalletStatus.ACTIVE,
-                    WalletStatus.LOW_BALANCE));
+                    WalletStatus.EXHAUSTED));
 
             assertThat(found).extracting(Wallet::getId)
-                    .containsExactlyInAnyOrder(active.getId(), lowBalance.getId());
+                    .containsExactlyInAnyOrder(active.getId(), exhausted.getId());
         }
 
         @Test

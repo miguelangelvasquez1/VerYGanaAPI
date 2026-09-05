@@ -1,0 +1,727 @@
+{
+  "version": 1,
+  "openingMessage": "Descubra cómo VERYGANA puede ayudarle a ampliar sus oportunidades de venta, atraer nuevos clientes, fortalecer su red comercial y hacer crecer su empresa. Sus respuestas nos permitirán recomendarle la modalidad más compatible con su realidad y sus metas. El resultado será preliminar y estará sujeto a verificación y contratación.",
+  "openingActions": ["Comenzar", "Conocer primero las modalidades", "Guardar y continuar después", "Cancelar"],
+  "sections": [
+    {
+      "code": "ACTIVIDAD",
+      "title": "Su actividad",
+      "subtitle": "Identidad, capacidad y actividad de su empresa.",
+      "questions": [
+        {
+          "code": "G-5",
+          "fieldName": "mainActivity",
+          "text": "¿Cuál es la actividad que impulsa principalmente el crecimiento de su empresa?",
+          "helpText": "La actividad ayuda a identificar cómo vende, quién participa en su cadena y qué herramientas pueden serle útiles.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "PRODUCCION", "label": "Producción o fabricación" },
+            { "value": "COMERCIO_PRODUCTOS", "label": "Comercio de productos" },
+            { "value": "SERVICIOS", "label": "Prestación de servicios" },
+            { "value": "RESTAURANTE", "label": "Restaurante o preparación de alimentos" },
+            { "value": "DISTRIBUCION_MAYORISTA", "label": "Distribución o venta mayorista" },
+            { "value": "COMERCIO_MINORISTA", "label": "Comercio minorista" },
+            { "value": "OTRA", "label": "Otra actividad" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "META",
+      "title": "Sus metas de crecimiento",
+      "subtitle": "Puede seleccionar hasta tres objetivos y ordenarlos. No está eligiendo todavía una modalidad.",
+      "questions": [
+        {
+          "code": "M-1",
+          "fieldName": "businessGoals",
+          "text": "¿Cómo le gustaría aumentar sus oportunidades de venta con VERYGANA?",
+          "helpText": "Puede seleccionar hasta tres objetivos y ordenarlos por prioridad. No está eligiendo todavía una modalidad.",
+          "type": "MULTI_CHOICE",
+          "required": false,
+          "maxSelections": 3,
+          "ordered": true,
+          "options": [
+            { "value": "VENDER_PRODUCTOS", "label": "Vender más productos directamente" },
+            { "value": "VENDER_SERVICIOS", "label": "Vender más servicios directamente" },
+            { "value": "CONSEGUIR_CLIENTES", "label": "Conseguir nuevos clientes para aumentar mis ventas" },
+            { "value": "RECONOCIMIENTO_ESTABLECIMIENTO", "label": "Hacer que mi establecimiento sea más reconocido para vender más" },
+            { "value": "POSICIONAMIENTO_MARCA", "label": "Lograr que más consumidores conozcan, recuerden y prefieran mi marca" },
+            { "value": "FIDELIZAR_JUEGOS", "label": "Atraer y fidelizar clientes mediante juegos y experiencias" },
+            { "value": "PROMOCIONAR_BAJA_ROTACION", "label": "Promocionar productos que hoy tienen pocas ventas" },
+            { "value": "AUMENTAR_ROTACION", "label": "Aumentar el consumo y la rotación de mis productos" },
+            { "value": "RECUPERAR_CLIENTES", "label": "Recuperar clientes y motivarlos para volver a comprar" },
+            { "value": "CONOCER_INTERES_PRODUCTOS", "label": "Conocer qué productos interesan más para mejorar mis decisiones de venta" },
+            { "value": "INTELIGENCIA_COMERCIAL", "label": "Usar métricas e inteligencia comercial para mejorar mis resultados" },
+            { "value": "RECIBIR_PATROCINIO", "label": "Recibir patrocinio para fortalecer mi empresa y vender más" },
+            { "value": "PATROCINAR_EMPRESARIOS", "label": "Patrocinar empresarios que ayuden a posicionar y vender más mi marca" },
+            { "value": "FORTALECER_DISTRIBUIDORES", "label": "Fortalecer mis distribuidores y aliados para generar mayores ventas" },
+            { "value": "AMPLIAR_RED_DISTRIBUCION", "label": "Ampliar mi red de distribución para llegar a nuevos consumidores" },
+            { "value": "MASCOTA_VIRTUAL", "label": "Promocionar mis productos mediante la Mascota Virtual" },
+            { "value": "CAMPANAS_REGIONALES_NACIONALES", "label": "Desarrollar campañas regionales o nacionales para ampliar mi mercado" },
+            { "value": "OTRO", "label": "Alcanzar otro objetivo de crecimiento" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "ESTRUCTURA",
+      "title": "Cómo está organizada su empresa",
+      "subtitle": "Buscamos conocer si todas las funciones están concentradas o si existe una organización institucional.",
+      "questions": [
+        {
+          "code": "E-1",
+          "fieldName": "marketReachStructure",
+          "text": "¿Quién hace posible que sus productos o servicios lleguen al mercado?",
+          "helpText": "Buscamos conocer si todas las funciones están concentradas o si existe una organización institucional.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "PROPIETARIO", "label": "Principalmente el propietario" },
+            { "value": "EQUIPO_PEQUENO", "label": "Un equipo pequeño que cumple varias funciones" },
+            { "value": "AREAS_INTERNAS", "label": "Áreas internas diferenciadas" },
+            { "value": "PROVEEDORES_ALIADOS", "label": "Proveedores y aliados especializados" },
+            { "value": "COMBINACION", "label": "Una combinación de áreas y empresas externas" }
+          ]
+        },
+        {
+          "code": "E-2",
+          "fieldName": "differentiatedResponsibilities",
+          "text": "¿Producción, mercadeo, distribución y ventas tienen responsables claramente diferenciados?",
+          "helpText": "Una empresa institucional distribuye responsabilidades y puede ejecutar campañas de mayor alcance.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No, las concentra principalmente la misma persona" }
+          ]
+        },
+        {
+          "code": "E-3",
+          "fieldName": "institutionalTools",
+          "text": "¿Con cuáles herramientas institucionales cuenta su empresa?",
+          "helpText": "Estos elementos permiten verificar si la organización existe más allá de la declaración del solicitante.",
+          "type": "MULTI_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "ESTATUTOS", "label": "Estatutos" },
+            { "value": "ORGANIGRAMA", "label": "Organigrama" },
+            { "value": "JUNTA_DECISION", "label": "Junta o instancia de decisión" },
+            { "value": "MANUALES", "label": "Manuales o procedimientos" },
+            { "value": "POLITICAS_COMERCIALES", "label": "Políticas comerciales" },
+            { "value": "CONTRATOS_DISTRIBUCION", "label": "Contratos de distribución" },
+            { "value": "PRESUPUESTO_MERCADEO", "label": "Presupuesto formal de mercadeo" },
+            { "value": "SISTEMAS_INFORMACION", "label": "Sistemas de información" },
+            { "value": "NINGUNA", "label": "Ninguna", "exclusive": true }
+          ]
+        },
+        {
+          "code": "E-4",
+          "fieldName": "advertisingLeadership",
+          "text": "¿Quién lidera la publicidad para que su empresa venda más?",
+          "helpText": "El nivel de organización publicitaria ayuda a determinar qué campañas puede administrar.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "PROPIETARIO", "label": "El propietario" },
+            { "value": "EMPLEADO_MULTIFUNCION", "label": "Un empleado con varias funciones" },
+            { "value": "AREA_MERCADEO", "label": "Un área formal de mercadeo" },
+            { "value": "AGENCIA_EXTERNA", "label": "Una agencia externa" },
+            { "value": "AREAS_Y_AGENCIAS", "label": "Áreas y agencias coordinadas" },
+            { "value": "SIN_MERCADEO", "label": "No tenemos mercadeo organizado" }
+          ]
+        },
+        {
+          "code": "E-5",
+          "fieldName": "currentReach",
+          "text": "¿Hasta dónde llega actualmente su empresa?",
+          "helpText": "La cobertura ayuda a dimensionar las campañas, pero una presencia nacional no convierte automáticamente a una empresa en Premium.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "BARRIO", "label": "Barrio o sector" },
+            { "value": "MUNICIPIO", "label": "Municipio" },
+            { "value": "VARIOS_MUNICIPIOS", "label": "Varios municipios" },
+            { "value": "DEPARTAMENTO", "label": "Un departamento" },
+            { "value": "VARIOS_DEPARTAMENTOS", "label": "Varios departamentos" },
+            { "value": "PAIS", "label": "Todo el país" },
+            { "value": "OTROS_PAISES", "label": "Otros países" }
+          ]
+        },
+        {
+          "code": "E-6",
+          "fieldName": "ownSalesPoints",
+          "text": "¿Cuántos puntos propios utiliza para vender directamente?",
+          "helpText": "Los puntos propios muestran capacidad comercial directa, pero no equivalen a una red de empresarios independientes.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "NINGUNO", "label": "Ninguno" },
+            { "value": "UNO", "label": "Uno" },
+            { "value": "DE_2_A_5", "label": "De 2 a 5" },
+            { "value": "DE_6_A_20", "label": "De 6 a 20" },
+            { "value": "MAS_DE_20", "label": "Más de 20" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CADENA",
+      "title": "Distribución y llegada al consumidor",
+      "subtitle": "Un verdadero ecosistema Premium requiere empresarios independientes dentro de la cadena, no solamente empleados o sucursales propias.",
+      "questions": [
+        {
+          "code": "D-1",
+          "fieldName": "directSaleToConsumer",
+          "text": "¿Su empresa vende principalmente de manera directa al consumidor final?",
+          "helpText": "Premium está orientada principalmente a fortalecer marca y red, no a vender directamente dentro de VERYGANA.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "COMBINA", "label": "Combina venta directa y canales independientes" }
+          ]
+        },
+        {
+          "code": "D-2",
+          "fieldName": "independentEntrepreneursHelp",
+          "text": "¿Otros empresarios independientes ayudan a llevar sus productos hasta el consumidor?",
+          "helpText": "Un verdadero ecosistema Premium requiere empresarios independientes dentro de la cadena, no solamente empleados o sucursales propias.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "CASOS_AISLADOS", "label": "Solo en casos aislados" }
+          ]
+        },
+        {
+          "code": "D-3",
+          "fieldName": "commercialNetworkActors",
+          "text": "¿Quiénes forman parte de su red comercial independiente?",
+          "helpText": "Seleccione solamente actores jurídicamente independientes que participen regularmente en la llegada del producto al consumidor.",
+          "type": "MULTI_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "DISTRIBUIDORES", "label": "Distribuidores" },
+            { "value": "MAYORISTAS", "label": "Mayoristas" },
+            { "value": "SUPERMERCADOS", "label": "Supermercados" },
+            { "value": "TIENDAS", "label": "Tiendas" },
+            { "value": "RESTAURANTES", "label": "Restaurantes" },
+            { "value": "DROGUERIAS", "label": "Droguerías" },
+            { "value": "FERRETERIAS", "label": "Ferreterías" },
+            { "value": "CONCESIONARIOS", "label": "Concesionarios" },
+            { "value": "FRANQUICIADOS", "label": "Franquiciados independientes" },
+            { "value": "OTROS_EMPRESARIOS", "label": "Otros empresarios" },
+            { "value": "NINGUNO", "label": "Ninguno", "exclusive": true }
+          ]
+        },
+        {
+          "code": "D-4",
+          "fieldName": "networkRelationshipOrganized",
+          "text": "¿La relación con esos empresarios es organizada, permanente y comprobable?",
+          "helpText": "Una compra ocasional o un contacto comercial aislado no constituye una red institucional.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        },
+        {
+          "code": "D-5",
+          "fieldName": "canAccreditNetwork",
+          "text": "¿Puede identificar y acreditar quiénes integran esa red?",
+          "helpText": "La verificación puede apoyarse en contratos, facturación, registros de distribuidores, convenios u otros soportes.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        },
+        {
+          "code": "D-6",
+          "fieldName": "productsReachViaNetwork",
+          "text": "¿Sus productos llegan al consumidor final mediante esa red empresarial?",
+          "helpText": "La cadena debe conectar producción o abastecimiento, mercadeo, distribución y consumo.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI_PRINCIPALMENTE", "label": "Sí, principalmente" },
+            { "value": "SI_PARCIALMENTE", "label": "Sí, parcialmente" },
+            { "value": "NO_PUNTOS_PROPIOS", "label": "No, se venden principalmente en puntos propios" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        },
+        {
+          "code": "D-7",
+          "fieldName": "canConveneDistributors",
+          "text": "¿Puede convocar a sus distribuidores o aliados para crecer juntos dentro de VERYGANA?",
+          "helpText": "Una Empresa Premium debe poder relacionarse institucionalmente con posibles Empresas A o B de su cadena.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        },
+        {
+          "code": "D-8",
+          "fieldName": "canSupportDistributorCampaigns",
+          "text": "¿Podría apoyar campañas para que sus distribuidores vendan más y su marca crezca con ellos?",
+          "helpText": "El patrocinio permite fortalecer simultáneamente a la marca y a los empresarios que acercan sus productos al consumidor.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "DEPENDE_PRESUPUESTO", "label": "Depende del presupuesto" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CAPACIDAD",
+      "title": "Su capacidad de venta directa",
+      "subtitle": "Quien vende será responsable de cumplir las operaciones y derechos del consumidor.",
+      "questions": [
+        {
+          "code": "C-1",
+          "fieldName": "desiredActiveOffers",
+          "text": "¿Cuántas ofertas desea mantener activas para aumentar sus ventas?",
+          "helpText": "Tipo A contempla hasta tres ofertas activas. Necesidades mayores pueden ser más compatibles con Tipo B.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "HASTA_TRES", "label": "Hasta tres" },
+            { "value": "DE_4_A_10", "label": "De 4 a 10" },
+            { "value": "MAS_DE_10", "label": "Más de 10" },
+            { "value": "NO_VENTA_DIRECTA", "label": "No deseo vender directamente" }
+          ]
+        },
+        {
+          "code": "C-2",
+          "fieldName": "canKeepListingsUpdated",
+          "text": "¿Puede mantener precios, existencias y condiciones siempre actualizados?",
+          "helpText": "Evitar ofertas agotadas o desactualizadas protege al cliente y a la reputación de la empresa.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_APLICA", "label": "No aplica" }
+          ]
+        },
+        {
+          "code": "C-3",
+          "fieldName": "canHandleOrdersAndClaims",
+          "text": "¿Puede atender pedidos, entregas o prestaciones, garantías y reclamaciones?",
+          "helpText": "Quien vende será responsable de cumplir las operaciones y derechos del consumidor.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_VENTA_DIRECTA", "label": "No venderé directamente" }
+          ]
+        },
+        {
+          "code": "C-4",
+          "fieldName": "deliveryMethod",
+          "text": "¿Cómo llegará normalmente el producto o servicio al cliente?",
+          "helpText": "VERYGANA no presta, coordina ni cobra transporte, domicilio o entrega de mercancías.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "RETIRO_ESTABLECIMIENTO", "label": "Retiro en establecimiento" },
+            { "value": "PRESENCIAL", "label": "Prestación presencial" },
+            { "value": "DIGITAL", "label": "Prestación digital" },
+            { "value": "TRANSPORTE_EMPRESA", "label": "Transporte contratado por mi empresa fuera de VERYGANA" },
+            { "value": "TRANSPORTE_USUARIO", "label": "Transporte contratado por el usuario fuera de VERYGANA" },
+            { "value": "SIN_VENTA_DIRECTA", "label": "No habrá venta directa" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "HERRAMIENTAS",
+      "title": "Herramientas para crecer",
+      "subtitle": "VERYGANA integra principios de neurociencia aplicada al mercadeo. Estas herramientas pueden fortalecer las oportunidades comerciales, pero no garantizan resultados específicos de venta.",
+      "questions": [
+        {
+          "code": "P-1",
+          "fieldName": "growthTools",
+          "text": "¿Cómo le gustaría activar la atención de sus clientes y convertirla en nuevas oportunidades de venta?",
+          "helpText": "Seleccione hasta cinco opciones y ordénelas por prioridad. Estas herramientas pueden fortalecer las oportunidades comerciales, pero no garantizan resultados específicos de venta.",
+          "type": "MULTI_CHOICE",
+          "required": false,
+          "maxSelections": 5,
+          "ordered": true,
+          "options": [
+            { "value": "CURIOSIDAD_NEUROCIENCIA", "label": "Despertar curiosidad por mis productos mediante dinámicas y experiencias neurocientíficas" },
+            { "value": "EMOCION_OFERTA", "label": "Convertir la emoción en una oferta atractiva, oportuna e irresistible" },
+            { "value": "LLAVES_PROMOCIONALES", "label": "Facilitar compras con Llaves Promocionales que puedan reducir el precio hasta un 70%" },
+            { "value": "PROMOCIONES_MEMORABLES", "label": "Crear promociones memorables que la publicidad tradicional jamás podrá ofrecer" },
+            { "value": "RECOMPRA_FRECUENCIA", "label": "Hacer que los clientes regresen, participen y compren con mayor frecuencia" },
+            { "value": "RESPALDO_PATROCINADOR", "label": "Recibir el respaldo de una marca patrocinadora que aporte promociones y atraiga clientes" },
+            { "value": "POSICIONAMIENTO_EXPERIENCIAS", "label": "Posicionar mi marca mediante experiencias que generen emoción y recordación" },
+            { "value": "PROMOCIONAR_BAJA_ROTACION", "label": "Promocionar productos nuevos o de baja rotación de una manera entretenida" },
+            { "value": "ECOSISTEMA_CONSUMIDOR", "label": "Integrar mis productos a un ecosistema que guía y acompaña al consumidor en su vida cotidiana" },
+            { "value": "FORTALECER_RED_CAMPANAS", "label": "Fortalecer a mi red de distribuidores con campañas que aumenten la preferencia y el consumo de mis productos" },
+            { "value": "PATROCINAR_EMPRESAS_AB", "label": "Patrocinar Empresas A y B mediante juegos, recompensas y dinámicas promocionales" },
+            { "value": "IMPULSAR_ALIADOS_PROMOCIONES", "label": "Impulsar supermercados, tiendas y negocios aliados con promociones para que el consumidor incluya mis productos en su compra" },
+            { "value": "DESCUBRIR_INTENCION_COMPRA", "label": "Descubrir qué despierta mayor interés e intención de compra para tomar mejores decisiones" }
+          ]
+        },
+        {
+          "code": "P-2",
+          "fieldName": "metricsNeeded",
+          "text": "¿Qué información necesita para tomar mejores decisiones y vender más?",
+          "helpText": "Las métricas disponibles dependen de la modalidad y no incluyen acceso irrestricto a datos personales.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "BASICAS", "label": "Métricas básicas de exposición y ventas" },
+            { "value": "JUEGOS_CAMPANAS", "label": "Métricas de juegos y campañas" },
+            { "value": "AVANZADAS", "label": "Métricas avanzadas e inteligencia comercial" },
+            { "value": "NINGUNA", "label": "No necesito métricas" }
+          ]
+        },
+        {
+          "code": "P-3",
+          "fieldName": "canProvideAuthorizedContent",
+          "text": "¿Puede suministrar contenidos autorizados para impulsar su empresa o marca?",
+          "helpText": "Fotografías, logotipos, videos, empaques y mensajes deben contar con derechos o autorizaciones.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "ECONOMIA",
+      "title": "Compatibilidad económica",
+      "subtitle": "La interfaz mostrará los valores, porcentajes y límites vigentes con un ejemplo antes de confirmar.",
+      "questions": [
+        {
+          "code": "F-1",
+          "fieldName": "typeAMonthlyFeeViable",
+          "text": "¿Considera viable la cuota mensual vigente de Tipo A para comenzar a vender en VERYGANA?",
+          "helpText": "La interfaz mostrará el valor vigente de la cuota mensual más los impuestos aplicables.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "QUIERE_INFO", "label": "Quiero conocer primero los beneficios" }
+          ]
+        },
+        {
+          "code": "F-2",
+          "fieldName": "acceptsTypeACommission",
+          "text": "¿Aceptaría que VERYGANA reciba la comisión Tipo A desde la primera venta válida?",
+          "helpText": "La interfaz mostrará el porcentaje vigente y un ejemplo antes de confirmar.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "QUIERE_EJEMPLO", "label": "Quiero ver un ejemplo" }
+          ]
+        },
+        {
+          "code": "F-3",
+          "fieldName": "acceptsTypeAKeys",
+          "text": "¿Aceptaría que sus clientes utilicen Llaves promocionales hasta el límite aplicable en Tipo A?",
+          "helpText": "El resto del valor se paga por los medios habilitados. Se mostrará el valor total, el porcentaje máximo y la porción monetaria.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "QUIERE_EJEMPLO", "label": "Quiero ver un ejemplo" }
+          ]
+        },
+        {
+          "code": "F-4",
+          "fieldName": "typeBInvestmentCapacity",
+          "text": "¿Está en capacidad de realizar una inversión Tipo B para acceder a más campañas y juegos?",
+          "helpText": "La interfaz mostrará el rango y el período vigentes.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "DEPENDE", "label": "Depende del período y los beneficios" }
+          ]
+        },
+        {
+          "code": "F-5",
+          "fieldName": "acceptsTypeBKeys",
+          "text": "¿Aceptaría que sus clientes utilicen Llaves hasta el límite aplicable en Tipo B?",
+          "helpText": "Se mostrará el límite vigente con un ejemplo.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "QUIERE_EJEMPLO", "label": "Quiero ver un ejemplo" }
+          ]
+        },
+        {
+          "code": "F-6",
+          "fieldName": "understandsProsperityRegime",
+          "text": "¿Comprende el régimen de Prosperidad de Tipo B?",
+          "helpText": "Cada inversión computable genera un Umbral equivalente a cinco veces su valor. Después de agotarse el Saldo de Prosperidad, la comisión vigente se aplica solamente a la Base Comisionable.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "NECESITA_EXPLICACION", "label": "Necesito explicación y ejemplo" }
+          ]
+        },
+        {
+          "code": "F-7",
+          "fieldName": "canApproveInstitutionalBudgets",
+          "text": "¿Su empresa puede aprobar presupuestos institucionales para campañas y patrocinios que impulsen su marca y su red?",
+          "helpText": "La candidatura Premium requiere capacidad institucional para aprobar recursos, no solamente voluntad personal del solicitante.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "DEPENDE_APROBACION", "label": "Depende de aprobación interna" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "F-8",
+          "fieldName": "willRecognizeInteractionValues",
+          "text": "¿Estaría dispuesta a reconocer valores acordados por interacciones válidas con su marca?",
+          "helpText": "Cada campaña deberá informar previamente tarifa, presupuesto, límites y reglas de validación.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "DEPENDE_TARIFA", "label": "Depende de la tarifa y el presupuesto" },
+            { "value": "NO", "label": "No" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CONFIRMACION_A",
+      "title": "Confirmación — Empresa Tipo A",
+      "subtitle": "Esta es una característica frecuente de Tipo A y no representa una valoración negativa.",
+      "questions": [
+        {
+          "code": "A-1",
+          "fieldName": "sellsDirectlyAndConcentrated",
+          "text": "¿Su empresa vende directamente y concentra gran parte de la operación en el propietario o un equipo reducido?",
+          "helpText": "Esta es una característica frecuente de Tipo A y no representa una valoración negativa.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "A-2",
+          "fieldName": "threeOffersAndBasicMetricsSufficient",
+          "text": "¿Hasta tres ofertas y métricas básicas son suficientes para comenzar a crecer?",
+          "helpText": "Tipo A es una modalidad comercial básica para iniciar.",
+          "type": "BOOLEAN",
+          "required": false,
+          "dependsOn": { "questionCode": "C-1", "values": ["HASTA_TRES"] },
+          "options": [
+            { "value": "true", "label": "Sí" },
+            { "value": "false", "label": "No" }
+          ]
+        },
+        {
+          "code": "A-3",
+          "fieldName": "acceptsStartWithoutOwnGamesOrIntelligence",
+          "text": "¿Acepta comenzar sin juegos publicitarios propios ni inteligencia comercial avanzada?",
+          "helpText": "Podrá participar en campañas patrocinadas, pero estas herramientas no son ordinarias de Tipo A.",
+          "type": "BOOLEAN",
+          "required": false,
+          "dependsOn": { "questionCode": "C-1", "values": ["HASTA_TRES"] },
+          "options": [
+            { "value": "true", "label": "Sí" },
+            { "value": "false", "label": "No" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CONFIRMACION_B",
+      "title": "Confirmación — Empresa Tipo B",
+      "subtitle": "Tipo B está diseñada para una actividad comercial y promocional superior, aunque no exista ecosistema Premium.",
+      "questions": [
+        {
+          "code": "B-1",
+          "fieldName": "needsMoreCapacityThanTypeA",
+          "text": "¿Su operación de venta directa necesita más capacidad, campañas, juegos y métricas que Tipo A?",
+          "helpText": "Tipo B está diseñada para una actividad comercial y promocional superior, aunque no exista ecosistema Premium.",
+          "type": "BOOLEAN",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "true", "label": "Sí" },
+            { "value": "false", "label": "No" }
+          ]
+        },
+        {
+          "code": "B-2",
+          "fieldName": "growthDependsOnOwnPoints",
+          "text": "¿Su crecimiento depende principalmente de vender mediante puntos propios, aunque tenga muchas sedes?",
+          "helpText": "Una cadena de puntos propios puede ser Tipo B; tamaño y cobertura no bastan para Premium.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "COMBINAMOS", "label": "Combinamos puntos propios y empresarios independientes" }
+          ]
+        },
+        {
+          "code": "B-3",
+          "fieldName": "lacksInstitutionalSponsorNetwork",
+          "text": "¿Carece de una red institucional de empresarios independientes que le puedan patrocinar de manera organizada?",
+          "helpText": "Premium requiere una cadena empresarial externa verificable.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-1", "values": ["SI", "COMBINA"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "NO_SEGURO", "label": "No estoy seguro" }
+          ]
+        }
+      ]
+    },
+    {
+      "code": "CONFIRMACION_PREMIUM",
+      "title": "Confirmación — Candidata a Empresa Premium",
+      "subtitle": "Las respuestas afirmativas sobre estructura Premium deberán ser verificables; la autodeclaración no será prueba suficiente.",
+      "questions": [
+        {
+          "code": "PR-1",
+          "fieldName": "articulatesInstitutionalFunctions",
+          "text": "¿Su empresa articula institucionalmente producción o abastecimiento, mercadeo, distribución y llegada al consumidor?",
+          "helpText": "Las funciones deben existir como estructura organizada, no simplemente ser realizadas informalmente por la misma persona.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "PR-2",
+          "fieldName": "stableNetworkReachesConsumer",
+          "text": "¿Una red estable de empresarios independientes ayuda a que sus productos lleguen al consumidor?",
+          "helpText": "Esta red es la diferencia esencial entre una empresa grande de venta directa y una candidata Premium.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "PR-3",
+          "fieldName": "canDemonstrateNetwork",
+          "text": "¿Puede demostrar esa red y su funcionamiento?",
+          "helpText": "Podrán utilizarse contratos, facturación, registros, convenios o evidencia equivalente.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "PARCIALMENTE", "label": "Parcialmente" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "PR-4",
+          "fieldName": "canConveneAndSponsorChain",
+          "text": "¿Puede convocar y patrocinar a empresarios de su cadena para que vendan más y hagan crecer la marca?",
+          "helpText": "Premium busca fortalecer simultáneamente la marca y a los empresarios que la acercan al consumidor.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "DEPENDE_APROBACION", "label": "Depende de aprobación" },
+            { "value": "NO", "label": "No" }
+          ]
+        },
+        {
+          "code": "PR-5",
+          "fieldName": "acceptsPremiumBrandFocus",
+          "text": "¿Acepta que Premium se enfoque en marca, demanda, patrocinio e inteligencia comercial y no en vender directamente dentro de VERYGANA?",
+          "helpText": "Las ventas al consumidor corresponden principalmente a las Empresas A y B de la cadena.",
+          "type": "SINGLE_CHOICE",
+          "required": true,
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "NECESITA_EXPLICACION", "label": "Necesito una explicación" }
+          ]
+        },
+        {
+          "code": "PR-6",
+          "fieldName": "acceptsDataProtectionMetrics",
+          "text": "¿Acepta recibir métricas compatibles con la protección de datos, sin acceso irrestricto a información personal de usuarios?",
+          "helpText": "VERYGANA podrá entregar información agregada o jurídicamente permitida, pero no bases personales irrestrictas.",
+          "type": "SINGLE_CHOICE",
+          "required": false,
+          "dependsOn": { "questionCode": "D-2", "values": ["SI", "CASOS_AISLADOS"] },
+          "options": [
+            { "value": "SI", "label": "Sí" },
+            { "value": "NO", "label": "No" },
+            { "value": "NECESITA_EXPLICACION", "label": "Necesito una explicación" }
+          ]
+        }
+      ]
+    }
+  ]
+}

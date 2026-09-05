@@ -20,6 +20,14 @@ public @interface RequirePlanCapability {
      */
     boolean requiresBudget() default false;
 
+    /**
+     * Si es true, bloquea la operación cuando la billetera del comercial (STANDARD/PREMIUM)
+     * lleva agotada más del periodo de gracia de su plan (estado DORMANT). Marca los puntos
+     * de <b>edición</b> de activos ya creados — nunca pausar/reactivar activos ya
+     * financiados, ni la consulta.
+     */
+    boolean blockWhenDormant() default false;
+
     enum Capability {
         CAN_ADVERTISE,
         CAN_USE_GAMES,
@@ -28,6 +36,10 @@ public @interface RequirePlanCapability {
         CAN_HAVE_PETS,
         CAN_PROMOTE_ALLY_PRODUCTS,
         CAN_EXPORT_REPORT,
+        /** Métricas de rendimiento de anuncios, encuestas y campañas (Estándar y Premium). */
+        CAN_VIEW_PERFORMANCE_METRICS,
+        /** Métrica de visitas a la página oficial del empresario / "Remisión" (exclusiva Premium). */
+        CAN_VIEW_PAGE_VISIT_METRICS,
         MAX_PRODUCTS,
         MAX_ADS,
         MAX_BRANDED_GAMES,
