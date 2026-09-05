@@ -17,6 +17,8 @@ import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentResponseD
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
+import com.verygana2.event.ContractRejectedEvent;
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.commercial.OnboardingStepException;
 import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
@@ -54,6 +56,16 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     private static final List<ContractStatus> COMPLIANCE_RELEVANT_STATUSES = List.of(
             ContractStatus.PENDING_VERYGANA_REVIEW, ContractStatus.APPROVED,
             ContractStatus.PENDING_SIGNATURE, ContractStatus.SIGNED, ContractStatus.REJECTED);
+    private static final List<ContractStatus> RECHARGE_CANCELLABLE_STATUSES = List.of(
+            ContractStatus.APPROVED, ContractStatus.PENDING_SIGNATURE, ContractStatus.SIGNED);
+
+    // Cada generación de RECHARGE/PLAN_CHANGE dispara (o puede disparar) un envío real
+    // a firma electrónica, que tiene costo con el proveedor. Sin este límite, un
+    // comercial podría generar y cancelar contratos indefinidamente.
+    private static final List<ContractPurpose> RATE_LIMITED_PURPOSES = List.of(
+            ContractPurpose.RECHARGE, ContractPurpose.PLAN_CHANGE);
+    private static final int MAX_CONTRACTS_PER_WINDOW = 10;
+    private static final long RATE_LIMIT_WINDOW_HOURS = 24;
 
     private final CommercialOnboardingRepository onboardingRepository;
     private final CommercialContractRepository contractRepository;
@@ -134,6 +146,63 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     @Override
+    public ContractSummaryResponseDTO cancelForCommercial(Long contractId, Long commercialId) {
+        CommercialContract contract = getContractOrThrow(contractId);
+        if (!contract.getCommercial().getId().equals(commercialId)) {
+            throw new ObjectNotFoundException("Contrato no encontrado: " + contractId, CommercialContract.class);
+        }
+        if (contract.getPurpose() != ContractPurpose.RECHARGE) {
+            throw new BusinessException(
+                    "Solo un contrato de recarga se puede autocancelar — un cambio de plan se cancela desde su propia solicitud.");
+        }
+        if (contract.getInvestment() != null) {
+            throw new BusinessException("Esta recarga ya generó un pago, no se puede cancelar.");
+        }
+        if (!RECHARGE_CANCELLABLE_STATUSES.contains(contract.getStatus())) {
+            throw new BusinessException("Este contrato ya no se puede cancelar (estado actual: " + contract.getStatus() + ").");
+        }
+
+        r2Service.deletePrivateObject(contract.getObjectKey());
+        contract.setStatus(ContractStatus.CANCELLED);
+        CommercialContract saved = contractRepository.save(contract);
+
+        publishAudit(commercialId, "COMMERCIAL_CONTRACT_CANCELLED",
+                "El comercial autocanceló su contrato de RECHARGE v" + saved.getVersion() + ".",
+                Map.of("contractId", saved.getId()));
+
+        log.info("[CONTRACT] Recarga autocancelada: commercialId={}, contractId={}", commercialId, contractId);
+        return toSummary(saved);
+    }
+
+    @Override
+    public void cancelPlanChangeContract(Long contractId) {
+        CommercialContract contract = getContractOrThrow(contractId);
+        if (contract.getPurpose() != ContractPurpose.PLAN_CHANGE) {
+            throw new BusinessException("El contrato " + contractId + " no es de cambio de plan.");
+        }
+        // Solo tiene sentido limpiarlo mientras el otrosí no haya salido a firma; si ya
+        // está firmado/terminal, no se toca.
+        if (contract.getStatus() != ContractStatus.PENDING_BUSINESS_REVIEW
+                && contract.getStatus() != ContractStatus.PENDING_VERYGANA_REVIEW) {
+            return;
+        }
+
+        if (contract.getObjectKey() != null) {
+            r2Service.deletePrivateObject(contract.getObjectKey());
+        }
+        contract.setStatus(ContractStatus.CANCELLED);
+        CommercialContract saved = contractRepository.save(contract);
+
+        publishAudit(contract.getCommercial().getId(), "COMMERCIAL_CONTRACT_CANCELLED",
+                "Se canceló el otrosí de cambio de plan v" + saved.getVersion()
+                        + " porque el comercial canceló la solicitud.",
+                Map.of("contractId", saved.getId(), "purpose", ContractPurpose.PLAN_CHANGE.name()));
+
+        log.info("[CONTRACT] Otrosí de cambio de plan cancelado: commercialId={}, contractId={}",
+                contract.getCommercial().getId(), contractId);
+    }
+
+    @Override
     public ContractSummaryResponseDTO businessApprove(Long userId) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         CommercialContract contract = getContractByOnboardingOrThrow(onboarding.getId());
@@ -183,6 +252,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (purpose == ContractPurpose.ONBOARDING) {
             throw new IllegalArgumentException("Use generate(userId) para contratos de onboarding.");
         }
+        requireUnderContractGenerationRateLimit(commercial);
 
         CommercialContract contract = new CommercialContract();
         contract.setCommercial(commercial);
@@ -261,6 +331,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         return statusFilter != null
                 ? contractRepository.findByPurposeAndStatus(purpose, statusFilter)
                 : contractRepository.findByPurposeAndStatusIn(purpose, COMPLIANCE_RELEVANT_STATUSES);
+    }
+
+    private void requireUnderContractGenerationRateLimit(CommercialDetails commercial) {
+        ZonedDateTime since = ZonedDateTime.now().minusHours(RATE_LIMIT_WINDOW_HOURS);
+        long recentCount = contractRepository.countGeneratedSince(commercial.getId(), RATE_LIMITED_PURPOSES, since);
+        if (recentCount >= MAX_CONTRACTS_PER_WINDOW) {
+            throw new BusinessException(
+                    "Solo puede generar " + MAX_CONTRACTS_PER_WINDOW
+                            + " solicitud de recarga/cambio de plan cada " + RATE_LIMIT_WINDOW_HOURS
+                            + " horas. Intente más tarde o contacte a soporte.");
+        }
     }
 
     private void requireGenerationReadyForRecharge(CommercialDetails commercial, Long amountCents) {
@@ -495,6 +576,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 "VERYGANA rechazó el Contrato Marco v" + contract.getVersion() + ": " + reason,
                 Map.of("contractId", contract.getId(), "reviewerUserId", reviewerUserId, "documentsIssue", documentsIssue));
 
+        eventPublisher.publishEvent(new ContractRejectedEvent(this, contract.getId(), contract.getPurpose(), reason));
+
         return toSummary(contract);
     }
 
@@ -617,7 +700,10 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     private ContractSummaryResponseDTO toSummary(CommercialContract c) {
-        String downloadUrl = r2Service.getPrivateObject(c.getObjectKey(), 300);
+        // CANCELLED borra el PDF de R2 (ver cancelForCommercial) — presignar igual
+        // devolvería una URL que resuelve en 404.
+        String downloadUrl = c.getStatus() != ContractStatus.CANCELLED
+                ? r2Service.getPrivateObject(c.getObjectKey(), 300) : null;
         // Los documentos KYC son propios del onboarding — no aplican a contratos de
         // recarga/cambio de plan (purpose != ONBOARDING), que no tienen onboarding vinculado.
         List<CommercialDocumentResponseDTO> documents = c.getPurpose() == ContractPurpose.ONBOARDING && c.getOnboarding() != null

@@ -677,7 +677,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(), "Producto aprobado", "Tu producto (" + product.getName() + ") ha sido aprobado por uno de nuestros administradores", Instant.now());
 
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override
@@ -699,6 +701,9 @@ public class ProductServiceImpl implements ProductService {
                         productId, privateKey, e.getMessage());
             }
             productImageAssetRepository.delete(imageAsset);
+            // El asset ya no existe: reflejarlo en memoria para que resolveImageUrl no
+            // devuelva una URL que apunta a un objeto borrado.
+            product.setImageAsset(null);
         });
 
         AdminDetails admin = adminDetailsService.getById(adminId);
@@ -712,7 +717,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(),
                 "Producto rechazado", "Razón: " + reason, Instant.now());
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override

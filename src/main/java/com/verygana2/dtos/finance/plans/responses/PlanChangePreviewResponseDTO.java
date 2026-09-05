@@ -30,15 +30,16 @@ public class PlanChangePreviewResponseDTO {
     /** Explicación en lenguaje natural de cuándo/cómo aplicará el cambio, lista para mostrar. */
     private String message;
 
-    private Long requiredTopUpAmountCents;
-    private Long currentWalletBalanceCents;
+    /** Todos los montos van en pesos colombianos (no en centavos). */
+    private Long requiredTopUpAmountPesos;
+    private Long currentWalletBalancePesos;
 
-    /** Solo poblado cuando el destino es BASIC. */
-    private Long targetMonthlyPriceCents;
+    /** Solo poblado cuando el destino es BASIC. En pesos. */
+    private Long targetMonthlyPricePesos;
 
-    /** Solo poblados cuando el destino es STANDARD/PREMIUM. */
-    private Long targetMinInvestmentCents;
-    private Long targetMaxInvestmentCents;
+    /** Solo poblados cuando el destino es STANDARD/PREMIUM. En pesos. */
+    private Long targetMinInvestmentPesos;
+    private Long targetMaxInvestmentPesos;
 
     private Integer targetSaleCommissionPct;
 }

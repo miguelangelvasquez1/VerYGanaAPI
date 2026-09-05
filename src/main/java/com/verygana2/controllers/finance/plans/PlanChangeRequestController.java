@@ -67,14 +67,26 @@ public class PlanChangeRequestController {
         Long commercialId = jwt.getClaim("userId");
         PlanChangeRequest created = planChangeRequestService.requestPlanChange(
                 commercialId, request.getTargetPlanCode(), request.getIntendedInvestmentAmountCents());
-        return ResponseEntity.ok(toResponse(created));
+        return ResponseEntity.ok(toResponse(created, commercialId));
     }
 
     @GetMapping("/current")
     public ResponseEntity<PlanChangeRequestResponseDTO> getCurrent(@AuthenticationPrincipal Jwt jwt) {
         Long commercialId = jwt.getClaim("userId");
         PlanChangeRequest current = planChangeRequestService.getCurrent(commercialId);
-        return ResponseEntity.ok(current != null ? toResponse(current) : null);
+        return ResponseEntity.ok(current != null ? toResponse(current, commercialId) : null);
+    }
+
+    /**
+     * El comercial da por leído el motivo del rechazo. Tras esto, {@code GET /current}
+     * vuelve a responder como si no hubiera solicitud y puede crear una nueva.
+     */
+    @PostMapping("/{id}/acknowledge-rejection")
+    public ResponseEntity<PlanChangeRequestResponseDTO> acknowledgeRejection(
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(toResponse(planChangeRequestService.acknowledgeRejection(commercialId, id), commercialId));
     }
 
     @PostMapping("/{id}/cancel")
@@ -82,7 +94,7 @@ public class PlanChangeRequestController {
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
 
         Long commercialId = jwt.getClaim("userId");
-        return ResponseEntity.ok(toResponse(planChangeRequestService.cancelPlanChangeRequest(commercialId, id)));
+        return ResponseEntity.ok(toResponse(planChangeRequestService.cancelPlanChangeRequest(commercialId, id), commercialId));
     }
 
     /** El comercial aprueba el otrosí de cambio de plan generado y lo envía a revisión de VerYGana. */
@@ -109,16 +121,26 @@ public class PlanChangeRequestController {
         return ResponseEntity.ok(planService.generatePlanChangeTopUpCheckout(id, commercial));
     }
 
-    private PlanChangeRequestResponseDTO toResponse(PlanChangeRequest r) {
+    private PlanChangeRequestResponseDTO toResponse(PlanChangeRequest r, Long commercialId) {
+        Long contractId = r.getContract() != null ? r.getContract().getId() : null;
+        // El PDF del otrosí se presigna aquí (mismo helper que recarga) para que el
+        // comercial pueda leerlo antes de aprobarlo — getForCommercial ya valida propiedad
+        // y devuelve null cuando el contrato fue cancelado.
+        String contractDownloadUrl = contractId != null
+                ? contractService.getForCommercial(contractId, commercialId).getDownloadUrl()
+                : null;
         return new PlanChangeRequestResponseDTO(
                 r.getId(),
                 r.getFromPlan() != null ? r.getFromPlan().getCode() : null,
                 r.getToPlan().getCode(),
                 r.getRequiredTopUpAmountCents(),
                 r.getStatus(),
-                r.getContract() != null ? r.getContract().getId() : null,
+                contractId,
                 r.getContract() != null ? r.getContract().getStatus() : null,
+                contractDownloadUrl,
                 r.getRequestedAt(),
-                r.getAppliedAt());
+                r.getAppliedAt(),
+                r.getRejectionReason(),
+                r.getRejectionAcknowledgedAt());
     }
 }

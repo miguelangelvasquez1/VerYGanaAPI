@@ -42,6 +42,23 @@ public interface CommercialContractService {
     /** Aprobación del comercial para contratos de RECHARGE/PLAN_CHANGE (no ONBOARDING). */
     ContractSummaryResponseDTO businessApproveContract(Long contractId, Long userId);
 
+    /**
+     * Autocancelación de un contrato de RECHARGE por parte del comercial (mientras no
+     * esté pagado) — libera el bloqueo mutuo con un cambio de plan sin tener que
+     * esperar a que el contrato sea rechazado. Solo aplica a RECHARGE: un PLAN_CHANGE
+     * se cancela vía {@code PlanChangeRequestService#cancelPlanChangeRequest}, que
+     * opera sobre su propia máquina de estados (PlanChangeRequestStatus).
+     */
+    ContractSummaryResponseDTO cancelForCommercial(Long contractId, Long commercialId);
+
+    /**
+     * Cancela el contrato PLAN_CHANGE vinculado a una solicitud de cambio de plan que el
+     * comercial acaba de cancelar: borra el PDF del otrosí de R2 y marca el contrato como
+     * CANCELLED. No-op si el contrato ya está firmado/terminal. La validación de que el
+     * comercial puede cancelar la vive {@code PlanChangeRequestService#cancelPlanChangeRequest}.
+     */
+    void cancelPlanChangeContract(Long contractId);
+
     /** Colas de revisión de compliance para recarga/cambio de plan, separadas de listContracts(). */
     List<CommercialContract> listContractsByPurpose(ContractPurpose purpose, ContractStatus statusFilter);
 

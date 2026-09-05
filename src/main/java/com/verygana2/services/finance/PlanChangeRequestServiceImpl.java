@@ -10,7 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.event.ContractRejectedEvent;
 import com.verygana2.event.ContractSignedEvent;
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
@@ -21,7 +23,6 @@ import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
-import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.finance.PlanChangeRequestService;
@@ -50,7 +51,6 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
     private final PlanRepository planRepository;
     private final CommercialContractService commercialContractService;
     private final CommercialContractRepository commercialContractRepository;
-    private final EmailService emailService;
     private final NotificationService notificationService;
 
     @Override
@@ -73,18 +73,18 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         if (targetPlanCode == PlanCode.BASIC && fromPlan != null && fromPlan.getCode() != PlanCode.BASIC
                 && walletBalanceCents(commercial) != 0L) {
             throw new ValidationException(
-                    "Para cambiar a BASIC su saldo publicitario debe estar en $0. Saldo actual: "
-                            + walletBalanceCents(commercial) + " centavos.");
+                    "Para cambiar a BASIC su saldo publicitario debe estar en $0. Saldo actual: $"
+                            + centsToPesos(walletBalanceCents(commercial)) + ".");
         }
 
         if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercialId, OPEN_EXCLUDED_STATUSES).isEmpty()) {
-            throw new ValidationException("Ya tiene una solicitud de cambio de plan en curso.");
+            throw new BusinessException("Ya tiene una solicitud de cambio de plan en curso.");
         }
         if (!commercialContractRepository.findOpenRechargeContracts(commercialId).isEmpty()) {
-            throw new ValidationException("Tiene una recarga en curso — resuélvala antes de solicitar un cambio de plan.");
+            throw new BusinessException("Tiene una recarga en curso — resuélvala antes de solicitar un cambio de plan.");
         }
 
-        long requiredTopUp = computeRequiredTopUp(commercial, targetPlan, intendedInvestmentAmountCents);
+        long requiredTopUp = computeRequiredTopUp(targetPlan, intendedInvestmentAmountCents);
 
         PlanChangeRequest request = new PlanChangeRequest();
         request.setCommercial(commercial);
@@ -119,7 +119,7 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
 
         Plan fromPlan = commercial.getCurrentPlan();
         long balance = walletBalanceCents(commercial);
-        long requiredTopUp = computeRequiredTopUp(commercial, targetPlan, intendedInvestmentAmountCents);
+        long requiredTopUp = computeRequiredTopUp(targetPlan, intendedInvestmentAmountCents);
 
         boolean downgradeToBasic = targetPlanCode == PlanCode.BASIC && fromPlan != null && fromPlan.getCode() != PlanCode.BASIC;
         boolean eligible = !downgradeToBasic || balance == 0L;
@@ -128,14 +128,12 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         if (downgradeToBasic) {
             message = eligible
                     ? "Su saldo está en $0 — puede continuar. El cambio aplicará una vez pague la tarifa mensual de BASIC tras firmar el otrosí."
-                    : "Para cambiar a BASIC su saldo publicitario debe estar en $0 antes de solicitar el cambio. Saldo actual: "
-                            + balance + " centavos.";
-        } else if (fromPlan == null || fromPlan.getCode() == PlanCode.BASIC) {
-            message = "El cambio se aplicará de inmediato una vez se confirme el pago del abono, después de firmar el otrosí.";
-        } else if (requiredTopUp > 0) {
-            message = "El cambio se aplicará de inmediato una vez se confirme el pago del abono adicional, después de firmar el otrosí.";
+                    : "Para cambiar a BASIC su saldo publicitario debe estar en $0 antes de solicitar el cambio. Saldo actual: $"
+                            + centsToPesos(balance) + ".";
         } else {
-            message = "Su saldo actual ya cubre el nuevo plan — el cambio aplicará en cuanto se firme el otrosí, sin pago adicional.";
+            // El abono del cambio de plan no depende del saldo actual: siempre se paga el
+            // monto a invertir en el plan destino (o su mínimo) para que el cambio aplique.
+            message = "El cambio se aplicará de inmediato una vez se confirme el pago del abono, después de firmar el otrosí.";
         }
 
         return new PlanChangePreviewResponseDTO(
@@ -143,12 +141,17 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
                 targetPlanCode,
                 eligible,
                 message,
-                requiredTopUp,
-                balance,
-                targetPlan.getCode() == PlanCode.BASIC ? targetPlan.getMonthlyPriceCents() : null,
-                targetPlan.getCode() != PlanCode.BASIC ? targetPlan.getMinInvestmentCents() : null,
-                targetPlan.getCode() != PlanCode.BASIC ? targetPlan.getMaxInvestmentCents() : null,
+                centsToPesos(requiredTopUp),
+                centsToPesos(balance),
+                targetPlan.getCode() == PlanCode.BASIC ? centsToPesos(targetPlan.getMonthlyPriceCents()) : null,
+                targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMinInvestmentCents()) : null,
+                targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMaxInvestmentCents()) : null,
                 targetPlan.getSaleCommissionPct());
+    }
+
+    /** El preview del cambio de plan se muestra al comercial en pesos, no en centavos. */
+    private static Long centsToPesos(Long cents) {
+        return cents != null ? cents / 100 : null;
     }
 
     @Override
@@ -165,6 +168,12 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
             throw new ValidationException("Solo puede cancelar la solicitud antes de que el contrato sea firmado.");
         }
 
+        // El otrosí ya generado queda huérfano si no se limpia: borra su PDF de R2 y marca
+        // el contrato como CANCELLED.
+        if (request.getContract() != null) {
+            commercialContractService.cancelPlanChangeContract(request.getContract().getId());
+        }
+
         request.setStatus(PlanChangeRequestStatus.CANCELLED);
         return planChangeRequestRepository.save(request);
     }
@@ -172,10 +181,41 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
     @Override
     @Transactional(readOnly = true)
     public PlanChangeRequest getCurrent(Long commercialId) {
-        return planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercialId, OPEN_EXCLUDED_STATUSES)
+        PlanChangeRequest open = planChangeRequestRepository
+                .findByCommercial_IdAndStatusNotIn(commercialId, OPEN_EXCLUDED_STATUSES)
                 .stream()
                 .findFirst()
                 .orElse(null);
+        if (open != null) {
+            return open;
+        }
+        // Un rechazo que el comercial todavía no dio por leído se sigue devolviendo (con
+        // rejectionReason) para que el frontend muestre el motivo. Una vez que llama a
+        // acknowledgeRejection, este método vuelve a responder null y puede crear otra.
+        return planChangeRequestRepository
+                .findFirstByCommercial_IdAndStatusAndRejectionAcknowledgedAtIsNullOrderByRequestedAtDesc(
+                        commercialId, PlanChangeRequestStatus.REJECTED)
+                .orElse(null);
+    }
+
+    @Override
+    @Transactional
+    public PlanChangeRequest acknowledgeRejection(Long commercialId, Long requestId) {
+        PlanChangeRequest request = planChangeRequestRepository.findById(requestId)
+                .orElseThrow(() -> new EntityNotFoundException("Solicitud no encontrada: " + requestId));
+
+        if (!request.getCommercial().getId().equals(commercialId)) {
+            throw new EntityNotFoundException("Solicitud no encontrada: " + requestId);
+        }
+        if (request.getStatus() != PlanChangeRequestStatus.REJECTED) {
+            throw new ValidationException("Solo puede dar por leído el rechazo de una solicitud rechazada.");
+        }
+
+        if (request.getRejectionAcknowledgedAt() == null) {
+            request.setRejectionAcknowledgedAt(ZonedDateTime.now());
+            request = planChangeRequestRepository.save(request);
+        }
+        return request;
     }
 
     @Override
@@ -196,6 +236,29 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
             return;
         }
         planChangeRequestRepository.findByContract_Id(event.getContractId()).ifPresent(this::applyAfterSignature);
+    }
+
+    /**
+     * Reacciona al rechazo del contrato PLAN_CHANGE por parte de VerYGana: marca la
+     * solicitud como REJECTED y copia el motivo, para que el comercial lo lea vía
+     * {@code getCurrent} antes de poder abrir una nueva solicitud.
+     */
+    @EventListener
+    @Transactional
+    public void onContractRejected(ContractRejectedEvent event) {
+        if (event.getPurpose() != ContractPurpose.PLAN_CHANGE) {
+            return;
+        }
+        planChangeRequestRepository.findByContract_Id(event.getContractId()).ifPresent(request -> {
+            if (OPEN_EXCLUDED_STATUSES.contains(request.getStatus())) {
+                return;
+            }
+            request.setStatus(PlanChangeRequestStatus.REJECTED);
+            request.setRejectionReason(event.getReason());
+            planChangeRequestRepository.save(request);
+            log.info("[PLAN CHANGE] Contrato rechazado: requestId={}, contractId={}",
+                    request.getId(), event.getContractId());
+        });
     }
 
     @Override
@@ -226,7 +289,6 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         request.setAppliedAt(ZonedDateTime.now());
         planChangeRequestRepository.save(request);
 
-        emailService.sendBudgetReplenishedEmail(commercial.getUser().getEmail(), commercial.getCompanyName());
         notificationService.createInternalNotification(commercial.getUser().getId(),
                 "Cambio de plan aplicado",
                 "Tu plan cambió a " + request.getToPlan().getCode() + ".",
@@ -235,12 +297,33 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         log.info("[PLAN CHANGE] Aplicado: commercialId={}, newPlan={}", commercial.getId(), request.getToPlan().getCode());
     }
 
-    private long computeRequiredTopUp(CommercialDetails commercial, Plan targetPlan, Long intendedInvestmentAmountCents) {
+    /**
+     * Abono que el comercial debe pagar para que el cambio de plan aplique. Es
+     * <b>independiente del saldo actual del wallet y de saldos/abonos anteriores</b>:
+     * un cambio de plan no "reutiliza" saldo ya depositado.
+     * <ul>
+     *   <li>Destino BASIC: la tarifa mensual del plan.</li>
+     *   <li>Destino STANDARD/PREMIUM: el monto que el comercial quiere invertir en el
+     *       nuevo plan, acotado al rango [min, max] del plan destino. Si no indica
+     *       monto, se toma el mínimo del plan.</li>
+     * </ul>
+     */
+    private long computeRequiredTopUp(Plan targetPlan, Long intendedInvestmentAmountCents) {
         if (targetPlan.getCode() == PlanCode.BASIC) {
             return targetPlan.getMonthlyPriceCents() != null ? targetPlan.getMonthlyPriceCents() : 0L;
         }
-        long minRequired = targetPlan.getMinInvestmentCents() != null ? targetPlan.getMinInvestmentCents() : 0L;
-        return Math.max(0L, minRequired - walletBalanceCents(commercial));
+        long minInvestment = targetPlan.getMinInvestmentCents() != null ? targetPlan.getMinInvestmentCents() : 0L;
+        long maxInvestment = targetPlan.getMaxInvestmentCents() != null ? targetPlan.getMaxInvestmentCents() : Long.MAX_VALUE;
+
+        if (intendedInvestmentAmountCents == null) {
+            return minInvestment;
+        }
+        if (intendedInvestmentAmountCents < minInvestment || intendedInvestmentAmountCents > maxInvestment) {
+            throw new ValidationException(
+                    "El monto a invertir para el plan " + targetPlan.getCode() + " debe estar entre $"
+                            + centsToPesos(minInvestment) + " y $" + centsToPesos(maxInvestment) + ".");
+        }
+        return intendedInvestmentAmountCents;
     }
 
     private long walletBalanceCents(CommercialDetails commercial) {

@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.event.ContractSignedEvent;
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.User;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.PlanChangeRequest;
@@ -27,7 +28,6 @@ import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.finance.plans.PlanRepository;
-import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 
@@ -61,7 +61,6 @@ class PlanChangeRequestServiceImplTest {
     @Mock private PlanRepository planRepository;
     @Mock private CommercialContractService commercialContractService;
     @Mock private CommercialContractRepository commercialContractRepository;
-    @Mock private EmailService emailService;
     @Mock private NotificationService notificationService;
 
     private PlanChangeRequestServiceImpl service;
@@ -69,8 +68,7 @@ class PlanChangeRequestServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PlanChangeRequestServiceImpl(planChangeRequestRepository, commercialDetailsRepository,
-                planRepository, commercialContractService, commercialContractRepository, emailService,
-                notificationService);
+                planRepository, commercialContractService, commercialContractRepository, notificationService);
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────
@@ -157,11 +155,11 @@ class PlanChangeRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("downgrade a BASIC con saldo > 0: lanza ValidationException con el saldo en el mensaje")
+        @DisplayName("downgrade a BASIC con saldo > 0: lanza ValidationException con el saldo (en pesos) en el mensaje")
         void downgradeToBasicWithBalance_throwsValidationExceptionWithBalance() {
             Plan standard = standardPlan();
             Plan basic = basicPlan();
-            CommercialDetails commercial = commercial(1L, standard, wallet(5_000L));
+            CommercialDetails commercial = commercial(1L, standard, wallet(500_000L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
 
@@ -195,8 +193,8 @@ class PlanChangeRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("solicitud duplicada ya en curso: lanza ValidationException")
-        void duplicateRequestInProgress_throwsValidationException() {
+        @DisplayName("solicitud duplicada ya en curso: lanza BusinessException")
+        void duplicateRequestInProgress_throwsBusinessException() {
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basicPlan(), wallet(0L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
@@ -204,15 +202,15 @@ class PlanChangeRequestServiceImplTest {
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any()))
                     .thenReturn(List.of(new PlanChangeRequest()));
 
-            assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 0L))
-                    .isInstanceOf(ValidationException.class);
+            assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 1_000_000_00L))
+                    .isInstanceOf(BusinessException.class);
 
             verify(planChangeRequestRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("recarga/contrato abierto: lanza ValidationException")
-        void openRechargeContract_throwsValidationException() {
+        @DisplayName("recarga/contrato abierto: lanza BusinessException")
+        void openRechargeContract_throwsBusinessException() {
             Plan standard = standardPlan();
             CommercialDetails commercial = commercial(1L, basicPlan(), wallet(0L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
@@ -220,8 +218,8 @@ class PlanChangeRequestServiceImplTest {
             when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(1L), any())).thenReturn(List.of());
             when(commercialContractRepository.findOpenRechargeContracts(1L)).thenReturn(List.of(new CommercialContract()));
 
-            assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 0L))
-                    .isInstanceOf(ValidationException.class);
+            assertThatThrownBy(() -> service.requestPlanChange(1L, PlanCode.STANDARD, 1_000_000_00L))
+                    .isInstanceOf(BusinessException.class);
 
             verify(planChangeRequestRepository, never()).save(any());
         }
@@ -254,14 +252,15 @@ class PlanChangeRequestServiceImplTest {
             contract.setId(77L);
             when(commercialContractRepository.findById(77L)).thenReturn(Optional.of(contract));
 
-            PlanChangeRequest result = service.requestPlanChange(1L, PlanCode.STANDARD, 600_000_00L);
+            PlanChangeRequest result = service.requestPlanChange(1L, PlanCode.STANDARD, 1_500_000_00L);
 
             verify(planChangeRequestRepository, times(2)).save(any());
             assertThat(savedStatusesSnapshot).containsExactly(
                     PlanChangeRequestStatus.REQUESTED, PlanChangeRequestStatus.CONTRACT_PENDING_REVIEW);
             assertThat(result.getContract()).isEqualTo(contract);
-            // STANDARD: max(0, minInvestment - balance) = max(0, 1_000_000_00 - 500_000_00) = 500_000_00
-            assertThat(result.getRequiredTopUpAmountCents()).isEqualTo(500_000_00L);
+            // STANDARD: el abono es el monto a invertir indicado (dentro del rango [min, max] del plan),
+            // independiente del saldo actual del wallet.
+            assertThat(result.getRequiredTopUpAmountCents()).isEqualTo(1_500_000_00L);
         }
 
         @Test
@@ -301,10 +300,10 @@ class PlanChangeRequestServiceImplTest {
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
-            service.previewPlanChange(1L, PlanCode.STANDARD, 0L);
+            service.previewPlanChange(1L, PlanCode.STANDARD, null);
 
             verify(planChangeRequestRepository, never()).save(any());
-            verifyNoInteractions(commercialContractService, commercialContractRepository, emailService, notificationService);
+            verifyNoInteractions(commercialContractService, commercialContractRepository, notificationService);
         }
 
         @Test
@@ -323,11 +322,11 @@ class PlanChangeRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("downgrade a BASIC no elegible (saldo > 0): eligible=false y mensaje con el saldo")
+        @DisplayName("downgrade a BASIC no elegible (saldo > 0): eligible=false y mensaje con el saldo (en pesos)")
         void downgradeToBasicNotEligible() {
             Plan standard = standardPlan();
             Plan basic = basicPlan();
-            CommercialDetails commercial = commercial(1L, standard, wallet(1234L));
+            CommercialDetails commercial = commercial(1L, standard, wallet(123_400L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
 
@@ -366,8 +365,8 @@ class PlanChangeRequestServiceImplTest {
         }
 
         @Test
-        @DisplayName("requiredTopUp > 0 (upgrade entre STANDARD/PREMIUM): mensaje de abono adicional")
-        void requiredTopUpPositive_message() {
+        @DisplayName("upgrade entre STANDARD/PREMIUM sin monto indicado: requiredTopUp = mínimo del plan destino (en pesos)")
+        void upgradeWithoutAmount_requiredTopUpIsTargetMinimum() {
             Plan standard = standardPlan();
             Plan premium = plan(3L, PlanCode.PREMIUM, null, 10_000_000_00L, null);
             CommercialDetails commercial = commercial(1L, standard, wallet(0L));
@@ -376,23 +375,21 @@ class PlanChangeRequestServiceImplTest {
 
             PlanChangePreviewResponseDTO dto = service.previewPlanChange(1L, PlanCode.PREMIUM, null);
 
-            assertThat(dto.getRequiredTopUpAmountCents()).isGreaterThan(0L);
-            assertThat(dto.getMessage()).contains("abono adicional");
+            assertThat(dto.getRequiredTopUpAmountPesos()).isEqualTo(premium.getMinInvestmentCents() / 100);
+            assertThat(dto.getMessage()).contains("se confirme el pago del abono,");
         }
 
         @Test
-        @DisplayName("requiredTopUp <= 0 (saldo ya cubre el nuevo plan): mensaje sin pago adicional")
-        void requiredTopUpZeroOrLess_message() {
+        @DisplayName("monto a invertir fuera del rango del plan destino: lanza ValidationException")
+        void investmentOutOfRange_throwsValidationException() {
+            Plan basic = basicPlan();
             Plan standard = standardPlan();
-            Plan premium = plan(3L, PlanCode.PREMIUM, null, 10_000_000_00L, null);
-            CommercialDetails commercial = commercial(1L, standard, wallet(20_000_000_00L));
+            CommercialDetails commercial = commercial(1L, basic, wallet(0L));
             when(commercialDetailsRepository.findById(1L)).thenReturn(Optional.of(commercial));
-            when(planRepository.findByCodeAndActiveTrue(PlanCode.PREMIUM)).thenReturn(Optional.of(premium));
+            when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
-            PlanChangePreviewResponseDTO dto = service.previewPlanChange(1L, PlanCode.PREMIUM, null);
-
-            assertThat(dto.getRequiredTopUpAmountCents()).isEqualTo(0L);
-            assertThat(dto.getMessage()).contains("sin pago adicional");
+            assertThatThrownBy(() -> service.previewPlanChange(1L, PlanCode.STANDARD, 1L))
+                    .isInstanceOf(ValidationException.class);
         }
 
         @Test
@@ -406,13 +403,13 @@ class PlanChangeRequestServiceImplTest {
 
             PlanChangePreviewResponseDTO dto = service.previewPlanChange(1L, PlanCode.BASIC, null);
 
-            assertThat(dto.getTargetMonthlyPriceCents()).isEqualTo(basic.getMonthlyPriceCents());
-            assertThat(dto.getTargetMinInvestmentCents()).isNull();
-            assertThat(dto.getTargetMaxInvestmentCents()).isNull();
+            assertThat(dto.getTargetMonthlyPricePesos()).isEqualTo(basic.getMonthlyPriceCents() / 100);
+            assertThat(dto.getTargetMinInvestmentPesos()).isNull();
+            assertThat(dto.getTargetMaxInvestmentPesos()).isNull();
         }
 
         @Test
-        @DisplayName("destino no-BASIC: solo targetMinInvestmentCents/targetMaxInvestmentCents poblados")
+        @DisplayName("destino no-BASIC: solo targetMinInvestmentPesos/targetMaxInvestmentPesos poblados")
         void targetNonBasic_onlyMinMaxPopulated() {
             Plan basic = basicPlan();
             Plan standard = standardPlan();
@@ -422,9 +419,9 @@ class PlanChangeRequestServiceImplTest {
 
             PlanChangePreviewResponseDTO dto = service.previewPlanChange(1L, PlanCode.STANDARD, null);
 
-            assertThat(dto.getTargetMonthlyPriceCents()).isNull();
-            assertThat(dto.getTargetMinInvestmentCents()).isEqualTo(standard.getMinInvestmentCents());
-            assertThat(dto.getTargetMaxInvestmentCents()).isEqualTo(standard.getMaxInvestmentCents());
+            assertThat(dto.getTargetMonthlyPricePesos()).isNull();
+            assertThat(dto.getTargetMinInvestmentPesos()).isEqualTo(standard.getMinInvestmentCents() / 100);
+            assertThat(dto.getTargetMaxInvestmentPesos()).isEqualTo(standard.getMaxInvestmentCents() / 100);
         }
     }
 
@@ -586,7 +583,6 @@ class PlanChangeRequestServiceImplTest {
             assertThat(request.getStatus()).isEqualTo(PlanChangeRequestStatus.APPLIED);
             assertThat(commercial.getCurrentPlan()).isEqualTo(standard);
             verify(commercialDetailsRepository).save(commercial);
-            verify(emailService).sendBudgetReplenishedEmail(commercial.getUser().getEmail(), commercial.getCompanyName());
             verify(notificationService).createInternalNotification(eq(commercial.getUser().getId()), any(), any(), any());
         }
 
@@ -629,7 +625,7 @@ class PlanChangeRequestServiceImplTest {
 
             assertThat(request.getStatus()).isEqualTo(PlanChangeRequestStatus.PAYMENT_PENDING);
             assertThat(commercial.getCurrentPlan()).isEqualTo(basic);
-            verifyNoInteractions(commercialDetailsRepository, emailService, notificationService);
+            verifyNoInteractions(commercialDetailsRepository, notificationService);
         }
     }
 
@@ -647,7 +643,7 @@ class PlanChangeRequestServiceImplTest {
             service.applyIfPending(5L);
 
             verify(planChangeRequestRepository, never()).save(any());
-            verifyNoInteractions(commercialDetailsRepository, emailService, notificationService);
+            verifyNoInteractions(commercialDetailsRepository, notificationService);
         }
 
         @Test
@@ -661,7 +657,7 @@ class PlanChangeRequestServiceImplTest {
             service.applyIfPending(5L);
 
             verify(planChangeRequestRepository, never()).save(any());
-            verifyNoInteractions(commercialDetailsRepository, emailService, notificationService);
+            verifyNoInteractions(commercialDetailsRepository, notificationService);
         }
 
         @Test

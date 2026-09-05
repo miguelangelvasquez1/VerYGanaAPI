@@ -57,6 +57,16 @@ class ProductStockTest {
     }
 
     @Test
+    @DisplayName("markAsInvalid: pasa a INVALID (código reportado); no vuelve al inventario disponible)")
+    void markAsInvalid_setsInvalidStatus() {
+        ProductStock stock = ProductStock.builder().status(StockStatus.SOLD).build();
+
+        stock.markAsInvalid();
+
+        assertThat(stock.getStatus()).isEqualTo(StockStatus.INVALID);
+    }
+
+    @Test
     @DisplayName("isExpired: true cuando expirationDate ya pasó")
     void isExpired_trueWhenPast() {
         ProductStock stock = ProductStock.builder().expirationDate(ZonedDateTime.now().minusMinutes(1)).build();

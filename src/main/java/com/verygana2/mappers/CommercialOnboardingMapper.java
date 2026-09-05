@@ -90,6 +90,7 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "planCode", source = "plan.code")
     @Mapping(target = "planName", source = "plan.name")
     @Mapping(target = "recommended", source = "recommended")
+    @Mapping(target = "currentPlan", source = "currentPlan")
     @Mapping(target = "monthlyFeeCents", source = "plan.monthlyPriceCents")
     @Mapping(target = "canAdvertise", expression = "java(plan.getBoolFeature(\"CAN_ADVERTISE\", false))")
     @Mapping(target = "canUseGames", expression = "java(plan.getBoolFeature(\"CAN_USE_GAMES\", false))")
@@ -101,7 +102,7 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "maxSurveys", expression = "java(plan.getIntFeature(\"MAX_SURVEYS\", 0))")
     @Mapping(target = "visibilityBoostPct",
             expression = "java(plan.getFeatureValue(\"VISIBILITY_BOOST\").map(PlanFeature::getDecimalValue).orElse(BigDecimal.ZERO))")
-    PlanOptionDTO toPlanOptionDTO(Plan plan, boolean recommended);
+    PlanOptionDTO toPlanOptionDTO(Plan plan, boolean recommended, boolean currentPlan);
 
     @Mapping(target = "termsVersion", source = "onboarding.termsVersion")
     @Mapping(target = "termsAcceptedAt", source = "onboarding.termsAcceptedAt")

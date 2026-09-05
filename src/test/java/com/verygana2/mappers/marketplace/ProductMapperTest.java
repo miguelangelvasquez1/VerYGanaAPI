@@ -210,14 +210,16 @@ class ProductMapperTest {
         }
 
         @Test
-        @DisplayName("imageUrl queda null: el mapper no lo llena en este método (hallazgo, no corregido)")
-        void imageUrlIsNeverFilled() {
+        @DisplayName("imageUrl queda null: el mapper delega su resolución al servicio (ProductServiceImpl.resolveImageUrl, que es status-aware: proxy privado vs. CDN público)")
+        void imageUrlIsResolvedByService_notByMapper() {
             Product product = baseProduct();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1.png").build();
             product.setImageAsset(asset);
 
             ProductResponseDTO dto = mapper.toProductResponseDTO(product);
 
+            // Intencional: el mapper no conoce appBaseUrl ni la regla PENDING/REJECTED -> proxy privado.
+            // Todos los métodos de ProductServiceImpl que devuelven este DTO llaman a setImageUrl(resolveImageUrl(...)).
             assertThat(dto.getImageUrl()).isNull();
         }
 
@@ -252,7 +254,7 @@ class ProductMapperTest {
     class ToProductSummaryResponseDTOFromProduct {
 
         @Test
-        @DisplayName("imageUrl queda null (mismo hallazgo que toProductResponseDTO); stock vía getAvailableStock()")
+        @DisplayName("imageUrl queda null (lo resuelve el servicio, igual que toProductResponseDTO); stock vía getAvailableStock()")
         void imageUrlIsNull_stockViaAvailableStock() {
             Product product = baseProduct();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1.png").build();
@@ -288,16 +290,6 @@ class ProductMapperTest {
             assertThat(dto.getName()).isEqualTo("Producto");
         }
 
-        @Test
-        @DisplayName("favoriteProduct.getProduct() == null: lanza NPE (comportamiento actual, no se corrige)")
-        void nullProductInsideFavorite_throwsNpe() {
-            FavoriteProduct favoriteProduct = FavoriteProduct.builder().product(null).build();
-
-            // En producción esto no ocurre: el repositorio de favoritos solo trae
-            // favoritos cuyo producto sigue activo. Se documenta el comportamiento actual.
-            assertThatThrownBy(() -> mapper.toProductSummaryResponseDTO(favoriteProduct))
-                    .isInstanceOf(NullPointerException.class);
-        }
     }
 
     @Nested

@@ -23,7 +23,18 @@ public interface PlanChangeRequestService {
 
     PlanChangeRequest cancelPlanChangeRequest(Long commercialId, Long requestId);
 
+    /**
+     * Solicitud vigente del comercial. Si no hay ninguna abierta pero existe un rechazo
+     * que todavía no dio por leído, devuelve ese rechazo (status REJECTED + rejectionReason)
+     * para que el frontend muestre el motivo. Devuelve null cuando no hay nada pendiente.
+     */
     PlanChangeRequest getCurrent(Long commercialId);
+
+    /**
+     * El comercial da por leído el motivo de un rechazo. A partir de aquí {@code getCurrent}
+     * responde como si no hubiera solicitud y puede abrir una nueva. Idempotente.
+     */
+    PlanChangeRequest acknowledgeRejection(Long commercialId, Long requestId);
 
     /** Cola de compliance: solicitudes cuyo contrato sigue en revisión (no terminales). */
     List<PlanChangeRequest> listPendingReview();

@@ -38,6 +38,7 @@ import com.verygana2.services.wompi.WompiService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -71,6 +72,7 @@ class PlanServiceImplTest {
     @Mock private com.verygana2.repositories.commercial.CommercialContractRepository commercialContractRepository;
     @Mock private com.verygana2.repositories.commercial.PlanChangeRequestRepository planChangeRequestRepository;
     @Mock private com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
+    @Mock private com.verygana2.mappers.CommercialOnboardingMapper commercialOnboardingMapper;
 
     private PlanServiceImpl service;
 
@@ -80,7 +82,7 @@ class PlanServiceImplTest {
                 treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
                 walletRepository, walletService, onboardingRepository, investmentService, emailService,
                 commercialContractService, commercialContractRepository, planChangeRequestRepository,
-                planChangeRequestService);
+                planChangeRequestService, commercialOnboardingMapper);
     }
 
     private CommercialDetails commercial(Long id) {
@@ -270,6 +272,79 @@ class PlanServiceImplTest {
             assertThat(commercial.getCurrentPlan()).isSameAs(standard); // la recarga no cambia el plan
             verify(treasuryService).distributeDeposit(11_000_000L, commercial, tx.getId());
             verify(planRepository, never()).findByCodeAndActiveTrue(PlanCode.PREMIUM);
+        }
+
+        @Test
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: si es el pago de activación del registro "
+                + "(onboarding en PAYMENT_PENDING), asigna el plan del depósito y completa el onboarding")
+        void approvedInvestment_initialOnboardingPayment_setsPlanAndCompletesOnboarding() {
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setWallet(wallet);
+            wallet.setCommercial(commercial);
+            assertThat(commercial.getCurrentPlan()).isNull();
+
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .planAtDeposit(standard).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-DEP-999").amountInCents(11_000_000L).build();
+
+            com.verygana2.models.commercial.CommercialOnboarding onboarding =
+                    new com.verygana2.models.commercial.CommercialOnboarding();
+            onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.PAYMENT_PENDING);
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(investmentRepository.findByWompiReference("VG-DEP-999")).thenReturn(Optional.of(investment));
+            when(treasuryConfig.getKeysReservePct()).thenReturn(60);
+            when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(commercial.getCurrentPlan()).isSameAs(standard);
+            assertThat(onboarding.getCurrentStep()).isEqualTo(com.verygana2.models.enums.commercial.OnboardingStep.COMPLETED);
+            assertThat(onboarding.getCompletedAt()).isNotNull();
+            // Wallet nueva arranca en 0 (wasExhausted=true), pero es la activación inicial,
+            // no una reactivación tras agotamiento — no debe mandar el correo de "saldo restaurado".
+            verify(investmentService, never()).handleWalletReplenished(anyLong());
+        }
+
+        @Test
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: si el wallet SÍ estaba agotado tras uso previo "
+                + "(onboarding ya COMPLETED), notifica la reactivación")
+        void approvedInvestment_realExhaustionRecharge_notifiesReplenished() {
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setWallet(wallet);
+            wallet.setCommercial(commercial);
+
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            commercial.setCurrentPlan(standard);
+
+            Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .planAtDeposit(standard).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-DEP-777").amountInCents(11_000_000L).build();
+
+            com.verygana2.models.commercial.CommercialOnboarding onboarding =
+                    new com.verygana2.models.commercial.CommercialOnboarding();
+            onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.COMPLETED);
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(investmentRepository.findByWompiReference("VG-DEP-777")).thenReturn(Optional.of(investment));
+            when(treasuryConfig.getKeysReservePct()).thenReturn(60);
+            when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(commercial.getCurrentPlan()).isSameAs(standard);
+            verify(investmentService).handleWalletReplenished(1L);
         }
 
         @Test

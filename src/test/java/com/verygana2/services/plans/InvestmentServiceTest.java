@@ -89,7 +89,7 @@ class InvestmentServiceTest {
     class CreateInvestment {
 
         @Test
-        @DisplayName("comercial no encontrado: lanza ValidationException")
+        @DisplayName("commercial no encontrado: lanza ValidationException")
         void commercialNotFound_throwsValidationException() {
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.empty());
 
@@ -98,7 +98,7 @@ class InvestmentServiceTest {
         }
 
         @Test
-        @DisplayName("comercial sin plan activo (currentPlan == null): lanza ValidationException")
+        @DisplayName("commercial sin plan activo (currentPlan == null): lanza ValidationException")
         void noCurrentPlan_throwsValidationException() {
             CommercialDetails commercial = commercialWithPlan(null);
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));

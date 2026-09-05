@@ -2,6 +2,8 @@ package com.verygana2.mappers.finance;
 
 import java.math.BigDecimal;
 
+import com.verygana2.exceptions.InvalidAmountException;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -49,9 +51,9 @@ class MoneyMapperTest {
         }
 
         @Test
-        @DisplayName("null: lanza NullPointerException (comportamiento actual, no corregido)")
-        void nullAmount_throwsNPE() {
-            assertThatThrownBy(() -> mapper.toCents(null)).isInstanceOf(NullPointerException.class);
+        @DisplayName("null: lanza InvalidAmountException, no NullPointerException")
+        void nullAmount_throwsInvalidAmountException() {
+            assertThatThrownBy(() -> mapper.toCents(null)).isInstanceOf(InvalidAmountException.class);
         }
     }
 
@@ -78,9 +80,9 @@ class MoneyMapperTest {
         }
 
         @Test
-        @DisplayName("null: lanza NullPointerException (unboxing de Long null a long en BigDecimal.valueOf)")
-        void nullCents_throwsNPE() {
-            assertThatThrownBy(() -> mapper.fromCents(null)).isInstanceOf(NullPointerException.class);
+        @DisplayName("null: lanza InvalidAmountException, no NullPointerException")
+        void nullCents_throwsInvalidAmountException() {
+            assertThatThrownBy(() -> mapper.fromCents(null)).isInstanceOf(InvalidAmountException.class);
         }
 
         @Test

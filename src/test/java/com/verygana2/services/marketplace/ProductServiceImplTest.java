@@ -422,12 +422,13 @@ class ProductServiceImplTest {
     class ApproveProduct {
 
         @Test
-        @DisplayName("producto PENDING: mueve la imagen a pública y lo activa")
+        @DisplayName("producto PENDING: mueve la imagen a pública, lo activa y devuelve la imageUrl pública ya resuelta")
         void pendingProduct_movesImageAndActivates() {
             Product pending = product(1L, ProductStatus.PENDING);
             pending.setCommercial(commercial(1L));
             AdminDetails admin = new AdminDetails();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
+            pending.setImageAsset(asset);
 
             when(productRepository.findById(1L)).thenReturn(Optional.of(pending));
             when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(asset));
@@ -435,11 +436,13 @@ class ProductServiceImplTest {
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
             when(productMapper.toProductResponseDTO(any())).thenReturn(new ProductResponseDTO());
 
-            service.approveProductForAdmin(5L, 1L);
+            ProductResponseDTO response = service.approveProductForAdmin(5L, 1L);
 
             assertThat(pending.getStatus()).isEqualTo(ProductStatus.ACTIVE);
             assertThat(pending.getApprovedBy()).isSameAs(admin);
             verify(r2Service).copyObject("private/products/1/img.jpg", "public/products/1/img.jpg");
+            // El mapper deja imageUrl en null; el servicio la resuelve tras el mapeo (status ya ACTIVE -> URL pública).
+            assertThat(response.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1/img.jpg");
         }
 
         @Test
@@ -458,23 +461,30 @@ class ProductServiceImplTest {
     class RejectProduct {
 
         @Test
-        @DisplayName("producto PENDING: lo rechaza con motivo y notifica al comercial")
+        @DisplayName("producto PENDING: lo rechaza con motivo, notifica al comercial y borra la imagen (imageUrl null en la respuesta)")
         void pendingProduct_rejectsAndNotifies() {
             Product pending = product(1L, ProductStatus.PENDING);
             CommercialDetails commercial = commercial(1L);
             commercial.setId(1L);
             pending.setCommercial(commercial);
+            ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
+            pending.setImageAsset(asset);
 
             when(productRepository.findById(1L)).thenReturn(Optional.of(pending));
+            when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(asset));
             when(adminDetailsService.getById(5L)).thenReturn(new AdminDetails());
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
             when(productMapper.toProductResponseDTO(any())).thenReturn(new ProductResponseDTO());
 
-            service.rejectProductForAdmin(5L, 1L, "Imagen borrosa");
+            ProductResponseDTO response = service.rejectProductForAdmin(5L, 1L, "Imagen borrosa");
 
             assertThat(pending.getStatus()).isEqualTo(ProductStatus.REJECTED);
             assertThat(pending.getRejectionReason()).isEqualTo("Imagen borrosa");
             verify(notificationService).createInternalNotification(eq(1L), anyString(), eq("Razón: Imagen borrosa"), any());
+            verify(productImageAssetRepository).delete(asset);
+            // La imagen fue borrada: el asset en memoria queda null y la respuesta no expone una URL rota.
+            assertThat(pending.getImageAsset()).isNull();
+            assertThat(response.getImageUrl()).isNull();
         }
 
         @Test
