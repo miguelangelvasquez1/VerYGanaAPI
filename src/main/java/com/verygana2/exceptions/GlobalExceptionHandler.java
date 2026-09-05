@@ -32,6 +32,7 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.adsExceptions.WatchSessionResumeLimitException;
 import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
@@ -255,6 +256,19 @@ public class GlobalExceptionHandler {
             LimitReachedException ex, WebRequest request) {
         log.warn("Limit reached: {}", ex.getMessage());
         return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
+    }
+
+    /**
+     * 410 (Gone), no 400: la sesión de visualización se agotó por reanudarla
+     * demasiadas veces y quedó invalidada. El status code le dice al front que
+     * descarte el anuncio actual y pida el siguiente ({@code GET /adLike/next})
+     * sin tener que parsear el "message".
+     */
+    @ExceptionHandler(WatchSessionResumeLimitException.class)
+    public ResponseEntity<ErrorResponse> handleWatchSessionResumeLimitException(
+            WatchSessionResumeLimitException ex, WebRequest request) {
+        log.warn("Watch session resume limit reached: {}", ex.getMessage());
+        return buildError(HttpStatus.GONE, ex.getMessage(), request);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -499,7 +513,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleESignatureApiException(
             ESignatureApiException ex, WebRequest request) {
         log.error("E-signature provider error: {}", ex.getMessage(), ex);
-        return buildError(HttpStatus.BAD_GATEWAY, "E-signature provider error", request);
+        return buildError(HttpStatus.BAD_GATEWAY, "Error con el proveedor de firma electrónica", request);
     }
 
     @ExceptionHandler(ZapSignApiException.class)

@@ -49,6 +49,45 @@ public interface SurveySessionRepository extends JpaRepository<SurveySession, Lo
             @Param("start") ZonedDateTime start,
             @Param("end") ZonedDateTime end);
 
+    // ── Reportes de rendimiento del comercial ────────────────────────────────
+
+    /** [SurveySession.SessionStatus status, Long count] de sesiones del comercial iniciadas en el rango. */
+    @Query("""
+        SELECT s.status, COUNT(s) FROM SurveySession s
+        WHERE s.survey.creator.id = :commercialId
+          AND s.startedAt >= :from AND s.startedAt < :to
+        GROUP BY s.status
+    """)
+    List<Object[]> countByStatusInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
+    /** [Long surveyId, SurveySession.SessionStatus status, Long count] por encuesta, sesiones iniciadas en el rango. */
+    @Query("""
+        SELECT s.survey.id, s.status, COUNT(s) FROM SurveySession s
+        WHERE s.survey.creator.id = :commercialId
+          AND s.startedAt >= :from AND s.startedAt < :to
+        GROUP BY s.survey.id, s.status
+    """)
+    List<Object[]> countBySurveyAndStatusInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
+    /** [java.sql.Date day, Long count] de sesiones completadas del comercial por día del rango. */
+    @Query("""
+        SELECT DATE(s.completedAt), COUNT(s) FROM SurveySession s
+        WHERE s.survey.creator.id = :commercialId
+          AND s.status = 'COMPLETED'
+          AND s.completedAt >= :from AND s.completedAt < :to
+        GROUP BY DATE(s.completedAt)
+    """)
+    List<Object[]> countCompletedByDayInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") ZonedDateTime from,
+            @Param("to") ZonedDateTime to);
+
     Page<SurveySession> findByConsumerId(Long consumerId, Pageable pageable);
 
     @Query("""

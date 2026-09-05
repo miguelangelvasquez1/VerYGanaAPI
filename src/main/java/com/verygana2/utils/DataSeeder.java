@@ -52,6 +52,12 @@ public class DataSeeder implements CommandLineRunner {
 
         DatabasePopulatorUtils.execute(populator, dataSource);
 
+        // Datos de demo para los paneles de métricas del comercial
+        // (/commercials/report/{ads,surveys,games,page-visits}). Se ejecuta aparte y
+        // tolerante a errores: es data de demo y nunca debe tumbar el arranque si un
+        // statement falla sobre una BD ya poblada de forma distinta.
+        seedCommercialMetrics();
+
         // product_stock.code va cifrado (ver CodeEncryptor), por lo que no se puede
         // sembrar con un script SQL crudo: se hace vía JPA para que quede cifrado
         // y con su code_hash igual que si lo hubiera creado un commercial real.
@@ -63,6 +69,26 @@ public class DataSeeder implements CommandLineRunner {
         seedPrizeClaimCodes();
 
         log.info("Seeds ejecutados correctamente");
+    }
+
+    /**
+     * Siembra actividad de demo (anuncios, encuestas, campañas, partidas y visitas a
+     * la página oficial) para los comerciales Estándar y Premium de prueba, de modo
+     * que los paneles de {@code /commercials/report/*} muestren datos reales.
+     * Depende de test-users.sql y test-campaigns.sql (ya ejecutados arriba).
+     */
+    private void seedCommercialMetrics() {
+        ResourceDatabasePopulator populator = new ResourceDatabasePopulator();
+        populator.addScript(new ClassPathResource("db/seed/test/test-commercial-metrics.sql"));
+        try {
+            DatabasePopulatorUtils.execute(populator, dataSource);
+            log.info("Seed de métricas del comercial ejecutado");
+        } catch (RuntimeException e) {
+            // Data de demo: un fallo aquí nunca debe impedir el arranque. Todos los
+            // statements son idempotentes (NOT EXISTS), así que tras corregir se
+            // reintenta limpio en el siguiente arranque.
+            log.warn("test-commercial-metrics.sql falló y se omitió: {}", e.getMessage());
+        }
     }
 
     private static final String RAW_CLAIM_CODE_PREFIX = "RAW:";

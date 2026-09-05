@@ -43,4 +43,57 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             @Param("commercialId") Long commercialId,
             @Param("start") java.time.ZonedDateTime start,
             @Param("end") java.time.ZonedDateTime end);
+
+    // ── Reportes de rendimiento del comercial ────────────────────────────────
+
+    /**
+     * Una fila: [Long sessionsPlayed, Long completedSessions, Long uniquePlayers,
+     * Long totalPlayTimeSeconds, Long coinsEarnedCents] de las campañas del comercial en el rango.
+     */
+    @Query("""
+        SELECT COUNT(gs),
+               COALESCE(SUM(CASE WHEN gs.completed = true THEN 1 ELSE 0 END), 0),
+               COUNT(DISTINCT gs.consumer.id),
+               COALESCE(SUM(gs.playTimeSeconds), 0),
+               COALESCE(SUM(gs.coinsEarned), 0)
+        FROM GameSession gs
+        WHERE gs.campaign.commercial.id = :commercialId
+          AND gs.startTime >= :from AND gs.startTime < :to
+    """)
+    List<Object[]> aggregateByCommercialInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") java.time.ZonedDateTime from,
+            @Param("to") java.time.ZonedDateTime to);
+
+    /**
+     * [Long campaignId, Long sessionsPlayed, Long completedSessions, Long uniquePlayers,
+     * Long totalPlayTimeSeconds] por campaña del comercial en el rango.
+     */
+    @Query("""
+        SELECT gs.campaign.id,
+               COUNT(gs),
+               COALESCE(SUM(CASE WHEN gs.completed = true THEN 1 ELSE 0 END), 0),
+               COUNT(DISTINCT gs.consumer.id),
+               COALESCE(SUM(gs.playTimeSeconds), 0)
+        FROM GameSession gs
+        WHERE gs.campaign.commercial.id = :commercialId
+          AND gs.startTime >= :from AND gs.startTime < :to
+        GROUP BY gs.campaign.id
+    """)
+    List<Object[]> aggregateByCampaignInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") java.time.ZonedDateTime from,
+            @Param("to") java.time.ZonedDateTime to);
+
+    /** [java.sql.Date day, Long count] de partidas iniciadas del comercial por día del rango. */
+    @Query("""
+        SELECT DATE(gs.startTime), COUNT(gs) FROM GameSession gs
+        WHERE gs.campaign.commercial.id = :commercialId
+          AND gs.startTime >= :from AND gs.startTime < :to
+        GROUP BY DATE(gs.startTime)
+    """)
+    List<Object[]> countByDayInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") java.time.ZonedDateTime from,
+            @Param("to") java.time.ZonedDateTime to);
 }

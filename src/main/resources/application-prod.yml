@@ -204,6 +204,20 @@ payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP
 
+commercial:
+  contract:
+    # Límite de generación de contratos de RECHARGE/PLAN_CHANGE por comercial: cada
+    # generación puede disparar un envío real a firma electrónica (con costo con el
+    # proveedor), así que se acota cuántos se pueden generar por ventana.
+    rate-limit:
+      max-per-window: 1
+      window-hours: 24
+  page-visit:
+    # Ventana de deduplicación por (anuncio, consumer) al registrar visitas a la
+    # página oficial del empresario ("Remisión"): un clic repetido dentro de este
+    # lapso no genera una fila nueva. Evita inflar la métrica por doble clic / reintentos.
+    dedup-window-minutes: 30
+
 purchase:
   expiry:
     max-age-minutes: 40   # checkout Wompi expira en ~30 min; 40 da margen para el webhook
@@ -339,3 +353,16 @@ zapsign:
     secret-key: ${RECAPTCHA_SECRET_KEY:}
     min-score: 0.5
     login-action: login
+
+# ============================================
+# AVISOS DE SALDO BAJO / DORMANT WALLETS
+# ============================================
+budget:
+    # % del último depósito por debajo del cual se avisa "saldo bajo" (WARNING) y se muestra la alerta en el dashboard.
+    low-balance-warning-pct: 20
+    # % del último depósito por debajo del cual el aviso escala a "crítico" (CRITICAL). 0 = sin escalón crítico.
+    low-balance-critical-pct: 5
+    # Días que un wallet puede permanecer en saldo 0 antes de pasar a DORMANT (bloqueo de edición).
+    grace-period-days: 15
+    # Barrido periódico de wallets financiados (ACTIVE / EXHAUSTED). Cron de 6 campos, zona UTC.
+    alert-cron: "0 0 * * * *"

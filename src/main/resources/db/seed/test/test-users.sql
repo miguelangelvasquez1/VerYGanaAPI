@@ -452,7 +452,6 @@ INSERT INTO wallets (
     version,
     balance_cents,
     status,
-    low_balance_threshold_pct,
     last_deposit_amount_cents,
     last_budget_alert_stage,
     last_updated,
@@ -463,7 +462,6 @@ SELECT
     1,
     5000000,                    -- 50.000 COP de saldo inicial (ajusta si quieres)
     'ACTIVE',                   -- WalletStatus.ACTIVE
-    10,                         -- low_balance_threshold_pct (10%)
     5000000,                    -- last_deposit_amount_cents
     'NONE',                     -- WalletBudgetAlertStage.NONE
     NOW(),                      -- last_updated
@@ -1039,7 +1037,6 @@ INSERT INTO wallets (
     version,
     balance_cents,
     status,
-    low_balance_threshold_pct,
     last_deposit_amount_cents,
     last_budget_alert_stage,
     last_updated,
@@ -1050,7 +1047,6 @@ SELECT
     1,
     5000000,
     'ACTIVE',
-    10,
     5000000,
     'NONE',
     NOW(),
@@ -1297,7 +1293,6 @@ INSERT INTO wallets (
     version,
     balance_cents,
     status,
-    low_balance_threshold_pct,
     last_deposit_amount_cents,
     last_budget_alert_stage,
     last_updated,
@@ -1308,7 +1303,6 @@ SELECT
     1,
     5000000,
     'ACTIVE',
-    10,
     5000000,
     'NONE',
     NOW(),

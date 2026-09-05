@@ -18,4 +18,16 @@ public interface SurveyRewardRepository extends JpaRepository<SurveyReward, Long
 
     @Query("SELECT COALESCE(SUM(r.amountCents), 0) FROM SurveyReward r WHERE r.session.consumer.id = :consumerId AND r.status = 'PROCESSED'")
     BigDecimal getTotalRewardsByConsumer(@Param("consumerId") Long consumerId);
+
+    /** Recompensas pagadas (centavos) por las encuestas de un comercial dentro del rango. */
+    @Query("""
+        SELECT COALESCE(SUM(r.amountCents), 0) FROM SurveyReward r
+        WHERE r.session.survey.creator.id = :commercialId
+          AND r.status = 'PROCESSED'
+          AND r.grantedAt >= :from AND r.grantedAt < :to
+    """)
+    long sumProcessedByCommercialInRange(
+            @Param("commercialId") Long commercialId,
+            @Param("from") java.time.ZonedDateTime from,
+            @Param("to") java.time.ZonedDateTime to);
 }

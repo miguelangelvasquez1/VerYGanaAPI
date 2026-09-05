@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,8 +65,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     // comercial podría generar y cancelar contratos indefinidamente.
     private static final List<ContractPurpose> RATE_LIMITED_PURPOSES = List.of(
             ContractPurpose.RECHARGE, ContractPurpose.PLAN_CHANGE);
-    private static final int MAX_CONTRACTS_PER_WINDOW = 10;
-    private static final long RATE_LIMIT_WINDOW_HOURS = 24;
+
+    @Value("${commercial.contract.rate-limit.max-per-window:10}")
+    private int maxContractsPerWindow;
+    @Value("${commercial.contract.rate-limit.window-hours:24}")
+    private long rateLimitWindowHours;
 
     private final CommercialOnboardingRepository onboardingRepository;
     private final CommercialContractRepository contractRepository;
@@ -334,12 +338,12 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     private void requireUnderContractGenerationRateLimit(CommercialDetails commercial) {
-        ZonedDateTime since = ZonedDateTime.now().minusHours(RATE_LIMIT_WINDOW_HOURS);
+        ZonedDateTime since = ZonedDateTime.now().minusHours(rateLimitWindowHours);
         long recentCount = contractRepository.countGeneratedSince(commercial.getId(), RATE_LIMITED_PURPOSES, since);
-        if (recentCount >= MAX_CONTRACTS_PER_WINDOW) {
+        if (recentCount >= maxContractsPerWindow) {
             throw new BusinessException(
-                    "Solo puede generar " + MAX_CONTRACTS_PER_WINDOW
-                            + " solicitud de recarga/cambio de plan cada " + RATE_LIMIT_WINDOW_HOURS
+                    "Solo puede generar " + maxContractsPerWindow
+                            + " solicitud de recarga/cambio de plan cada " + rateLimitWindowHours
                             + " horas. Intente más tarde o contacte a soporte.");
         }
     }

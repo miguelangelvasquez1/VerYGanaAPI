@@ -46,6 +46,12 @@ public class EffectivePlanState {
 
     boolean canExportReport;
 
+    /** true si el plan permite ver métricas de rendimiento de anuncios/encuestas/campañas (STANDARD/PREMIUM). */
+    boolean canViewPerformanceMetrics;
+
+    /** true si el plan permite ver la métrica de visitas a la página oficial del empresario (solo PREMIUM). */
+    boolean canViewPageVisitMetrics;
+
     /**
      * true cuando el wallet (STANDARD/PREMIUM) está en saldo cero. Bloquea solo la
      * creación de activos nuevos y la exportación de reportes — nunca BASIC, que no
@@ -85,6 +91,8 @@ public class EffectivePlanState {
                 .canHavePets(false)
                 .canPromoteAllyProducts(false)
                 .canExportReport(false)
+                .canViewPerformanceMetrics(false)
+                .canViewPageVisitMetrics(false)
                 .budgetSuspended(true)
                 .budgetDormant(false)
                 .maxProducts(0)

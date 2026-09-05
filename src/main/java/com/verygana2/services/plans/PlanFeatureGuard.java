@@ -98,6 +98,18 @@ public class PlanFeatureGuard {
                         "El plan " + state.getEffectivePlan().name() + " no permite exportar el reporte ejecutivo en PDF");
                 }
             }
+            case CAN_VIEW_PERFORMANCE_METRICS -> {
+                if (!state.isCanViewPerformanceMetrics()) {
+                    throw new PlanCapabilityException(
+                        "Las métricas de rendimiento de anuncios, encuestas y campañas están disponibles solo en los planes Estándar y Premium.");
+                }
+            }
+            case CAN_VIEW_PAGE_VISIT_METRICS -> {
+                if (!state.isCanViewPageVisitMetrics()) {
+                    throw new PlanCapabilityException(
+                        "La métrica de visitas a tu página oficial es exclusiva del plan Premium.");
+                }
+            }
             case MAX_PRODUCTS -> {
                 long current = countSlotOccupyingProducts(commercialId);
                 if (current >= state.getMaxProducts()) {

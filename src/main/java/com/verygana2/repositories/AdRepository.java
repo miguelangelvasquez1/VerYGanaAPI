@@ -26,6 +26,10 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        // Consultas para el anunciante
        Page<Ad> findByCommercialId(Long commercialId, Pageable pageable);
 
+       // Todos los anuncios de un comercial (acotado por MAX_ADS del plan) — para reportes.
+       @Query("SELECT a FROM Ad a WHERE a.commercial.id = :commercialId")
+       List<Ad> findAllByCommercialId(@Param("commercialId") Long commercialId);
+
        Optional<Ad> findByIdAndCommercialId(Long id, Long commercialId);
 
        List<Ad> findByStatus(AdStatus status);

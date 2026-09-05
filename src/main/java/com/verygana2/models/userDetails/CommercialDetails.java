@@ -117,7 +117,7 @@ public class CommercialDetails extends UserDetails {
      * Checks whether the business user has active access to the platform.
      *
      * BASIC    → requires an active Subscription
-     * STANDARD/PREMIUM → requires an operational Wallet (ACTIVE or LOW_BALANCE)
+     * STANDARD/PREMIUM → requires an operational Wallet (ACTIVE)
      */
     public boolean hasActiveAccess() {
         if (currentPlan == null) return false;

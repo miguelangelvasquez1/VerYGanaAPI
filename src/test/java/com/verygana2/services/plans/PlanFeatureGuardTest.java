@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
 import com.verygana2.models.finance.plans.EffectivePlanState;
+import com.verygana2.models.finance.plans.RequirePlanCapability.Capability;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.commercial.PlanChangeRequestRepository;
@@ -76,6 +77,53 @@ class PlanFeatureGuardTest {
             PlanChangeRequest r = new PlanChangeRequest();
             r.setStatus(status);
             return r;
+        }
+    }
+
+    @Nested
+    @DisplayName("assertCapability — métricas de rendimiento / remisión")
+    class AssertMetricsCapabilities {
+
+        @Test
+        @DisplayName("CAN_VIEW_PERFORMANCE_METRICS con el flag activo: no lanza")
+        void performanceMetrics_allowed() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().canViewPerformanceMetrics(true).build());
+
+            assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_VIEW_PERFORMANCE_METRICS))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("CAN_VIEW_PERFORMANCE_METRICS con el flag inactivo: lanza PlanCapabilityException")
+        void performanceMetrics_denied() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().canViewPerformanceMetrics(false).build());
+
+            assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_VIEW_PERFORMANCE_METRICS))
+                    .isInstanceOf(PlanFeatureGuard.PlanCapabilityException.class)
+                    .hasMessageContaining("Estándar y Premium");
+        }
+
+        @Test
+        @DisplayName("CAN_VIEW_PAGE_VISIT_METRICS con el flag activo: no lanza")
+        void pageVisitMetrics_allowed() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().canViewPageVisitMetrics(true).build());
+
+            assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_VIEW_PAGE_VISIT_METRICS))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("CAN_VIEW_PAGE_VISIT_METRICS con el flag inactivo: lanza PlanCapabilityException")
+        void pageVisitMetrics_denied() {
+            when(planResolver.resolve(COMMERCIAL_ID))
+                    .thenReturn(EffectivePlanState.builder().canViewPageVisitMetrics(false).build());
+
+            assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_VIEW_PAGE_VISIT_METRICS))
+                    .isInstanceOf(PlanFeatureGuard.PlanCapabilityException.class)
+                    .hasMessageContaining("Premium");
         }
     }
 

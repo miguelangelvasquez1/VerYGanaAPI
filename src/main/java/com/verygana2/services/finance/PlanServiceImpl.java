@@ -417,7 +417,14 @@ public class PlanServiceImpl implements PlanService {
 
         @Override
         @Transactional
-        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercial, Long amountCents) {
+        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercialArg, Long amountCents) {
+                // Lock pesimista sobre la fila del comercial: serializa esta solicitud con
+                // requestPlanChange (que toma el mismo lock) para que dos requests concurrentes
+                // no puedan crear una recarga y un cambio de plan a la vez — los chequeos de
+                // abajo son read-then-write y sin esto tienen una ventana de carrera.
+                CommercialDetails commercial = commercialDetailsRepository.findByIdForUpdate(commercialArg.getId())
+                                .orElseThrow(() -> new IllegalStateException(
+                                                "Comercial no encontrado: " + commercialArg.getId()));
                 Plan plan = commercial.getCurrentPlan();
                 if (plan == null || plan.getCode() == PlanCode.BASIC) {
                         throw new IllegalStateException("Solo los planes STANDARD/PREMIUM pueden recargar presupuesto.");
@@ -568,8 +575,9 @@ public class PlanServiceImpl implements PlanService {
                                 .multiply(BigDecimal.valueOf(treasuryConfig.getKeysReservePct())) // int exacto
                                 .divide(BigDecimal.valueOf(100));
 
-                // 4. Acreditar saldo — deposit() recalcula el status automáticamente
-                wallet.deposit(amount.longValue());
+                // 4. Acreditar saldo — registerDeposit() recalcula el status y guarda el
+                // monto como referencia para el umbral de aviso de saldo bajo.
+                wallet.registerDeposit(amount.longValue());
 
                 walletRepository.save(wallet);
 
@@ -842,6 +850,8 @@ public class PlanServiceImpl implements PlanService {
                                         .canAdvertise(false)
                                         .canUseGames(false)
                                         .canUseSurveys(false)
+                                        .canViewPerformanceMetrics(false)
+                                        .canViewPageVisitMetrics(false)
                                         .maxProducts(0)
                                         .maxAds(0)
                                         .maxBrandedGames(0)
@@ -870,6 +880,8 @@ public class PlanServiceImpl implements PlanService {
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                         .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                         .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                        .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                        .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                         .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 10))
                                         .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                         .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))
@@ -902,6 +914,8 @@ public class PlanServiceImpl implements PlanService {
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                 .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                 .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                 .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 100))
                                 .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                 .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))

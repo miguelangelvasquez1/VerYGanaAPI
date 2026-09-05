@@ -432,7 +432,6 @@ public class AdServiceImpl implements AdService {
         Page<Ad> adsPage = adRepository.findAll(spec, fixedSortPageable);
 
         Page<AdResponseDTO> dtoPage = adsPage.map(ad -> {
-            log.info("ad: " + ad.getRewardPerLike().toString());
             AdResponseDTO dto = adMapper.toDto(ad);
 
             AdAsset asset = ad.getAsset();
@@ -443,7 +442,6 @@ public class AdServiceImpl implements AdService {
             }
 
             dto.setContentUrl(resolveContentUrl(ad));
-            log.info("dto: " + dto.getRewardPerLike().toString());
             return dto;
         });
 

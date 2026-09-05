@@ -64,21 +64,14 @@ public class Wallet {
     private WalletStatus status;
 
     /**
-     * Monto del último depósito confirmado en centavos.
-     * Usado para calcular el umbral de alerta dinámicamente:
-     * threshold = lastDepositAmountCents × lowBalanceThresholdPct / 100
+     * Monto del último depósito/recarga confirmado, en centavos. Es la referencia
+     * sobre la que {@code EffectivePlanResolver.resolveBudgetThresholds} calcula los
+     * umbrales de aviso de saldo bajo (WARNING / CRITICAL) como % de este monto.
+     * Se registra solo en recargas reales (ver {@link #registerDeposit(Long)}), nunca
+     * en reembolsos de presupuesto no consumido.
      */
     @Column(name = "last_deposit_amount_cents")
     private Long lastDepositAmountCents;
-
-    /**
-     * Umbral de alerta como porcentaje del último depósito.
-     * Cuando balance cae por debajo de este porcentaje → LOW_BALANCE.
-     * Default 10% — configurable por admin.
-     * Garantiza que siempre haya saldo para pagar recompensas en curso.
-     */
-    @Column(name = "low_balance_threshold_pct", nullable = false)
-    private int lowBalanceThresholdPct = 10;
 
     /** Última etapa de aviso de saldo bajo notificada — evita reenviar el mismo aviso cada barrido. */
     @Enumerated(EnumType.STRING)
@@ -131,6 +124,12 @@ public class Wallet {
         return wallet;
     }
 
+    /**
+     * Acredita saldo en la wallet sin más semántica: lo usan tanto las recargas
+     * confirmadas (vía {@link #registerDeposit(Long)}) como los reembolsos de
+     * presupuesto no consumido de un activo. Los reembolsos NO deben alterar
+     * {@code lastDepositAmountCents} — de ahí que ese campo no se toque aquí.
+     */
     public void deposit(Long amount) {
         if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
         this.balanceCents += amount;
@@ -139,6 +138,18 @@ public class Wallet {
             // Saldo repuesto — permite que el próximo ciclo de avisos de saldo bajo se dispare de nuevo.
             this.lastBudgetAlertStage = WalletBudgetAlertStage.NONE;
         }
+    }
+
+    /**
+     * Acredita una recarga/depósito confirmado del comercial. Además de sumar el
+     * saldo, registra el monto en {@code lastDepositAmountCents} como referencia
+     * para los umbrales de aviso de saldo bajo
+     * ({@code EffectivePlanResolver.resolveBudgetThresholds}).
+     */
+    public void registerDeposit(Long amount) {
+        if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
+        this.lastDepositAmountCents = amount;
+        deposit(amount);
     }
 
     public void consume(Long amount) {
@@ -155,35 +166,28 @@ public class Wallet {
     }
 
     public boolean isOperational() {
-        return status == WalletStatus.ACTIVE || status == WalletStatus.LOW_BALANCE;
+        return status == WalletStatus.ACTIVE;
     }
 
     public boolean isExhausted() {
         return this.balanceCents == 0L;
     }
 
+    /**
+     * Estado operativo persistido: solo {@code EXHAUSTED} (saldo 0) vs {@code ACTIVE}.
+     * El "saldo bajo" NO es un estado — se deriva en tiempo real de los umbrales por
+     * plan (ver {@code EffectivePlanResolver.resolveBudgetThresholds} y
+     * {@code BudgetAlertScheduler}), igual que {@code budgetSuspended}/{@code budgetDormant}.
+     */
     public void recalculateStatus() {
         if (balanceCents == 0) {
             this.status = WalletStatus.EXHAUSTED;
             if (this.exhaustedSince == null) {
                 this.exhaustedSince = ZonedDateTime.now(ZoneOffset.UTC);
             }
-        } else if (balanceCents < getLowBalanceThresholdCents()) {
-            this.status = WalletStatus.LOW_BALANCE;
-            this.exhaustedSince = null;
         } else {
             this.status = WalletStatus.ACTIVE;
             this.exhaustedSince = null;
         }
-    }
-
-    /**
-     * Calcula el umbral de alerta en centavos.
-     * Si nunca ha habido un depósito, el umbral es 0.
-     */
-    public long getLowBalanceThresholdCents() {
-        if (lastDepositAmountCents == null || lastDepositAmountCents == 0)
-            return 0L;
-        return lastDepositAmountCents * lowBalanceThresholdPct / 100;
     }
 }

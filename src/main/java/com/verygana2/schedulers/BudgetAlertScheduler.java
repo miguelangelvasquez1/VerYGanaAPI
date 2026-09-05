@@ -39,17 +39,21 @@ public class BudgetAlertScheduler {
     private final EmailService emailService;
     private final NotificationService notificationService;
 
-    @Scheduled(cron = "0 0 * * * *")
+    @Scheduled(cron = "${budget.alert-cron:0 0 * * * *}", zone = "UTC")
     @Transactional
     public void checkBudgetAlerts() {
+        // "Saldo bajo" no es un estado del wallet: se deriva aquí contra los umbrales
+        // por plan (resolveStage). Por eso se barren todos los wallets financiados
+        // (ACTIVE + EXHAUSTED); resolveStage() → NONE para los sanos, que se saltan.
+        // INACTIVE (sin depósito) queda fuera.
         List<Wallet> atRisk = walletRepository.findByStatusIn(
-                List.of(WalletStatus.LOW_BALANCE, WalletStatus.EXHAUSTED));
+                List.of(WalletStatus.ACTIVE, WalletStatus.EXHAUSTED));
 
         if (atRisk.isEmpty()) {
             return;
         }
 
-        log.info("[BUDGET ALERT JOB] Revisando {} wallets con saldo bajo/agotado.", atRisk.size());
+        log.debug("[BUDGET ALERT JOB] Evaluando {} wallets financiados.", atRisk.size());
 
         for (Wallet wallet : atRisk) {
             try {

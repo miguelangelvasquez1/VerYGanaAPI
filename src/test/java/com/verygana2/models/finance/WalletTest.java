@@ -10,9 +10,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests de la entidad {@link Wallet}: el presupuesto publicitario del
- * comercial (depósitos, consumos) y el cálculo dinámico de su status según
- * el umbral de alerta relativo al último depósito.
+ * Tests de la entidad {@link Wallet}: el presupuesto publicitario del comercial
+ * (depósitos, consumos) y su estado operativo (ACTIVE / EXHAUSTED).
  */
 @DisplayName("Wallet (entidad)")
 class WalletTest {
@@ -28,6 +27,32 @@ class WalletTest {
 
         assertThat(wallet.getBalanceCents()).isEqualTo(500_000L);
         assertThat(wallet.getStatus()).isEqualTo(WalletStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("registerDeposit: registra lastDepositAmountCents (referencia del umbral de saldo bajo)")
+    void registerDeposit_recordsLastDepositAmount() {
+        Wallet wallet = new Wallet();
+        wallet.setBalanceCents(0L);
+
+        wallet.registerDeposit(2_000_000L);
+
+        assertThat(wallet.getBalanceCents()).isEqualTo(2_000_000L);
+        assertThat(wallet.getLastDepositAmountCents()).isEqualTo(2_000_000L);
+        assertThat(wallet.getStatus()).isEqualTo(WalletStatus.ACTIVE);
+    }
+
+    @Test
+    @DisplayName("deposit (reembolso): NO altera lastDepositAmountCents")
+    void deposit_doesNotTouchLastDepositAmount() {
+        Wallet wallet = new Wallet();
+        wallet.setBalanceCents(100_000L);
+        wallet.setLastDepositAmountCents(2_000_000L);
+
+        wallet.deposit(5_000L); // reembolso de presupuesto no consumido
+
+        assertThat(wallet.getBalanceCents()).isEqualTo(105_000L);
+        assertThat(wallet.getLastDepositAmountCents()).isEqualTo(2_000_000L);
     }
 
     @Test
@@ -59,21 +84,19 @@ class WalletTest {
     }
 
     @Test
-    @DisplayName("recalculateStatus: EXHAUSTED en 0, LOW_BALANCE bajo el umbral, ACTIVE por encima")
+    @DisplayName("recalculateStatus: EXHAUSTED en 0, ACTIVE con saldo > 0")
     void recalculateStatus_reflectsThresholds() {
         Wallet wallet = new Wallet();
-        wallet.setLastDepositAmountCents(1_000_000L);
-        wallet.setLowBalanceThresholdPct(10); // umbral = 100.000
 
         wallet.setBalanceCents(0L);
         wallet.recalculateStatus();
         assertThat(wallet.getStatus()).isEqualTo(WalletStatus.EXHAUSTED);
 
-        wallet.setBalanceCents(50_000L); // < 100.000
+        wallet.setBalanceCents(1L);
         wallet.recalculateStatus();
-        assertThat(wallet.getStatus()).isEqualTo(WalletStatus.LOW_BALANCE);
+        assertThat(wallet.getStatus()).isEqualTo(WalletStatus.ACTIVE);
 
-        wallet.setBalanceCents(500_000L); // > 100.000
+        wallet.setBalanceCents(500_000L);
         wallet.recalculateStatus();
         assertThat(wallet.getStatus()).isEqualTo(WalletStatus.ACTIVE);
     }
@@ -82,8 +105,6 @@ class WalletTest {
     @DisplayName("recalculateStatus: sella exhaustedSince al llegar a 0 y lo limpia al recuperar saldo")
     void recalculateStatus_tracksExhaustedSince() {
         Wallet wallet = new Wallet();
-        wallet.setLastDepositAmountCents(1_000_000L);
-        wallet.setLowBalanceThresholdPct(10);
 
         wallet.setBalanceCents(0L);
         wallet.recalculateStatus();
@@ -112,26 +133,17 @@ class WalletTest {
     }
 
     @Test
-    @DisplayName("getLowBalanceThresholdCents: 0 si nunca ha habido depósito")
-    void getLowBalanceThresholdCents_zeroWithoutDeposit() {
-        Wallet wallet = new Wallet();
-        wallet.setLastDepositAmountCents(null);
-
-        assertThat(wallet.getLowBalanceThresholdCents()).isZero();
-    }
-
-    @Test
-    @DisplayName("isOperational: true para ACTIVE y LOW_BALANCE, false para EXHAUSTED/INACTIVE")
-    void isOperational_trueForActiveAndLowBalance() {
+    @DisplayName("isOperational: true solo para ACTIVE, false para EXHAUSTED/INACTIVE")
+    void isOperational_trueForActive() {
         Wallet wallet = new Wallet();
 
         wallet.setStatus(WalletStatus.ACTIVE);
         assertThat(wallet.isOperational()).isTrue();
 
-        wallet.setStatus(WalletStatus.LOW_BALANCE);
-        assertThat(wallet.isOperational()).isTrue();
-
         wallet.setStatus(WalletStatus.EXHAUSTED);
+        assertThat(wallet.isOperational()).isFalse();
+
+        wallet.setStatus(WalletStatus.INACTIVE);
         assertThat(wallet.isOperational()).isFalse();
     }
 
