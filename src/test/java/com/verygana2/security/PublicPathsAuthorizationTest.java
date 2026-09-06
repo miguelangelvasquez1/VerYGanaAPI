@@ -6,29 +6,24 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
 import org.springframework.http.HttpStatus;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.assertj.MockMvcTester;
 
-import com.verygana2.config.RsaKeyProperties;
 import com.verygana2.config.SecurityConfig;
 import com.verygana2.controllers.UserController;
 import com.verygana2.security.systemFeatures.FeatureFlagService;
 import com.verygana2.services.interfaces.UserService;
+import com.verygana2.testsupport.TestRsaKeys;
 
 /**
  * Matriz de autorización sobre la cadena de filtros REAL de {@link SecurityConfig}
@@ -44,7 +39,7 @@ import com.verygana2.services.interfaces.UserService;
  * nivel de cadena de filtros, que corre antes del DispatcherServlet.
  */
 @WebMvcTest(controllers = UserController.class)
-@Import({ SecurityConfig.class, PublicPathsAuthorizationTest.TestKeysConfig.class })
+@Import(SecurityConfig.class)
 @DisplayName("PublicPaths — matriz de autorización (seguridad)")
 class PublicPathsAuthorizationTest {
 
@@ -61,17 +56,15 @@ class PublicPathsAuthorizationTest {
     @MockitoBean
     private FeatureFlagService featureFlagService;
 
-    /** SecurityConfig necesita llaves RSA reales para construir el jwtDecoder. */
-    @TestConfiguration
-    static class TestKeysConfig {
-        @Bean
-        @Primary
-        RsaKeyProperties testRsaKeyProperties() throws Exception {
-            KeyPairGenerator gen = KeyPairGenerator.getInstance("RSA");
-            gen.initialize(2048);
-            KeyPair kp = gen.generateKeyPair();
-            return new RsaKeyProperties((RSAPublicKey) kp.getPublic(), (RSAPrivateKey) kp.getPrivate());
-        }
+    /**
+     * SecurityConfig necesita llaves RSA para construir el jwtDecoder. No basta un
+     * bean @Primary: el perfil dev apunta rsa.private-key a un .pem que no está
+     * versionado, y el bind de RsaKeyProperties falla antes de que la precedencia
+     * importe. Hay que sobrescribir la propiedad, no el bean.
+     */
+    @DynamicPropertySource
+    static void rsaKeys(DynamicPropertyRegistry registry) {
+        TestRsaKeys.register(registry);
     }
 
     @Nested

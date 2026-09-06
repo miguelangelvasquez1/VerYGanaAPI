@@ -28,14 +28,19 @@ import jakarta.persistence.EntityManager;
 @DataJpaTest(properties = {
         // Perfil vacío: evita cargar application-dev.yml (llaves RSA, R2, etc.)
         "spring.profiles.active=test",
-        "spring.datasource.url=jdbc:h2:mem:referrals-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
+        // NON_KEYWORDS=VALUE: la entidad Prize mapea una columna "value", que en H2 es
+        // palabra reservada aunque MODE=MySQL. Sin esto, raffle_prizes no se crea
+        // y el contexto entero falla al arrancar.
+        "spring.datasource.url=jdbc:h2:mem:referrals-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;NON_KEYWORDS=VALUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import(ReferralServiceImpl.class)
+// ReferralServiceImpl depende de ReferralMapper. @DataJpaTest no escanea @Component,
+// así que hay que importar explícitamente la impl que genera MapStruct.
+@Import({ ReferralServiceImpl.class, com.verygana2.mappers.ReferralMapperImpl.class })
 @DisplayName("ReferralService (integración H2)")
 class ReferralServiceIntegrationTest {
 
