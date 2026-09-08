@@ -70,7 +70,7 @@ public interface RaffleMapper {
     @Mapping(target = "imageUrl", source = "imageAsset.objectKey")
     PrizeResponseDTO toPrizeResponseDTO(Prize prize);
 
-    @Mapping(target = "raffleId", source = "id")
+    @Mapping(target = "raffleId", source = "raffle.id")
     @Mapping(target = "ticketEarningRuleResponseDTO", source = "ticketEarningRule")
     RaffleRuleResponseDTO toRaffleResponseDTO(RaffleRule raffleRule);
 

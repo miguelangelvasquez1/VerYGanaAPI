@@ -73,8 +73,8 @@ class RaffleResultMapperTest {
         }
 
         @Test
-        @DisplayName("raffle sin imageAsset: buildImageUrl NO es null-safe, produce el literal '.../public/null' en vez de null")
-        void withoutImageAsset_producesLiteralNullString() {
+        @DisplayName("raffle sin imageAsset: buildImageUrl es null-safe, raffleImageUrl queda null")
+        void withoutImageAsset_raffleImageUrlIsNull() {
             Raffle raffle = new Raffle();
             raffle.setId(1L);
             raffle.setImageAsset(null);
@@ -83,11 +83,11 @@ class RaffleResultMapperTest {
 
             RaffleResultResponseDTO dto = raffleResultMapper.toRaffleResultDTO(result);
 
-            assertThat(dto.getRaffleImageUrl()).isEqualTo("https://cdn.verygana.com/public/null");
+            assertThat(dto.getRaffleImageUrl()).isNull();
         }
 
         @Test
-        @DisplayName("raffleResult.raffle es null: no lanza NPE; campos derivados de raffle quedan null pero raffleImageUrl igual trae el literal 'null'")
+        @DisplayName("raffleResult.raffle es null: no lanza NPE; campos derivados de raffle quedan null, raffleImageUrl incluido")
         void nullRaffle_doesNotThrow() {
             RaffleResult result = new RaffleResult();
             result.setRaffle(null);
@@ -99,7 +99,7 @@ class RaffleResultMapperTest {
             assertThat(dto.getRaffleType()).isNull();
             assertThat(dto.getTotalParticipants()).isNull();
             assertThat(dto.getTotalTicketsIssued()).isNull();
-            assertThat(dto.getRaffleImageUrl()).isEqualTo("https://cdn.verygana.com/public/null");
+            assertThat(dto.getRaffleImageUrl()).isNull();
         }
     }
 
@@ -137,14 +137,14 @@ class RaffleResultMapperTest {
         }
 
         @Test
-        @DisplayName("prize sin imageAsset: prizeImageUrl trae el literal '.../public/null', no null (mismo comportamiento no null-safe)")
-        void withoutImageAsset_producesLiteralNullString() {
+        @DisplayName("prize sin imageAsset: prizeImageUrl queda null (buildImageUrl es null-safe)")
+        void withoutImageAsset_prizeImageUrlIsNull() {
             Prize prize = new Prize();
             prize.setImageAsset(null);
 
             WinnerDetailResponseDTO dto = raffleResultMapper.toWinnerDetailDTO(winnerWithPrize(prize));
 
-            assertThat(dto.getPrizeImageUrl()).isEqualTo("https://cdn.verygana.com/public/null");
+            assertThat(dto.getPrizeImageUrl()).isNull();
         }
 
         @Test

@@ -561,9 +561,6 @@ class RaffleRepositoryTest {
 
             Raffle raffle = persistRaffle("Rifa con tickets del usuario", RaffleType.STANDARD, RaffleStatus.ACTIVE,
                     now().minusDays(1), now().plusDays(5), now().plusDays(6));
-            // r.imageAsset.objectKey en la proyección es una navegación implícita
-            // (INNER JOIN): sin un RaffleImageAsset asociado, la rifa quedaría
-            // excluida del resultado aunque tenga tickets.
             persistImageAsset(raffle, "img-my-raffles.png");
             persistTicket(raffle, consumer, "T-1", false);
             persistTicket(raffle, consumer, "T-2", true);
@@ -595,6 +592,22 @@ class RaffleRepositoryTest {
 
             assertThat(page.getContent()).hasSize(1);
             assertThat(page.getContent().get(0).isWinner()).isFalse();
+        }
+
+        @Test
+        @DisplayName("una rifa SIN RaffleImageAsset asociado igual aparece (LEFT JOIN r.imageAsset): imageUrl queda null")
+        void raffleWithoutImageAssetIsStillReturned() {
+            ConsumerDetails consumer = TestEntities.persistConsumer(em);
+            Raffle raffle = persistRaffle("Rifa sin imagen", RaffleType.STANDARD, RaffleStatus.ACTIVE,
+                    now().minusDays(1), now().plusDays(5), now().plusDays(6));
+            persistTicket(raffle, consumer, "T-1", false);
+
+            Page<UserRaffleSummaryResponseDTO> page = raffleRepository.findMyRafflesByStatus(
+                    consumer.getId(), RaffleStatus.ACTIVE, PageRequest.of(0, 10));
+
+            assertThat(page.getContent()).hasSize(1);
+            assertThat(page.getContent().get(0).getId()).isEqualTo(raffle.getId());
+            assertThat(page.getContent().get(0).getImageUrl()).isNull();
         }
     }
 

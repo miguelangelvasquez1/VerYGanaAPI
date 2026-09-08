@@ -17,6 +17,7 @@ import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.exceptions.ProductNotAvailableException;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.enums.marketplace.ProductStatus;
@@ -211,13 +212,13 @@ class PurchaseServiceImplTest {
         }
 
         @Test
-        @DisplayName("keysToUse supera el máximo permitido por el producto: lanza IllegalArgumentException")
-        void keysExceedMax_throwsIllegalArgumentException() {
+        @DisplayName("keysToUse supera el máximo permitido por el producto: lanza InvalidAmountException")
+        void keysExceedMax_throwsInvalidAmountException() {
             Product product = activeProduct(1_000_000L, 30, 1); // máximo 300 llaves permitidas
             stubUpToStockReservation(product);
 
             assertThatThrownBy(() -> service.createPurchase(9L, requestFor(1000L, 1))) // pide 1000, máx 300
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InvalidAmountException.class);
 
             verify(keyWalletRepository, never()).findByConsumerId(any());
         }

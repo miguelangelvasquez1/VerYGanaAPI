@@ -44,7 +44,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         SELECT new com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO(
                         r.id,
                         r.title,
-                        r.imageAsset.objectKey,
+                        ia.objectKey,
                         r.raffleType,
                         r.raffleStatus,
                         r.startDate,
@@ -55,13 +55,14 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         COUNT(p)
                         ) FROM Raffle r
                         JOIN r.prizes p
+                        LEFT JOIN r.imageAsset ia
                         WHERE (:status IS NULL OR r.raffleStatus = :status)
                         AND (:search IS NULL OR :search = ''
                         OR LOWER(r.title) LIKE LOWER(CONCAT('%', :search, '%')))
                         AND (:type IS NULL OR r.raffleType = :type)
                         AND (:drawDateStart IS NULL OR r.drawDate >= :drawDateStart)
                         AND (:drawDateEnd IS NULL OR r.drawDate < :drawDateEnd)
-                        GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
+                        GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                              r.totalParticipants
                         """)
@@ -144,7 +145,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         SELECT new com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO(
                                r.id,
                                r.title,
-                               r.imageAsset.objectKey,
+                               ia.objectKey,
                                r.raffleType,
                                r.raffleStatus,
                                r.startDate,
@@ -155,13 +156,14 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                COUNT(p)
                                ) FROM Raffle r
                                JOIN r.prizes p
+                               LEFT JOIN r.imageAsset ia
                                LEFT JOIN r.targetAudience ta
                                WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.LIVE)
                                AND (:municipality IS NULL
                                     OR ta IS NULL
                                     OR ta.targetMunicipalities IS EMPTY
                                     OR :municipality MEMBER OF ta.targetMunicipalities)
-                               GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
+                               GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus,
                                     r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                                     r.totalParticipants
                                 ORDER BY r.drawDate ASC
@@ -173,7 +175,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         SELECT new com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO(
                         r.id,
                         r.title,
-                        r.imageAsset.objectKey,
+                        ia.objectKey,
                         r.raffleType,
                         r.raffleStatus,
                         r.startDate,
@@ -184,6 +186,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         COUNT(p)
                         ) FROM Raffle r
                         JOIN r.prizes p
+                        LEFT JOIN r.imageAsset ia
                         LEFT JOIN r.targetAudience ta
                         WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.ACTIVE)
                         AND (:type IS NULL OR r.raffleType = :type)
@@ -191,7 +194,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                              OR ta IS NULL
                              OR ta.targetMunicipalities IS EMPTY
                              OR :municipality MEMBER OF ta.targetMunicipalities)
-                        GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus,
+                        GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
                              r.totalParticipants
                          ORDER BY r.drawDate ASC
@@ -205,7 +208,7 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                             SELECT new com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO(
                             r.id,
                             r.title,
-                            r.imageAsset.objectKey,
+                            ia.objectKey,
                             r.raffleType,
                             r.raffleStatus,
                             r.drawDate,
@@ -218,9 +221,10 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                             )
                             FROM Raffle r
                             JOIN r.issuedTickets t
+                            LEFT JOIN r.imageAsset ia
                             WHERE t.ticketOwner.id = :consumerId
                             AND r.raffleStatus = :status
-                            GROUP BY r.id, r.title, r.imageAsset.objectKey, r.raffleType, r.raffleStatus, r.drawDate
+                            GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus, r.drawDate
                             ORDER BY r.drawDate DESC
                         """)
         Page<UserRaffleSummaryResponseDTO> findMyRafflesByStatus(@Param("consumerId") Long consumerId,

@@ -37,7 +37,6 @@ public interface RaffleResultMapper {
 
     @Named("mapImageUrl")
     default String buildImageUrl (String objectKey) {
-        return "https://cdn.verygana.com/public/" + objectKey;
+        return objectKey == null ? null : "https://cdn.verygana.com/public/" + objectKey;
     }
-
 }

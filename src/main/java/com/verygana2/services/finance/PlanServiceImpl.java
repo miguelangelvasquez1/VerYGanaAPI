@@ -23,6 +23,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.PlanChangeRequest;
@@ -793,17 +794,17 @@ public class PlanServiceImpl implements PlanService {
 
         private void validateInvestmentAmount(Long amountCents, Plan plan) {
                 if (amountCents == null || amountCents <= 0) {
-                        throw new IllegalArgumentException("El monto debe ser positivo.");
+                        throw new InvalidAmountException("El monto debe ser positivo.");
                 }
                 if (plan.getMinInvestmentCents() != null
                                 && amountCents < plan.getMinInvestmentCents()) {
-                        throw new IllegalArgumentException(
+                        throw new InvalidAmountException(
                                         "Monto mínimo para " + plan.getCode() + ": $" +
                                                         centsToPesos(plan.getMinInvestmentCents()) + ".");
                 }
                 if (plan.getMaxInvestmentCents() != null
                                 && amountCents > plan.getMaxInvestmentCents()) {
-                        throw new IllegalArgumentException(
+                        throw new InvalidAmountException(
                                         "Monto máximo para " + plan.getCode() + ": $" +
                                                         centsToPesos(plan.getMaxInvestmentCents()) + ".");
                 }

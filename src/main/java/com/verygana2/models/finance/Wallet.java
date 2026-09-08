@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.WalletBudgetAlertStage;
 import com.verygana2.models.enums.finance.WalletStatus;
 import com.verygana2.models.finance.plans.BudgetTransaction;
@@ -131,7 +132,7 @@ public class Wallet {
      * {@code lastDepositAmountCents} — de ahí que ese campo no se toque aquí.
      */
     public void deposit(Long amount) {
-        if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
+        if (amount <= 0) throw new InvalidAmountException("Amount must be positive");
         this.balanceCents += amount;
         recalculateStatus();
         if (this.balanceCents > 0) {
@@ -147,14 +148,14 @@ public class Wallet {
      * ({@code EffectivePlanResolver.resolveBudgetThresholds}).
      */
     public void registerDeposit(Long amount) {
-        if (amount <= 0) throw new IllegalArgumentException("Amount must be positive");
+        if (amount <= 0) throw new InvalidAmountException("Amount must be positive");
         this.lastDepositAmountCents = amount;
         deposit(amount);
     }
 
     public void consume(Long amount) {
         if (amount <= 0)
-            throw new IllegalArgumentException("Amount must be positive");
+            throw new InvalidAmountException("Amount must be positive");
         if (!hasFundsFor(amount))
             throw new InsufficientFundsException();
         this.balanceCents -= amount;

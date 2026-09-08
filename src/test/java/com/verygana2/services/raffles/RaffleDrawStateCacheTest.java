@@ -166,8 +166,8 @@ class RaffleDrawStateCacheTest {
         }
 
         @Test
-        @DisplayName("con estado en cache: usa phase/revealedWinners/totalWinners del estado, PERO totalParticipants queda null (el parámetro se ignora en esta rama)")
-        void withState_ignoresTotalParticipantsParameter() {
+        @DisplayName("con estado en cache: usa phase/revealedWinners/totalWinners del estado y propaga el parámetro totalParticipants")
+        void withState_propagatesTotalParticipantsParameter() {
             cache.onDrawingStarted(1L, 2);
             cache.onWinnerRevealed(1L, winner(1));
 
@@ -176,7 +176,7 @@ class RaffleDrawStateCacheTest {
             assertThat(status.getCurrentPhase()).isEqualTo(DrawEventType.WINNER_REVEALED);
             assertThat(status.getRevealedWinners()).hasSize(1);
             assertThat(status.getTotalWinners()).isEqualTo(2);
-            assertThat(status.getTotalParticipants()).isNull();
+            assertThat(status.getTotalParticipants()).isEqualTo(250L);
         }
 
         @Test
@@ -191,12 +191,12 @@ class RaffleDrawStateCacheTest {
     }
 
     @Nested
-    @DisplayName("concurrencia (best-effort, documenta un riesgo conocido)")
+    @DisplayName("concurrencia")
     class Concurrency {
 
         @Test
-        @DisplayName("N hilos revelando ganadores a la vez para la misma rifa: no lanza excepciones; el tamaño final puede ser menor a N porque ArrayList no está sincronizada (esto documenta el riesgo, no lo garantiza)")
-        void concurrentWinnerReveals_neverThrows_andDocumentsPossibleLostUpdates() throws InterruptedException {
+        @DisplayName("N hilos revelando ganadores a la vez para la misma rifa: no lanza excepciones y no se pierde ninguna actualización (revealedWinners es CopyOnWriteArrayList)")
+        void concurrentWinnerReveals_neverThrow_andNoLostUpdates() throws InterruptedException {
             int threadCount = 20;
             cache.onDrawingStarted(1L, threadCount);
 
@@ -228,7 +228,56 @@ class RaffleDrawStateCacheTest {
 
             DrawStatusResponseDTO status = cache.buildStatus(1L, 0, null, null, 0L);
             List<WinnerRevealPayloadDTO> revealed = status.getRevealedWinners();
-            assertThat(revealed.size()).isBetween(1, threadCount);
+            assertThat(revealed).hasSize(threadCount);
+        }
+
+        @Test
+        @DisplayName("lecturas de buildStatus en paralelo mientras otro hilo revela ganadores: nunca lanza (ConcurrentModificationException / AIOOBE)")
+        void concurrentReadsDuringReveal_neverThrow() throws InterruptedException {
+            int writes = 200;
+            int readers = 8;
+            cache.onDrawingStarted(1L, writes);
+
+            ExecutorService pool = Executors.newFixedThreadPool(readers + 1);
+            CountDownLatch startGate = new CountDownLatch(1);
+            CountDownLatch doneLatch = new CountDownLatch(readers + 1);
+            AtomicInteger unexpectedErrors = new AtomicInteger(0);
+
+            pool.submit(() -> {
+                try {
+                    startGate.await();
+                    for (int i = 0; i < writes; i++) {
+                        cache.onWinnerRevealed(1L, winner(i));
+                    }
+                } catch (Exception ex) {
+                    unexpectedErrors.incrementAndGet();
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+
+            for (int r = 0; r < readers; r++) {
+                pool.submit(() -> {
+                    try {
+                        startGate.await();
+                        for (int i = 0; i < writes; i++) {
+                            cache.buildStatus(1L, 0, null, null, 0L).getRevealedWinners().size();
+                        }
+                    } catch (Exception ex) {
+                        unexpectedErrors.incrementAndGet();
+                    } finally {
+                        doneLatch.countDown();
+                    }
+                });
+            }
+
+            startGate.countDown();
+            boolean completed = doneLatch.await(10, TimeUnit.SECONDS);
+            pool.shutdown();
+
+            assertThat(completed).isTrue();
+            assertThat(unexpectedErrors.get()).isZero();
+            assertThat(cache.buildStatus(1L, 0, null, null, 0L).getRevealedWinners()).hasSize(writes);
         }
     }
 }

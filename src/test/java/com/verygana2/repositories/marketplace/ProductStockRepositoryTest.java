@@ -3,6 +3,7 @@ package com.verygana2.repositories.marketplace;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -173,12 +174,18 @@ class ProductStockRepositoryTest {
         void filtersBySoldDate() {
             CommercialDetails commercial = TestEntities.persistCommercial(em);
             Product product = persistProduct(commercial, persistCategory());
-            ZonedDateTime soldToday = ZonedDateTime.now(ZoneOffset.UTC);
-            ProductStock soldTodayStock = persistStock(product, StockStatus.SOLD, uniqueHash(), null, soldToday);
-            persistStock(product, StockStatus.SOLD, uniqueHash(), null, soldToday.minusDays(5));
+            ZonedDateTime soldAt = ZonedDateTime.now(ZoneOffset.UTC);
+            ProductStock soldTodayStock = persistStock(product, StockStatus.SOLD, uniqueHash(), null, soldAt);
+            persistStock(product, StockStatus.SOLD, uniqueHash(), null, soldAt.minusDays(5));
+
+            // H2 guarda soldAt en una columna TIMESTAMP WITH TIME ZONE y evalúa
+            // FUNCTION('DATE', ps.soldAt) convirtiendo a la zona de sesión (la de la JVM),
+            // no a UTC. El filtro debe calcularse en esa misma zona o el test falla cuando
+            // corre entre las 00:00 y 05:00 UTC (la fecha UTC ya avanzó respecto a la local).
+            LocalDate soldDate = soldAt.withZoneSameInstant(ZoneId.systemDefault()).toLocalDate();
 
             Page<ProductStock> found = productStockRepository.findByProductIdWithFilters(
-                    product.getId(), null, soldToday.toLocalDate(), PageRequest.of(0, 10));
+                    product.getId(), null, soldDate, PageRequest.of(0, 10));
 
             assertThat(found.getContent()).extracting(ProductStock::getId)
                     .containsExactly(soldTodayStock.getId());

@@ -4,18 +4,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.time.Instant;
 import java.util.List;
+
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.http.MediaType;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -49,9 +56,11 @@ import com.verygana2.services.interfaces.finance.PayoutMethodService;
  * mismo patrón que {@code RaffleAdminControllerSecurityIntegrationTest}.
  *
  * <p>{@code GET /{id}/certificate} hace streaming directo sobre
- * {@link jakarta.servlet.http.HttpServletResponse} (no cubierto aquí porque
- * requiere un {@code OutputStream} real del servidor); se prueba solo su
- * regla de autorización a nivel de las otras 3 rutas del mismo controller.
+ * {@link jakarta.servlet.http.HttpServletResponse}. {@code MockHttpServletResponse}
+ * sí captura lo que se escribe en su {@code getOutputStream()}
+ * ({@code getContentAsByteArray()}), así que también se cubre el camino "200 con
+ * ADMIN": el mock del service escribe unos bytes de PDF en el response y el test
+ * verifica status, content-type y cuerpo.
  */
 @WebMvcTest(PayoutMethodAdminController.class)
 @Import({ SecurityConfig.class, PayoutMethodAdminControllerSecurityIntegrationTest.TestKeysConfig.class })
@@ -232,5 +241,27 @@ class PayoutMethodAdminControllerSecurityIntegrationTest {
                 .andReturn().getResponse().getStatus();
 
         assertThat(status).isEqualTo(403);
+    }
+
+    @Test
+    @DisplayName("GET /admin/payout-methods/{id}/certificate con ADMIN: llega al service y transmite el cuerpo que este escribe")
+    void getCertificate_asAdmin_streamsResponseBody() throws Exception {
+        byte[] pdf = "%PDF-1.4 certificado bancario".getBytes(StandardCharsets.UTF_8);
+        doAnswer(inv -> {
+            HttpServletResponse res = inv.getArgument(1);
+            res.setStatus(200);
+            res.setContentType(MediaType.APPLICATION_PDF_VALUE);
+            res.getOutputStream().write(pdf);
+            return null;
+        }).when(payoutMethodService).streamCertificate(eq(7L), any(HttpServletResponse.class));
+
+        var response = mockMvc.perform(get("/admin/payout-methods/7/certificate")
+                        .header("Authorization", "Bearer " + adminToken(1L)))
+                .andReturn().getResponse();
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(response.getContentType()).isEqualTo(MediaType.APPLICATION_PDF_VALUE);
+        assertThat(response.getContentAsByteArray()).isEqualTo(pdf);
+        verify(payoutMethodService).streamCertificate(eq(7L), any(HttpServletResponse.class));
     }
 }

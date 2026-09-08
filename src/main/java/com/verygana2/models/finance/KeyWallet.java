@@ -23,6 +23,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 @Entity
@@ -282,12 +283,12 @@ public class KeyWallet {
  
     private void validatePositive(long amountCents, String field) {
         if (amountCents <= 0)
-            throw new IllegalArgumentException(field + "Must be positive");
+            throw new InvalidAmountException(field + "Must be positive");
     }
  
     private void validateNonNegative(long amountCents, String field) {
         if (amountCents < 0)
-            throw new IllegalArgumentException(field + "Cannot be negative");
+            throw new InvalidAmountException(field + "Cannot be negative");
     }
 }
  

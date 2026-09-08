@@ -124,41 +124,17 @@ class TicketAuditLogRepositoryTest {
     @DisplayName("findByAction")
     class FindByAction {
 
-        /**
-         * El método declara el parámetro como String, pero el campo mapeado
-         * (action) es un enum @Enumerated(STRING). En esta versión de
-         * Hibernate/Spring Data (validación estricta de tipos de parámetro en
-         * QueryParameterBindingValidator), esto NO hace una conversión
-         * implícita String→enum: cualquier valor String pasado, matchee o no
-         * el nombre de una constante del enum, hace fallar el binding del
-         * parámetro con InvalidDataAccessApiUsageException ANTES de ejecutar
-         * SQL alguno. Se documenta el comportamiento real (verificado contra
-         * H2) en vez de el comportamiento ingenuamente esperado.
-         */
         @Test
-        @DisplayName("un string que coincide con el nombre del enum igual falla: Hibernate valida el tipo de parámetro en bind, no el valor")
-        void matchingActionStringStillThrowsDueToStrictParameterTypeValidation() {
+        @DisplayName("filtra los logs por su AuditAction (parámetro enum, no String)")
+        void filtersLogsByAuditAction() {
             ConsumerDetails owner = TestEntities.persistConsumer(em);
             RaffleTicket ticket = persistTicket(owner, "ACT-1");
-            persistLog(ticket, RaffleTicketSource.PURCHASE, "3.3.3.3", now());
+            TicketAuditLog issued = persistLog(ticket, RaffleTicketSource.PURCHASE, "3.3.3.3", now());
 
-            org.assertj.core.api.Assertions.assertThatThrownBy(
-                    () -> ticketAuditLogRepository.findByAction("ISSUED", PageRequest.of(0, 10)))
-                    .isInstanceOf(org.springframework.dao.InvalidDataAccessApiUsageException.class)
-                    .hasMessageContaining("did not match parameter type");
-        }
+            Page<TicketAuditLog> page = ticketAuditLogRepository.findByAction(
+                    AuditAction.ISSUED, PageRequest.of(0, 10));
 
-        @Test
-        @DisplayName("un string que NO coincide con ningún valor del enum también falla con la misma excepción de tipo, no con un resultado vacío")
-        void nonMatchingActionStringAlsoThrowsSameTypeException() {
-            ConsumerDetails owner = TestEntities.persistConsumer(em);
-            RaffleTicket ticket = persistTicket(owner, "ACT-2");
-            persistLog(ticket, RaffleTicketSource.PURCHASE, "3.3.3.3", now());
-
-            org.assertj.core.api.Assertions.assertThatThrownBy(
-                    () -> ticketAuditLogRepository.findByAction("NOT_A_REAL_ACTION", PageRequest.of(0, 10)))
-                    .isInstanceOf(org.springframework.dao.InvalidDataAccessApiUsageException.class)
-                    .hasMessageContaining("did not match parameter type");
+            assertThat(page.getContent()).extracting(TicketAuditLog::getId).containsExactly(issued.getId());
         }
     }
 

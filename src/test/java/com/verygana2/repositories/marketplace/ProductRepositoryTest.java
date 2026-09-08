@@ -261,22 +261,14 @@ class ProductRepositoryTest {
     // ==================== searchProducts / searchProductsInternal ====================
 
     /**
-     * HALLAZGO (no corregido aquí — no se deben modificar archivos de
-     * producción en este lote): searchProductsInternal navega
-     * {@code p.targetAudience.targetMunicipalities} en el ORDER BY sin un
-     * LEFT JOIN explícito (a diferencia de RaffleRepository.findActiveRaffles
-     * /findLiveRaffles, que sí declara "LEFT JOIN r.targetAudience ta").
-     * Hibernate resuelve esa navegación implícita como INNER JOIN hacia
-     * target_audiences, así que CUALQUIER producto sin TargetAudience
-     * asignado —el caso más común, ya que el campo es opcional— queda
-     * excluido de TODOS los resultados de búsqueda, con o sin filtro de
-     * municipio. Esto contradice el javadoc del método ("el municipio solo
-     * prioriza, nunca excluye"). Ver el test dedicado
-     * productsWithoutTargetAudienceAreIncorrectlyExcluded() más abajo.
+     * searchProductsInternal declara "LEFT JOIN p.targetAudience ta" y ordena
+     * sobre {@code ta} (igual que RaffleRepository.findActiveRaffles/findLiveRaffles),
+     * de modo que un producto sin TargetAudience asignado —el caso más común, el
+     * campo es opcional— NO queda excluido: el municipio solo prioriza el orden,
+     * nunca filtra (ver productsWithoutTargetAudienceAreIncluded() más abajo).
      *
-     * Para poder ejercer el resto de los filtros de búsqueda sin toparse con
-     * este bug, los productos de estos tests reciben una TargetAudience
-     * "abierta" (sin municipios) vía este helper.
+     * Varios tests igual asignan una TargetAudience "abierta" (sin municipios) a
+     * sus productos vía este helper para ejercer explícitamente esa rama del CASE.
      */
     @Nested
     @DisplayName("searchProducts / searchProductsInternal")
@@ -459,22 +451,24 @@ class ProductRepositoryTest {
         }
 
         @Test
-        @DisplayName("HALLAZGO: un producto ACTIVE sin TargetAudience asignado (el caso más común) queda excluido de la búsqueda por un INNER JOIN implícito")
-        void productsWithoutTargetAudienceAreIncorrectlyExcluded() {
+        @DisplayName("un producto ACTIVE sin TargetAudience asignado (el caso más común) SÍ aparece en la búsqueda: el LEFT JOIN no lo excluye")
+        void productsWithoutTargetAudienceAreIncluded() {
             CommercialDetails commercial = TestEntities.persistCommercial(em);
-            ProductCategory category = persistCategory("Categoria bug target audience");
+            ProductCategory category = persistCategory("Categoria sin target audience");
             // Producto ACTIVE normal, sin TargetAudience asignado — el campo es
             // nullable/opcional según Product.targetAudience.
-            persistProduct(commercial, category, "Producto activo sin target audience", 10000, ProductStatus.ACTIVE);
+            Product noTarget = persistProduct(commercial, category, "Producto activo sin target audience", 10000,
+                    ProductStatus.ACTIVE);
 
-            Page<Product> page = productRepository.searchProducts(null, null, null, null, null,
+            Page<Product> withoutMunicipality = productRepository.searchProducts(null, null, null, null, null,
                     PageRequest.of(0, 10));
+            assertThat(withoutMunicipality.getContent()).extracting(Product::getId).containsExactly(noTarget.getId());
 
-            // Comportamiento REAL actual (bug, ver comentario de la clase): debería
-            // aparecer según el javadoc del método, pero la navegación implícita a
-            // p.targetAudience en el ORDER BY genera un INNER JOIN hacia
-            // target_audiences y lo excluye.
-            assertThat(page.getContent()).isEmpty();
+            // Tampoco lo excluye cuando se pasa un municipio: el municipio solo prioriza.
+            Municipality armenia = persistMunicipality("63001", "Armenia", "63", "Quindío");
+            Page<Product> withMunicipality = productRepository.searchProducts(null, null, null, null, armenia,
+                    PageRequest.of(0, 10));
+            assertThat(withMunicipality.getContent()).extracting(Product::getId).containsExactly(noTarget.getId());
         }
     }
 

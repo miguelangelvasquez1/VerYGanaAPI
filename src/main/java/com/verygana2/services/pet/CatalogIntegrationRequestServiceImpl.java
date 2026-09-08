@@ -558,7 +558,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                 keyTransactionRepository
                         .findPetDailySalesByCommercial(commercial.getId(), startOf(desde), endOf(hasta))
                         .stream()
-                        .collect(Collectors.toMap(r -> r.getDay().toLocalDate(), r -> r, (a, b) -> a));
+                        .collect(Collectors.toMap(r -> r.getSaleDay().toLocalDate(), r -> r, (a, b) -> a));
 
         List<PetSalesPointDTO> serie = new ArrayList<>();
         for (LocalDate d = desde; !d.isAfter(hasta); d = d.plusDays(1)) {

@@ -93,8 +93,8 @@ class RaffleMapperTest {
     class ToRaffleRuleResponseDTO {
 
         @Test
-        @DisplayName("raffleId sale del id de la propia RaffleRule, NO del id de raffleRule.getRaffle() (comportamiento actual a revisar)")
-        void raffleId_comesFromRaffleRuleOwnId() {
+        @DisplayName("id sale del id de la propia RaffleRule; raffleId sale de raffleRule.getRaffle().getId()")
+        void raffleId_comesFromParentRaffle() {
             Raffle raffle = new Raffle();
             raffle.setId(99L);
             RaffleRule rule = new RaffleRule();
@@ -104,8 +104,8 @@ class RaffleMapperTest {
 
             RaffleRuleResponseDTO dto = raffleMapper.toRaffleResponseDTO(rule);
 
-            assertThat(dto.getRaffleId()).isEqualTo(5L);
-            assertThat(dto.getRaffleId()).isNotEqualTo(raffle.getId());
+            assertThat(dto.getId()).isEqualTo(5L);
+            assertThat(dto.getRaffleId()).isEqualTo(99L);
         }
     }
 

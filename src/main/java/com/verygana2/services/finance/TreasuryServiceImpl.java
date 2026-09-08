@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.treasury.TreasuryBalanceResponseDTO;
 import com.verygana2.dtos.treasury.TreasuryMovementResponseDTO;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
@@ -323,7 +324,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long cashPortion = cashPortionCents == null ? 0 : cashPortionCents;
 
                 if (commission < 0 || keysPortion < 0 || cashPortion < 0) {
-                        throw new IllegalArgumentException("Los montos a reversar no pueden ser negativos");
+                        throw new InvalidAmountException("Los montos a reversar no pueden ser negativos");
                 }
 
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
@@ -583,8 +584,8 @@ public class TreasuryServiceImpl implements TreasuryService {
 
         private void validateAmount(Long amountCents) {
                 if (amountCents == null || amountCents <= 0) {
-                        throw new IllegalArgumentException(
-                                        "El monto debe ser positivo. Recibido: " + amountCents);
+                        throw new InvalidAmountException(
+                                        "el monto debe ser positivo. Recibido: " + amountCents);
                 }
         }
 }

@@ -199,7 +199,7 @@ public final class TestEntities {
      * Crea y persiste un Wallet asociado al commercial dado con el saldo
      * indicado (en centavos). El saldo se fija con el setter directo (no con
      * el método de dominio {@code deposit()}, que lanza
-     * IllegalArgumentException para montos <= 0 y por lo tanto no sirve para
+     * InvalidAmountException para montos <= 0 y por lo tanto no sirve para
      * dejar el wallet en 0). El status se calcula con
      * {@code Wallet.recalculateStatus()} para quedar coherente con el saldo:
      * EXHAUSTED si balanceCents == 0, ACTIVE en cualquier otro caso (no se

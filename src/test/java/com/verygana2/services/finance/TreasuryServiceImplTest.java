@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.config.TreasuryConfig;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
 import com.verygana2.models.finance.TreasuryMovement;
@@ -86,10 +87,10 @@ class TreasuryServiceImplTest {
         }
 
         @Test
-        @DisplayName("monto no positivo: lanza IllegalArgumentException sin tocar ninguna cuenta")
+        @DisplayName("monto no positivo: lanza InvalidAmountException sin tocar ninguna cuenta")
         void nonPositiveAmount_throwsWithoutTouchingAccounts() {
             assertThatThrownBy(() -> service.distributeDeposit(0L, commercial(1L), UUID.randomUUID()))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InvalidAmountException.class);
             verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
         }
     }

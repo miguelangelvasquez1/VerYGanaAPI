@@ -21,7 +21,7 @@ import com.verygana2.models.finance.Payout;
 public interface PayoutRepository extends JpaRepository<Payout, UUID> {
 
     @Query("""
-            SELECT SUM(p.netAmountCents)
+            SELECT COALESCE(SUM(p.netAmountCents), 0)
             FROM Payout p
             WHERE p.commercial.id = :commercialId
             AND p.paidAt >= :startDate

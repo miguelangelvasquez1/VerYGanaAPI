@@ -42,6 +42,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         JOIN FETCH p.productCategory pc
                         JOIN FETCH p.commercial c
                         LEFT JOIN FETCH p.imageAsset ia
+                        LEFT JOIN p.targetAudience ta
                         WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                         AND (:searchQuery IS NULL OR :searchQuery = '' OR
                                 LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
@@ -52,9 +53,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND (:minRating IS NULL OR p.averageRate >= :minRating)
                         AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)
                         ORDER BY CASE WHEN (:municipality IS NULL
-                                        OR p.targetAudience IS NULL
-                                        OR p.targetAudience.targetMunicipalities IS EMPTY
-                                        OR :municipality MEMBER OF p.targetAudience.targetMunicipalities)
+                                        OR ta IS NULL
+                                        OR ta.targetMunicipalities IS EMPTY
+                                        OR :municipality MEMBER OF ta.targetMunicipalities)
                                 THEN 0 ELSE 1 END ASC
                                 """)
         Page<Product> searchProductsInternal(

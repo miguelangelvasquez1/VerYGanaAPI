@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.stereotype.Component;
 
@@ -21,18 +22,23 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class RaffleDrawStateCache {
 
-    // Clase interna que representa el estado completo de un sorteo en curso
+    // Clase interna que representa el estado completo de un sorteo en curso.
+    // Lo escribe el hilo async de revelación (RaffleEventPublisherServiceImpl) y lo
+    // leen los hilos HTTP que hacen polling a /draw-status, así que:
+    // - phase/updatedAt son volatile para garantizar visibilidad entre hilos
+    // - revealedWinners es CopyOnWriteArrayList: lecturas lock-free (el caso común,
+    //   cada espectador) y escrituras seguras (una cada ~15s)
     @Data
     private static class DrawState {
-        DrawEventType phase;
-        List<WinnerRevealPayloadDTO> revealedWinners;
-        int totalWinners;
-        ZonedDateTime updatedAt;
+        volatile DrawEventType phase;
+        final List<WinnerRevealPayloadDTO> revealedWinners;
+        final int totalWinners;
+        volatile ZonedDateTime updatedAt;
 
         DrawState(DrawEventType phase, int totalWinners) {
             this.phase = phase;
             this.totalWinners = totalWinners;
-            this.revealedWinners = new ArrayList<>();
+            this.revealedWinners = new CopyOnWriteArrayList<>();
             this.updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
         }
     }
@@ -106,6 +112,7 @@ public class RaffleDrawStateCache {
                 .viewerCount(viewerCount)
                 .revealedWinners(new ArrayList<>(state.revealedWinners))
                 .totalWinners(state.totalWinners)
+                .totalParticipants(totalParticipants)
                 .asOf(ZonedDateTime.now(ZoneOffset.UTC))
                 .build();
     }

@@ -139,15 +139,17 @@ class InvestmentServiceTest {
         }
 
         @Test
-        @DisplayName("depósito con más de 2 decimales: longValueExact() lanza ArithmeticException (comportamiento actual, no corregido)")
-        void nonExactCents_throwsArithmeticException() {
+        @DisplayName("depósito con más de 2 decimales (fracción de centavo): lanza ValidationException, no ArithmeticException cruda")
+        void nonExactCents_throwsValidationException() {
             CommercialDetails commercial = commercialWithPlan(plan(PlanCode.STANDARD));
             Wallet wallet = walletWithBalance(0L);
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));
             when(walletRepository.findByCommercialId(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
 
             assertThatThrownBy(() -> service.createInvestment(COMMERCIAL_ID, new BigDecimal("1000000.505")))
-                    .isInstanceOf(ArithmeticException.class);
+                    .isInstanceOf(ValidationException.class);
+
+            verify(investmentRepository, never()).save(any());
         }
 
         @Test

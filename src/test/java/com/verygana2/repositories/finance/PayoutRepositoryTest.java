@@ -96,14 +96,14 @@ class PayoutRepositoryTest {
     class SumTotalByCommercialIdAndPeriod {
 
         @Test
-        @DisplayName("retorna null (SUM sobre vacío, sin COALESCE a diferencia de otros repos) cuando no hay payouts pagados en el rango")
-        void returnsNullWhenNoRowsInRange() {
+        @DisplayName("retorna 0 (COALESCE sobre SUM vacío) cuando no hay payouts pagados en el rango")
+        void returnsZeroWhenNoRowsInRange() {
             CommercialDetails commercial = TestEntities.persistCommercial(em);
 
             BigDecimal total = payoutRepository.sumTotalByCommercialIdAndPeriod(
                     commercial.getId(), now().minusDays(30), now().minusDays(29));
 
-            assertThat(total).isNull();
+            assertThat(total).isEqualByComparingTo(BigDecimal.ZERO);
         }
 
         @Test

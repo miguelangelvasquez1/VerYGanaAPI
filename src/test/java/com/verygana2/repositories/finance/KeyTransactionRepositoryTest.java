@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,24 +29,15 @@ import jakarta.persistence.EntityManager;
 /**
  * Tests de integración H2 (modo MySQL) para KeyTransactionRepository — el
  * repositorio más grande del dominio finance. Cubre el historial paginado
- * filtrado, las 3 sumas agregadas (incluyendo el caso SUM sobre vacío = null),
- * el vencimiento no procesado (con su JOIN FETCH y exclusión de débitos y
- * reservas), el marcado masivo como procesado, y las 3 queries nativas de
+ * filtrado, las 3 sumas agregadas (con COALESCE: SUM sobre vacío = 0, nunca
+ * null), el vencimiento no procesado (con su JOIN FETCH y exclusión de débitos
+ * y reservas), el marcado masivo como procesado, y las 3 queries nativas de
  * ventas de mascotas.
  *
- * NOTA sobre las queries nativas (findPetProductSalesByCommercial,
- * findPetDailySalesByCommercial, countRepeatBuyers): findPetProductSalesByCommercial
- * y countRepeatBuyers usan sintaxis estándar (JOIN/LEFT JOIN, HAVING) compatible
- * con H2 en MODE=MySQL, así que se cubren igual que el resto.
- *
- * findPetDailySalesByCommercial SÍ falla contra H2: la query usa el alias de
- * columna "day" (AS day), y "DAY" es palabra reservada en el parser de H2
- * (choca con la función DAY()/el tipo de intervalo DAY), lo que produce un
- * "Syntax error ... expected identifier" al preparar el statement. En MySQL
- * real "day" no es reservada y la query funciona sin problema — es una
- * limitación de H2, no un bug del repositorio. Los 2 tests de ese método
- * quedan con @Disabled documentando este problema puntual, sin bloquear el
- * resto de la clase.
+ * Las 3 queries nativas usan sintaxis estándar (JOIN/LEFT JOIN, HAVING,
+ * alias no reservados) compatible con H2 en MODE=MySQL, así que se cubren
+ * todas. (findPetDailySalesByCommercial usaba "AS day" —reservada en H2— y
+ * ahora es "AS saleDay".)
  */
 @DataJpaTest(properties = {
         "spring.profiles.active=test",
@@ -226,12 +216,12 @@ class KeyTransactionRepositoryTest {
     class SumAggregates {
 
         @Test
-        @DisplayName("sumTotalEarnedKeysCents retorna null (SUM sobre vacío) cuando no hay créditos")
-        void sumEarnedReturnsNullWhenNoRows() {
+        @DisplayName("sumTotalEarnedKeysCents retorna 0 (COALESCE sobre SUM vacío) cuando no hay créditos")
+        void sumEarnedReturnsZeroWhenNoRows() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             persistKeyWallet(consumer);
 
-            assertThat(keyTransactionRepository.sumTotalEarnedKeysCents(consumer.getId())).isNull();
+            assertThat(keyTransactionRepository.sumTotalEarnedKeysCents(consumer.getId())).isZero();
         }
 
         @Test
@@ -249,13 +239,13 @@ class KeyTransactionRepositoryTest {
         }
 
         @Test
-        @DisplayName("sumTotalUsedKeysCents retorna null cuando no hay débitos")
-        void sumUsedReturnsNullWhenNoRows() {
+        @DisplayName("sumTotalUsedKeysCents retorna 0 cuando no hay débitos")
+        void sumUsedReturnsZeroWhenNoRows() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
             persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 1000L, null, null, false);
 
-            assertThat(keyTransactionRepository.sumTotalUsedKeysCents(consumer.getId())).isNull();
+            assertThat(keyTransactionRepository.sumTotalUsedKeysCents(consumer.getId())).isZero();
         }
 
         @Test
@@ -273,12 +263,12 @@ class KeyTransactionRepositoryTest {
         }
 
         @Test
-        @DisplayName("sumTotalExpiredKeysCents retorna null cuando no hay expiraciones, y suma cuando sí hay")
-        void sumExpiredNullThenSum() {
+        @DisplayName("sumTotalExpiredKeysCents retorna 0 cuando no hay expiraciones, y suma cuando sí hay")
+        void sumExpiredZeroThenSum() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
 
-            assertThat(keyTransactionRepository.sumTotalExpiredKeysCents(consumer.getId())).isNull();
+            assertThat(keyTransactionRepository.sumTotalExpiredKeysCents(consumer.getId())).isZero();
 
             persistTransaction(wallet, KeyTransactionType.EXPIRED, -700L, -100L, null, true);
 
@@ -441,9 +431,6 @@ class KeyTransactionRepositoryTest {
     class FindPetDailySalesByCommercial {
 
         @Test
-        @Disabled("H2 trata 'day' (el alias 'AS day' de la query) como palabra reservada y falla con "
-                + "'Syntax error ... expected identifier' al preparar el statement nativo; en MySQL real no es "
-                + "reservada. Ver nota de clase.")
         @DisplayName("agrupa por día (DATE()) sumando unidades e ingresos del comercial en el rango")
         void groupsByDaySummingUnitsAndRevenue() {
             CommercialDetails commercial = TestEntities.persistCommercial(em);
@@ -465,9 +452,6 @@ class KeyTransactionRepositoryTest {
         }
 
         @Test
-        @Disabled("H2 trata 'day' (el alias 'AS day' de la query) como palabra reservada y falla con "
-                + "'Syntax error ... expected identifier' al preparar el statement nativo; en MySQL real no es "
-                + "reservada. Ver nota de clase.")
         @DisplayName("no devuelve días sin ventas del comercial")
         void returnsNothingWhenNoSales() {
             CommercialDetails commercial = TestEntities.persistCommercial(em);

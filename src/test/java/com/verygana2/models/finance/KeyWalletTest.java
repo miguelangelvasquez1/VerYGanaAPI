@@ -4,6 +4,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import com.verygana2.exceptions.InvalidAmountException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -72,12 +74,12 @@ class KeyWalletTest {
         }
 
         @Test
-        @DisplayName("monto no positivo: lanza IllegalArgumentException")
-        void nonPositiveAmount_throwsIllegalArgumentException() {
+        @DisplayName("monto no positivo: lanza InvalidAmountException")
+        void nonPositiveAmount_throwsInvalidAmountException() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L).build();
 
-            assertThatThrownBy(() -> wallet.reservePurchaseKeysCents(0L)).isInstanceOf(IllegalArgumentException.class);
-            assertThatThrownBy(() -> wallet.reservePurchaseKeysCents(-5L)).isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> wallet.reservePurchaseKeysCents(0L)).isInstanceOf(InvalidAmountException.class);
+            assertThatThrownBy(() -> wallet.reservePurchaseKeysCents(-5L)).isInstanceOf(InvalidAmountException.class);
         }
     }
 
@@ -93,11 +95,11 @@ class KeyWalletTest {
     }
 
     @Test
-    @DisplayName("creditKeysCents con monto negativo: lanza IllegalArgumentException")
+    @DisplayName("creditKeysCents con monto negativo: lanza InvalidAmountException")
     void creditKeys_negativeAmount_throws() {
         KeyWallet wallet = KeyWallet.builder().build();
 
-        assertThatThrownBy(() -> wallet.creditKeysCents(-1L, 0L)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> wallet.creditKeysCents(-1L, 0L)).isInstanceOf(InvalidAmountException.class);
     }
 
     @Test

@@ -127,6 +127,10 @@ class PlanChangeRequestControllerTest {
             when(planChangeRequestService.requestPlanChange(9L, PlanCode.PREMIUM, 500_000_000L))
                     .thenReturn(created);
 
+            ContractSummaryResponseDTO contractSummary = new ContractSummaryResponseDTO();
+            contractSummary.setDownloadUrl("https://r2/otrosi-77.pdf");
+            when(contractService.getForCommercial(77L, 9L)).thenReturn(contractSummary);
+
             var response = controller.requestPlanChange(jwtWithUserId(9L), body);
 
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
@@ -139,6 +143,7 @@ class PlanChangeRequestControllerTest {
             assertThat(dto.getStatus()).isEqualTo(PlanChangeRequestStatus.CONTRACT_PENDING_REVIEW);
             assertThat(dto.getContractId()).isEqualTo(77L);
             assertThat(dto.getContractStatus()).isEqualTo(ContractStatus.PENDING_BUSINESS_REVIEW);
+            assertThat(dto.getContractDownloadUrl()).isEqualTo("https://r2/otrosi-77.pdf");
         }
 
         @Test
