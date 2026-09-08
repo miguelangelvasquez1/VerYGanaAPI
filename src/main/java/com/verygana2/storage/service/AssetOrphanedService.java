@@ -62,8 +62,11 @@ public class AssetOrphanedService {
 
         List<AdAsset> assets = adAssetRepository.findAllById(Objects.requireNonNull(assetIds));
         for (AdAsset asset : assets) {
+            // ANALYZING incluido: si el análisis (R2 / ffprobe) falla, el asset
+            // quedó marcado ANALYZING en su propia transacción y hay que soltarlo.
             if (asset.getStatus() == AssetStatus.VALIDATED ||
-                asset.getStatus() == AssetStatus.PENDING) {
+                asset.getStatus() == AssetStatus.PENDING ||
+                asset.getStatus() == AssetStatus.ANALYZING) {
 
                 asset.setStatus(AssetStatus.ORPHANED);
             }

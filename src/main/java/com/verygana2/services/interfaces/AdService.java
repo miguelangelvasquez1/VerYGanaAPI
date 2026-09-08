@@ -54,8 +54,6 @@ public interface AdService {
     Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable);
     
     // Estadísticas
-    AdStatsDTO getAdStats(Long adId, Long commercialId);
-    
     AdStatsDTO getCommercialStats(Long commercialId);
     
     Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable);

@@ -59,6 +59,13 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      @Param("commercialId") Long commercialId,
                      @Param("status") AdStatus status);
 
+       // Anuncios que aún ocupan un cupo del plan: se le pasan los estados terminales
+       // (REJECTED/COMPLETED/EXPIRED) para excluirlos. Ver PlanFeatureGuard.
+       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status NOT IN :statuses")
+       long countByCommercialIdAndStatusNotIn(
+                     @Param("commercialId") Long commercialId,
+                     @Param("statuses") List<AdStatus> statuses);
+
        // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.commercial.id = :commercialId")
        // BigDecimal sumSpentBudgetByCommercialId(@Param("commercialId") Long commercialId);
 

@@ -7,16 +7,22 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.dao.PessimisticLockingFailureException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.FieldError;
@@ -62,6 +68,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
@@ -125,6 +132,29 @@ public class GlobalExceptionHandler {
             AuthorizationDeniedException ex, WebRequest request) {
         log.warn("Authorization denied: {}", ex.getMessage());
         return buildError(HttpStatus.FORBIDDEN, "Access denied", request);
+    }
+
+    /**
+     * 403 con mensaje genérico al front; el detalle (usuario, roles, ruta y
+     * causa real) queda solo en el log.
+     *
+     * Cubre los {@code AccessDeniedException} "crudos" que llegan hasta el
+     * @RestControllerAdvice: checks manuales, {@code @PreAuthorize} sobre
+     * servicios, expresiones SpEL que no elevan la
+     * {@link AuthorizationDeniedException} más específica (esa tiene su propio
+     * handler y no pasa por aquí). Antes caían en el catch-all y salían como
+     * 500 "Unexpected error".
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex, WebRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String user = (auth != null) ? auth.getName() : "anónimo";
+        Object authorities = (auth != null) ? auth.getAuthorities() : "[]";
+        log.warn("Access denied for user '{}' (authorities={}) on {} -> {}",
+                user, authorities, getPath(request), ex.getMessage(), ex);
+        return buildError(HttpStatus.FORBIDDEN,
+                "No tienes permisos para realizar esta acción", request);
     }
 
     @ExceptionHandler(InvalidTokenException.class)
@@ -387,6 +417,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFundsException(
+            InsufficientFundsException ex, WebRequest request) {
+        log.warn("Insufficient funds: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(StorageException.class)
     public ResponseEntity<ErrorResponse> handleStorageException(
             StorageException ex, WebRequest request) {
@@ -442,6 +479,36 @@ public class GlobalExceptionHandler {
             JDBCConnectionException ex, WebRequest request) {
         log.error("JDBC connection error: {}", ex.getMessage());
         return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Database connection error", request);
+    }
+
+    /**
+     * 409, no 500: deadlock de InnoDB (SQLState 40001 / error 1213) o lock-wait
+     * timeout (1205). {@code ConcurrencyRetryAspect} ya reintenta las rutas
+     * calientes anotadas con {@code @RetryOnConcurrencyConflict}; si aun así el
+     * conflicto persiste (o la ruta no está anotada), el cliente recibe un
+     * mensaje claro y accionable en vez de "Unexpected error". El detalle queda
+     * en el log.
+     */
+    @ExceptionHandler({CannotAcquireLockException.class, PessimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleLockConflict(Exception ex, WebRequest request) {
+        log.warn("Conflicto de bloqueo en BD (deadlock / lock wait timeout): {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "No pudimos completar la operación por alta concurrencia sobre los mismos datos. "
+                        + "Vuelve a intentarlo en unos segundos.",
+                request);
+    }
+
+    /**
+     * 409: otra transacción modificó la misma fila primero y el chequeo de
+     * {@code @Version} falló. Reintentar con datos frescos suele resolverlo.
+     */
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLockConflict(
+            ObjectOptimisticLockingFailureException ex, WebRequest request) {
+        log.warn("Conflicto de bloqueo optimista: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "Los datos cambiaron mientras procesábamos tu solicitud. Vuelve a intentarlo.",
+                request);
     }
 
     @ExceptionHandler(InvalidRequestException.class)
@@ -623,6 +690,18 @@ public class GlobalExceptionHandler {
                 ex.getMethod(), ex.getSupportedHttpMethods());
         log.warn(msg);
         return buildError(HttpStatus.METHOD_NOT_ALLOWED, msg, request);
+    }
+
+    /**
+     * 415: el Content-Type de la petición no es soportado. No se expone
+     * ex.getMessage() (lista los media types soportados por el endpoint) al
+     * front, solo un mensaje genérico; el detalle queda en el log.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex, WebRequest request) {
+        log.warn("Unsupported media type: {}", ex.getMessage());
+        return buildError(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado", request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

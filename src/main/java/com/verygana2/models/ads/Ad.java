@@ -58,7 +58,7 @@ public class Ad {
     @Min(value = 1,      message = "La recompensa mínima es 1 centavo")
     @Max(value = 100000, message = "La recompensa no puede exceder 100.000 centavos (1.000 COP)")
     @Column(name = "reward_per_like", nullable = false)
-    private Long rewardPerLike;
+    private Long rewardPerLike; //cents
 
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1,        message = "Debe permitir al menos 1 like")

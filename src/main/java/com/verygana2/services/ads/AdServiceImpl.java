@@ -1,8 +1,5 @@
 package com.verygana2.services.ads;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
-import org.springframework.security.access.AccessDeniedException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -12,12 +9,15 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.dao.TransientDataAccessException;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.FileUploadPermissionDTO;
@@ -60,6 +60,7 @@ import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 import com.verygana2.utils.specifications.AdSpecifications;
 import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetingValidator;
@@ -89,10 +90,19 @@ public class AdServiceImpl implements AdService {
     private final Clock clock;
     private final R2Service r2Service;
     private final AdAssetRepository adAssetRepository;
+    private final AdAssetAnalysisTx adAssetAnalysisTx;
     private final AssetOrphanedService assetOrphanedService;
     private final AssetDurationService mediaMetadataService;
     private final PricingConfigService pricingConfigService;
     private final NotificationService notificationService;
+
+    /**
+     * Ventana de validez de una cotización de análisis. Se reutiliza el TTL del job
+     * de limpieza: pasado ese tiempo el asset es candidato a huérfano, así que su
+     * precio congelado ya no debe aceptarse en {@link #createAdWithAsset}.
+     */
+    @Value("${cleanup.orphaned-assets.max-age-hours:24}")
+    private int assetQuoteMaxAgeHours;
 
     // ==================== Consultas para Anunciantes ====================
 
@@ -165,60 +175,47 @@ public class AdServiceImpl implements AdService {
      *
      * Returns durationSeconds + minPricePerView so the frontend can show
      * the pricing panel to the advertiser.
+     *
+     * NOT_SUPPORTED: la validación en R2 y el ffprobe pueden tardar segundos y
+     * no deben mantener abierta una transacción ni una conexión del pool. Las
+     * únicas escrituras (marcar ANALYZING / VALIDATED) van en transacciones
+     * cortas propias vía {@link AdAssetAnalysisTx}.
      */
-    @Transactional
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS})
     public AssetAnalysisResultDTO analyzeAsset(Long assetId, Long commercialId) {
- 
-        AdAsset asset = adAssetRepository
-                .findById(Objects.requireNonNull(assetId))
-                .orElseThrow(() -> new EntityNotFoundException("Asset no encontrado: " + assetId));
- 
-        // Security: asset must not be linked to any ad yet
-        if (asset.getAd() != null) {
-            throw new ValidationException("Asset ya está vinculado a un anuncio");
-        }
- 
-        // Only PENDING assets can be analyzed
-        if (asset.getStatus() != AssetStatus.PENDING) {
-            throw new ValidationException(
-                    "El asset no está en estado válido para analizar. Estado actual: " + asset.getStatus());
-        }
 
-        // Mark as ANALYZING so concurrent calls or stale retries are rejected
-        asset.setStatus(AssetStatus.ANALYZING);
-        adAssetRepository.save(asset);
- 
+        // Fase 1 (tx corta): valida propiedad y estado, y marca ANALYZING. Tanto
+        // "no es tuyo" como "no está PENDING" salen por acá sin disparar el
+        // orphaning del catch.
+        AdAssetAnalysisTx.AnalysisContext ctx = adAssetAnalysisTx.begin(Objects.requireNonNull(assetId), commercialId);
+
         try {
-            // 1. Validar mime y tamaño en R2 PRIMERO — si el archivo es inválido, falla aquí
-            MediaType mediaType = asset.getMediaType();
-            Set<SupportedMimeType> allowedMimeTypes = getAllowedMimeTypesForMedia(mediaType);
-            long maxSizeBytes = getMaxSizeBytesForMedia(mediaType);
+            // Fase 2 (SIN transacción): validar mime y tamaño en R2, y resolver duración real.
+            Set<SupportedMimeType> allowedMimeTypes = getAllowedMimeTypesForMedia(ctx.mediaType());
+            long maxSizeBytes = getMaxSizeBytesForMedia(ctx.mediaType());
 
             SupportedMimeType realMimeType = r2Service.validateUploadedObject(
                     true,
-                    asset.getObjectKey(),
-                    asset.getSizeBytes(),
+                    ctx.objectKey(),
+                    ctx.sizeBytes(),
                     maxSizeBytes,
                     allowedMimeTypes);
 
-            asset.setMimeType(realMimeType);
+            double durationSeconds = resolveDuration(ctx);
+            // Segundos facturables: se redondea hacia arriba y se persiste tal cual,
+            // para que la re-validación en createAdWithAsset use exactamente el mismo
+            // valor con el que aquí se cotiza el mínimo al anunciante.
+            int billableSeconds = (int) Math.ceil(durationSeconds);
 
-            // 2. Resolver duración real
-            double durationSeconds = resolveDuration(asset);
-
-            // 3. Calcular precio mínimo
             long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
-            long rawPrice = (long) Math.ceil(durationSeconds * costPerSecondCents);
-            long minPricePerLike = roundUpToMultipleOf10(rawPrice);
+            long minPricePerLike = minPricePerLikeCents(billableSeconds, costPerSecondCents);
 
-            log.info("Asset {} analyzed: durationSeconds={}, minPricePerLike={}",
-                    assetId, durationSeconds, minPricePerLike);
+            log.info("Asset {} analyzed: durationSeconds={}, billableSeconds={}, minPricePerLike={}",
+                    assetId, durationSeconds, billableSeconds, minPricePerLike);
 
-            // 4. Persistir todo junto una sola vez
-            asset.setDurationSeconds(Double.valueOf(durationSeconds).intValue());
-            asset.setStatus(AssetStatus.VALIDATED);
-            adAssetRepository.save(asset);
+            // Fase 3 (tx corta): persistir VALIDATED + congelar el mínimo cotizado.
+            adAssetAnalysisTx.complete(assetId, realMimeType, billableSeconds, minPricePerLike);
 
             return AssetAnalysisResultDTO.builder()
                     .durationSeconds(durationSeconds)
@@ -251,12 +248,16 @@ public class AdServiceImpl implements AdService {
 
         AdAsset asset = adAssetRepository.findById(Objects.requireNonNull(assetId))
                 .orElseThrow(() -> new EntityNotFoundException("Asset no encontrado: " + assetId));
- 
+
+        // Propiedad: un asset aún sin vincular solo lleva el prefijo commercial-{id}
+        // en su objectKey. Sin esta comprobación otro anunciante podría orfanarlo
+        // conociendo su id y condenarlo a borrado por el job de limpieza. Se
+        // responde "no encontrado" para no revelar la existencia de ids ajenos.
+        if (!asset.isOwnedBy(commercialId)) {
+            throw new EntityNotFoundException("Asset no encontrado: " + assetId);
+        }
+
         if (asset.getAd() != null) {
-            Long adCommercialId = asset.getAd().getCommercial().getId();
-            if (!adCommercialId.equals(commercialId)) {
-                throw new AccessDeniedException("No tienes permiso para modificar este asset");
-            }
             throw new ValidationException("El asset ya está vinculado a un anuncio y no puede ser marcado como huérfano");
         }
  
@@ -285,23 +286,29 @@ public class AdServiceImpl implements AdService {
      *
      * Validates:
      *  - Asset is VALIDATED (analyze succeeded)
-     *  - pricePerLike is a multiple of 10
-     *  - pricePerLike >= minPricePerLike (re-calculated from persisted duration)
+     *  - pricePerLike is a multiple of 10 (enforced by CreateAdRequestDTO)
+     *  - pricePerLike >= the minPricePerLike frozen on the asset at analyze time
      *  - Advertiser has sufficient wallet balance
      *
      * On any failure, marks the asset as ORPHANED.
      */
     @Transactional
     @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_ADVERTISE, RequirePlanCapability.Capability.MAX_ADS}, requiresBudget = true)
+    @RetryOnConcurrencyConflict
     public void createAdWithAsset(Long commercialId, CreateAdRequestDTO request) {
  
-        AdAsset asset = null;
- 
+        // Carga + verificación de propiedad ANTES del try: si fallaran dentro, el
+        // catch marcaría huérfano el asset. Un anunciante no debe poder condenar
+        // (ni adjuntarse) el asset en subida de otro conociendo su id; el prefijo
+        // commercial-{id} del objectKey es la señal de propiedad hasta el vínculo.
+        AdAsset asset = adAssetRepository
+                .findById(Objects.requireNonNull(request.getAssetId()))
+                .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
+        if (!asset.isOwnedBy(commercialId)) {
+            throw new ValidationException("Asset no encontrado: " + request.getAssetId());
+        }
+
         try {
-            asset = adAssetRepository
-                    .findById(Objects.requireNonNull(request.getAssetId()))
-                    .orElseThrow(() -> new ValidationException("Asset no encontrado: " + request.getAssetId()));
- 
             if (asset.getAd() != null) {
                 throw new ValidationException("Asset ya está asociado a un anuncio: " + asset.getId());
             }
@@ -310,11 +317,27 @@ public class AdServiceImpl implements AdService {
             if (asset.getStatus() != AssetStatus.VALIDATED) {
                 throw new ValidationException("El archivo no ha sido analizado correctamente. Estado actual: " + asset.getStatus());
             }
- 
-            // Re-validate pricePerLike server-side against the persisted real duration
-            double durationSeconds = asset.getDurationSeconds();
-            long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
-            long minPricePerLike = (long) Math.ceil(durationSeconds * costPerSecondCents);
+
+            // Cotización vencida: el mínimo congelado pudo quedar desalineado con
+            // AD_COST_PER_SECOND_CENTS. Se rechaza (y el catch marca el asset huérfano)
+            // para forzar re-subida + nuevo análisis con precio actualizado.
+            if (asset.getUploadedAt().isBefore(ZonedDateTime.now(clock).minusHours(assetQuoteMaxAgeHours))) {
+                throw new ValidationException(
+                        "El análisis del archivo expiró. Vuelve a subir el archivo para obtener un precio actualizado.");
+            }
+
+            // Re-valida pricePerLike contra el mínimo CONGELADO en el análisis, no
+            // contra un recálculo: si un admin cambia AD_COST_PER_SECOND_CENTS entre
+            // el analyze y este POST, el anunciante no recibe un rechazo inesperado.
+            // Fallback (asset analizado antes de introducir el campo): recalcular con
+            // la config actual usando la misma fórmula que analyzeAsset.
+            long minPricePerLike;
+            if (asset.getMinPricePerLikeCents() != null) {
+                minPricePerLike = asset.getMinPricePerLikeCents();
+            } else {
+                long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
+                minPricePerLike = minPricePerLikeCents(asset.getDurationSeconds(), costPerSecondCents);
+            }
  
             long pricePerLike = request.getPricePerLike();
 
@@ -332,10 +355,10 @@ public class AdServiceImpl implements AdService {
             }
  
             long totalBudgetCents = pricePerLike * request.getMaxLikes().longValue();
- 
-            Wallet wallet = walletRepository.findByCommercialId(commercialId)
+
+            Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                     .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
- 
+
             wallet.consume(totalBudgetCents);
             walletRepository.save(wallet);
  
@@ -360,6 +383,12 @@ public class AdServiceImpl implements AdService {
  
             log.info("Ad {} created successfully for commercial {}. Budget: {} ¢", savedAd.getId(), commercialId, totalBudgetCents);
  
+        } catch (TransientDataAccessException e) {
+            // Conflicto de concurrencia transitorio (deadlock 1213, lock-wait 1205,
+            // lock optimista sobre la wallet). @RetryOnConcurrencyConflict reintenta
+            // con una transacción nueva; el asset NO se marca huérfano porque el
+            // próximo intento lo necesita todavía en estado VALIDATED.
+            throw e;
         } catch (Exception e) {
             if (asset != null) {
                 log.error("Error creating ad, orphaning asset {}: {}", asset.getId(), e.getMessage());
@@ -685,29 +714,6 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdStatsDTO getAdStats(Long adId, Long commercialId) {
-        Ad ad = adRepository.findByIdAndCommercialId(adId, commercialId)
-                .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
-
-        return AdStatsDTO.builder()
-                .adId(adId)
-                .totalLikes(ad.getCurrentLikes())
-                .maxLikes(ad.getMaxLikes())
-                .remainingLikes(ad.getRemainingLikes())
-                .completionPercentage(ad.getCompletionPercentage())
-                .totalBudget(centsToCOP(ad.getTotalBudget()))
-                .spentBudget(centsToCOP(ad.getSpentBudget()))
-                .remainingBudget(centsToCOP(ad.getRemainingBudget()))
-                .rewardPerLike(centsToCOP(ad.getRewardPerLike()))
-                .status(ad.getStatus())
-                .createdAt(ad.getCreatedAt())
-                .startDate(ad.getStartDate())
-                .endDate(ad.getEndDate())
-                .build();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public AdStatsDTO getCommercialStats(Long commercialId) {
         Long totalAds = countAdsByCommercial(commercialId);
         Long activeAds = countAdsByCommercialAndStatus(commercialId, AdStatus.ACTIVE);
@@ -790,21 +796,12 @@ public class AdServiceImpl implements AdService {
             return;
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(ad.getCommercial().getId())
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(ad.getCommercial().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.deposit(remaining);
         walletRepository.save(wallet);
         log.info("Refunded {} ¢ to commercial {} for ad {}", remaining, ad.getCommercial().getId(), ad.getId());
-    }
-
-    // ── Helpers de conversión ─────────────────────────────────────────────────
-
-    private static final BigDecimal CENTS_PER_COP = BigDecimal.valueOf(100);
-
-    private BigDecimal centsToCOP(Long cents) {
-        if (cents == null) return BigDecimal.ZERO;
-        return BigDecimal.valueOf(cents).divide(CENTS_PER_COP, 2, RoundingMode.HALF_UP);
     }
 
     // Métodos privados auxiliares -----------------------------
@@ -853,8 +850,9 @@ public class AdServiceImpl implements AdService {
         String uuid = UUID.randomUUID().toString().substring(0, 8);
         String extension = getFileExtension(metadata.getOriginalFileName());
 
-        return String.format("ads/commercial-%d/%s-%s%s",
-                commercialId, timestamp, uuid, extension);
+        // El prefijo se comparte con AdAsset.isOwnedBy: es la señal de propiedad
+        // del asset hasta que queda vinculado a un anuncio.
+        return AdAsset.objectKeyPrefixFor(commercialId) + timestamp + "-" + uuid + extension;
     }
 
     /**
@@ -895,22 +893,39 @@ public class AdServiceImpl implements AdService {
         };
     }
 
-    private double resolveDuration(AdAsset asset) {
-        if (asset.getMediaType() == MediaType.VIDEO) {
+    private double resolveDuration(AdAssetAnalysisTx.AnalysisContext ctx) {
+        if (ctx.mediaType() == MediaType.VIDEO) {
             // Your existing service — throws StorageException / ValidationException on failure
-            Double duration = mediaMetadataService.getVideoDurationSeconds(asset.getObjectKey());
+            Double duration = mediaMetadataService.getVideoDurationSeconds(ctx.objectKey());
 
             if (duration < 5 || duration > 120) {
                 throw new ValidationException("Duración de video no permitida: " + duration + "s");
             }
             return duration;
         }
- 
+
         // IMAGE: use the advertiser-chosen duration stored in step 1
-        if (asset.getDurationSeconds() == null) {
+        if (ctx.storedImageDurationSeconds() == null) {
             throw new ValidationException("Duración de imagen no encontrada en el asset. Esto no debería ocurrir.");
         }
-        return asset.getDurationSeconds().doubleValue();
+        return ctx.storedImageDurationSeconds().doubleValue();
+    }
+
+    /**
+     * Precio mínimo por like en céntimos.
+     *
+     * <p>El anunciante solo puede elegir múltiplos de 10 (lo exige
+     * {@code CreateAdRequestDTO#isPricePerLikeMultipleOf10}), así que el mínimo
+     * real es el primer múltiplo de 10 que cubre
+     * {@code billableSeconds * costPerSecondCents}.
+     *
+     * <p>Debe llamarse con los mismos {@code billableSeconds} en
+     * {@link #analyzeAsset} (cotización que ve el anunciante) y en
+     * {@link #createAdWithAsset} (re-validación de POST /ads) para que ambas
+     * rutas devuelvan el mismo valor.
+     */
+    private long minPricePerLikeCents(long billableSeconds, long costPerSecondCents) {
+        return roundUpToMultipleOf10(billableSeconds * costPerSecondCents);
     }
 
     /**

@@ -2,9 +2,11 @@
 -- 20 CAMPAÑAS - INSERT IDEMPOTENTE (Solo se ejecuta una vez)
 -- ============================================================
 
+-- Portador de la data de demo del panel comercial (ver test-users.sql, sección 10).
+-- comercial@verygana.com se deja limpio a propósito para crear activos desde cero.
 SET @commercial_id = (SELECT user_id FROM commercial_details cd
                       JOIN users u ON u.id = cd.user_id
-                      WHERE u.email = 'comercial@verygana.com' LIMIT 1);
+                      WHERE u.email = 'comercial-standard@verygana.com' LIMIT 1);
 
 -- ============================================================
 -- TARGET AUDIENCES para las campañas (IDs 1–20)

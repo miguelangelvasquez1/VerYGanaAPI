@@ -16,12 +16,19 @@ import com.verygana2.models.marketplace.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
+        /**
+         * Productos que aún ocupan un cupo del plan: todos menos los terminales
+         * (REJECTED / INACTIVE, los mismos que purga el job semanal). Incluye
+         * PENDING y ACTIVE — alineado con encuestas y juegos branded. Ver PlanFeatureGuard.
+         */
         @Query("""
-                        SELECT COUNT (p) FROM Product p
+                        SELECT COUNT(p) FROM Product p
                         WHERE p.commercial.id = :commercialId
-                        AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        AND p.status NOT IN (
+                                com.verygana2.models.enums.marketplace.ProductStatus.REJECTED,
+                                com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
                                 """)
-        long countByCommercialIdAndIsActive(@Param("commercialId") Long commercialId);
+        long countSlotOccupyingByCommercialId(@Param("commercialId") Long commercialId);
 
         boolean existsByIdAndCommercialId(Long id, Long commercialId);
 

@@ -44,6 +44,10 @@ public class PlanFeatureGuard {
     private static final List<PlanChangeRequestStatus> PLAN_CHANGE_TERMINAL_STATUSES = List.of(
             PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
 
+    /** Estados terminales de un anuncio: ya no ocupa un cupo del plan (análogo a REJECTED/COMPLETED de una encuesta). */
+    private static final List<AdStatus> AD_TERMINAL_STATUSES = List.of(
+            AdStatus.REJECTED, AdStatus.COMPLETED, AdStatus.EXPIRED);
+
     private final EffectivePlanResolver planResolver;
     private final ProductRepository productRepository;
     private final AdRepository adRepository;
@@ -151,14 +155,19 @@ public class PlanFeatureGuard {
     // guardia de creación (assertCapability) como la validación de bajada de plan
     // (PlanChangeAssetValidator), para que ambos midan exactamente lo mismo.
 
-    /** Productos activos (status ACTIVE) del comercial. */
+    /** Productos que siguen consumiendo un cupo del plan (todo menos estados finales: REJECTED y INACTIVE). */
     public long countSlotOccupyingProducts(Long commercialId) {
-        return productRepository.countByCommercialIdAndIsActive(commercialId);
+        return productRepository.countSlotOccupyingByCommercialId(commercialId);
     }
 
-    /** Anuncios en circulación (status ACTIVE) del comercial. */
+    /**
+     * Anuncios que siguen consumiendo un cupo del plan (todo menos estados finales:
+     * REJECTED, COMPLETED y EXPIRED). Cuenta PENDING, APPROVED, ACTIVE, PAUSED y BLOCKED
+     * — igual criterio que encuestas y juegos branded: un activo no terminal ocupa cupo
+     * aunque todavía no esté en circulación.
+     */
     public long countSlotOccupyingAds(Long commercialId) {
-        return adRepository.countByCommercialIdAndStatus(commercialId, AdStatus.ACTIVE);
+        return adRepository.countByCommercialIdAndStatusNotIn(commercialId, AD_TERMINAL_STATUSES);
     }
 
     /**

@@ -635,7 +635,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             return;
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(request.getCommercial().getId())
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(request.getCommercial().getId())
             .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.deposit(budgetCents);

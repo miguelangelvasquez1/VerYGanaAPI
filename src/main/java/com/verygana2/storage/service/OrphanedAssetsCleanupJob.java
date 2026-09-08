@@ -56,6 +56,20 @@ public class OrphanedAssetsCleanupJob {
 
         ZonedDateTime threshold = ZonedDateTime.now().minusHours(maxAgeHours);
 
+        // 1. Orfanar assets que se subieron/analizaron pero nunca se vincularon a un
+        //    anuncio (flujo abandonado, o análisis colgado en ANALYZING). Los que ya
+        //    tienen ad quedan intactos. Así una cotización de precio vieja deja de ser
+        //    utilizable y el asset entra al ciclo normal de borrado.
+        List<AdAsset> stale = adAssetRepository.findStaleUnattachedAssets(
+                List.of(AssetStatus.PENDING, AssetStatus.ANALYZING, AssetStatus.VALIDATED), threshold);
+        for (AdAsset asset : stale) {
+            asset.setStatus(AssetStatus.ORPHANED);
+            log.info("Ad Asset {} orphaned: sin anuncio y más viejo que {}h", asset.getId(), maxAgeHours);
+        }
+        adAssetRepository.saveAll(stale);
+
+        // 2. Borrar de R2 todo lo que esté ORPHANED y con edad suficiente (incluye lo
+        //    recién orfanado en el paso 1, que ya cumple uploadedAt < threshold).
         List<AdAsset> assets = adAssetRepository.findDeletableAssets(AssetStatus.ORPHANED, threshold);
         log.info("Cleanup job: {} candidate ad assets", assets.size());
 

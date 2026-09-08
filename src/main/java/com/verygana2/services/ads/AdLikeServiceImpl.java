@@ -18,6 +18,7 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -57,6 +58,7 @@ import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 
 import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ValidationException;
@@ -102,6 +104,7 @@ public class AdLikeServiceImpl implements AdLikeService {
 
     @Override
     @Transactional(noRollbackFor = {ValidationException.class, LimitReachedException.class})
+    @RetryOnConcurrencyConflict
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
 
         log.info("Processing like for ad {} from consumer {} at IP {}", adId, consumerId, ipAddress);
@@ -168,7 +171,11 @@ public class AdLikeServiceImpl implements AdLikeService {
 
             adRepository.save(ad);
         } catch (OptimisticLockException e) {
-            throw new ValidationException("El anuncio fue actualizado, intente nuevamente");
+            // Otro like sobre el mismo anuncio ganó la carrera del contador (@Version).
+            // Se propaga como excepción transitoria de Spring para que
+            // ConcurrencyRetryAspect reintente processAdLike con datos frescos;
+            // si se agotan los intentos, GlobalExceptionHandler responde 409.
+            throw new ObjectOptimisticLockingFailureException(Ad.class, ad.getId());
         }
 
         long userRewardKeysCents = Math.round(
@@ -322,8 +329,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         return dto;
     }
 
-    @Override
-    public boolean hasConsumerLikedAd(Long adId, Long consumerId) {
+    private boolean hasConsumerLikedAd(Long adId, Long consumerId) {
         return adLikeRepository.hasUserSeenAd(consumerId, adId);
     }
 

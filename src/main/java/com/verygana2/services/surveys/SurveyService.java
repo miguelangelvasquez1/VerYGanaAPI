@@ -114,7 +114,7 @@ public class SurveyService {
         int questionCount = request.getQuestions().size();
         long totalBudgetCents = pricePerQuestionCents * questionCount * request.getMaxResponses().longValue();
 
-        Wallet wallet = walletRepository.findByCommercialId(commercialId)
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.consume(totalBudgetCents);
@@ -405,7 +405,7 @@ public class SurveyService {
             return;
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(survey.getCreator().getId())
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(survey.getCreator().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.deposit(remaining);

@@ -13,6 +13,7 @@ import com.verygana2.models.finance.plans.BudgetTransaction;
 import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
 import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.finance.plans.BudgetTransactionRepository;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class BudgetService {
      * @param referenceId  ID externo de la impresión (para auditoría)
      */
     @Transactional
+    @RetryOnConcurrencyConflict
     public void consumeForAdView(Long commercialId, Long amountCents, String referenceId) {
         consume(commercialId, amountCents, TransactionType.AD_VIEW, referenceId,
                 "Costo por visualización de anuncio");
@@ -50,6 +52,7 @@ public class BudgetService {
      * @param referenceId  ID externo de la sesión de juego (para auditoría)
      */
     @Transactional
+    @RetryOnConcurrencyConflict
     public void consumeForGameReward(Long commercialId, Long amountCents, String referenceId) {
         consume(commercialId, amountCents, TransactionType.GAME_REWARD, referenceId,
                 "Recompensa por sesión de juego branded");
@@ -61,6 +64,7 @@ public class BudgetService {
      * @param description  Descripción del ajuste
      */
     @Transactional
+    @RetryOnConcurrencyConflict
     public void applyManualAdjustment(Long commercialId, Long amountCents, String description) {
         consume(commercialId, amountCents, TransactionType.MANUAL_ADJUSTMENT, null, description);
     }
@@ -71,6 +75,7 @@ public class BudgetService {
      * @param referenceId  ID de la BrandingRequest (para auditoría)
      */
     @Transactional
+    @RetryOnConcurrencyConflict
     public void consumeForBrandingRequest(Long commercialId, Long amountCents, String referenceId) {
         consume(commercialId, amountCents, TransactionType.BRANDING_REQUEST, referenceId,
                 "Presupuesto reservado para solicitud de juego branded");

@@ -14,9 +14,11 @@
 -- para cualquier consumer.
 -- ============================================================
 
+-- Portador de la data de demo (ver test-users.sql, sección 10).
+-- comercial@verygana.com se deja limpio para crear activos desde cero.
 SET @commercial_id = (SELECT cd.user_id FROM commercial_details cd
                       JOIN users u ON u.id = cd.user_id
-                      WHERE u.email = 'comercial@verygana.com' LIMIT 1);
+                      WHERE u.email = 'comercial-standard@verygana.com' LIMIT 1);
 
 -- ============================================================
 -- AD 900 — video corto de prueba
@@ -47,11 +49,11 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM ads WHERE id = 900);
 
 INSERT INTO ad_assets (
-    id, object_key, size_bytes, media_type, mime_type,
+    id, version, object_key, size_bytes, media_type, mime_type,
     status, duration_seconds, ad_id, uploaded_at
 )
 SELECT
-    900, 'ads/test/video-test-900.mp4', 1024, 'VIDEO', 'VIDEO_MP4',
+    900, 0, 'ads/test/video-test-900.mp4', 1024, 'VIDEO', 'VIDEO_MP4',
     'ATTACHED', 5, 900, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM ad_assets WHERE id = 900);
 
@@ -83,11 +85,11 @@ SELECT
 WHERE NOT EXISTS (SELECT 1 FROM ads WHERE id = 901);
 
 INSERT INTO ad_assets (
-    id, object_key, size_bytes, media_type, mime_type,
+    id, version, object_key, size_bytes, media_type, mime_type,
     status, duration_seconds, ad_id, uploaded_at
 )
 SELECT
-    901, 'ads/test/video-test-901.mp4', 1024, 'VIDEO', 'VIDEO_MP4',
+    901, 0, 'ads/test/video-test-901.mp4', 1024, 'VIDEO', 'VIDEO_MP4',
     'ATTACHED', 5, 901, NOW()
 WHERE NOT EXISTS (SELECT 1 FROM ad_assets WHERE id = 901);
 

@@ -10,8 +10,12 @@
 -- Reparte la actividad en los últimos ~27 días para que las series
 -- diarias (*ByDay) y el rango por defecto (30 días) tengan datos.
 --
---   Empresa Demo S.A.S       (STANDARD) → Anuncios + Encuestas + Juegos
---   Ecosistema Premium S.A.S (PREMIUM)  → + Remisión (visitas a página)
+--   Empresa Demo Estándar S.A.S (STANDARD, comercial-standard@verygana.com)
+--                                → Anuncios + Encuestas + Juegos
+--   Ecosistema Premium S.A.S     (PREMIUM)  → + Remisión (visitas a página)
+--
+-- comercial@verygana.com NO recibe data aquí: se deja limpio para crear
+-- activos desde cero (ver test-users.sql, secciones 2 y 10).
 --
 -- Se usa TIMESTAMPADD (no DATE_SUB/INTERVAL) porque lo entienden tanto
 -- MySQL como H2 (MODE=MySQL), donde corre el test de este seed.
@@ -19,7 +23,7 @@
 
 SET @std_id  = (SELECT cd.user_id FROM commercial_details cd
                 JOIN users u ON u.id = cd.user_id
-                WHERE u.email = 'comercial@verygana.com' LIMIT 1);
+                WHERE u.email = 'comercial-standard@verygana.com' LIMIT 1);
 
 SET @prem_id = (SELECT cd.user_id FROM commercial_details cd
                 JOIN users u ON u.id = cd.user_id
@@ -60,8 +64,8 @@ FROM (
 WHERE @std_id IS NOT NULL
   AND NOT EXISTS (SELECT 1 FROM ads a WHERE a.id = d.id);
 
-INSERT INTO ad_assets (id, object_key, size_bytes, media_type, mime_type, status, duration_seconds, ad_id, uploaded_at)
-SELECT a.id, CONCAT('ads/test/metrics/video-', a.id, '.mp4'), 1024, 'VIDEO', 'VIDEO_MP4', 'ATTACHED', 6, a.id, NOW()
+INSERT INTO ad_assets (id, version, object_key, size_bytes, media_type, mime_type, status, duration_seconds, ad_id, uploaded_at)
+SELECT a.id, 0, CONCAT('ads/test/metrics/video-', a.id, '.mp4'), 1024, 'VIDEO', 'VIDEO_MP4', 'ATTACHED', 6, a.id, NOW()
 FROM ads a
 WHERE a.id BETWEEN 9600 AND 9611
   AND NOT EXISTS (SELECT 1 FROM ad_assets aa WHERE aa.id = a.id);

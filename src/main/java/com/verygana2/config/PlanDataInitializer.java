@@ -125,13 +125,13 @@ public class PlanDataInitializer implements ApplicationRunner {
 
         Feature maxProducts = featureRepository.save(Feature.builder()
                 .code("MAX_PRODUCTS")
-                .name("Máximo de productos activos")
+                .name("Máximo de productos simultáneos")
                 .type(FeatureType.LIMIT)
                 .build());
 
         Feature maxAds = featureRepository.save(Feature.builder()
                 .code("MAX_ADS")
-                .name("Máximo de anuncios activos")
+                .name("Máximo de anuncios simultáneos")
                 .type(FeatureType.LIMIT)
                 .build());
 

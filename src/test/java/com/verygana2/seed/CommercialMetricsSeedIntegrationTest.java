@@ -143,7 +143,7 @@ class CommercialMetricsSeedIntegrationTest {
         exec("INSERT INTO department (code, name) VALUES ('63', 'Quindío')");
         exec("INSERT INTO municipality (code, name, department_code) VALUES ('63001', 'Armenia', '63')");
 
-        commercialUser(STANDARD_ID, "comercial@verygana.com", "Empresa Demo S.A.S");
+        commercialUser(STANDARD_ID, "comercial-standard@verygana.com", "Empresa Demo Estándar S.A.S");
         commercialUser(PREMIUM_ID, "comercial-premium@verygana.com", "Ecosistema Premium S.A.S");
 
         for (int i = 0; i < 6; i++) {

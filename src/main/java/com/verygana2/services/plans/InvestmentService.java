@@ -56,7 +56,7 @@ public class InvestmentService {
                     "El comercial no tiene un plan activo — solicite un cambio de plan antes de invertir.");
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(commercialId)
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                 .orElseGet(() -> walletRepository.save(Wallet.createFor(commercial)));
 
         long depositCents = toCents(depositAmountCOP);

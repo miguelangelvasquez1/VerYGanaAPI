@@ -17,9 +17,9 @@ import lombok.NoArgsConstructor;
  * Catálogo de capacidades configurables por plan.
  *
  * Códigos de referencia:
- *  MAX_PRODUCTS       → LIMIT   – número máximo de productos activos
- *  MAX_ADS            → LIMIT   – número máximo de anuncios activos
- *  MAX_BRANDED_GAMES  → LIMIT   – número máximo de juegos branded
+ *  MAX_PRODUCTS       → LIMIT   – número máximo de productos que ocupan cupo (no terminales)
+ *  MAX_ADS            → LIMIT   – número máximo de anuncios que ocupan cupo (no terminales)
+ *  MAX_BRANDED_GAMES  → LIMIT   – número máximo de juegos branded que ocupan cupo (no terminales)
  *  CAN_ADVERTISE      → BOOLEAN – puede crear y mostrar anuncios
  *  CAN_USE_GAMES      → BOOLEAN – puede usar experiencias gamificadas
  *  VISIBILITY_BOOST   → PERCENTAGE – boost de visibilidad en la plataforma

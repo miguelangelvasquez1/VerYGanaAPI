@@ -103,16 +103,6 @@ public class AdLikeController {
             .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
-    @GetMapping("/{id}/has-liked")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Boolean> hasUserLikedAd(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        boolean hasLiked = adLikeService.hasConsumerLikedAd(id, jwt.getClaim("userId"));
-        return ResponseEntity.ok(hasLiked);
-    }
-
     private String extractClientIp(HttpServletRequest request) {
         String xForwardedFor = request.getHeader("X-Forwarded-For");
 

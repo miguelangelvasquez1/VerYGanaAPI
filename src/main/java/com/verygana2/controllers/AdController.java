@@ -183,16 +183,6 @@ public class AdController {
 
     //Stats anunciantes
 
-    @GetMapping("/{id}/stats")
-    @PreAuthorize("hasRole('COMMERCIAL')")
-    public ResponseEntity<AdStatsDTO> getAdStats(
-            @PathVariable Long id,
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        AdStatsDTO stats = adService.getAdStats(id, jwt.getClaim("userId"));
-        return ResponseEntity.ok(stats);
-    }
-
     @GetMapping("/my-stats")
     @PreAuthorize("hasRole('COMMERCIAL')")
     public ResponseEntity<AdStatsDTO> getCommercialStats(

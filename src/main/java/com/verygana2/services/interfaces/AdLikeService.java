@@ -23,7 +23,5 @@ public interface AdLikeService {
 
     Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId);
 
-    boolean hasConsumerLikedAd(Long adId, Long consumerId);
-
     PagedResponse<AdLikeResponseDTO> getAdLikes(Long adId, Long commercialId, Pageable pageable);
 }

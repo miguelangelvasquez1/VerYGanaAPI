@@ -34,8 +34,8 @@ docker push miguelvasquez777/verygana-api:latest
 docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
 
-
-
+edad minima a 18 por variable
+revisar sesion back, prueba 8 hallazgos, logs de init
 revisar sistema de recomendacion(que el compliance vea las respuestas de las preguntas) servicios con otra comision
 revisar tests de helen
 
@@ -54,8 +54,12 @@ revisar tests de helen
 
 - actuator (backend metrics)?
 
-cambio de plan:
-C:\Users\Usuario\.claude\plans\1-antes-de-eso-jaunty-harbor.md
+
+grecaptcha.ready(() => {
+  grecaptcha.execute('6Ldic44tAAAAAHzLT1mtmZo2c3aHA_VwORFbJrFg', {
+    action: 'login'
+  }).then(token => console.log(token));
+});
 
 
 // -------------------------------------------

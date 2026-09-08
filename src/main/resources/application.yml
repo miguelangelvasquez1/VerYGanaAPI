@@ -2,6 +2,17 @@ spring:
   application:
     name: VerYGanaAPI
 
+  datasource:
+    hikari:
+      # READ_COMMITTED en vez del REPEATABLE READ por defecto de MySQL/InnoDB. Bajo
+      # REPEATABLE READ, InnoDB toma gap / next-key locks en los INSERT, y ahí nacen
+      # la mayoría de los deadlocks concurrentes (ad_likes, budget_transactions,
+      # key_transactions, ad_watch_sessions). READ_COMMITTED no toma esos gap locks.
+      # Es además el nivel por defecto de PostgreSQL, así que la migración futura
+      # no cambia el comportamiento. Se fija en el pool (Hikari) para que aplique
+      # igual a cualquier driver y a los tests con H2.
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+
   mvc:
     async:
       request-timeout: 330000  # 5.5 min — mayor que el SseEmitter timeout (5 min)
