@@ -191,6 +191,12 @@ financial:
   key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
 
 # ============================================
+# TAXES
+# ============================================      
+taxes:
+  iva: ${IVA}
+
+# ============================================
 # MARKETPLACE LIMITS
 # ============================================
 marketplace:
@@ -200,6 +206,10 @@ marketplace:
     cleanup:
       cron: "0 30 3 * * SUN"   # domingos 3:30 AM
       grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
+  claim:
+    expiration-days: 15                    # plazo para reclamar un producto fisico (PIN)
+    expiration-scheduler:
+      cron: "0 0 5 * * *"                  # todos los dias 5 AM UTC
 
 # ============================================
 # PURCHASE EXPIRY
@@ -257,15 +267,20 @@ wompi:
   payout:
     api-key: ${WOMPI_SANDBOX_PAYOUTS_API_KEY}
     principal-user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
     events-key: ${WOMPI_SANDBOX_PAYOUTS_SECRET}
     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
     api-base-url: https://api.sandbox.payouts.wompi.co/v1  # sandbox
     # api-base-url: https://api.payouts.wompi.co/v1        # producción
-    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
-    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    cron: "0 0 23 * * *"          # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
+    retry-cron: "0 30 23 * * *"   # reintentos 30 min después
     min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
+    connect-timeout-ms: 5000      # timeout de conexión TCP
+    response-timeout-ms: 20000    # timeout esperando la respuesta completa
+    max-retries: 5                # tope de reintentos antes de marcar EXHAUSTED
+    rate-limit-delay-ms: 300       # pausa entre llamadas consecutivas a POST /payouts
 
 payment:
   min-deposit: 5000      # $5.000 COP
@@ -393,6 +408,14 @@ commercial:
 legal:
   documents:
     max-size-bytes: 10485760 # 10 MB
+
+# ============================================
+# PQRS — evidencia adjunta (foto/video, opcional)
+# ============================================
+pqrs:
+  assets:
+    max-size-bytes: 26214400 # 25 MB (imagen o video)
+    max-count: 5
 
 # ============================================
 # OBSERVABILIDAD (dev)

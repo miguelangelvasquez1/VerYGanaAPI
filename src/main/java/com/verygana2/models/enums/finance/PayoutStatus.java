@@ -7,6 +7,12 @@ public enum PayoutStatus {
     PROCESSING,
     /** Wompi confirmó la transferencia. Dinero enviado al empresario. */
     PAID,
-    /** Wompi rechazó la transferencia. Se reintentará al próximo ciclo. */
-    FAILED;
+    /** Wompi rechazó la transferencia. Se reintentará hasta el máximo de reintentos configurado. */
+    FAILED,
+    /**
+     * Alcanzó el máximo de reintentos sin éxito. Ya no se reintenta más
+     * automáticamente — requiere revisión e intervención manual (ej. corregir
+     * la cuenta bancaria del empresario).
+     */
+    EXHAUSTED;
 }

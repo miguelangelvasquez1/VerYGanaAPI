@@ -28,6 +28,10 @@ public class JwtBearerFilter extends OncePerRequestFilter {
     private static final Logger logger = LoggerFactory.getLogger(JwtBearerFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String SSE_ENDPOINT = "/notifications/stream";
+    private static final String PQRS_ASSETS_PATH_SEGMENT = "/pqrs/assets/";
+    private static final String PQRS_ASSET_VIEW_SUFFIX = "/view";
+    private static final String PAYOUT_METHODS_PATH_SEGMENT = "/payout-methods/";
+    private static final String PAYOUT_CERTIFICATE_SUFFIX = "/certificate";
 
     private final JwtDecoder jwtDecoder;
 
@@ -82,7 +86,9 @@ public class JwtBearerFilter extends OncePerRequestFilter {
                 return token;
         }
         String uri = request.getRequestURI();
-        if (uri.endsWith(SSE_ENDPOINT) || uri.endsWith("/private-image")) {
+        boolean isPqrsAssetView = uri.contains(PQRS_ASSETS_PATH_SEGMENT) && uri.endsWith(PQRS_ASSET_VIEW_SUFFIX);
+        boolean isPayoutCertificate = uri.contains(PAYOUT_METHODS_PATH_SEGMENT) && uri.endsWith(PAYOUT_CERTIFICATE_SUFFIX);
+        if (uri.endsWith(SSE_ENDPOINT) || uri.endsWith("/private-image") || isPqrsAssetView || isPayoutCertificate) {
             String queryToken = request.getParameter("token");
             if (StringUtils.hasText(queryToken)) {
                 logger.debug("JWT extracted from query param for: {}", uri);

@@ -29,7 +29,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
     Page<KeyTransaction> findByConsumerId(@Param("consumerId") Long consumerId, @Param ("initialDate") ZonedDateTime initialDate, @Param ("endDate") ZonedDateTime endDate, @Param("type") KeyTransactionType type, Pageable pageable);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
+            SELECT COALESCE(SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0)), 0)
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -42,7 +42,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
     Long sumTotalEarnedKeysCents(@Param("consumerId") Long consumerId);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
+            SELECT COALESCE(SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0)), 0)
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -55,7 +55,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
     Long sumTotalUsedKeysCents(@Param("consumerId") Long consumerId);
 
     @Query("""
-            SELECT SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0))
+            SELECT COALESCE(SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0)), 0)
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -129,7 +129,7 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
      * porque una gráfica que se salta los días vacíos miente sobre la tendencia.
      */
     @Query(value = """
-            SELECT  DATE(t.created_at)                     AS day,
+            SELECT  DATE(t.created_at)                     AS saleDay,
                     COUNT(*)                               AS unitsSold,
                     COALESCE(SUM(-t.purchase_keys_delta_cents), 0) AS revenueCents
             FROM key_transactions t
@@ -140,16 +140,20 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
               AND t.created_at >= :from
               AND t.created_at < :to
             GROUP BY DATE(t.created_at)
-            ORDER BY day
+            ORDER BY saleDay
             """, nativeQuery = true)
     List<PetDailySalesRow> findPetDailySalesByCommercial(
             @Param("commercialId") Long commercialId,
             @Param("from") ZonedDateTime from,
             @Param("to") ZonedDateTime to);
 
-    /** Proyección de {@link #findPetDailySalesByCommercial}. */
+    /**
+     * Proyección de {@link #findPetDailySalesByCommercial}. El alias es
+     * {@code saleDay} y no {@code day}: DAY es palabra reservada en el parser de
+     * H2 (rompe los tests de integración) aunque en MySQL real sea válida.
+     */
     interface PetDailySalesRow {
-        java.sql.Date getDay();
+        java.sql.Date getSaleDay();
         long getUnitsSold();
         long getRevenueCents();
     }

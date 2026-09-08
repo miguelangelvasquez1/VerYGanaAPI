@@ -39,10 +39,13 @@ import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
 import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
 import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
+import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.esignature.ESignatureApiException;
@@ -62,6 +65,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
@@ -306,6 +310,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStatusException(
+            InvalidStatusException ex, WebRequest request) {
+        log.warn("Invalid status error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -318,6 +329,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
         log.warn("Claim prize error: {}", ex.getMessage());
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidClaimException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidClaimException(InvalidClaimException ex, WebRequest request) {
+        log.warn("Invalid physical claim: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(CodeEncryptionException.class)
@@ -502,6 +519,20 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(PayoutMethodRequiredException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodRequiredException(
+            PayoutMethodRequiredException ex, WebRequest request) {
+        log.warn("Payout method required: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCashRefundStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCashRefundStateException(
+            InvalidCashRefundStateException ex, WebRequest request) {
+        log.warn("Invalid cash refund state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(WompiApiException.class)
     public ResponseEntity<ErrorResponse> handleWompiApiException(
             WompiApiException ex, WebRequest request) {
@@ -623,6 +654,20 @@ public class GlobalExceptionHandler {
                 ex.getMethod(), ex.getSupportedHttpMethods());
         log.warn(msg);
         return buildError(HttpStatus.METHOD_NOT_ALLOWED, msg, request);
+    }
+
+    /**
+     * El body no vino como JSON (ej. el cliente mandó application/x-www-form-urlencoded
+     * en vez de application/json). Sin este handler caía en el catch-all genérico
+     * y respondía 500 en vez del 415 correcto.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex, WebRequest request) {
+        String msg = String.format("Content-Type [%s] no soportado. Se espera application/json.",
+                ex.getContentType());
+        log.warn(msg);
+        return buildError(HttpStatus.UNSUPPORTED_MEDIA_TYPE, msg, request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

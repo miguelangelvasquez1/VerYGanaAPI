@@ -12,9 +12,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
+import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.finance.Copayment;
@@ -70,6 +72,7 @@ class CopaymentServiceImplTest {
     @Mock private EmailService emailService;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private WompiService wompiService;
+    @Mock private PasswordEncoder passwordEncoder;
 
     private CopaymentServiceImpl service;
 
@@ -77,7 +80,7 @@ class CopaymentServiceImplTest {
     void setUp() {
         service = new CopaymentServiceImpl(copaymentRepository, ticketDeliveryService, wompiTransactionRepository,
                 purchaseRepository, keyWalletRepository, keyTransactionRepository, productStockRepository,
-                productRepository, treasuryService, emailService, eventPublisher, wompiService);
+                productRepository, treasuryService, emailService, eventPublisher, wompiService, passwordEncoder);
     }
 
     private PurchaseItem itemWithStock(Product product) {
@@ -146,12 +149,39 @@ class CopaymentServiceImplTest {
             verify(treasuryService, never()).convertKeysToPayoutPending(anyLong(), any());
             verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
             verify(treasuryService).retainCommission(10_000L, copayment.getId(), "COPAYMENT");
-            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.DELIVERED);
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             assertThat(item.getAssignedProductStock().getStatus())
                     .isEqualTo(com.verygana2.models.enums.marketplace.StockStatus.SOLD);
             assertThat(purchase.getStatus()).isEqualTo(PurchaseStatus.COMPLETED);
             assertThat(copayment.getStatus()).isEqualTo(CopaymentStatus.COMPLETED);
             verify(eventPublisher).publishEvent(any(com.verygana2.event.XpAwardRequestedEvent.class));
+        }
+
+        @Test
+        @DisplayName("producto PHYSICAL aprobado: queda PENDING (no CLAIMED), genera PIN hasheado y lo deja listo para el correo de confirmación")
+        void physicalProductApproved_staysPendingWithHashedPinAndPlainPinForEmail() {
+            Product product = new Product();
+            product.setName("Consola de videojuegos");
+            product.setProductType(ProductType.PHYSICAL);
+            PurchaseItem item = itemWithStock(product);
+            Purchase purchase = purchaseWithItems(100_000L, 10_000L, item);
+            Copayment copayment = pendingCopayment(purchase, 0L, 0L, 100_000L);
+            WompiTransaction tx = wompiTx(WompiTransactionStatus.APPROVED, purchase.getReferenceId());
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(copaymentRepository.findByPurchaseReferenceIdWithDetails(tx.getReference()))
+                    .thenReturn(Optional.of(copayment));
+            when(passwordEncoder.encode(anyString())).thenReturn("hashed-pin");
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.PENDING);
+            assertThat(item.getClaimedAt()).isNull();
+            assertThat(item.getClaimPinHash()).isEqualTo("hashed-pin");
+            assertThat(item.getClaimExpiresAt()).isNotNull();
+            assertThat(item.getPlainClaimPinForEmail()).isNotBlank();
+            // el PIN se envía junto con el código en el mismo correo de confirmación (no hay un correo aparte)
+            verify(emailService).sendPurchaseConfirmation(purchase, purchase.getDeliveryEmail());
         }
 
         @Test
@@ -378,7 +408,7 @@ class CopaymentServiceImplTest {
 
             assertThat(stale.getStatus()).isEqualTo(CopaymentStatus.COMPLETED);
             assertThat(stale.getFailureReason()).isNull();
-            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.DELIVERED);
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             verify(treasuryService).moveCashToPayoutPending(100_000L, stale.getId());
             verify(treasuryService).retainCommission(10_000L, stale.getId(), "COPAYMENT");
         }

@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.WalletStatus;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -56,10 +57,10 @@ class WalletTest {
     }
 
     @Test
-    @DisplayName("deposit con monto no positivo: lanza IllegalArgumentException")
+    @DisplayName("deposit con monto no positivo: lanza InvalidAmountException")
     void deposit_nonPositiveAmount_throws() {
         Wallet wallet = new Wallet();
-        assertThatThrownBy(() -> wallet.deposit(0L)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> wallet.deposit(0L)).isInstanceOf(InvalidAmountException.class);
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.verygana2.dtos.product.responses;
 import java.math.BigDecimal;
 
 import com.verygana2.dtos.targeting.TargetAudienceResponseDTO;
+import com.verygana2.models.enums.marketplace.ProductType;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,4 +31,6 @@ public class ProductEditInfoResponseDTO {
     private Integer availableStockItems;
 
     private TargetAudienceResponseDTO targeting;
+
+    private ProductType productType;
 }

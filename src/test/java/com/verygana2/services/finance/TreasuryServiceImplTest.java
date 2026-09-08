@@ -12,6 +12,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.config.TreasuryConfig;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
 import com.verygana2.models.finance.TreasuryMovement;
@@ -86,10 +87,10 @@ class TreasuryServiceImplTest {
         }
 
         @Test
-        @DisplayName("monto no positivo: lanza IllegalArgumentException sin tocar ninguna cuenta")
+        @DisplayName("monto no positivo: lanza InvalidAmountException sin tocar ninguna cuenta")
         void nonPositiveAmount_throwsWithoutTouchingAccounts() {
             assertThatThrownBy(() -> service.distributeDeposit(0L, commercial(1L), UUID.randomUUID()))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InvalidAmountException.class);
             verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
         }
     }
@@ -205,6 +206,84 @@ class TreasuryServiceImplTest {
         var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
         verify(treasuryAccountRepository, org.mockito.Mockito.times(1)).save(captor.capture());
         assertThat(captor.getValue().getBalanceCents()).isEqualTo(40_000L);
+    }
+
+    @Nested
+    @DisplayName("reversePurchaseItemForRefund")
+    class ReversePurchaseItemForRefund {
+
+        @Test
+        @DisplayName("comisión + llaves + efectivo positivos: revierte comisión, repone KEYS_RESERVE y mueve el efectivo a OPERATIONS")
+        void positiveAmounts_reversesCommissionRestocksKeysAndMovesCashToOperations() {
+            stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
+            stubAccount(TreasuryAccountCode.OPERATIONS, 50_000L);
+            stubAccount(TreasuryAccountCode.KEYS_RESERVE, 0L);
+
+            service.reversePurchaseItemForRefund(10_000L, 30_000L, 60_000L, UUID.randomUUID());
+
+            // comisión: OPERATIONS+PAYOUTS_PENDING (2) / llaves: PAYOUTS_PENDING+KEYS_RESERVE (2) / efectivo: PAYOUTS_PENDING+OPERATIONS (2) = 6
+            verify(treasuryAccountRepository, org.mockito.Mockito.times(6)).save(any());
+            verify(treasuryMovementRepository, org.mockito.Mockito.times(3)).save(any(TreasuryMovement.class));
+        }
+
+        @Test
+        @DisplayName("comisión y llaves en cero: solo mueve el efectivo (PAYOUTS_PENDING→OPERATIONS), no toca OPERATIONS por comisión ni KEYS_RESERVE")
+        void zeroCommissionAndKeys_onlyMovesCash() {
+            stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
+            stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
+
+            service.reversePurchaseItemForRefund(0L, 0L, 90_000L, UUID.randomUUID());
+
+            verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+            verify(treasuryMovementRepository, org.mockito.Mockito.times(1)).save(any(TreasuryMovement.class));
+        }
+
+        @Test
+        @DisplayName("OPERATIONS sin saldo suficiente para revertir la comisión: lanza IllegalStateException")
+        void insufficientOperations_throws() {
+            stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
+            stubAccount(TreasuryAccountCode.OPERATIONS, 100L);
+
+            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 90_000L, UUID.randomUUID()))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        @DisplayName("PAYOUTS_PENDING sin saldo suficiente para el reembolso: lanza IllegalStateException")
+        void insufficientPayoutsPending_throws() {
+            stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 5_000L);
+            stubAccount(TreasuryAccountCode.OPERATIONS, 50_000L);
+
+            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 90_000L, UUID.randomUUID()))
+                    .isInstanceOf(IllegalStateException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("registerManualCashRefundPaid")
+    class RegisterManualCashRefundPaid {
+
+        @Test
+        @DisplayName("saldo suficiente: debita OPERATIONS y lo registra hacia la cuenta externa")
+        void sufficientBalance_debitsOperations() {
+            stubAccount(TreasuryAccountCode.OPERATIONS, 100_000L);
+            stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0L);
+
+            service.registerManualCashRefundPaid(60_000L, UUID.randomUUID());
+
+            var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
+            verify(treasuryAccountRepository, org.mockito.Mockito.times(1)).save(captor.capture());
+            assertThat(captor.getValue().getBalanceCents()).isEqualTo(40_000L);
+        }
+
+        @Test
+        @DisplayName("OPERATIONS sin saldo suficiente: lanza IllegalStateException")
+        void insufficientBalance_throws() {
+            stubAccount(TreasuryAccountCode.OPERATIONS, 100L);
+
+            assertThatThrownBy(() -> service.registerManualCashRefundPaid(1_000L, UUID.randomUUID()))
+                    .isInstanceOf(IllegalStateException.class);
+        }
     }
 
     @Test

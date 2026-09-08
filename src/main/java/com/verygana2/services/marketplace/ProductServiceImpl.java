@@ -34,6 +34,7 @@ import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.exceptions.GameRewardException;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.InvalidStatusException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.MediaType;
@@ -176,6 +177,8 @@ public class ProductServiceImpl implements ProductService {
             CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialId)
                     .orElseThrow(() -> new EntityNotFoundException("Commercial not found: " + commercialId));
 
+            validateFirstProductPayoutMethod(commercialId, commercial);
+
             asset = productImageAssetRepository
                     .findById(Objects.requireNonNull(request.getProductAssetId()))
                     .orElseThrow(() -> new ValidationException("Asset not found: " + request.getProductAssetId()));
@@ -244,6 +247,19 @@ public class ProductServiceImpl implements ProductService {
             throw e;
         }
 
+    }
+
+    /**
+     * El primer producto activo de un commercial exige tener ya un método de
+     * pago verificado y activo — evita ventas sin destino de payout. A partir
+     * del segundo producto ya no se vuelve a pedir.
+     */
+    private void validateFirstProductPayoutMethod(Long commercialId, CommercialDetails commercial) {
+        boolean isFirstProduct = productRepository.countByCommercialIdAndIsActive(commercialId) == 0;
+        if (isFirstProduct && !commercial.canReceivePayouts()) {
+            throw new PayoutMethodRequiredException(
+                "Debes registrar y verificar un método de pago antes de crear tu primer producto.");
+        }
     }
 
     private void validateProductPrice(long priceCents) {
@@ -662,7 +678,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(), "Producto aprobado", "Tu producto (" + product.getName() + ") ha sido aprobado por uno de nuestros administradores", Instant.now());
 
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override
@@ -675,6 +693,20 @@ public class ProductServiceImpl implements ProductService {
             throw new InvalidStatusException("Only pending products can be rejected");
         }
 
+        productImageAssetRepository.findByProductId(productId).ifPresent(imageAsset -> {
+            String privateKey = "private/" + imageAsset.getObjectKey();
+            try {
+                r2Service.deleteObject(privateKey);
+            } catch (Exception e) {
+                log.warn("No se pudo eliminar de R2 la imagen del producto rechazado {} ({}): {}",
+                        productId, privateKey, e.getMessage());
+            }
+            productImageAssetRepository.delete(imageAsset);
+            // El asset ya no existe: reflejarlo en memoria para que resolveImageUrl no
+            // devuelva una URL que apunta a un objeto borrado.
+            product.setImageAsset(null);
+        });
+
         AdminDetails admin = adminDetailsService.getById(adminId);
         product.setRejectedBy(admin);
         product.setRejectedAt(ZonedDateTime.now(ZoneOffset.UTC));
@@ -686,7 +718,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(),
                 "Producto rechazado", "Razón: " + reason, Instant.now());
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override

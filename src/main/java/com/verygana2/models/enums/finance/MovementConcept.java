@@ -35,5 +35,25 @@ public enum MovementConcept {
     FORTIFICATION_PURCHASE,
 
     /** Plan básico mensual cobrado — distribución a operaciones */
-    BASIC_PLAN_SUBSCRIPTION
-} 
+    BASIC_PLAN_SUBSCRIPTION,
+
+    /** Reembolso de un PurchaseItem: revierte la comisión retenida (OPERATIONS → PAYOUTS_PENDING) */
+    COMMISSION_REVERSAL,
+
+    /**
+     * Reembolso de un PurchaseItem: la porción en llaves vuelve a KEYS_RESERVE
+     * (PAYOUTS_PENDING → KEYS_RESERVE) — repone el fondo que respalda las
+     * llaves que se le acreditan de vuelta al comprador (ver KeyTransaction.CREDIT_COPAYMENT_REFUND).
+     */
+    REFUND_KEYS_TO_RESERVE,
+
+    /**
+     * Reembolso de un PurchaseItem: la porción en efectivo sale de
+     * PAYOUTS_PENDING hacia OPERATIONS — queda ahí como pasivo pendiente de
+     * que el admin haga la transferencia manual (ver PurchaseItemCashRefund).
+     */
+    REFUND_CASH_TO_OPERATIONS,
+
+    /** Reembolso en efectivo pagado manualmente por el admin: sale de OPERATIONS hacia afuera del sistema */
+    REFUND_TO_BUYER
+}

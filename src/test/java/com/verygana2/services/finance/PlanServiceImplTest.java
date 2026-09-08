@@ -13,6 +13,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
@@ -194,25 +195,25 @@ class PlanServiceImplTest {
         }
 
         @Test
-        @DisplayName("monto por debajo del mínimo: lanza IllegalArgumentException")
-        void belowMinimum_throwsIllegalArgumentException() {
+        @DisplayName("monto por debajo del mínimo: lanza InvalidAmountException")
+        void belowMinimum_throwsInvalidAmountException() {
             CommercialDetails commercial = commercial(1L);
             Plan standard = Plan.builder().code(PlanCode.STANDARD).minInvestmentCents(1_000_000L).build();
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
             assertThatThrownBy(() -> service.initiatePlanPayment(commercial, PlanCode.STANDARD, 500_000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InvalidAmountException.class);
         }
 
         @Test
-        @DisplayName("monto por encima del máximo: lanza IllegalArgumentException")
-        void aboveMaximum_throwsIllegalArgumentException() {
+        @DisplayName("monto por encima del máximo: lanza InvalidAmountException")
+        void aboveMaximum_throwsInvalidAmountException() {
             CommercialDetails commercial = commercial(1L);
             Plan standard = Plan.builder().code(PlanCode.STANDARD).maxInvestmentCents(9_999_999L).build();
             when(planRepository.findByCodeAndActiveTrue(PlanCode.STANDARD)).thenReturn(Optional.of(standard));
 
             assertThatThrownBy(() -> service.initiatePlanPayment(commercial, PlanCode.STANDARD, 10_000_000L))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(InvalidAmountException.class);
         }
     }
 

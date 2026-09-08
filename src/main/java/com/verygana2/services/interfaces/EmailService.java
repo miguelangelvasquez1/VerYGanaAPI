@@ -4,14 +4,28 @@ import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.raffles.Prize;
 
 public interface EmailService {
 
     // ===== COMERCIO =====
+    /**
+     * Confirmación de compra: incluye el código de cada ítem y, para los
+     * productos físicos (PurchaseItem.plainClaimPinForEmail), el PIN que el
+     * comprador debe entregar al comerciante al momento de recoger el
+     * producto — ver PurchaseItem y CopaymentServiceImpl.deliverProducts.
+     */
     void sendPurchaseConfirmation(Purchase purchase, String consumerEmail);
     void sendCommercialSaleNotification(Purchase purchase);
     void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode);
+
+    /**
+     * El plazo para reclamar un producto físico venció sin que el comprador
+     * pasara por el comerciante — ver PurchaseItemExpirationScheduler.
+     */
+    void sendPhysicalItemExpiredToConsumer(PurchaseItem item, String consumerEmail);
+    void sendPhysicalItemExpiredToCommercial(PurchaseItem item);
 
     // ===== AUTH =====
     void sendVerificationCodeEmail(String toEmail, String code);

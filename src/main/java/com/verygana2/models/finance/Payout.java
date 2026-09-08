@@ -99,10 +99,10 @@ public class Payout {
     @NotNull
     private Long grossAmountCents;
 
-    @Column(name = "commission_cents", nullable = false)
+    @Column(name = "commission_amount_cents", nullable = false)
     @PositiveOrZero
     @NotNull
-    private Long commissionCents;
+    private Long commissionAmountCents;
 
     @Column(name = "net_amount_cents", nullable = false)
     @Positive

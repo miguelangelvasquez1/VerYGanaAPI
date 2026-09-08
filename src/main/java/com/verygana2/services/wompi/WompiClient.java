@@ -174,7 +174,12 @@ public class WompiClient {
             }
 
             Map<String, Object> data = (Map<String, Object>) event.get("data");
-            Map<String, Object> transaction = (Map<String, Object>) data.get("transaction");
+            Map<String, Object> transaction = data != null ? (Map<String, Object>) data.get("transaction") : null;
+
+            if (transaction == null) {
+                log.debug("[WOMPI] Webhook sin data.transaction — evento de un tipo no soportado, se ignora");
+                return false;
+            }
 
             StringBuilder raw = new StringBuilder();
             for (String property : properties) {

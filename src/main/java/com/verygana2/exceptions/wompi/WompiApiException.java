@@ -17,13 +17,18 @@ public class WompiApiException extends RuntimeException {
         this.wompiStatusCode = wompiStatusCode;
     }
 
-    /** true si el error es del lado de Wompi (reintentable) */
+    /**
+     * true si el error es del lado de Wompi (reintentable). 429 (Too Many
+     * Requests) cuenta como reintentable aunque sea un status 4xx: no es un
+     * problema con la solicitud en sí, es Wompi limitando el volumen — el
+     * único remedio es esperar y reintentar, igual que un 5xx.
+     */
     public boolean isServerError() {
-        return wompiStatusCode >= 500;
+        return wompiStatusCode >= 500 || wompiStatusCode == 429;
     }
 
-    /** true si el error es de nuestra solicitud (no reintentable) */
+    /** true si el error es de nuestra solicitud (no reintentable sin corregir el dato) */
     public boolean isClientError() {
-        return wompiStatusCode >= 400 && wompiStatusCode < 500;
+        return wompiStatusCode >= 400 && wompiStatusCode < 500 && wompiStatusCode != 429;
     }
 }
