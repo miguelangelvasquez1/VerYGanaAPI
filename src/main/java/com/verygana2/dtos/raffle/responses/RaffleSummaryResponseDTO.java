@@ -26,6 +26,5 @@ public class RaffleSummaryResponseDTO {
     private Integer totalTicketsIssued;
     private Integer totalParticipants;
     private Long prizeCount;
-    private boolean requiresPet;
 }
 

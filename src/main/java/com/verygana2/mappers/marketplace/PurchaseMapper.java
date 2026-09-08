@@ -4,6 +4,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import com.verygana2.dtos.purchase.responses.CommercialPendingClaimResponseDTO;
 import com.verygana2.dtos.purchase.responses.ConsumerPurchaseItemResponseDTO;
 import com.verygana2.dtos.purchase.responses.ConsumerPurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseItemResponseDTO;
@@ -39,6 +40,15 @@ public abstract class PurchaseMapper {
     @Mapping(target = "imageUrl", source = "product.imageUrl")
     @Mapping(target = "canBeReviewed", expression = "java(resolveCanBeReviewed(purchaseItem))")
     public abstract ConsumerPurchaseItemResponseDTO toConsumerPurchaseItemResponseDTO(PurchaseItem purchaseItem);
+
+    @Mapping(target = "productId", source = "product.id")
+    @Mapping(target = "productName", source = "product.name")
+    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "buyerName", source = "purchase.consumer.name")
+    @Mapping(target = "documentType", source = "purchase.consumer.documentType")
+    @Mapping(target = "documentNumber", source = "purchase.consumer.documentNumber")
+    @Mapping(target = "purchaseAt", source = "purchase.completedAt")
+    public abstract CommercialPendingClaimResponseDTO toCommercialPendingClaimResponseDTO (PurchaseItem purchaseItem);
 
     protected Integer getTotalItems(Purchase purchase) {
         return purchase.getItems().size();

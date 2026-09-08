@@ -8,7 +8,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.List;
+
 import org.springframework.data.domain.PageRequest;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import com.verygana2.dtos.PagedResponse;
@@ -59,21 +65,40 @@ class RaffleControllerTest {
         var drawDate = LocalDate.of(2026, 7, 13);
         var expected = PagedResponse.<RaffleSummaryResponseDTO>builder().build();
         when(raffleService.getSummaryRafflesByFilters(RaffleStatus.ACTIVE, "sorteo", drawDate, RaffleType.STANDARD,
-                pageable)).thenReturn(expected);
-
+                pageable)).thenReturn(expected);    
         var response = controller.getSummaryRafflesByFilters(RaffleStatus.ACTIVE, "sorteo", drawDate,
                 RaffleType.STANDARD, pageable);
-
         assertThat(response.getBody()).isSameAs(expected);
     }
 
-    @Test
-    @DisplayName("getRaffleById: delega en el service con el raffleId del path")
-    void getRaffleById_delegates() {
-        RaffleResponseDTO expected = new RaffleResponseDTO();
-        when(raffleService.getRaffleResponseDTOById(1L)).thenReturn(expected);
+    /** Deja el SecurityContext con la(s) authority(ies) dadas, y lo limpia con el AutoCloseable. */
+    private AutoCloseable withAuthorities(GrantedAuthority... authorities) {
+        SecurityContext context = mock(SecurityContext.class);
+        Authentication authentication = mock(Authentication.class);
+        org.mockito.Mockito.doReturn(List.of(authorities)).when(authentication).getAuthorities();
+        when(context.getAuthentication()).thenReturn(authentication);
+        SecurityContextHolder.setContext(context);
+        return SecurityContextHolder::clearContext;
+    }
 
-        assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+    @Test
+    @DisplayName("getRaffleById: admin delega en el service con isAdmin=true")
+    void getRaffleById_admin_delegatesWithIsAdminTrue() throws Exception {
+        try (AutoCloseable ignored = withAuthorities(() -> "ROLE_ADMIN")) {
+            RaffleResponseDTO expected = new RaffleResponseDTO();
+            when(raffleService.getRaffleResponseDTOById(1L, true)).thenReturn(expected);
+            assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+        }
+    }
+
+    @Test
+    @DisplayName("getRaffleById: consumer/anónimo delega en el service con isAdmin=false")
+    void getRaffleById_nonAdmin_delegatesWithIsAdminFalse() throws Exception {
+        try (AutoCloseable ignored = withAuthorities(() -> "ROLE_CONSUMER")) {
+            RaffleResponseDTO expected = new RaffleResponseDTO();
+            when(raffleService.getRaffleResponseDTOById(1L, false)).thenReturn(expected);
+            assertThat(controller.getRaffleById(1L).getBody()).isSameAs(expected);
+        }
     }
 
     @Test
@@ -85,9 +110,7 @@ class RaffleControllerTest {
         raffle.setTotalParticipants(10);
         when(raffleService.getRaffleById(1L)).thenReturn(raffle);
         when(waitingRoomService.getViewerCount(1L)).thenReturn(7);
-
         var response = controller.getDrawStatus(1L);
-
         assertThat(response.getBody().getViewerCount()).isEqualTo(7);
     }
 
@@ -97,9 +120,7 @@ class RaffleControllerTest {
         var pageable = PageRequest.of(0, 10);
         var expected = PagedResponse.<UserRaffleSummaryResponseDTO>builder().build();
         when(raffleService.getMyRafflesByStatus(9L, RaffleStatus.ACTIVE, pageable)).thenReturn(expected);
-
         var response = controller.getMyRafflesByStatus(jwtWithUserId(9L), RaffleStatus.ACTIVE, pageable);
-
         assertThat(response.getBody()).isSameAs(expected);
     }
 
@@ -107,9 +128,7 @@ class RaffleControllerTest {
     @DisplayName("countMyRafflesByStatus: extrae el consumerId del JWT")
     void countMyRafflesByStatus_delegates() {
         when(raffleService.countMyRafflesByStatus(9L, RaffleStatus.COMPLETED)).thenReturn(3L);
-
         var response = controller.countMyRafflesByStatus(jwtWithUserId(9L), RaffleStatus.COMPLETED);
-
         assertThat(response.getBody()).isEqualTo(3L);
     }
 }

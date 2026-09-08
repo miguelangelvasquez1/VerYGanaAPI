@@ -122,7 +122,15 @@ public class InvestmentService {
     // ── Helpers de conversión ─────────────────────────────────────────────────
 
     private long toCents(BigDecimal cop) {
-        return cop.multiply(BigDecimal.valueOf(CENTS_PER_COP)).longValueExact();
+        try {
+            // longValueExact() falla si el monto tiene fracción de centavo (>2 decimales)
+            // o si desborda un long — ambos son entrada inválida, no un error del servidor.
+            return cop.multiply(BigDecimal.valueOf(CENTS_PER_COP)).longValueExact();
+        } catch (ArithmeticException ex) {
+            throw new ValidationException(
+                    "El monto a invertir no es válido: use máximo 2 decimales y un valor dentro de rango. "
+                            + "Recibido: " + cop.toPlainString());
+        }
     }
 
     private BigDecimal toCOP(long cents) {

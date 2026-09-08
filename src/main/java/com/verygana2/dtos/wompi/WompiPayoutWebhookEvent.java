@@ -66,9 +66,23 @@ public class WompiPayoutWebhookEvent {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public static class WompiPayoutTransactionPayload {
 
+        /** UUID de la transacción individual — Wompi lo asigna, nunca lo guardamos nosotros. */
         @JsonProperty("id")
         private String id;
 
+        /**
+         * UUID del lote/payout — coincide con el `wompiId` que guardamos al crear el
+         * payout (respuesta de POST /payouts, campo `data.payoutId`). Es el campo
+         * correcto para correlacionar el webhook con nuestro WompiTransaction.
+         */
+        @JsonProperty("payoutId")
+        private String payoutId;
+
+        /**
+         * Confirmado en sandbox: este campo NO viene poblado en la práctica pese a
+         * que el spec público de Wompi lo documenta con un ejemplo — no usar como
+         * clave primaria de matching, solo como fallback defensivo.
+         */
         @JsonProperty("reference")
         private String reference;
 

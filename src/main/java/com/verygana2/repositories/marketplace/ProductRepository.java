@@ -16,19 +16,12 @@ import com.verygana2.models.marketplace.Product;
 
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-        /**
-         * Productos que aún ocupan un cupo del plan: todos menos los terminales
-         * (REJECTED / INACTIVE, los mismos que purga el job semanal). Incluye
-         * PENDING y ACTIVE — alineado con encuestas y juegos branded. Ver PlanFeatureGuard.
-         */
         @Query("""
-                        SELECT COUNT(p) FROM Product p
+                        SELECT COUNT (p) FROM Product p
                         WHERE p.commercial.id = :commercialId
-                        AND p.status NOT IN (
-                                com.verygana2.models.enums.marketplace.ProductStatus.REJECTED,
-                                com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
+                        AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                                 """)
-        long countSlotOccupyingByCommercialId(@Param("commercialId") Long commercialId);
+        long countByCommercialIdAndIsActive(@Param("commercialId") Long commercialId);
 
         boolean existsByIdAndCommercialId(Long id, Long commercialId);
 
@@ -49,6 +42,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         JOIN FETCH p.productCategory pc
                         JOIN FETCH p.commercial c
                         LEFT JOIN FETCH p.imageAsset ia
+                        LEFT JOIN p.targetAudience ta
                         WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                         AND (:searchQuery IS NULL OR :searchQuery = '' OR
                                 LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
@@ -59,9 +53,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND (:minRating IS NULL OR p.averageRate >= :minRating)
                         AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)
                         ORDER BY CASE WHEN (:municipality IS NULL
-                                        OR p.targetAudience IS NULL
-                                        OR p.targetAudience.targetMunicipalities IS EMPTY
-                                        OR :municipality MEMBER OF p.targetAudience.targetMunicipalities)
+                                        OR ta IS NULL
+                                        OR ta.targetMunicipalities IS EMPTY
+                                        OR :municipality MEMBER OF ta.targetMunicipalities)
                                 THEN 0 ELSE 1 END ASC
                                 """)
         Page<Product> searchProductsInternal(
@@ -151,5 +145,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND p.updatedAt < :threshold
                                 """)
         List<Product> findPurgeableProducts(@Param("threshold") ZonedDateTime threshold);
+
+        /**
+         * Productos que aún ocupan un cupo del plan: todos menos los terminales
+         * (REJECTED / INACTIVE, los mismos que purga el job semanal). Incluye
+         * PENDING y ACTIVE — alineado con encuestas y juegos branded. Ver PlanFeatureGuard.
+         */
+        @Query("""
+                        SELECT COUNT(p) FROM Product p
+                        WHERE p.commercial.id = :commercialId
+                        AND p.status NOT IN (
+                                com.verygana2.models.enums.marketplace.ProductStatus.REJECTED,
+                                com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
+                                """)
+        long countSlotOccupyingByCommercialId(@Param("commercialId") Long commercialId);
 
 }

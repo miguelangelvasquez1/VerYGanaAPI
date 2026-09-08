@@ -85,10 +85,9 @@ class RaffleTicketServiceImplTest {
         return raffle;
     }
 
-    private ConsumerDetails consumer(boolean hasPet) {
+    private ConsumerDetails consumer() {
         ConsumerDetails consumer = new ConsumerDetails();
         consumer.setId(9L);
-        consumer.setHasPet(hasPet);
         return consumer;
     }
 
@@ -112,7 +111,7 @@ class RaffleTicketServiceImplTest {
         void happyPath_issuesTickets() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
+            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer());
             when(raffleRuleService.getByRaffleIdAndRuleType(1L, com.verygana2.models.enums.raffles.TicketEarningRuleType.PURCHASE))
                     .thenReturn(openRule());
             when(raffleTicketRepository.saveAll(org.mockito.ArgumentMatchers.<List<RaffleTicket>>any()))
@@ -156,24 +155,13 @@ class RaffleTicketServiceImplTest {
         }
 
         @Test
-        @DisplayName("rifa PREMIUM y usuario sin mascota registrada: lanza InvalidRequestException")
-        void premiumRaffleWithoutPet_throwsInvalidRequestException() {
-            Raffle raffle = activeRaffle(RaffleType.PREMIUM);
-            when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
-
-            assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
-                    .isInstanceOf(InvalidRequestException.class);
-        }
-
-        @Test
         @DisplayName("la rifa ya alcanzó el límite total de tickets: lanza LimitReachedException")
         void totalLimitReached_throwsLimitReachedException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setMaxTotalTickets(10);
             raffle.setTotalTicketsIssued(10);
             when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
+            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer());
 
             assertThatThrownBy(() -> service.issueTickets(9L, 1L, 1, RaffleTicketSource.PURCHASE, 100L))
                     .isInstanceOf(LimitReachedException.class);
@@ -184,7 +172,7 @@ class RaffleTicketServiceImplTest {
         void sourceLimitReached_throwsLimitReachedException() {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
+            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer());
 
             RaffleRule exhaustedRule = openRule();
             exhaustedRule.setMaxTicketsBySource(5L);
@@ -202,7 +190,7 @@ class RaffleTicketServiceImplTest {
             Raffle raffle = activeRaffle(RaffleType.STANDARD);
             raffle.setMaxTicketsPerUser(3);
             when(raffleRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(raffle));
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(false));
+            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer());
             when(raffleRuleService.getByRaffleIdAndRuleType(1L, com.verygana2.models.enums.raffles.TicketEarningRuleType.PURCHASE))
                     .thenReturn(openRule());
             when(raffleTicketRepository.countByTicketOwnerIdAndRaffleIdAndStatus(9L, 1L, RaffleTicketStatus.ACTIVE))
@@ -225,9 +213,8 @@ class RaffleTicketServiceImplTest {
         }
 
         @Test
-        @DisplayName("rifa PREMIUM: depende de si el consumidor tiene mascota registrada")
-        void premiumRaffle_dependsOnPet() {
-            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(true));
+        @DisplayName("rifa PREMIUM: cualquier usuario es elegible")
+        void premiumRaffle_alwaysEligible() {
             assertThat(service.canUserReceiveTickets(9L, RaffleType.PREMIUM)).isTrue();
         }
 

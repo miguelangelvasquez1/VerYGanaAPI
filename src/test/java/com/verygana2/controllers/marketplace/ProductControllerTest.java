@@ -144,14 +144,29 @@ class ProductControllerTest {
         @Test
         @DisplayName("searchProducts: pasa el consumerId del JWT y todos los filtros de búsqueda al service")
         void searchProducts_passesAllFilters() {
-            var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
-            when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
-                    .thenReturn(expected);
+            // El controller solo pasa el consumerId si SecurityContextHolder trae la
+            // authority ROLE_CONSUMER (ver ProductController.searchProducts) — mismo
+            // patrón de mock que PrivateImageProxy.admin_streamsWithoutOwnershipCheck.
+            SecurityContext context = mock(SecurityContext.class);
+            Authentication authentication = mock(Authentication.class);
+            GrantedAuthority consumerAuthority = mock(GrantedAuthority.class);
+            when(consumerAuthority.getAuthority()).thenReturn("ROLE_CONSUMER");
+            org.mockito.Mockito.doReturn(List.of(consumerAuthority)).when(authentication).getAuthorities();
+            when(context.getAuthentication()).thenReturn(authentication);
+            SecurityContextHolder.setContext(context);
 
-            var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
-                    "price", "ASC");
+            try {
+                var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
+                when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
+                        .thenReturn(expected);
 
-            assertThat(response.getBody()).isSameAs(expected);
+                var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
+                        "price", "ASC");
+
+                assertThat(response.getBody()).isSameAs(expected);
+            } finally {
+                SecurityContextHolder.clearContext();
+            }
         }
 
         @Test

@@ -1,5 +1,6 @@
 package com.verygana2.services.marketplace;
 
+import java.security.SecureRandom;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -8,6 +9,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +18,7 @@ import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
+import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.KeyTransaction;
@@ -60,6 +64,13 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
     private final WompiService wompiService;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${marketplace.claim.expiration-days:15}")
+    private int claimExpirationDays;
+
+    private static final int CLAIM_PIN_MAX_VALUE = 1_000_000; // 6 dígitos, mismo formato que EmailVerificationServiceImpl
+    private final SecureRandom secureRandom = new SecureRandom();
 
     /**
      * Punto de entrada del webhook de Wompi para CHARGE_COPAYMENT.
@@ -241,17 +252,42 @@ public class CopaymentServiceImpl implements CopaymentService {
 
     // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+    /**
+     * Entrega el código a cada ítem de la compra. Los productos DIGITAL quedan
+     * CLAIMED de inmediato (no hay paso de reclamación separado: el proceso de
+     * redención ocurre fuera de la plataforma). Los PHYSICAL quedan PENDING
+     * —esperando que el comerciante valide el PIN al momento de la entrega— y
+     * generan un PIN de reclamación que va, junto con el código, en el mismo
+     * correo de confirmación de compra (ver SendGridEmailService.buildItemsHtml).
+     */
     private void deliverProducts(Purchase purchase) {
         List<PurchaseItem> items = purchase.getItems();
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+
         for (PurchaseItem item : items) {
             ProductStock stock = item.getAssignedProductStock();
             stock.markAsSold(item);
             productStockRepository.save(stock);
             item.setDeliveredCode(stock.getCode());
-            item.setDeliveredAt(ZonedDateTime.now(ZoneOffset.UTC));
-            item.setStatus(PurchaseItemStatus.DELIVERED);
+            item.setDeliveredAt(now);
+
+            Product product = item.getProduct();
+            if (product != null && product.getProductType() == ProductType.PHYSICAL) {
+                String pin = generateClaimPin();
+                item.setClaimPinHash(passwordEncoder.encode(pin));
+                item.setClaimExpiresAt(now.plusDays(claimExpirationDays));
+                item.setStatus(PurchaseItemStatus.PENDING);
+                item.setPlainClaimPinForEmail(pin);
+            } else {
+                item.setClaimedAt(now);
+                item.setStatus(PurchaseItemStatus.CLAIMED);
+            }
         }
         log.debug("[COPAYMENT] {} código(s) entregado(s) para purchaseId={}", items.size(), purchase.getId());
+    }
+
+    private String generateClaimPin() {
+        return String.format("%06d", secureRandom.nextInt(CLAIM_PIN_MAX_VALUE));
     }
 
     private void releaseReservedStock(Purchase purchase) {

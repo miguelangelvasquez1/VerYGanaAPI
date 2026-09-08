@@ -11,10 +11,12 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.models.ImpactStory.StoryMediaAsset;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.finance.PayoutMethodCertificateAsset;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
+import com.verygana2.repositories.finance.PayoutMethodCertificateAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
@@ -32,6 +34,7 @@ public class AssetOrphanedService {
     private final StoryMediaAssetRepository storyMediaAssetRepository;
     private final ProductImageAssetRepository productImageAssetRepository;
     private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
+    private final PayoutMethodCertificateAssetRepository payoutMethodCertificateAssetRepository;
 
     // Hacer el del foro
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -98,6 +101,23 @@ public class AssetOrphanedService {
         List<ProductCategoryImageAsset> assets = productCategoryImageAssetRepository
                 .findAllById(Objects.requireNonNull(assetIds));
         for (ProductCategoryImageAsset asset : assets) {
+            if (asset.getStatus() == AssetStatus.VALIDATED ||
+                asset.getStatus() == AssetStatus.PENDING) {
+
+                asset.setStatus(AssetStatus.ORPHANED);
+            }
+        }
+    }
+
+    /**
+     * Para certificaciones bancarias de payout methods.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markPayoutMethodCertificateAssetsAsOrphanedByIds(Collection<Long> assetIds) {
+
+        List<PayoutMethodCertificateAsset> assets = payoutMethodCertificateAssetRepository
+                .findAllById(Objects.requireNonNull(assetIds));
+        for (PayoutMethodCertificateAsset asset : assets) {
             if (asset.getStatus() == AssetStatus.VALIDATED ||
                 asset.getStatus() == AssetStatus.PENDING) {
 

@@ -45,10 +45,13 @@ import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
 import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
 import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
+import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.esignature.ESignatureApiException;
@@ -336,6 +339,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStatusException(
+            InvalidStatusException ex, WebRequest request) {
+        log.warn("Invalid status error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -348,6 +358,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
         log.warn("Claim prize error: {}", ex.getMessage());
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidClaimException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidClaimException(InvalidClaimException ex, WebRequest request) {
+        log.warn("Invalid physical claim: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(CodeEncryptionException.class)
@@ -566,6 +582,20 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleInvalidPayoutMethodStateException(
             InvalidPayoutMethodStateException ex, WebRequest request) {
         log.warn("Invalid payout method state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(PayoutMethodRequiredException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodRequiredException(
+            PayoutMethodRequiredException ex, WebRequest request) {
+        log.warn("Payout method required: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCashRefundStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCashRefundStateException(
+            InvalidCashRefundStateException ex, WebRequest request) {
+        log.warn("Invalid cash refund state: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 

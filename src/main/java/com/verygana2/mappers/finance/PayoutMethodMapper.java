@@ -19,7 +19,10 @@ public interface PayoutMethodMapper {
     @Mapping(target = "active", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "verifiedAt", ignore = true)
+    @Mapping(target = "certificateAsset", ignore = true)
     PayoutMethod toPayoutMethod(CreatePayoutMethodRequestDTO request);
 
+    @Mapping(target = "defaultMethod", ignore = true)
+    @Mapping(target = "certificateUrl", ignore = true)
     PayoutMethodResponseDTO toPayoutMethodResponseDTO(PayoutMethod payoutMethod);
 }

@@ -32,10 +32,13 @@ import lombok.extern.slf4j.Slf4j;
  *
  * REGLAS DE ORO (mismas que WompiWebhookController / antiguo KushkiWebhookController):
  * 1. Siempre responder 200 OK — si devuelves 4xx/5xx Wompi reintenta hasta 3 veces.
- * 2. Validar la firma antes de procesar cualquier dato.
- * 3. Solo procesar "transaction.updated" en estado terminal (ignoramos "payout.updated",
- *    que es el estado del lote completo — procesamos cada Payout individualmente).
- * 4. Procesamiento de negocio en el servicio, no aquí.
+ * 2. Filtrar por tipo de evento ANTES de validar firma: "payout.updated" (estado del
+ *    lote, data.payout) no tiene data.transaction, así que ni aplica el algoritmo de
+ *    firma de transacción individual — se ignora directo, no se reporta como firma inválida.
+ * 3. Validar la firma antes de procesar cualquier dato de un "transaction.updated".
+ * 4. Solo procesar "transaction.updated" en estado terminal (el lote se ignora siempre,
+ *    procesamos cada Payout individualmente).
+ * 5. Procesamiento de negocio en el servicio, no aquí.
  */
 @Slf4j
 @RestController
@@ -54,9 +57,13 @@ public class WompiPayoutWebhookController {
             @RequestHeader(value = "x-event-checksum", required = false) String checksum) {
 
         log.info("[WOMPI PAYOUT WEBHOOK] Evento recibido");
+        log.debug("[WOMPI PAYOUT WEBHOOK] rawBody={}", rawBody);
 
-        // ── 1. Validar firma ──────────────────────────────────────────────────
-        String effectiveChecksum = checksum;
+        // ── 1. Deserializar y filtrar por tipo ANTES de validar firma ──────────
+        // "payout.updated" (estado del lote, data.payout) no tiene data.transaction,
+        // así que ni siquiera aplica intentar validar su firma con el algoritmo de
+        // transacción individual — se ignora de una vez con un log claro, en vez
+        // de reportarlo como "firma inválida" (que suena a un problema real).
         Map<String, Object> metadata;
         try {
             metadata = objectMapper.readValue(rawBody, new TypeReference<>() {});
@@ -65,6 +72,22 @@ public class WompiPayoutWebhookController {
             return ResponseEntity.ok().build();
         }
 
+        WompiPayoutWebhookEvent event;
+        try {
+            event = objectMapper.readValue(rawBody, WompiPayoutWebhookEvent.class);
+        } catch (JsonProcessingException e) {
+            log.error("[WOMPI PAYOUT WEBHOOK] Error deserializando payload: {}", e.getMessage());
+            return ResponseEntity.ok().build();
+        }
+
+        if (!event.isTransactionEvent() || event.getData() == null || event.getData().getTransaction() == null) {
+            log.debug("[WOMPI PAYOUT WEBHOOK] Evento ignorado (tipo no manejado, no aplica validar firma): {}",
+                    event.getEvent());
+            return ResponseEntity.ok().build();
+        }
+
+        // ── 2. Validar firma ───────────────────────────────────────────────────
+        String effectiveChecksum = checksum;
         if (effectiveChecksum == null || effectiveChecksum.isBlank()) {
             effectiveChecksum = extractChecksumFromBody(metadata);
         }
@@ -75,40 +98,29 @@ public class WompiPayoutWebhookController {
             return ResponseEntity.ok().build();
         }
 
-        // ── 2. Deserializar ───────────────────────────────────────────────────
-        WompiPayoutWebhookEvent event;
-        try {
-            event = objectMapper.readValue(rawBody, WompiPayoutWebhookEvent.class);
-        } catch (JsonProcessingException e) {
-            log.error("[WOMPI PAYOUT WEBHOOK] Error deserializando payload: {}", e.getMessage());
-            return ResponseEntity.ok().build();
-        }
-
-        // ── 3. Solo nos interesa transaction.updated ────────────────────────────
-        if (!event.isTransactionEvent() || event.getData() == null || event.getData().getTransaction() == null) {
-            log.debug("[WOMPI PAYOUT WEBHOOK] Evento ignorado (tipo no manejado): {}", event.getEvent());
-            return ResponseEntity.ok().build();
-        }
-
         WompiPayoutTransactionPayload payload = event.getData().getTransaction();
 
-        log.info("[WOMPI PAYOUT WEBHOOK] id={}, status={}, reference={}",
-                payload.getId(), payload.getStatus(), payload.getReference());
+        log.info("[WOMPI PAYOUT WEBHOOK] id={}, payoutId={}, status={}, reference={}",
+                payload.getId(), payload.getPayoutId(), payload.getStatus(), payload.getReference());
 
-        // ── 4. Solo procesar estados terminales ───────────────────────────────
+        // ── 3. Solo procesar estados terminales ───────────────────────────────
         if (!payload.isTerminal()) {
             log.debug("[WOMPI PAYOUT WEBHOOK] Estado no terminal ignorado: {}", payload.getStatus());
             return ResponseEntity.ok().build();
         }
 
-        // ── 5. Actualizar WompiTransaction y delegar al servicio ───────────────
+        // ── 4. Actualizar WompiTransaction y delegar al servicio ───────────────
         try {
-            WompiTransaction tx = wompiTransactionRepository.findByReference(payload.getReference())
-                    .orElseGet(() -> wompiTransactionRepository.findByWompiId(payload.getId()).orElse(null));
+            // Confirmado en sandbox: "reference" no viene poblado en la práctica pese
+            // a que el spec público lo documenta — el campo real para correlacionar es
+            // "payoutId" (coincide con el wompiId que guardamos al crear el payout).
+            // Se deja "reference" como fallback defensivo por si algún ambiente sí lo envía.
+            WompiTransaction tx = wompiTransactionRepository.findByWompiId(payload.getPayoutId())
+                    .orElseGet(() -> wompiTransactionRepository.findByReference(payload.getReference()).orElse(null));
 
             if (tx == null) {
-                log.warn("[WOMPI PAYOUT WEBHOOK] WompiTransaction no encontrada: reference={}, id={}",
-                        payload.getReference(), payload.getId());
+                log.warn("[WOMPI PAYOUT WEBHOOK] WompiTransaction no encontrada: payoutId={}, reference={}, id={}",
+                        payload.getPayoutId(), payload.getReference(), payload.getId());
                 return ResponseEntity.ok().build();
             }
 

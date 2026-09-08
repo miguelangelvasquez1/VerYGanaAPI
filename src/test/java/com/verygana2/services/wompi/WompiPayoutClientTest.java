@@ -25,7 +25,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -142,6 +144,32 @@ class WompiPayoutClientTest {
     }
 
     @Test
+    @DisplayName("createPayout: usa la referencia del payout como idempotency-key, no un UUID aleatorio por intento")
+    void createPayout_usesReferenceAsIdempotencyKey_soRetriesAreNotSeenAsNewTransfers() {
+        WompiPayoutResponseDTO expected = new WompiPayoutResponseDTO();
+        expected.setStatus(201);
+        expected.setCode("OK");
+        WompiPayoutResponseDTO.PayoutData data = new WompiPayoutResponseDTO.PayoutData();
+        data.setPayoutId("wp_123");
+        data.setSuccess(1);
+        data.setFailed(0);
+        expected.setData(data);
+        WompiPayoutRequestDTO request = WompiPayoutRequestDTO.builder().reference("payout-uuid-1").build();
+
+        WebClient.RequestBodySpec bodySpec = mockPostChain();
+        when(bodySpec.bodyValue(any()).retrieve()
+                .bodyToMono(WompiPayoutResponseDTO.class).block())
+                .thenReturn(expected);
+
+        client.createPayout(request);
+
+        // Si Wompi ejecutó la transferencia pero nuestro guardado posterior falla, el
+        // siguiente reintento debe reenviar la MISMA idempotency-key para que Wompi lo
+        // reconozca como duplicado en vez de mover el dinero otra vez.
+        verify(bodySpec).header(eq("idempotency-key"), eq("payout-uuid-1"));
+    }
+
+    @Test
     @DisplayName("createPayout: error HTTP de Wompi se envuelve en WompiApiException")
     void createPayout_httpError_wrapsInWompiApiException() {
         WompiPayoutRequestDTO request = WompiPayoutRequestDTO.builder().reference("VG-PAYOUT-1").build();
@@ -153,6 +181,27 @@ class WompiPayoutClientTest {
                 .thenThrow(httpError);
 
         assertThatThrownBy(() -> client.createPayout(request)).isInstanceOf(WompiApiException.class);
+    }
+
+    @Test
+    @DisplayName("createPayout: 429 de Wompi (rate limit) se distingue de un rechazo real, marcado como reintentable")
+    void createPayout_rateLimited_wrapsWithDistinctRetriableReason() {
+        WompiPayoutRequestDTO request = WompiPayoutRequestDTO.builder().reference("VG-PAYOUT-1").build();
+        WebClientResponseException rateLimited = WebClientResponseException.create(
+                429, "Too Many Requests", null, null, null);
+
+        when(mockPostChain().bodyValue(any()).retrieve()
+                .bodyToMono(WompiPayoutResponseDTO.class).block())
+                .thenThrow(rateLimited);
+
+        assertThatThrownBy(() -> client.createPayout(request))
+                .isInstanceOf(WompiApiException.class)
+                .satisfies(e -> {
+                    WompiApiException wompiEx = (WompiApiException) e;
+                    assertThat(wompiEx.getWompiStatusCode()).isEqualTo(429);
+                    assertThat(wompiEx.isServerError()).isTrue(); // reintentable, no es un rechazo de negocio
+                    assertThat(wompiEx.getMessage()).contains("límite de tasa");
+                });
     }
 
     @Test

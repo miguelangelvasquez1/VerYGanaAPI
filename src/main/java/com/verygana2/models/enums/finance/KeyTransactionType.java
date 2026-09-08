@@ -81,5 +81,13 @@ public enum KeyTransactionType {
      */
     RELEASE_COPAYMENT_CANCELLED,
 
-    DEBIT_PET_GAME
+    DEBIT_PET_GAME,
+
+    /**
+     * Llaves acreditadas de vuelta porque un PurchaseItem se reembolsó (PQRS
+     * resuelto con acción REFUND). A diferencia de RELEASE_COPAYMENT_CANCELLED
+     * (revierte una reserva antes de confirmarse), este crédito ocurre sobre
+     * llaves que ya estaban confirmadas como gastadas (DEBIT_COPAYMENT).
+     */
+    CREDIT_COPAYMENT_REFUND
 }

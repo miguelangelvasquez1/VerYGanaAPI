@@ -2,6 +2,8 @@ package com.verygana2.models.finance;
 
 import java.util.UUID;
 
+import com.verygana2.models.marketplace.PurchaseItem;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -33,11 +35,17 @@ public class PayoutItem {
     @JoinColumn(name = "payout_id", nullable = false)
     private Payout payout;
 
+    /**
+     * El ítem reclamado (PurchaseItemStatus.CLAIMED) que financia esta línea.
+     * Único por ítem: un ítem solo puede entrar a un payout una vez — esto es
+     * lo que hace idempotente al job diario (ver
+     * PayoutServiceImpl.scheduleDailyPayouts / findClaimedWithoutPayout).
+     */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "copayment_id", nullable = false)
-    private Copayment copayment;
+    @JoinColumn(name = "purchase_item_id", nullable = false, unique = true)
+    private PurchaseItem purchaseItem;
 
-    /** Porción del netToCommercialCents de este copayment que va al empresario de este payout. */
+    /** = purchaseItem.netToCommercialCents en el momento de crear este payout. */
     @Column(name = "amount_cents", nullable = false)
     private Long amountCents;
 }
