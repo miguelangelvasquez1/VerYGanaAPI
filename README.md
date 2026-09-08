@@ -1,3 +1,26 @@
+## Variables de entorno (Infisical)
+
+Los secretos viven en Infisical, no en el repo. El `.env` local es una copia
+**generada y desechable** — no se edita a mano ni se commitea.
+
+**Setup (una vez):**
+1. Pedir acceso al proyecto de Infisical (un admin te agrega en Organization -> Members).
+2. `infisical login`
+
+**Generar / actualizar el `.env`:**
+```
+.\scripts\sync-env.ps1                  # entorno por defecto (dev, de .infisical.json)
+.\scripts\sync-env.ps1 -Environment prod
+```
+Regeneralo cada vez que alguien cambie un secreto en Infisical. Despues: boton Run
+de VS Code, `mvn spring-boot:run` o `docker compose up` — los tres leen el mismo `.env`.
+
+**Notas:**
+- `.infisical.json` (lleva el `workspaceId`) SI va al repo: es un identificador, no un secreto. Sin login + acceso al proyecto no sirve de nada.
+- `.env` NUNCA va al repo (ya esta en `.gitignore`).
+- No usar `infisical export ... > .env` directo: el `>` de PowerShell escribe UTF-16 y rompe el parseo de Spring. Usar `sync-env.ps1`.
+- Alternativa sin archivo: `infisical run -- mvn spring-boot:run` (inyecta las vars como entorno; no sirve para el boton Run de VS Code).
+
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
@@ -33,9 +56,11 @@ docker push miguelvasquez777/verygana-api:latest
 ## Para correr localmente:
 docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
+- infisical run -- mvn spring-boot:run
 
-edad minima a 18 por variable
-revisar sesion back, prueba 8 hallazgos, logs de init
+
+
+revisar sesion back, prueba 8 hallazgos, edad minima a 18 por variable, logs de init, documentar procesos
 revisar sistema de recomendacion(que el compliance vea las respuestas de las preguntas) servicios con otra comision
 revisar tests de helen
 

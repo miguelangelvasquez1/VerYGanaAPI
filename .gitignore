@@ -1,8 +1,10 @@
 # Claves privadas
 src/main/resources/certs/private.pem
 
-# Variables de entorno
+# Variables de entorno — el .env se genera desde Infisical (scripts/sync-env.ps1), nunca se commitea
 .env
+.env.*
+!.env.example
 
 HELP.md
 target/
