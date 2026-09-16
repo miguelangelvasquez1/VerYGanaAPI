@@ -27,7 +27,6 @@ import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
-import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
 import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.models.enums.AdStatus;
@@ -179,17 +178,6 @@ public class AdController {
         
         AdResponseDTO ad = adService.pauseAdAsCommercial(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
-    }
-
-    //Stats anunciantes
-
-    @GetMapping("/my-stats")
-    @PreAuthorize("hasRole('COMMERCIAL')")
-    public ResponseEntity<AdStatsDTO> getCommercialStats(
-            @AuthenticationPrincipal Jwt jwt) {
-        
-        AdStatsDTO stats = adService.getCommercialStats(jwt.getClaim("userId"));
-        return ResponseEntity.ok(stats);
     }
 
     // ==================== ENDPOINTS PARA ADMINISTRADORES ====================

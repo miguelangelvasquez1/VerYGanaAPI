@@ -74,7 +74,7 @@ enum AdStatus {
   ACTIVE
   PAUSED
   COMPLETED
-  EXPIRED
+  BLOCKED
 }
 
 enum TargetGender {

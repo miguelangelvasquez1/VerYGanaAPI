@@ -725,6 +725,59 @@ public class R2Service {
         }
     }
 
+    /**
+     * Operación inversa de {@link #makeObjectPublic(String)}: mueve el objeto de
+     * la carpeta pública a la privada y elimina la copia pública, de modo que
+     * deje de ser accesible por la URL del CDN (que no lleva firma).
+     *
+     * <p>Idempotente: si el objeto ya está solo en la carpeta privada no hace
+     * nada. Se usa al bloquear un anuncio por moderación
+     * ({@code AdServiceImpl.blockAdAsAdmin}).
+     *
+     * <p><b>Aviso:</b> si el CDN cacheó el objeto en el edge, esta operación no
+     * purga esa caché. Para revocación inmediata hay que purgar el CDN o rotar
+     * la object key.
+     *
+     * @param objectKey Clave del objeto (sin prefijo). Ej: "campaigns/banner.jpg"
+     */
+    public void makeObjectPrivate(String objectKey) {
+        String privateKey = PRIVATE_PREFIX + objectKey;
+        String publicKey = PUBLIC_PREFIX + objectKey;
+
+        try {
+            // 1. Si ya no hay copia pública, no hay nada que revertir.
+            if (!objectExists(publicKey)) {
+                if (objectExists(privateKey)) {
+                    log.info("Objeto {} ya es privado; makeObjectPrivate no hace nada", objectKey);
+                    return;
+                }
+                throw new StorageException("El objeto público no existe: " + publicKey);
+            }
+
+            // 2. Copiar el objeto de vuelta a la ubicación privada.
+            CopyObjectRequest copyRequest = CopyObjectRequest.builder()
+                    .sourceBucket(r2Config.getBucketName())
+                    .sourceKey(publicKey)
+                    .destinationBucket(r2Config.getBucketName())
+                    .destinationKey(privateKey)
+                    .metadataDirective(MetadataDirective.COPY)   // Copia metadata original
+                    .build();
+
+            r2Client.copyObject(copyRequest);
+            log.info("Objeto copiado a privado: {} → {}", publicKey, privateKey);
+
+            // 3. Eliminar la copia pública.
+            deleteObject(publicKey);
+            log.info("Copia pública eliminada: {}", publicKey);
+
+        } catch (StorageException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Error al hacer privado el objeto {}: {}", objectKey, e.getMessage());
+            throw new StorageException("No se pudo hacer privado el objeto: " + objectKey, e);
+        }
+    }
+
     // ==================== DTOs ====================
 
     @lombok.Data

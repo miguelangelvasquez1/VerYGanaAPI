@@ -46,7 +46,7 @@ public class PlanFeatureGuard {
 
     /** Estados terminales de un anuncio: ya no ocupa un cupo del plan (análogo a REJECTED/COMPLETED de una encuesta). */
     private static final List<AdStatus> AD_TERMINAL_STATUSES = List.of(
-            AdStatus.REJECTED, AdStatus.COMPLETED, AdStatus.EXPIRED);
+            AdStatus.REJECTED, AdStatus.COMPLETED);
 
     private final EffectivePlanResolver planResolver;
     private final ProductRepository productRepository;
@@ -162,7 +162,7 @@ public class PlanFeatureGuard {
 
     /**
      * Anuncios que siguen consumiendo un cupo del plan (todo menos estados finales:
-     * REJECTED, COMPLETED y EXPIRED). Cuenta PENDING, APPROVED, ACTIVE, PAUSED y BLOCKED
+     * REJECTED y COMPLETED). Cuenta PENDING, APPROVED, ACTIVE, PAUSED y BLOCKED
      * — igual criterio que encuestas y juegos branded: un activo no terminal ocupa cupo
      * aunque todavía no esté en circulación.
      */

@@ -183,10 +183,10 @@ class PlanFeatureGuardTest {
         @DisplayName("MAX_PRODUCTS: conteo < máximo pasa; conteo == máximo lanza")
         void maxProducts() {
             mockState(baseState().maxProducts(5).build());
-            when(productRepository.countByCommercialIdAndIsActive(COMMERCIAL_ID)).thenReturn(4L);
+            when(productRepository.countSlotOccupyingByCommercialId(COMMERCIAL_ID)).thenReturn(4L);
             assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.MAX_PRODUCTS)).doesNotThrowAnyException();
 
-            when(productRepository.countByCommercialIdAndIsActive(COMMERCIAL_ID)).thenReturn(5L);
+            when(productRepository.countSlotOccupyingByCommercialId(COMMERCIAL_ID)).thenReturn(5L);
             assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.MAX_PRODUCTS))
                     .isInstanceOf(PlanCapabilityException.class);
         }
@@ -195,10 +195,12 @@ class PlanFeatureGuardTest {
         @DisplayName("MAX_ADS: conteo < máximo pasa; conteo == máximo lanza")
         void maxAds() {
             mockState(baseState().maxAds(5).build());
-            when(adRepository.countByCommercialIdAndStatus(COMMERCIAL_ID, AdStatus.ACTIVE)).thenReturn(4L);
+            when(adRepository.countByCommercialIdAndStatusNotIn(eq(COMMERCIAL_ID),
+                    eq(List.of(AdStatus.REJECTED, AdStatus.COMPLETED)))).thenReturn(4L);
             assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.MAX_ADS)).doesNotThrowAnyException();
 
-            when(adRepository.countByCommercialIdAndStatus(COMMERCIAL_ID, AdStatus.ACTIVE)).thenReturn(5L);
+            when(adRepository.countByCommercialIdAndStatusNotIn(eq(COMMERCIAL_ID),
+                    eq(List.of(AdStatus.REJECTED, AdStatus.COMPLETED)))).thenReturn(5L);
             assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.MAX_ADS))
                     .isInstanceOf(PlanCapabilityException.class);
         }
@@ -268,7 +270,7 @@ class PlanFeatureGuardTest {
     class SlotOccupyingCounts {
 
         @Test
-        @DisplayName("anuncios: cuenta todo menos REJECTED / COMPLETED / EXPIRED (igual que encuestas y juegos)")
+        @DisplayName("anuncios: cuenta todo menos REJECTED / COMPLETED (igual que encuestas y juegos)")
         void ads_excludeOnlyTerminalStates() {
             @SuppressWarnings("unchecked")
             ArgumentCaptor<List<AdStatus>> captor = ArgumentCaptor.forClass(List.class);
@@ -280,7 +282,7 @@ class PlanFeatureGuardTest {
             assertThat(count).isEqualTo(4L);
             verify(adRepository).countByCommercialIdAndStatusNotIn(eq(COMMERCIAL_ID), captor.capture());
             assertThat(captor.getValue())
-                    .containsExactlyInAnyOrder(AdStatus.REJECTED, AdStatus.COMPLETED, AdStatus.EXPIRED);
+                    .containsExactlyInAnyOrder(AdStatus.REJECTED, AdStatus.COMPLETED);
         }
 
         @Test

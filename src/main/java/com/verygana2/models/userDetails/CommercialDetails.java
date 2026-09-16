@@ -6,6 +6,7 @@ import java.util.List;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.AnnualRevenueRange;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.Wallet;
@@ -43,6 +44,10 @@ public class CommercialDetails extends UserDetails {
 
     @Column(unique = true, length = 20)
     private String nit;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commercial_activity_type", length = 20)
+    private CommercialActivityType commercialActivityType;
 
     // ==================== KYC / SAGRILAFT ====================
 
