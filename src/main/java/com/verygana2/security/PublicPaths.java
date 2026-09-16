@@ -31,6 +31,11 @@ public class PublicPaths {
             "/pet/scenes-objects",
             "/pet/notifications",
             "/pet/notifications/*/read",
-            "/api/levels/config"
+            "/api/levels/config",
+            // Documentación OpenAPI / Swagger UI
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html"
         };
 }
