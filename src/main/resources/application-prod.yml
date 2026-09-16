@@ -11,8 +11,7 @@ spring:
     # Para Docker
     # url: jdbc:mysql://host.docker.internal:3306/verygana
     # url: jdbc:postgresql://dpg-d66gfsmsb7us73f305j0-a.oregon-postgres.render.com:5432/verygana_eyf3
-    # username: root
-    # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
+
 
     # Para Railway (PostgreSQL) - usa variables de entorno
     url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
@@ -31,8 +30,6 @@ spring:
   # JPA/HIBERNATE CONFIGURATION
   # =====================
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -361,13 +358,14 @@ pqrs:
     max-size-bytes: 26214400 # 25 MB (imagen o video)
     max-count: 5
 
-  # ============================================
-  # reCAPTCHA
-  # ============================================
-  recaptcha:
-    secret-key: ${RECAPTCHA_SECRET_KEY:}
-    min-score: 0.5
-    login-action: login
+# ============================================
+# reCAPTCHA
+# ============================================
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:}
+  min-score: 0.5
+  login-action: login
+
 
 # ============================================
 # AVISOS DE SALDO BAJO / DORMANT WALLETS
