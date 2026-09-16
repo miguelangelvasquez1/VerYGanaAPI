@@ -50,27 +50,12 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      @Param("now") ZonedDateTime now,
                      Pageable pageable);
 
-       // Consultas de estadísticas
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId")
-       Long countByCommercialId(@Param("commercialId") Long commercialId);
-
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status = :status")
-       long countByCommercialIdAndStatus(
-                     @Param("commercialId") Long commercialId,
-                     @Param("status") AdStatus status);
-
        // Anuncios que aún ocupan un cupo del plan: se le pasan los estados terminales
-       // (REJECTED/COMPLETED/EXPIRED) para excluirlos. Ver PlanFeatureGuard.
+       // (REJECTED/COMPLETED) para excluirlos. Ver PlanFeatureGuard.
        @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status NOT IN :statuses")
        long countByCommercialIdAndStatusNotIn(
                      @Param("commercialId") Long commercialId,
                      @Param("statuses") List<AdStatus> statuses);
-
-       // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.commercial.id = :commercialId")
-       // BigDecimal sumSpentBudgetByCommercialId(@Param("commercialId") Long commercialId);
-
-       @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.commercial.id = :commercialId")
-       Long sumLikesByCommercialId(@Param("commercialId") Long commercialId);
 
        // Anuncios pendientes de aprobación
        @Query("SELECT a FROM Ad a WHERE a.status = 'PENDING' ORDER BY a.createdAt ASC")
@@ -85,11 +70,45 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      @Param("searchTerm") String searchTerm,
                      Pageable pageable);
 
-       // Actualización masiva de estado
-       @Modifying
-       @Query("UPDATE Ad a SET a.status = 'COMPLETED', a.updatedAt = :now " +
-                     "WHERE a.id IN :ids")
-       int deactivateAds(@Param("ids") List<Long> ids, @Param("now") ZonedDateTime now);
+       /**
+        * Incremento atómico y condicionado del contador de likes.
+        *
+        * <p>El {@code WHERE a.currentLikes < a.maxLikes} cierra la ventana de
+        * lost-update entre dos likes concurrentes sobre el mismo anuncio: la BD
+        * serializa los UPDATE sobre la misma fila, así que exactamente una
+        * solicitud gana el último cupo y el resto afecta 0 filas. El llamador
+        * traduce ese 0 a un error de dominio 4xx, en vez de corromper el
+        * contador o depender de que un fallo de {@code @Version} se reintente y
+        * se traduzca (cuando no se traducía, el perdedor recibía un 500).
+        *
+        * <p>Cuando el incremento alcanza el tope cierra el anuncio en la misma
+        * sentencia ({@code status = COMPLETED}, {@code endDate = :now}) para no
+        * dejar una segunda escritura read-modify-write con su propia carrera.
+        * {@code UPDATE VERSIONED} incrementa la columna {@code @Version} para
+        * que cualquier escritura de entidad concurrente sobre el mismo anuncio
+        * (aprobación, pausa, agotamiento de presupuesto) siga detectando el
+        * conflicto.
+        *
+        * @return 1 si el like se registró, 0 si el anuncio ya no admitía más likes
+        */
+       @Modifying(flushAutomatically = true)
+       @Query("""
+              UPDATE VERSIONED Ad a
+                 SET a.currentLikes = a.currentLikes + 1,
+                     a.status = CASE
+                            WHEN a.currentLikes + 1 >= a.maxLikes
+                            THEN com.verygana2.models.enums.AdStatus.COMPLETED
+                            ELSE a.status END,
+                     a.endDate = CASE
+                            WHEN a.currentLikes + 1 >= a.maxLikes
+                            THEN :now
+                            ELSE a.endDate END,
+                     a.updatedAt = :now
+               WHERE a.id = :adId
+                 AND a.status = com.verygana2.models.enums.AdStatus.ACTIVE
+                 AND a.currentLikes < a.maxLikes
+              """)
+       int incrementLikeIfAvailable(@Param("adId") Long adId, @Param("now") ZonedDateTime now);
 
        // Top anuncios por engagement
        @Query("SELECT a FROM Ad a WHERE a.status = 'APPROVED' " +

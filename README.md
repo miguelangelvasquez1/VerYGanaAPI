@@ -59,10 +59,12 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 - infisical run -- mvn spring-boot:run
 
 
-
-revisar sesion back, prueba 8 hallazgos, edad minima a 18 por variable, logs de init, documentar procesos
+- enum de vocacion, luego registro y vaidaciones pertinentes
+- edicion de datos en el perfil con el de disponibilidad de whatsapp, cambiar representante, duplicidad de campos,
+revisar lo de los blocks motivos para los activos, notion
+edad minima a 18 por variable, logs de init, documentar procesos
 revisar sistema de recomendacion(que el compliance vea las respuestas de las preguntas) servicios con otra comision
-revisar tests de helen
+revisar tests de helen de surveys
 
 
 - flujo juegos full

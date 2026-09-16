@@ -29,7 +29,6 @@ import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
-import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
 import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
@@ -560,6 +559,10 @@ public class AdServiceImpl implements AdService {
                     "Solo se pueden activar anuncios aprobados o pausados o bloqueados");
         }
 
+        // Si venía de BLOCKED, el asset se hizo privado al bloquear: re-publicarlo
+        // para que vuelva a servirse por el CDN mientras el anuncio está activo.
+        republishAssetIfUnblocking(ad);
+
         ad.setStatus(AdStatus.ACTIVE);
         ad.setUpdatedAt(ZonedDateTime.now(clock));
 
@@ -587,6 +590,10 @@ public class AdServiceImpl implements AdService {
                     "Solo se pueden pausar anuncios activos o bloqueados");
         }
 
+        // Si venía de BLOCKED, el asset se hizo privado al bloquear: re-publicarlo
+        // para mantener coherente resolveContentUrl (PAUSED devuelve la URL del CDN).
+        republishAssetIfUnblocking(ad);
+
         ad.setStatus(AdStatus.PAUSED);
         ad.setUpdatedAt(ZonedDateTime.now(clock));
 
@@ -610,6 +617,12 @@ public class AdServiceImpl implements AdService {
             throw new InvalidAdStateException(
                     "Solo se pueden bloquear anuncios activos, pausados o aprobados");
         }
+
+        // El asset se hizo público en la aprobación (makeObjectPublic). Al bloquear
+        // por moderación hay que revertirlo a privado para que deje de ser accesible
+        // por la URL pública del CDN a quien ya la conozca. Se re-publica si un admin
+        // reactiva o pausa el anuncio (activateAdAsAdmin / pauseAdAsAdmin).
+        revertAssetToPrivate(ad);
 
         ad.setStatus(AdStatus.BLOCKED);
         ad.setUpdatedAt(ZonedDateTime.now(clock));
@@ -714,22 +727,6 @@ public class AdServiceImpl implements AdService {
 
     @Override
     @Transactional(readOnly = true)
-    public AdStatsDTO getCommercialStats(Long commercialId) {
-        Long totalAds = countAdsByCommercial(commercialId);
-        Long activeAds = countAdsByCommercialAndStatus(commercialId, AdStatus.ACTIVE);
-        // BigDecimal totalSpent = getTotalSpentByCommercial(commercialId);
-        Long totalLikes = getTotalLikesByCommercial(commercialId);
-
-        return AdStatsDTO.builder()
-                .totalAds(totalAds.intValue())
-                .activeAds(activeAds.intValue())
-                // .totalSpent(totalSpent)
-                .totalLikesReceived(totalLikes)
-                .build();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable) {
         Page<Ad> ads = adRepository.findTopAdsByLikes(pageable);
         return ads.map(adMapper::toDto);
@@ -742,7 +739,7 @@ public class AdServiceImpl implements AdService {
         Ad ad = getAdEntityById(adId);
 
         if (!ad.hasRemainingBudget()) {
-            ad.setStatus(AdStatus.COMPLETED);
+            ad.markCompleted(ZonedDateTime.now(clock));
             adRepository.save(ad);
 
             throw new InsufficientBudgetException(
@@ -755,34 +752,6 @@ public class AdServiceImpl implements AdService {
     public boolean canAdReceiveLike(Long adId) {
         Ad ad = getAdEntityById(adId);
         return ad.canReceiveLike();
-    }
-
-    // ==================== Utilidades ====================
-
-    @Override
-    @Transactional(readOnly = true)
-    public Long countAdsByCommercial(Long commercialId) {
-        return adRepository.countByCommercialId(commercialId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Long countAdsByCommercialAndStatus(Long commercialId, AdStatus status) {
-        return adRepository.countByCommercialIdAndStatus(commercialId, status);
-    }
-
-    // @Override
-    // @Transactional(readOnly = true)
-    // public BigDecimal getTotalSpentByCommercial(Long commercialId) {
-    // BigDecimal total = adRepository.sumSpentBudgetByCommercialId(commercialId);
-    // return total != null ? total : BigDecimal.ZERO;
-    // }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Long getTotalLikesByCommercial(Long commercialId) {
-        Long total = adRepository.sumLikesByCommercialId(commercialId);
-        return total != null ? total : 0L;
     }
 
     /**
@@ -956,15 +925,54 @@ public class AdServiceImpl implements AdService {
             case PENDING:
             case REJECTED:
                 return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
+            case BLOCKED:
+                // El asset vuelve a ser privado al bloquear: se entrega una URL
+                // prefirmada de corta duración para revisión (admin / dueño), nunca
+                // la URL pública del CDN.
+                return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
             case APPROVED:
             case ACTIVE:
             case PAUSED:
             case COMPLETED:
-            case EXPIRED:
                 return r2Service.buildPublicUrl(ad.getAsset().getObjectKey());
-            case BLOCKED:
             default:
                 return null;
+        }
+    }
+
+    /**
+     * Devuelve la object key del asset del anuncio, o {@code null} si el anuncio
+     * no tiene asset asociado (caso defensivo: un anuncio publicable siempre lo
+     * tiene tras {@link #approveAd}).
+     */
+    private String assetObjectKeyOrNull(Ad ad) {
+        AdAsset asset = ad.getAsset();
+        return (asset != null) ? asset.getObjectKey() : null;
+    }
+
+    /**
+     * Revierte el objeto del anuncio a privado en R2 (deshace el makeObjectPublic
+     * de la aprobación). Se llama al bloquear por moderación.
+     */
+    private void revertAssetToPrivate(Ad ad) {
+        String objectKey = assetObjectKeyOrNull(ad);
+        if (objectKey != null) {
+            r2Service.makeObjectPrivate(objectKey);
+        }
+    }
+
+    /**
+     * Vuelve a publicar el objeto del anuncio en R2 si la transición actual es
+     * una salida de BLOCKED (activate / pause de admin). Para el resto de estados
+     * el objeto ya está donde debe y no se toca.
+     */
+    private void republishAssetIfUnblocking(Ad ad) {
+        if (ad.getStatus() != AdStatus.BLOCKED) {
+            return;
+        }
+        String objectKey = assetObjectKeyOrNull(ad);
+        if (objectKey != null) {
+            r2Service.makeObjectPublic(objectKey);
         }
     }
 }

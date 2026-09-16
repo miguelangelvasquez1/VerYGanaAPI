@@ -11,7 +11,6 @@ import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
-import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
 import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.models.ads.Ad;
@@ -52,23 +51,11 @@ public interface AdService {
     AdResponseDTO rejectAd(Long adId, String reason, Long adminId);
 
     Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable);
-    
-    // Estadísticas
-    AdStatsDTO getCommercialStats(Long commercialId);
-    
+
     Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable);
-    
+
     // Validaciones
     void validateAdBudget(Long adId);
-    
+
     boolean canAdReceiveLike(Long adId);
-    
-    // Utilidades
-    Long countAdsByCommercial(Long commercialId);
-    
-    Long countAdsByCommercialAndStatus(Long commercialId, AdStatus status);
-    
-    // BigDecimal getTotalSpentByCommercial(Long commercialId);
-    
-    Long getTotalLikesByCommercial(Long commercialId);
 }

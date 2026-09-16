@@ -7,13 +7,16 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
+import org.hibernate.StaleStateException;
 import org.hibernate.exception.JDBCConnectionException;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -515,13 +518,38 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 409: otra transacción modificó la misma fila primero y el chequeo de
-     * {@code @Version} falló. Reintentar con datos frescos suele resolverlo.
+     * 409: otra transacción modificó las mismas filas primero y la escritura no
+     * pudo completarse. Agrupa todas las formas en que aflora un conflicto de
+     * bloqueo optimista según en qué capa se traduzca la excepción:
+     *
+     * <ul>
+     *   <li>{@link OptimisticLockingFailureException} — la forma Spring ya
+     *       traducida ({@code ObjectOptimisticLockingFailureException} y
+     *       subclases); la emite {@code JpaTransactionManager} al hacer commit
+     *       y también algún servicio a mano.</li>
+     *   <li>{@link jakarta.persistence.OptimisticLockException} /
+     *       {@link org.hibernate.StaleStateException} — la forma cruda cuando el
+     *       fallo de {@code @Version} aflora en un flush que no pasa por la
+     *       traducción de excepciones de Spring; antes caía al catch-all como
+     *       500 "Unexpected error".</li>
+     *   <li>{@link UnexpectedRollbackException} — una transacción anidada quedó
+     *       marcada rollback-only por el conflicto y la externa intentó commit
+     *       igual (p. ej. por {@code @Transactional(noRollbackFor = ...)}).</li>
+     * </ul>
+     *
+     * {@code ConcurrencyRetryAspect} ya reintenta las rutas anotadas con
+     * {@code @RetryOnConcurrencyConflict}; este handler cubre los casos en que
+     * el reintento se agotó o la excepción no llegó como
+     * {@code TransientDataAccessException}.
      */
-    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
-    public ResponseEntity<ErrorResponse> handleOptimisticLockConflict(
-            ObjectOptimisticLockingFailureException ex, WebRequest request) {
-        log.warn("Conflicto de bloqueo optimista: {}", ex.getMessage());
+    @ExceptionHandler({
+            OptimisticLockingFailureException.class,
+            OptimisticLockException.class,
+            StaleStateException.class,
+            UnexpectedRollbackException.class
+    })
+    public ResponseEntity<ErrorResponse> handleConcurrencyConflict(Exception ex, WebRequest request) {
+        log.warn("Conflicto de concurrencia ({}): {}", ex.getClass().getSimpleName(), ex.getMessage());
         return buildError(HttpStatus.CONFLICT,
                 "Los datos cambiaron mientras procesábamos tu solicitud. Vuelve a intentarlo.",
                 request);

@@ -18,7 +18,6 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -60,7 +59,6 @@ import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 
-import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -154,28 +152,23 @@ public class AdLikeServiceImpl implements AdLikeService {
                 .build();
 
         try {
-            adLikeRepository.save(Objects.requireNonNull(adLike));
+            // saveAndFlush (no save): el INSERT debe ejecutarse ya para que un
+            // like duplicado choque contra la PK compuesta aquí y no en el commit,
+            // donde este catch ya no lo vería.
+            adLikeRepository.saveAndFlush(Objects.requireNonNull(adLike));
         } catch (DataIntegrityViolationException ex) {
             throw new DuplicateLikeException("Like ya procesado previamente");
         }
 
-        // Actualizar el anuncio
-
-        try {
-            ad.incrementLike();
-
-            if (!ad.canReceiveLike()) {
-                ad.setEndDate(ZonedDateTime.now(clock));
-                ad.setStatus(AdStatus.COMPLETED);
-            }
-
-            adRepository.save(ad);
-        } catch (OptimisticLockException e) {
-            // Otro like sobre el mismo anuncio ganó la carrera del contador (@Version).
-            // Se propaga como excepción transitoria de Spring para que
-            // ConcurrencyRetryAspect reintente processAdLike con datos frescos;
-            // si se agotan los intentos, GlobalExceptionHandler responde 409.
-            throw new ObjectOptimisticLockingFailureException(Ad.class, ad.getId());
+        // Actualizar el contador del anuncio de forma atómica en BD.
+        // El UPDATE ... WHERE currentLikes < maxLikes cierra la ventana de
+        // lost-update entre dos likes concurrentes sobre el mismo anuncio:
+        // exactamente uno gana el último cupo y el resto sale por aquí con un
+        // 400 de dominio, en vez de corromper el contador o disparar un 500 por
+        // un fallo de @Version sin traducir. Ver AdRepository.incrementLikeIfAvailable.
+        int likeRegistered = adRepository.incrementLikeIfAvailable(adId, ZonedDateTime.now(clock));
+        if (likeRegistered == 0) {
+            throw new InvalidAdStateException("Este anuncio ya no está disponible para recibir likes");
         }
 
         long userRewardKeysCents = Math.round(

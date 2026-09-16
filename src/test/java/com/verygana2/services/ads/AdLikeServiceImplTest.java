@@ -1,6 +1,8 @@
 package com.verygana2.services.ads;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -128,6 +130,7 @@ class AdLikeServiceImplTest {
         when(adWatchSessionRepository.findByIdAndConsumerIdAndAdId(SESSION_ID, CONSUMER_ID, AD_ID))
                 .thenReturn(Optional.of(session(ad)));
         when(adLikeRepository.hasUserSeenAd(CONSUMER_ID, AD_ID)).thenReturn(false);
+        when(adRepository.incrementLikeIfAvailable(eq(AD_ID), any(ZonedDateTime.class))).thenReturn(1);
         when(keyWalletService.calculatePurchaseExpiry()).thenReturn(NOW);
         when(keyWalletService.calculateConnectivityExpiry()).thenReturn(NOW);
     }
