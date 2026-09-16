@@ -43,3 +43,6 @@ build/
 .agents
 .claude
 scratchpad-strix
+.env
+src/test/java/com/verygana2/http/
+test-security.sh
