@@ -56,6 +56,8 @@ import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.scoring.ScoringContext;
+import com.verygana2.utils.games.GameConfigStamper;
+import com.verygana2.utils.validators.games.GameConfigValidator;
 import com.verygana2.utils.validators.MetricValidator;
 
 import jakarta.persistence.EntityManager;
@@ -93,6 +95,8 @@ public class GameServiceImpl implements GameService {
     private final ApplicationEventPublisher eventPublisher;
     private final CampaignScorer campaignScorer;
     private final CampaignScoringConfig campaignScoringConfig;
+    private final GameConfigStamper gameConfigStamper;
+    private final GameConfigValidator gameConfigValidator;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -171,7 +175,13 @@ public class GameServiceImpl implements GameService {
         Campaign campaign = campaignRepository.findById(req.getCampaignId())
                 .orElseThrow(() -> new ObjectNotFoundException("Campaign not found with id: " + req.getCampaignId(), Campaign.class));
         
-        Map<String, Object> assets = new java.util.HashMap<>(campaign.getConfigData());
+        // brand_id ya viene sellado desde la entrega; el campaign_id real solo se
+        // conoce acá, porque la Campaign se crea al aprobar.
+        Map<String, Object> assets = new java.util.HashMap<>(gameConfigStamper.stamp(
+                campaign.getConfigData(),
+                campaign.getConfigDefinition() == null ? null : campaign.getConfigDefinition().getJsonSchema(),
+                null,
+                String.valueOf(campaign.getId())));
         assets.put("reward_popup", buildRewardPopup(campaign.getCommercial()));
 
         return assets;
@@ -265,9 +275,18 @@ public class GameServiceImpl implements GameService {
             .orElseThrow(() -> new EntityNotFoundException("Preview not found for id: " + brandingRequestId));
 
         Map<String, Object> draft = request.getDraftFormData();
-        if (draft == null || draft.isEmpty()) return Map.of();
+        if (draft == null || draft.isEmpty()) {
+            // Devolver {} con 200 hacía que el build arrancara igual y reventara adentro,
+            // sin nada en la respuesta que dijera que la config no existía.
+            throw new BusinessException(
+                    "El diseño de la solicitud " + brandingRequestId + " no tiene configuración guardada todavía");
+        }
 
-        Map<String, Object> assets = new java.util.HashMap<>(stripPreviewMap(draft));
+        Map<String, Object> assets = new java.util.HashMap<>(gameConfigStamper.stamp(
+                stripPreviewMap(draft),
+                gameConfigValidator.latestDefinition(request.getGame()).getJsonSchema(),
+                GameConfigStamper.brandId(request.getBrandName(), request.getCommercial().getId()),
+                "preview-" + request.getId()));
         assets.put("reward_popup", buildRewardPopup(request.getCommercial()));
 
         return assets;

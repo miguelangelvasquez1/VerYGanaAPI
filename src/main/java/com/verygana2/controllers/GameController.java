@@ -49,6 +49,7 @@ import com.verygana2.dtos.game.campaign.GameSchemaResponse;
 import com.verygana2.services.interfaces.GameService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -87,16 +88,14 @@ public class GameController {
         // Preview mode: session_token=preview siempre identifica un BrandingRequest,
         // nunca una campaña real
         if ("preview".equals(req.getSessionToken())) {
-            if (req.getCampaignId() == null)
-                return ResponseEntity.badRequest().body(null);
-            try {
-                ObjectNode node = objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId()));
-                return ResponseEntity.ok(node);
-            } catch (Exception e) {
-                log.warn("Preview assets not found for brandingRequestId {}: {}", req.getCampaignId(), e.getMessage());
-                return ResponseEntity.badRequest().body(null);
+            if (req.getCampaignId() == null) {
+                throw new ValidationException("campaign_id es requerido para la preview");
             }
-      }
+            // Sin try/catch a propósito: el GlobalExceptionHandler responde con cuerpo y
+            // estado. Capturarlo acá devolvía 400 con cuerpo null, y ni el juego ni quien
+            // depuraba tenían forma de saber qué había fallado.
+            return ResponseEntity.ok(objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId())));
+        }
 
         if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
             return ResponseEntity.ok(TapToRotateAssets.ASSETS);

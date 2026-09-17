@@ -87,3 +87,7 @@ pqrs:
     RECLAMO: 15
     SUGERENCIA: 10
 
+games:
+  # Icono de moneda/llave de los juegos de cali. Lo pone el backend: es el mismo
+  # para todas las campanas, no tiene sentido pedirselo al disenador en cada una.
+  coin-icon-url: ${GAMES_COIN_ICON_URL:https://cdn.verygana.com/public/logos/moneda-llave.png}

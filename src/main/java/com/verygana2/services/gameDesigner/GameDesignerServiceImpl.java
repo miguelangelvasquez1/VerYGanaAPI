@@ -52,6 +52,7 @@ import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.games.GameConfigStamper;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -79,6 +80,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
     private final EmailService emailService;
     private final NotificationService notificationService;
     private final GameConfigValidator gameConfigValidator;
+    private final GameConfigStamper gameConfigStamper;
 
     // ===== PERFIL =====
 
@@ -298,6 +300,14 @@ public class GameDesignerServiceImpl implements GameDesignerService {
         // El aplanado va antes de validar: el schema declara los assets como string,
         // y el borrador los guarda como {assetId, url}.
         Map<String, Object> gameConfig = stripAssetMetadata(request.getDraftFormData());
+
+        // meta y personalization los pone el backend, no el diseñador. El campaign_id
+        // queda vacío porque la Campaign recién existe al aprobar; se sella en la lectura.
+        gameConfig = gameConfigStamper.stamp(
+            gameConfig,
+            gameConfigValidator.latestDefinition(request.getGame()).getJsonSchema(),
+            GameConfigStamper.brandId(request.getBrandName(), request.getCommercial().getId()),
+            "");
 
         // Hasta acá el schema solo servía para pintar el formulario. Un diseño con
         // campos fuera de rango o sin assets se entregaba igual, y el síntoma

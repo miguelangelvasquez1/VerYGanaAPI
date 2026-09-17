@@ -1,6 +1,7 @@
 package com.verygana2.games;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -17,11 +18,15 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
+import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.services.games.GameServiceImpl;
+import com.verygana2.utils.games.GameConfigStamper;
+import com.verygana2.utils.validators.games.GameConfigValidator;
 
 /**
  * La preview del diseñador tiene que entregar la misma estructura que el juego real.
@@ -38,6 +43,8 @@ class PreviewAssetsRewardPopupTest {
 
     @Mock private BrandingRequestRepository brandingRequestRepository;
     @Mock private ProductRepository productRepository;
+    @Mock private GameConfigValidator gameConfigValidator;
+    @Mock private GameConfigStamper gameConfigStamper;
 
     @InjectMocks private GameServiceImpl gameService;
 
@@ -56,6 +63,10 @@ class PreviewAssetsRewardPopupTest {
 
         when(brandingRequestRepository.findById(5L)).thenReturn(Optional.of(request));
         when(productRepository.findGameRewardsProducts(any())).thenReturn(List.of());
+        when(gameConfigValidator.latestDefinition(any()))
+            .thenReturn(GameConfigDefinition.builder().jsonSchema(Map.of()).build());
+        // El sellado tiene su propio test; acá interesa que reward_popup se agregue encima.
+        when(gameConfigStamper.stamp(any(), any(), any(), any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     @Test
@@ -81,10 +92,14 @@ class PreviewAssetsRewardPopupTest {
     }
 
     @Test
-    @DisplayName("un borrador vacío no arma un popup a medias")
-    void emptyDraftReturnsEmpty() {
+    @DisplayName("un borrador vacío falla fuerte en vez de entregar {} con 200")
+    void emptyDraftFailsLoudly() {
         givenRequestWithDraft(Map.of());
 
-        assertThat(gameService.getPreviewAssets(5L)).isEmpty();
+        // Antes devolvía Map.of() y el endpoint respondía 200: el build arrancaba igual
+        // y cargaba su configuración por defecto sin que nada lo señalara.
+        assertThatThrownBy(() -> gameService.getPreviewAssets(5L))
+            .isInstanceOf(BusinessException.class)
+            .hasMessageContaining("no tiene configuración guardada");
     }
 }
