@@ -41,3 +41,8 @@ build/
 .agents
 .claude
 scratchpad-strix
+# Monitoreo: el token de dev (monitoring/prometheus/scrape-token) SÍ va al repo,
+# vale solo en localhost. El de producción y las credenciales de Grafana Cloud, no.
+monitoring/secrets/
+monitoring/**/*.secret
+.DS_Store

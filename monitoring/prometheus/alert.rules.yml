@@ -1,0 +1,507 @@
+# Reglas de alerta de VERyGANA. Este archivo es la fuente de verdad en los dos
+# entornos; no se reescriben las reglas a mano en ninguna UI.
+#
+#   DEV   las evalúa el Prometheus local cada 15s. No se enrutan a ningún canal:
+#         se ven en http://localhost:9090/alerts y en el dashboard de jobs.
+#
+#   PROD  se suben a Grafana Cloud con ./monitoring/upload-rules.sh, que las
+#         convierte en reglas Grafana-managed. Allá las evalúa Grafana Cloud y
+#         las enruta al contact point de correo. Se evalúan del lado del
+#         proveedor a propósito: una alerta que solo corre en nuestro servidor
+#         no puede avisar que nuestro servidor murió.
+#
+#         NO se usa `mimirtool rules load` contra el ruler de Mimir: esas reglas
+#         quedan invisibles en la consola porque el datasource grafanacloud-prom
+#         viene con la Ruler API apagada y es de solo lectura, así que no se
+#         puede habilitar.
+#
+# OJO CON LAS ANOTACIONES: van en el dialecto de Prometheus ({{ $value | ... }}),
+# que es el que valida promtool en el CI. Grafana usa otro incompatible; la
+# traducción la hace upload-rules.sh al subir. No cambiar a $values acá: rompe
+# el CI y el Prometheus local.
+#
+# Al cambiar una regla: editar acá, `git push` (el CI corre promtool) y volver a
+# correr upload-rules.sh. Las reglas quedan provisionadas — read-only en la UI.
+#
+# ---------------------------------------------------------------------------
+# CÓMO SE CLASIFICA UN JOB
+# ---------------------------------------------------------------------------
+# scheduled_job_last_success_age_seconds mide "segundos desde el último éxito".
+# El umbral correcto depende del intervalo de CADA job, así que están agrupados
+# por frecuencia y el umbral es ~2x el intervalo (margen para una ejecución
+# perdida sin falsos positivos).
+#
+# La última regla (JobDetenidoOtros) es un catch-all por regex negativa: un job
+# nuevo que nadie clasifique queda cubierto igual, con el umbral más laxo. Al
+# agregar un @Scheduled, muévelo al grupo que le corresponda — si no, solo te
+# vas a enterar de que murió 8 días después.
+#
+# OJO: el contador se reinicia en cada arranque de la app (ver JobState), así
+# que tras un despliegue estas alertas quedan silenciadas hasta que vuelva a
+# vencerse el umbral.
+
+groups:
+  - name: scheduled-jobs
+    rules:
+      # ------------------------------------------------------------------
+      # Jobs frecuentes: cada 10s a 5min.
+      # WaitingRoom (10s), Outbox (30s), transiciones de sorteo (1min),
+      # healthCheck de assets (5min). Umbral: 10 minutos.
+      # ------------------------------------------------------------------
+      - alert: JobFrecuenteDetenido
+        expr: |
+          scheduled_job_last_success_age_seconds{
+            job_name=~`WaitingRoomServiceImpl\.broadcastWaitingRoomUpdates|OutboxServiceImpl\.processOutboxEvents|RaffleScheduler\.processRaffleStateTransitions|OrphanedAssetsCleanupJob\.healthCheck|PayoutMetrics\.refreshPayoutGauges|TreasuryMetrics\.refreshTreasuryGauges`
+          } > 600
+        for: 5m
+        labels:
+          severity: critical
+          categoria: job-detenido
+        annotations:
+          summary: "Job frecuente detenido: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva {{ $value | humanizeDuration }} sin una
+            ejecución exitosa y debería correr cada pocos segundos o minutos.
+            Si es Outbox o WaitingRoom, hay eventos y sorteos sin despachar.
+
+      # ------------------------------------------------------------------
+      # Jobs de 15 a 30 minutos. Umbral: 65 minutos.
+      # ------------------------------------------------------------------
+      - alert: JobSubHorarioDetenido
+        expr: |
+          scheduled_job_last_success_age_seconds{
+            job_name=~`PrizeExpiryScheduler\.expireOverduePrizes|PurchaseExpiryScheduler\.expireStale|PqrsAssignmentRetryScheduler\.retryPendingAssignments|KeyIssuanceSettlementScheduler\.settlePendingIssuance`
+          } > 3900
+        for: 10m
+        labels:
+          severity: warning
+          categoria: job-detenido
+        annotations:
+          summary: "Job sub-horario detenido: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva {{ $value | humanizeDuration }} sin éxito
+            (corre cada 15-30 min). Premios o compras quedan colgados en estado
+            pendiente mientras no corra.
+
+      # ------------------------------------------------------------------
+      # Jobs horarios. Umbral: 2h10m.
+      # ------------------------------------------------------------------
+      - alert: JobHorarioDetenido
+        expr: |
+          scheduled_job_last_success_age_seconds{
+            job_name=~`AuditCleanupJob\.emergencyCleanupDebugLogs|OrphanedAssetsCleanupJob\.cleanup.*|PlanServiceImpl\.cleanAbandonedCheckouts|BudgetAlertScheduler\.checkBudgetAlerts|TokenCleanupScheduler\.detectSuspiciousActivity`
+          } > 7800
+        for: 15m
+        labels:
+          severity: warning
+          categoria: job-detenido
+        annotations:
+          summary: "Job horario detenido: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva {{ $value | humanizeDuration }} sin éxito
+            y debería correr cada hora.
+
+      # ------------------------------------------------------------------
+      # Jobs diarios (incluye payouts, expiración de suscripciones y de keys).
+      # Umbral: 26 horas.
+      # ------------------------------------------------------------------
+      - alert: JobDiarioDetenido
+        expr: |
+          scheduled_job_last_success_age_seconds{
+            job_name=~`TokenCleanupScheduler\.cleanupExpiredTokens|AuditCleanupJob\.cleanupOldAuditLogs|RaffleScheduler\.dailySummary|NotificationCleanupTask\.deleteOldReadNotifications|PlanServiceImpl\.expireSubscriptions|PlanServiceImpl\.sendRenewalReminders|PasswordSetupTokenCleanupScheduler\.cleanupExpiredTokens|InactivityScheduler\..*|PqrsSlaMonitorScheduler\.sendSlaAlerts|PayoutScheduler\..*|KeyExpiryScheduler\.processExpiredKeys`
+          } > 93600
+        for: 30m
+        labels:
+          severity: critical
+          categoria: job-detenido
+        annotations:
+          summary: "Job diario detenido: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva {{ $value | humanizeDuration }} sin éxito
+            y corre una vez al día. Si es PayoutScheduler, hay dinero que no se
+            está dispersando.
+
+      # ------------------------------------------------------------------
+      # Catch-all: semanales (reconciliación, limpieza de productos, reporte
+      # semanal de auditoría) y cualquier job nuevo sin clasificar.
+      # Umbral: 8 días.
+      # ------------------------------------------------------------------
+      - alert: JobDetenidoOtros
+        expr: |
+          scheduled_job_last_success_age_seconds{
+            job_name!~`WaitingRoomServiceImpl\.broadcastWaitingRoomUpdates|OutboxServiceImpl\.processOutboxEvents|RaffleScheduler\.processRaffleStateTransitions|OrphanedAssetsCleanupJob\.healthCheck|PayoutMetrics\.refreshPayoutGauges|TreasuryMetrics\.refreshTreasuryGauges|PrizeExpiryScheduler\.expireOverduePrizes|PurchaseExpiryScheduler\.expireStale|PqrsAssignmentRetryScheduler\.retryPendingAssignments|KeyIssuanceSettlementScheduler\.settlePendingIssuance|AuditCleanupJob\.emergencyCleanupDebugLogs|OrphanedAssetsCleanupJob\.cleanup.*|PlanServiceImpl\.cleanAbandonedCheckouts|BudgetAlertScheduler\.checkBudgetAlerts|TokenCleanupScheduler\.detectSuspiciousActivity|TokenCleanupScheduler\.cleanupExpiredTokens|AuditCleanupJob\.cleanupOldAuditLogs|RaffleScheduler\.dailySummary|NotificationCleanupTask\.deleteOldReadNotifications|PlanServiceImpl\.expireSubscriptions|PlanServiceImpl\.sendRenewalReminders|PasswordSetupTokenCleanupScheduler\.cleanupExpiredTokens|InactivityScheduler\..*|PqrsSlaMonitorScheduler\.sendSlaAlerts|PayoutScheduler\..*|KeyExpiryScheduler\.processExpiredKeys`
+          } > 691200
+        for: 1h
+        labels:
+          severity: warning
+          categoria: job-detenido
+        annotations:
+          summary: "Job semanal o sin clasificar detenido: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva {{ $value | humanizeDuration }} sin éxito.
+            Si es un job nuevo, clasifícalo en alert.rules.yml con el umbral de su
+            frecuencia real.
+
+      # ------------------------------------------------------------------
+      # Job colgado: scheduled_job_active sostenido en >0 mucho más que el
+      # bucket SLO más alto (30m). Típicamente una llamada HTTP externa sin
+      # timeout: Wompi, ZapSign, Random.org, Truora.
+      # ------------------------------------------------------------------
+      - alert: JobColgado
+        expr: scheduled_job_active > 0
+        for: 45m
+        labels:
+          severity: critical
+          categoria: job-colgado
+        annotations:
+          summary: "Job colgado hace más de 45 min: {{ $labels.job_name }}"
+          description: >-
+            {{ $labels.job_name }} lleva 45 minutos en ejecución sin terminar.
+            El scheduler de Spring es de un solo hilo por defecto, así que un job
+            colgado bloquea a los demás.
+
+      # ------------------------------------------------------------------
+      # Ejecuciones que lanzan excepción. No cubre a los jobs que atrapan sus
+      # propias excepciones (ReconciliationScheduler, checkWompiBalance): para
+      # esos hace falta una métrica de negocio dentro del job.
+      # ------------------------------------------------------------------
+      - alert: JobFallando
+        expr: |
+          sum by (job_name, exception) (
+            increase(scheduled_job_duration_seconds_count{outcome="FAILURE"}[15m])
+          ) > 0
+        for: 1m
+        labels:
+          severity: warning
+          categoria: job-fallando
+        annotations:
+          summary: "{{ $labels.job_name }} falló con {{ $labels.exception }}"
+          description: >-
+            {{ $value | printf "%.0f" }} ejecuciones fallidas en los últimos 15 min.
+
+  - name: payouts
+    rules:
+      # ------------------------------------------------------------------
+      # Estas reglas cubren el punto ciego de ScheduledJobMetrics: los bucles
+      # de PayoutServiceImpl atrapan la excepción de cada payout y
+      # PayoutScheduler.checkWompiBalance se traga la suya, así que el job
+      # reporta outcome=SUCCESS aunque no se haya dispersado un solo peso.
+      # ------------------------------------------------------------------
+
+      # El webhook de Wompi nunca llegó: la plata salió de la cuenta y el
+      # Payout quedó sin confirmar. Es el peor de los estados atascados.
+      - alert: PayoutsAtascadosEnProcessing
+        expr: payout_oldest_age_seconds{status="PROCESSING"} > 86400
+        for: 30m
+        labels:
+          severity: critical
+          categoria: payouts
+        annotations:
+          summary: "Hay payouts en PROCESSING hace más de 24h"
+          description: >-
+            El más viejo lleva {{ $value | humanizeDuration }} esperando confirmación de Wompi.
+            La transferencia se envió y el webhook nunca llegó: revisar
+            WompiPayoutWebhookController y el estado real en el panel de Wompi antes de
+            reintentar, o se dispersa dos veces.
+
+      # Se creó el Payout pero nunca se envió. El caso típico es el empresario
+      # sin método de pago verificado: processOnePayout lanza IllegalStateException,
+      # el bucle la atrapa y el payout se queda ahí para siempre.
+      - alert: PayoutsNuncaEnviados
+        expr: payout_oldest_age_seconds{status="SCHEDULED"} > 172800
+        for: 30m
+        labels:
+          severity: critical
+          categoria: payouts
+        annotations:
+          summary: "Hay payouts en SCHEDULED hace más de 48h"
+          description: >-
+            El más viejo lleva {{ $value | humanizeDuration }} sin salir, y el ciclo diario
+            debería haberlo procesado el mismo día. Es plata que se le debe a un empresario
+            y que nadie está reclamando.
+
+      # Ni el ciclo diario ni el reintento de 30 min después lo sacaron.
+      - alert: PayoutsFallidosSinResolver
+        expr: payout_pending_count{status="FAILED"} > 0
+        for: 6h
+        labels:
+          severity: warning
+          categoria: payouts
+        annotations:
+          summary: "{{ $value }} payouts siguen en FAILED tras el ciclo de reintentos"
+          description: >-
+            El retry-cron corre 30 min después del ciclo diario. Si siguen FAILED seis horas
+            después, el reintento automático no los va a rescatar.
+
+      # La excepción que el bucle se traga. Sin esto el job dice SUCCESS.
+      - alert: ErroresProcesandoPayouts
+        expr: |
+          sum by (phase, exception) (increase(payout_processing_errors_total[1h])) > 0
+        for: 5m
+        labels:
+          severity: critical
+          categoria: payouts
+        annotations:
+          summary: "Payouts fallando en fase {{ $labels.phase }} con {{ $labels.exception }}"
+          description: >-
+            {{ $value | printf "%.0f" }} payouts fallaron en la última hora sin que el job
+            reportara FAILURE — la excepción se atrapa dentro del bucle.
+
+      - alert: WompiRechazaPayouts
+        expr: increase(payout_sent_total{outcome="REJECTED"}[1h]) > 0
+        for: 5m
+        labels:
+          severity: critical
+          categoria: payouts
+        annotations:
+          summary: "Wompi rechazó {{ $value | printf \"%.0f\" }} solicitudes de transferencia"
+          description: >-
+            Rechazo en el POST /payouts, antes de cualquier webhook. Suele ser balance
+            insuficiente o datos bancarios inválidos del empresario.
+
+      - alert: PayoutSinMetodoDePago
+        expr: increase(payout_without_method_total[24h]) > 0
+        for: 10m
+        labels:
+          severity: warning
+          categoria: payouts
+        annotations:
+          summary: "{{ $value | printf \"%.0f\" }} payouts creados para empresarios sin método de pago verificado"
+          description: >-
+            El Payout se crea igual y queda en SCHEDULED sin transferencia posible. Hay que
+            pedirle al empresario que verifique su cuenta o esa plata no sale nunca.
+
+      # ------------------------------------------------------------------
+      # Balance de la cuenta de dispersión. Se fondea a mano: si está bajo,
+      # el ciclo de mañana falla entero.
+      # ------------------------------------------------------------------
+      - alert: BalanceWompiBajo
+        # Mismo umbral que wompi.payout.min-balance-alert-cents (50.000 COP).
+        # Si se cambia allá, cambiarlo acá.
+        expr: wompi_payout_balance_cents < 5000000
+        for: 15m
+        labels:
+          severity: critical
+          categoria: payouts
+        annotations:
+          summary: "Balance de Wompi Payouts por debajo del umbral"
+          description: >-
+            Quedan {{ $value | printf "%.0f" }} centavos en la cuenta de dispersión.
+            Recargarla antes del próximo ciclo diario.
+
+      # El fail-open de checkWompiBalance: sin esta regla, "no puedo leer el
+      # balance hace tres días" se ve exactamente igual que "el balance está sano".
+      - alert: BalanceWompiIlegible
+        expr: wompi_payout_balance_age_seconds > 172800
+        for: 30m
+        labels:
+          severity: warning
+          categoria: payouts
+        annotations:
+          summary: "Sin lectura del balance de Wompi hace más de 48h"
+          description: >-
+            Última lectura exitosa hace {{ $value | humanizeDuration }}. checkWompiBalance
+            atrapa su excepción y no falla el job, así que este gauge es la única señal.
+            El valor de wompi_payout_balance_cents está obsoleto o nunca se pobló.
+
+  - name: tesoreria
+    rules:
+      # ------------------------------------------------------------------
+      # Estas reglas cubren el punto ciego de ReconciliationScheduler: atrapa su
+      # propia excepción, así que el job reporta SUCCESS aunque la reconciliación
+      # encuentre un desbalance. Y corre una vez por semana: entre lunes y lunes
+      # el problema existe solo en un log que nadie lee. Los gauges de
+      # TreasuryMetrics se refrescan cada minuto desde la BD.
+      # ------------------------------------------------------------------
+
+      # LA alerta. Hay llaves emitidas que el fondo no puede respaldar.
+      # El síntoma tardío es peor que el número: cuando KEYS_RESERVE cruza el
+      # umbral crítico, convertKeysToPayoutPending empieza a rechazar copagos
+      # con llaves para TODA la plataforma, no solo para el usuario afectado.
+      - alert: LlavesSinRespaldo
+        expr: treasury_keys_backing_pct < 100
+        for: 15m
+        labels:
+          severity: critical
+          categoria: tesoreria
+        annotations:
+          summary: "KEYS_RESERVE solo respalda el {{ $value | printf \"%.1f\" }}% de las llaves emitidas"
+          description: >-
+            Hay llaves en billeteras de consumidores sin plata detrás. Revisar
+            treasury_identity_drift_cents para ubicar por dónde se fue: un gasto que
+            no debita el fondo, o una emisión que nadie financió.
+
+      # El fondo tiene MENOS de lo que debe: pasivo + saldos de anunciantes +
+      # presupuesto comprometido superan a KEYS_RESERVE. Cualquier monto importa.
+      - alert: DeficitContableEnTesoreria
+        expr: treasury_identity_drift_cents < 0
+        for: 30m
+        labels:
+          severity: critical
+          categoria: tesoreria
+        annotations:
+          summary: "Los compromisos superan a KEYS_RESERVE en {{ $value | printf \"%.0f\" }} centavos"
+          description: >-
+            La identidad contable no cierra por el lado peligroso. Hay llaves o
+            presupuesto comprometido que el fondo no puede cubrir.
+
+      # El fondo tiene MÁS de lo que debe: algo salió de circulación sin debitarlo.
+      # Tolerancia porque el presupuesto comprometido de encuestas se estima con
+      # responseCount y el reembolso usa el conteo de sesiones COMPLETED: pueden
+      # diferir en unas pocas respuestas en vuelo. Un hueco real crece sin techo.
+      - alert: SobranteSinExplicarEnTesoreria
+        expr: treasury_identity_drift_cents > 100000
+        for: 1h
+        labels:
+          severity: warning
+          categoria: tesoreria
+        annotations:
+          summary: "KEYS_RESERVE excede lo contabilizado en {{ $value | printf \"%.0f\" }} centavos"
+          description: >-
+            Hay llaves que salieron de circulación sin debitar el fondo. Es el patrón
+            de spendKeysForPetGame antes de conectarlo a tesorería: si aparece otra
+            vez, hay un flujo nuevo de gasto de llaves sin contraparte contable.
+
+      # El job de liquidación por lotes dejó de correr. El diferencial no se pierde
+      # (las filas quedan sin marcar y las recoge el siguiente ciclo), pero mientras
+      # tanto KEYS_RESERVE queda inflado y treasury_identity_drift_cents se va con él.
+      # Corre cada 10 min: una hora son ~6 ciclos perdidos.
+      - alert: LiquidacionDeEmisionAtrasada
+        expr: key_issuance_oldest_unsettled_age_seconds > 3600
+        for: 15m
+        labels:
+          severity: warning
+          categoria: tesoreria
+        annotations:
+          summary: "Hay emisión de llaves sin liquidar hace {{ $value | humanizeDuration }}"
+          description: >-
+            KeyIssuanceSettlementScheduler corre cada 10 minutos y no está marcando
+            filas. Si además disparó JobSubHorarioDetenido, el job está caído; si no,
+            está corriendo y fallando dentro — revisar el log de [ISSUANCE-SETTLEMENT].
+
+  - name: api-salud
+    rules:
+      # ------------------------------------------------------------------
+      # Dead man's switch — DESACTIVADO (2026-09-08, decisión de Nicolás).
+      #
+      # Una regla que dispara siempre solo sirve si la recibe algo externo que
+      # se queje cuando DEJE de llegar (healthchecks.io, Grafana OnCall). Sin
+      # ese receptor cae en la política default y es correo de ruido, así que
+      # está comentada en vez de a medias.
+      #
+      # Lo que queda descubierto: si Grafana Cloud deja de evaluar, o alguien
+      # borra el namespace, ninguna de las otras 22 alertas va a avisar. El
+      # silencio se ve igual que "todo bien".
+      #
+      # Para activarla: descomentar, crear un contact point tipo Webhook con la
+      # ping URL, enrutar categoria=watchdog ahí con repeat 5m, y volver a correr
+      # ./monitoring/upload-rules.sh
+      #
+      # - alert: Watchdog
+      #   expr: vector(1)
+      #   labels:
+      #     severity: none
+      #     categoria: watchdog
+      #   annotations:
+      #     summary: "El motor de alertas está vivo"
+      #     description: >-
+      #       Si este aviso deja de llegar al heartbeat externo, el que evalúa
+      #       las reglas se cayó y NINGUNA otra alerta va a dispararse.
+
+      # El agente que empuja las métricas a Grafana Cloud. Si Alloy muere, todas
+      # las series se congelan: los gauges dejan de refrescarse y las alertas de
+      # "job detenido" empiezan a disparar en cascada por una causa falsa.
+      - alert: AgenteDeMetricasCaido
+        expr: up{job="alloy"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          categoria: disponibilidad
+        annotations:
+          summary: "Grafana Alloy no responde"
+          description: >-
+            El agente lleva 5 min sin scrapearse a sí mismo. Mientras esté caído no
+            llegan métricas nuevas: las alertas que disparen ahora son ruido de datos
+            viejos, no incidentes reales.
+
+      - alert: APISinResponder
+        expr: up{job="verygana-api"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          categoria: disponibilidad
+        annotations:
+          summary: "El scrapeo de la API lleva 2 min fallando"
+          description: >-
+            El agente no logra leer /actuator/prometheus. Puede ser que la app
+            esté caída, o que el token de scrapeo no coincida con
+            observability.scrape-token (un 401 también deja up=0).
+            Verificar en la UI de Alloy (http://localhost:12345) en producción, o en
+            http://localhost:9090/targets con el stack local.
+
+      - alert: TasaDeErrores5xx
+        expr: |
+          sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+          sum(rate(http_server_requests_seconds_count[5m]))
+            > 0.05
+        for: 10m
+        labels:
+          severity: critical
+          categoria: disponibilidad
+        annotations:
+          summary: "Más del 5% de las peticiones responden 5xx"
+          description: "Tasa actual: {{ $value | humanizePercentage }} durante 10 min."
+
+      - alert: LatenciaP95Alta
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_server_requests_seconds_bucket[5m]))
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+          categoria: rendimiento
+        annotations:
+          summary: "p95 de latencia HTTP por encima de 2s"
+          description: "p95 actual: {{ $value | humanizeDuration }}."
+
+  - name: recursos
+    rules:
+      # Peticiones esperando conexión: el pool de Hikari se quedó corto o hay
+      # transacciones largas reteniendo conexiones.
+      - alert: PoolDeConexionesSaturado
+        expr: hikaricp_connections_pending > 0
+        for: 5m
+        labels:
+          severity: warning
+          categoria: base-de-datos
+        annotations:
+          summary: "Hay hilos esperando conexión a MySQL hace 5 min"
+          description: "{{ $value }} peticiones encoladas en el pool {{ $labels.pool }}."
+
+      - alert: TimeoutsDeConexion
+        expr: increase(hikaricp_connections_timeout_total[10m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+          categoria: base-de-datos
+        annotations:
+          summary: "Timeouts pidiendo conexión a MySQL"
+          description: >-
+            {{ $value | printf "%.0f" }} timeouts en 10 min en el pool
+            {{ $labels.pool }}. Las peticiones afectadas ya fallaron.
+
+      - alert: HeapAlto
+        expr: |
+          sum by (instance) (jvm_memory_used_bytes{area="heap"})
+            /
+          sum by (instance) (jvm_memory_max_bytes{area="heap"})
+            > 0.9
+        for: 10m
+        labels:
+          severity: warning
+          categoria: jvm
+        annotations:
+          summary: "Heap por encima del 90% hace 10 min"
+          description: "Uso actual: {{ $value | humanizePercentage }}."

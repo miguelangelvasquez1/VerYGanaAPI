@@ -11,8 +11,35 @@
     </description>
 
     <rule ref="category/java/bestpractices.xml/UnusedPrivateField" />
-    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod" />
+
+    <!--
+        Los callbacks del ciclo de vida de JPA los invoca Hibernate por reflexion,
+        asi que ningun analisis estatico los ve llamados. Suprimirlos aca y no con
+        @SuppressWarnings en cada entidad: son metodos que aparecen cada vez que
+        alguien agrega una entidad nueva.
+    -->
+    <rule ref="category/java/bestpractices.xml/UnusedPrivateMethod">
+        <properties>
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::MethodDeclaration/ModifierList/Annotation[
+                                 @SimpleName = ('PrePersist','PostPersist',
+                                                'PreUpdate','PostUpdate',
+                                                'PreRemove','PostRemove','PostLoad')]" />
+        </properties>
+    </rule>
+
     <rule ref="category/java/bestpractices.xml/UnusedLocalVariable" />
     <rule ref="category/java/bestpractices.xml/UnusedFormalParameter" />
-    <rule ref="category/java/bestpractices.xml/UnusedAssignment" />
+
+    <!--
+        En un constructor compacto de record, asignar al parametro ES el mecanismo:
+        Java copia los parametros a los campos al final del bloque. PMD 7 no modela
+        esa forma y lo reporta como asignacion muerta.
+    -->
+    <rule ref="category/java/bestpractices.xml/UnusedAssignment">
+        <properties>
+            <property name="violationSuppressXPath"
+                      value="./ancestor-or-self::CompactConstructorDeclaration" />
+        </properties>
+    </rule>
 </ruleset>

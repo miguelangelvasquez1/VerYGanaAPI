@@ -231,8 +231,9 @@ public class AuthController {
 
         log.info("Logout attempt from clientType={}", clientType);
 
-        // Extraer refresh token para invalidarlo en Redis
-        String refreshToken = null;
+        // Extraer refresh token para invalidarlo en Redis.
+        // Sin inicializar: las dos ramas del if/else de abajo lo asignan.
+        String refreshToken;
 
         if ("mobile".equalsIgnoreCase(clientType)) {
             refreshToken = body != null ? body.getRefreshToken() : null;

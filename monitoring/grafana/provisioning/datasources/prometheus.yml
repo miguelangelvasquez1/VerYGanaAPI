@@ -1,0 +1,20 @@
+# Datasource provisionado por archivo: al arrancar, Grafana lo crea solo.
+# El uid es fijo ("prometheus") porque los JSON de los dashboards lo referencian;
+# si se cambia acá, hay que cambiarlo en cada panel.
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    uid: prometheus
+    access: proxy
+    # DNS interno de la red de docker compose, no localhost: dentro del
+    # contenedor de Grafana, localhost es el propio Grafana.
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      # Debe coincidir con el scrape_interval de prometheus.yml para que
+      # Grafana no proponga rangos de $__rate_interval más cortos que un scrapeo.
+      timeInterval: 15s
+      httpMethod: POST

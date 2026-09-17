@@ -1,0 +1,18 @@
+# Carga los dashboards desde disco. Quedan versionados en git en vez de vivir
+# solo dentro del volumen de Grafana.
+apiVersion: 1
+
+providers:
+  - name: verygana
+    orgId: 1
+    folder: VERyGANA
+    type: file
+    # Con allowUiUpdates en false, editar un panel en la UI no sobrevive al
+    # reinicio: la fuente de verdad es el JSON del repo. Para iterar visualmente,
+    # editar en la UI, exportar el JSON y pegarlo en el archivo.
+    allowUiUpdates: false
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

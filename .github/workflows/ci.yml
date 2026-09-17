@@ -75,9 +75,9 @@ jobs:
     name: PMD (código muerto)
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    # No bloqueante a propósito: hoy hay 7 violaciones preexistentes. Reporta sin
-    # frenar los PRs. Cuando lleguen a cero, borrar esta línea para volverlo puerta.
-    continue-on-error: true
+    # Puerta bloqueante desde 2026-09-02: las violaciones llegaron a cero. Los dos
+    # falsos positivos conocidos (callbacks de JPA y constructores compactos de
+    # record) están suprimidos en pmd-ruleset.xml, no aquí.
 
     steps:
       - uses: actions/checkout@v4
@@ -88,6 +88,19 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
+
+      # Hay que compilar ANTES y en una invocación SEPARADA. PMD 7 necesita el
+      # auxclasspath (target/classes) para resolver tipos; sin él, UnusedPrivateMethod
+      # no ve quién llama a un método vía interfaz o lambda y lo reporta como muerto.
+      # Este job tiene checkout propio, así que no hereda el target/ de build-test.
+      #
+      # Medido sobre este repo, mismo código:
+      #   ./mvnw pmd:check                 -> 22 violaciones (15 son falsos positivos)
+      #   ./mvnw compile pmd:check         -> 47 (peor: el classpath se resuelve antes
+      #                                        de que compile lo llene)
+      #   ./mvnw compile && ./mvnw pmd:check -> 7 (las reales)
+      - name: Compilar (PMD necesita el auxclasspath)
+        run: ./mvnw $MVN_FLAGS compile
 
       - name: Analizar con PMD
         run: ./mvnw $MVN_FLAGS pmd:check
@@ -118,3 +131,41 @@ jobs:
       # (ver el workflow release.yml comentado abajo en el README de despliegue).
       - name: Construir la imagen
         run: docker build -t verygana-api:${{ github.sha }} .
+
+  observabilidad:
+    name: Config de monitoreo
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Puerta desde el primer día: un typo en alert.rules.yml no rompe la
+    # compilación ni ningún test. Se descubre cuando Prometheus reinicia y no
+    # levanta — o peor, cuando la alerta que debía avisar que el dinero no salió
+    # simplemente nunca existió. Son 30 segundos de CI.
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # promtool valida la config, que los rule_files existan, que cada expr sea
+      # PromQL válido y que las plantillas Go de summary/description compilen.
+      - name: promtool check config + rules
+        run: |
+          docker run --rm \
+            -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
+            --entrypoint promtool prom/prometheus:v2.55.1 \
+            check config /etc/prometheus/prometheus.yml
+
+      # Parseo del config de Alloy (producción). No evalúa sys.env, solo sintaxis.
+      - name: Validar la config de Grafana Alloy
+        run: |
+          docker run --rm \
+            -v "$PWD/monitoring/alloy:/etc/alloy:ro" \
+            --entrypoint alloy grafana/alloy:v1.19.2 \
+            fmt /etc/alloy/config.alloy > /dev/null
+
+      # Un dashboard con JSON inválido no lo carga el provisioner y falla en
+      # silencio: el panel simplemente no aparece.
+      - name: Validar los dashboards de Grafana
+        run: |
+          for f in monitoring/grafana/dashboards/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
+              || { echo "JSON inválido: $f"; exit 1; }
+          done

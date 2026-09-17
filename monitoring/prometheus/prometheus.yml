@@ -1,0 +1,60 @@
+# Configuración de scrapeo de VERyGANA.
+#
+# El endpoint /actuator/prometheus está cerrado con un Bearer token
+# (ver ActuatorSecurityConfig): sin la cabecera devuelve 401 y el target
+# aparece como DOWN en http://localhost:9090/targets.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    # Distingue las series si algún día un Grafana lee varios Prometheus.
+    env: dev
+
+rule_files:
+  - /etc/prometheus/alert.rules.yml
+
+# Prometheus solo EVALÚA las reglas: pasan a estado firing y se ven en
+# /alerts y en Grafana, pero no se enrutan a ningún lado. Para que lleguen a
+# correo o Slack hace falta Alertmanager como cuarto contenedor:
+#
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: verygana-api
+    metrics_path: /actuator/prometheus
+    authorization:
+      type: Bearer
+      # Archivo, no valor inline: se relee en cada scrapeo, así rotar el token
+      # no obliga a reiniciar Prometheus. En prod se monta un secreto real acá.
+      credentials_file: /etc/prometheus/scrape-token
+    static_configs:
+      # La API corriendo en el host (IntelliJ / ./mvnw spring-boot:run).
+      # Si algún día levantas la API dentro del compose, cambia esta línea
+      # por ["api:8080"] — resuelve por el DNS interno de la red de compose.
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          service: verygana-api
+
+    # COLISIÓN DE ETIQUETAS. ScheduledJobMetrics emite el tag `job` con el
+    # nombre del scheduler (OutboxServiceImpl.processOutboxEvents), pero `job`
+    # es una etiqueta reservada de Prometheus: identifica el scrape_config.
+    # Al chocar, Prometheus renombra la del cliente a `exported_job` y el tag
+    # del scheduler queda con un nombre que nadie adivina en una consulta.
+    # Acá se normaliza a `job_name`, que es lo que usan las reglas y los
+    # dashboards, y `job` sigue valiendo "verygana-api".
+    metric_relabel_configs:
+      - source_labels: [exported_job]
+        target_label: job_name
+        regex: "(.+)"
+        replacement: "$1"
+      - regex: exported_job
+        action: labeldrop
+
+  # El propio Prometheus: sirve para saber si el scrapeo se está atrasando.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

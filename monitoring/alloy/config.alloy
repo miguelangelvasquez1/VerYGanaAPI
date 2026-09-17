@@ -1,0 +1,109 @@
+// Grafana Alloy — el agente que manda las métricas a Grafana Cloud.
+//
+// Reemplaza al Prometheus local SOLO en producción: scrapea el mismo
+// /actuator/prometheus con el mismo Bearer token y hace remote_write a Grafana
+// Cloud. No guarda TSDB en disco (por eso ~100 MB de RAM contra ~1 GB de
+// Prometheus) y no evalúa reglas: las alertas viven en el ruler de Grafana
+// Cloud, que sigue vivo aunque este servidor se muera. Esa es toda la razón de
+// subirlas allá en vez de evaluarlas acá.
+//
+// En dev no se usa: `docker compose up -d prometheus grafana` levanta el stack
+// local de siempre. Este contenedor está detrás del profile "cloud".
+//
+// Variables que espera en el entorno (van en el .env del host de producción):
+//   API_METRICS_TARGET       host:puerto de la API             (api:8080)
+//   METRICS_SCRAPE_TOKEN     el mismo de observability.scrape-token
+//   GRAFANA_CLOUD_PROM_URL   .../api/prom/push de tu stack
+//   GRAFANA_CLOUD_PROM_USER  el "Username / Instance ID" numérico
+//   GRAFANA_CLOUD_TOKEN      token glc_... con scope metrics:write
+//   DEPLOY_ENV               prod | staging  (etiqueta todas las series)
+
+// ---------------------------------------------------------------------------
+// Scrapeo de la API
+// ---------------------------------------------------------------------------
+prometheus.scrape "verygana_api" {
+	targets = [{
+		__address__ = sys.env("API_METRICS_TARGET"),
+		service     = "verygana-api",
+	}]
+
+	job_name        = "verygana-api"
+	metrics_path    = "/actuator/prometheus"
+	scheme          = "http"
+	scrape_interval = "15s"
+	scrape_timeout  = "10s"
+
+	// Mismo mecanismo que el bloque `authorization` de prometheus.yml. Es un
+	// tipo `secret`: Alloy no lo imprime en /-/config ni en los logs.
+	bearer_token = sys.env("METRICS_SCRAPE_TOKEN")
+
+	forward_to = [prometheus.relabel.job_name.receiver]
+}
+
+// ---------------------------------------------------------------------------
+// Misma normalización que metric_relabel_configs en prometheus.yml.
+//
+// ScheduledJobMetrics emite el tag `job` con el nombre del scheduler, pero
+// `job` es etiqueta reservada de Prometheus. Al chocar queda como
+// `exported_job`; acá se renombra a `job_name`, que es lo que usan las reglas
+// y los dashboards. Si esto se borra, las alertas de jobs dejan de casar y
+// nadie se entera: siguen existiendo, simplemente nunca hacen match.
+// ---------------------------------------------------------------------------
+prometheus.relabel "job_name" {
+	forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+	rule {
+		source_labels = ["exported_job"]
+		target_label  = "job_name"
+		regex         = "(.+)"
+		replacement   = "$1"
+	}
+
+	rule {
+		regex  = "exported_job"
+		action = "labeldrop"
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Envío a Grafana Cloud
+// ---------------------------------------------------------------------------
+prometheus.remote_write "grafana_cloud" {
+	endpoint {
+		url = sys.env("GRAFANA_CLOUD_PROM_URL")
+
+		basic_auth {
+			username = sys.env("GRAFANA_CLOUD_PROM_USER")
+			password = sys.env("GRAFANA_CLOUD_TOKEN")
+		}
+
+		// Si Grafana Cloud no responde, Alloy encola en memoria y reintenta.
+		// Con 15s de scrapeo, 2h de cola aguantan una caída larga del backend
+		// sin perder muestras.
+		queue_config {
+			capacity          = 10000
+			max_shards        = 10
+			retry_on_http_429 = true
+		}
+	}
+
+	// Reemplaza a los external_labels de prometheus.yml. Sirve para que un solo
+	// stack de Grafana Cloud pueda recibir prod y staging sin mezclar series.
+	external_labels = {
+		env = sys.env("DEPLOY_ENV"),
+	}
+}
+
+// ---------------------------------------------------------------------------
+// El propio Alloy. Barato (unas pocas decenas de series) y es lo único que
+// responde "¿por qué dejaron de llegar métricas?": si Alloy está vivo pero el
+// scrapeo falla, alloy_build_info sigue llegando y up{job="verygana-api"} = 0.
+// ---------------------------------------------------------------------------
+prometheus.exporter.self "alloy" {}
+
+prometheus.scrape "alloy" {
+	targets         = prometheus.exporter.self.alloy.targets
+	job_name        = "alloy"
+	scrape_interval = "60s"
+	forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+}

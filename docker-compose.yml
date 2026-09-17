@@ -8,3 +8,115 @@ services:
     #   SPRING_PROFILES_ACTIVE: dev
     env_file:
       - .env
+
+  # ---------------------------------------------------------------------------
+  # Observabilidad.
+  #
+  #   DEV   docker compose up -d prometheus grafana
+  #         Prometheus evalúa las reglas y Grafana lee de él. Todo local.
+  #
+  #   PROD  docker compose --profile cloud up -d alloy
+  #         No se levanta ni Prometheus ni Grafana: Alloy scrapea la API y hace
+  #         remote_write a Grafana Cloud, que es quien evalúa las reglas y manda
+  #         los correos. Así la alerta "la API no responde" no depende de que
+  #         este mismo servidor esté vivo.
+  # ---------------------------------------------------------------------------
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: verygana-prometheus
+    # Ligado a loopback: Prometheus NO tiene autenticación de ningún tipo y con
+    # --web.enable-lifecycle cualquiera que alcance el puerto puede recargar la
+    # config. Publicarlo en 0.0.0.0 en un servidor con IP pública regala todas
+    # las métricas de negocio (montos de payouts incluidos).
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./monitoring/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      # Permite recargar la config sin reiniciar:
+      #   curl -X POST http://localhost:9090/-/reload
+      - --web.enable-lifecycle
+    # Necesario para que el target host.docker.internal:8080 resuelva a la API
+    # corriendo en el host (IntelliJ / mvnw). En Docker Desktop es implícito;
+    # se declara explícito para que también funcione en Linux.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.3.1
+    container_name: verygana-grafana
+    # 3001 y no 3000: ese puerto lo ocupa el front de Next en desarrollo.
+    # También en loopback: este Grafana es para desarrollo. El de producción es
+    # el de Grafana Cloud, con su propio login y TLS.
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      # Default inseguro a propósito, y aceptable: este Grafana es solo de
+      # desarrollo y está ligado a 127.0.0.1, así que no se alcanza desde fuera
+      # de la máquina. El de producción es el de Grafana Cloud, con su propio
+      # login. Se sobreescribe con GRAFANA_ADMIN_PASSWORD en el .env.
+      #
+      # NO usar la sintaxis ${VAR:?mensaje} en este archivo: docker compose
+      # interpola el documento COMPLETO al cargarlo, incluidos los servicios que
+      # no se van a levantar y los que están detrás de un profile. Una variable
+      # obligatoria acá rompe `docker compose up api` para todo el que no la
+      # tenga en su .env — es decir, para todo el equipo.
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      # Al abrir Grafana cae directo en el dashboard de jobs.
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/jobs-scheduled.json
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Agente de producción. Detrás del profile "cloud": `docker compose up -d` NO
+  # lo levanta, hay que pedirlo con --profile cloud.
+  # ---------------------------------------------------------------------------
+  alloy:
+    image: grafana/alloy:v1.19.2
+    container_name: verygana-alloy
+    profiles: ["cloud"]
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ./monitoring/alloy:/etc/alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    environment:
+      # En el mismo compose que la API basta el DNS interno: api:8080.
+      API_METRICS_TARGET: ${API_METRICS_TARGET:-api:8080}
+      METRICS_SCRAPE_TOKEN: ${METRICS_SCRAPE_TOKEN:-dev-scrape-token}
+      # Defaults con el nombre de la variable adentro: si falta, Alloy arranca y
+      # muere con la URL literal en el log, que dice exactamente qué falta. No se
+      # usa ${VAR:?...} por lo explicado arriba en el servicio de grafana.
+      GRAFANA_CLOUD_PROM_URL: ${GRAFANA_CLOUD_PROM_URL:-FALTA-GRAFANA_CLOUD_PROM_URL}
+      GRAFANA_CLOUD_PROM_USER: ${GRAFANA_CLOUD_PROM_USER:-FALTA-GRAFANA_CLOUD_PROM_USER}
+      GRAFANA_CLOUD_TOKEN: ${GRAFANA_CLOUD_TOKEN:-FALTA-GRAFANA_CLOUD_TOKEN}
+      DEPLOY_ENV: ${DEPLOY_ENV:-prod}
+    # La UI de Alloy (http://localhost:12345) muestra el grafo de componentes y
+    # el estado del scrapeo. Tampoco tiene auth: solo loopback.
+    ports:
+      - "127.0.0.1:12345:12345"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+volumes:
+  prometheus-data:
+  grafana-data:
+  alloy-data:
