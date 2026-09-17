@@ -3,6 +3,7 @@ spring:
     name: VerYGanaAPI
 
   datasource:
+    url: ${DB_URL}
     hikari:
       # READ_COMMITTED en vez del REPEATABLE READ por defecto de MySQL/InnoDB. Bajo
       # REPEATABLE READ, InnoDB toma gap / next-key locks en los INSERT, y ahí nacen
