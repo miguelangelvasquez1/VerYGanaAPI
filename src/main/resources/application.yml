@@ -33,13 +33,34 @@ management:
       export:
         enabled: true
   metrics:
+    enable:
+      # Métrica que Spring Boot 3.5 trae de fábrica para los @Scheduled. Duplica a
+      # ScheduledJobMetrics pero sin lo único que sirve para alertar: el tag job_name
+      # y "hace cuánto que no corre". Son ~190 series que nadie consulta.
+      #
+      # Va entre corchetes porque management.metrics.enable es un Map<String,Boolean>
+      # y sin ellos el binder de Spring parte la clave por los puntos y crea mapas
+      # anidados en vez de una sola clave "tasks.scheduled.execution".
+      #
+      # El filtro se aplica por jerarquía de nombre, así que esto también apaga
+      # tasks.scheduled.execution.active.
+      "[tasks.scheduled.execution]": false
     distribution:
+      # percentiles-histogram publica el histograma COMPLETO de Micrometer: ~70 buckets
+      # por cada combinación de etiquetas. Con 400 endpoints eso son ~56.000 series solo
+      # de http.server.requests — cinco veces el límite del tier gratuito de Grafana Cloud
+      # (10.000 series activas). Con buckets explícitos son 11 series por combinación y
+      # histogram_quantile() sigue funcionando igual, solo que interpolando entre los
+      # buckets de abajo en vez de entre 70.
       percentiles-histogram:
-        http.server.requests: true
-        scheduled.job.duration: true
+        http.server.requests: false
+        scheduled.job.duration: false
       slo:
         # Buckets pensados para jobs: desde el cleanup de segundos hasta el ciclo de payouts.
         scheduled.job.duration: 1s,10s,30s,1m,5m,15m,30m
+        # Para HTTP: resolución fina abajo (la mayoría de las peticiones) y el último
+        # bucket en 5s, por encima del umbral de 2s de la alerta LatenciaP95Alta.
+        http.server.requests: 50ms,100ms,200ms,400ms,800ms,1s,2s,5s
 
 observability:
   # Token que debe presentar Prometheus (Authorization: Bearer <token>).

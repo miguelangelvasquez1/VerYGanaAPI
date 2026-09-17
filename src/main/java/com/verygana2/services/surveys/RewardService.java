@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.dtos.survey.submission.RewardInfo;
 import com.verygana2.dtos.survey.submission.UserRewardsSummary;
 import com.verygana2.models.finance.KeyTransaction;
@@ -59,19 +60,34 @@ public class RewardService {
                 .build();
         reward = rewardRepository.save(reward);
 
+        // Sin try/catch a propósito: grantReward corre dentro de la transacción de
+        // submitSurvey, así que atraparlo aquí commiteaba un estado imposible —
+        // sesión COMPLETED, cupo y presupuesto del anunciante consumidos, reward en
+        // FAILED, y las llaves acreditadas igual porque la entidad ya estaba sucia
+        // en el persistence context. Dejar propagar revierte las cuatro cosas y el
+        // usuario puede reenviar la encuesta.
+        long creditedCents;
         try {
-            creditPoints(session, rewardAmount);
-            reward.setStatus(SurveyReward.RewardStatus.PROCESSED);
-            reward.setProcessedAt(ZonedDateTime.now());
-            log.info("Reward granted to consumer {} for survey {}: {} ¢",
-                    session.getConsumer().getId(), session.getSurvey().getId(), rewardAmount);
-            eventPublisher.publishEvent(
-                    new XpAwardRequestedEvent(this, session.getConsumer().getId(), ActivityType.SURVEY_COMPLETED));
-        } catch (Exception e) {
-            reward.setStatus(SurveyReward.RewardStatus.FAILED);
-            log.error("Failed to process reward for consumer {} survey {}: {}",
+            creditedCents = creditPoints(session, rewardAmount);
+        } catch (RuntimeException e) {
+            // BusinessException sigue siendo RuntimeException, así que la transacción
+            // de submitSurvey se revierte igual — la encuesta no queda consumida.
+            // Lo único que cambia es que el usuario recibe un 422 accionable en vez
+            // del "Unexpected error" del catch-all de GlobalExceptionHandler.
+            log.error("Failed to credit survey reward for consumer {} survey {}: {}",
                     session.getConsumer().getId(), session.getSurvey().getId(), e.getMessage(), e);
+            throw new BusinessException(
+                    "No pudimos acreditar tu recompensa en este momento. "
+                            + "Tus respuestas no se guardaron: vuelve a enviar la encuesta en unos minutos.");
         }
+
+        reward.setCreditedAmountCents(creditedCents);
+        reward.setStatus(SurveyReward.RewardStatus.PROCESSED);
+        reward.setProcessedAt(ZonedDateTime.now());
+        log.info("Reward granted to consumer {} for survey {}: {} ¢",
+                session.getConsumer().getId(), session.getSurvey().getId(), rewardAmount);
+        eventPublisher.publishEvent(
+                new XpAwardRequestedEvent(this, session.getConsumer().getId(), ActivityType.SURVEY_COMPLETED));
 
         return rewardRepository.save(reward);
     }
@@ -86,7 +102,9 @@ public class RewardService {
                 .stream()
                 .map(r -> RewardInfo.builder()
                         .rewardId(r.getId())
-                        .amountKeys(r.getAmountCents() / keyValueCents)
+                        // Lo acreditado, no lo financiado: son cifras distintas
+                        // en cuanto el multiplicador de nivel no es 1.0.
+                        .amountKeys(creditedOf(r) / keyValueCents)
                         .status(r.getStatus())
                         .grantedAt(r.getGrantedAt())
                         .build())
@@ -99,7 +117,15 @@ public class RewardService {
                 .build();
     }
 
-    private void creditPoints(SurveySession session, long amountCents) {
+    /** Lo acreditado, con respaldo a la base para las filas previas a la columna. */
+    private static long creditedOf(SurveyReward reward) {
+        return reward.getCreditedAmountCents() != null
+                ? reward.getCreditedAmountCents()
+                : reward.getAmountCents();
+    }
+
+    /** @return lo realmente acreditado en la billetera, en centavos. */
+    private long creditPoints(SurveySession session, long amountCents) {
         Long consumerId = session.getConsumer().getId();
         KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
         long adjustedCents = Math.round(amountCents * levelService.getMultiplier(consumerId));
@@ -120,5 +146,11 @@ public class RewardService {
 
         keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
         keyWalletRepository.save(keyWallet);
+
+        // El diferencial (amountCents − adjustedCents) lo liquida en tesorería
+        // KeyIssuanceSettlementService por lotes, leyendo las dos cifras que esta
+        // recompensa deja persistidas.
+
+        return adjustedCents;
     }
 }

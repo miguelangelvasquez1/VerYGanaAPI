@@ -1,8 +1,12 @@
 package com.verygana2.services.surveys;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 import java.util.Collections;
@@ -22,6 +26,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.surveys.Survey;
 import com.verygana2.models.surveys.SurveyQuestion;
+import com.verygana2.dtos.survey.submission.UserRewardsSummary;
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.surveys.SurveyReward;
 import com.verygana2.models.surveys.SurveySession;
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -64,11 +70,12 @@ class RewardServiceTest {
 
         wallet = new KeyWallet();
 
-        // Stubs comunes a todo grantReward exitoso.
-        when(keyWalletService.getByConsumerId(CONSUMER_ID)).thenReturn(wallet);
-        when(keyWalletService.calculatePurchaseExpiry()).thenReturn(java.time.ZonedDateTime.now());
-        when(keyWalletService.calculateConnectivityExpiry()).thenReturn(java.time.ZonedDateTime.now());
-        when(rewardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        // Stubs comunes a grantReward. lenient() porque los tests de solo lectura
+        // (getUserRewardsSummary) no pasan por el camino de crédito.
+        lenient().when(keyWalletService.getByConsumerId(CONSUMER_ID)).thenReturn(wallet);
+        lenient().when(keyWalletService.calculatePurchaseExpiry()).thenReturn(java.time.ZonedDateTime.now());
+        lenient().when(keyWalletService.calculateConnectivityExpiry()).thenReturn(java.time.ZonedDateTime.now());
+        lenient().when(rewardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
     }
 
     /** SurveySession con N preguntas y recompensa por pregunta en centavos. */
@@ -149,6 +156,102 @@ class RewardServiceTest {
 
             verify(keyWalletService).calculate(1000L);
             assertThat(wallet.getAvailableKeysCents()).isEqualTo(1000L);
+        }
+    }
+
+    @Nested
+    @DisplayName("atomicidad: un fallo de crédito no deja la encuesta consumida")
+    class FailureHandling {
+
+        @Test
+        @DisplayName("fallo al acreditar: lanza BusinessException (422 accionable) y no publica el XP")
+        void creditFailureThrowsBusinessException() {
+            SurveySession session = sessionWith(4, 500);
+            when(levelService.getMultiplier(CONSUMER_ID)).thenReturn(0.7);
+            when(keyWalletService.calculate(1400L)).thenReturn(new RewardSplit(1050, 350));
+            when(keyWalletRepository.save(any()))
+                    .thenThrow(new IllegalStateException("fallo al persistir la billetera"));
+
+            // Antes esto se tragaba la excepción y commiteaba: encuesta consumida,
+            // reward FAILED y llaves acreditadas igual.
+            assertThatThrownBy(() -> service.grantReward(session))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("vuelve a enviar la encuesta");
+
+            verify(eventPublisher, org.mockito.Mockito.never()).publishEvent(any(Object.class));
+        }
+
+        @Test
+        @DisplayName("éxito: la recompensa queda sin liquidar, para que el job por lotes la recoja")
+        void successLeavesRowUnsettled() {
+            SurveySession session = sessionWith(4, 500);
+            when(levelService.getMultiplier(CONSUMER_ID)).thenReturn(0.7);
+            when(keyWalletService.calculate(1400L)).thenReturn(new RewardSplit(1050, 350));
+
+            SurveyReward reward = service.grantReward(session);
+
+            assertThat(reward.isIssuanceSettled()).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("el usuario ve lo acreditado, no lo que financió el anunciante")
+    class ReportsCreditedAmount {
+
+        @Test
+        @DisplayName("ORO (×0.7): la recompensa guarda amountCents=2000 y creditedAmountCents=1400")
+        void storesBothAmounts() {
+            SurveySession session = sessionWith(4, 500);            // base = 2000
+            when(levelService.getMultiplier(CONSUMER_ID)).thenReturn(0.7);
+            when(keyWalletService.calculate(1400L)).thenReturn(new RewardSplit(1050, 350));
+
+            SurveyReward reward = service.grantReward(session);
+
+            assertThat(reward.getAmountCents()).isEqualTo(2000L);
+            assertThat(reward.getCreditedAmountCents()).isEqualTo(1400L);
+        }
+
+        @Test
+        @DisplayName("el resumen lista lo acreditado (1400 → 1 llave), no la base (2000 → 2 llaves)")
+        void summaryListsCreditedNotFunded() {
+            SurveyReward processed = SurveyReward.builder()
+                    .id(1L)
+                    .amountCents(2000L)              // financiado
+                    .creditedAmountCents(1400L)      // acreditado
+                    .status(SurveyReward.RewardStatus.PROCESSED)
+                    .build();
+
+            when(sessionRepository.countCompletedByConsumer(CONSUMER_ID)).thenReturn(1L);
+            when(rewardRepository.getTotalRewardsByConsumer(CONSUMER_ID))
+                    .thenReturn(java.math.BigDecimal.valueOf(1400L));
+            when(rewardRepository.findBySessionConsumerId(eq(CONSUMER_ID), any()))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(processed)));
+
+            UserRewardsSummary summary = service.getUserRewardsSummary(CONSUMER_ID);
+
+            assertThat(summary.getTotalKeysEarned()).isEqualTo(1L);
+            assertThat(summary.getRecentRewards().get(0).getAmountKeys()).isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("filas previas a la columna (credited nulo): cae a la base en vez de reportar cero")
+        void legacyRowsFallBackToFundedAmount() {
+            SurveyReward legacy = SurveyReward.builder()
+                    .id(2L)
+                    .amountCents(2000L)
+                    .creditedAmountCents(null)       // fila anterior a credited_amount
+                    .status(SurveyReward.RewardStatus.PROCESSED)
+                    .build();
+
+            when(sessionRepository.countCompletedByConsumer(CONSUMER_ID)).thenReturn(1L);
+            when(rewardRepository.getTotalRewardsByConsumer(CONSUMER_ID))
+                    .thenReturn(java.math.BigDecimal.valueOf(2000L));
+            when(rewardRepository.findBySessionConsumerId(eq(CONSUMER_ID), any()))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(legacy)));
+
+            UserRewardsSummary summary = service.getUserRewardsSummary(CONSUMER_ID);
+
+            assertThat(summary.getRecentRewards().get(0).getAmountKeys()).isEqualTo(2L);
         }
     }
 }

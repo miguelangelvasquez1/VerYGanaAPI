@@ -21,6 +21,7 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
+import com.verygana2.services.interfaces.finance.TreasuryService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private final KeyWalletRepository keyWalletRepository;
     private final ConsumerDetailsService consumerDetailsService;
     private final PetCatalogItemRepository petCatalogItemRepository;
+    private final TreasuryService treasuryService;
 
     @Override
     public void createFor(Long consumerId) {
@@ -131,9 +133,16 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         wallet.expirePurchaseKeysCents(amountCents);
         keyWalletRepository.save(wallet);
 
-        keyTransactionRepository.save(
+        KeyTransaction spend = keyTransactionRepository.save(
                 KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName(),
                         item != null ? item.getId() : null));
+
+        // El usuario consumió sus llaves: el pasivo baja, así que el respaldo tiene
+        // que salir de KEYS_RESERVE. Sin esto, la plata se quedaba en el fondo sin
+        // nada detrás — el mismo error del multiplicador, en otro sitio.
+        // Va a OPERATIONS y no a PAYOUTS_PENDING: PayoutItem solo se construye desde
+        // Copayment, así que esas ventas nunca generan un pago al comercial.
+        treasuryService.registerPetGameSpend(amountCents, spend.getId());
 
         // Mismo criterio que getBalance, para que el saldo que devuelve la compra
         // coincida con el que el juego consulta después.

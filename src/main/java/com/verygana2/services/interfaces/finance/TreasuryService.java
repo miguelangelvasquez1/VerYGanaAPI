@@ -28,6 +28,34 @@ public interface TreasuryService {
      */
     void moveExpiredKeysToFortification(Long amountCents, UUID batchId);
 
+    /**
+     * Reconcilia lo que el anunciante financió contra lo que realmente se emitió
+     * al consumidor, cuando el multiplicador de nivel hace que no coincidan.
+     *
+     * La parte financiada ya está en KEYS_RESERVE desde distributeDeposit(), así
+     * que aquí solo se mueve la DIFERENCIA:
+     *   financiado > emitido → KEYS_RESERVE → OPERATIONS (sobrante sin pasivo)
+     *   financiado < emitido → OPERATIONS → KEYS_RESERVE (respaldar el exceso)
+     *   iguales              → no-op, sin movimiento en el libro
+     *
+     * @param fundedCents   lo que el anunciante pagó por la interacción (base)
+     * @param issuedCents   lo que se acreditó en la billetera del consumidor
+     * @param referenceId   ID de la interacción (watch session, survey session)
+     * @param referenceType "AD_LIKE", "SURVEY_REWARD", ...
+     */
+    void settleKeyIssuance(long fundedCents, long issuedCents, UUID referenceId, String referenceType);
+
+    /**
+     * Registra el consumo de llaves en el juego de mascotas: KEYS_RESERVE → OPERATIONS.
+     *
+     * El usuario gastó sus llaves, así que el pasivo baja; sin este movimiento el
+     * respaldo se quedaría en KEYS_RESERVE sin nada detrás.
+     *
+     * @param amountCents valor en centavos de las llaves consumidas
+     * @param referenceId id de la KeyTransaction del gasto
+     */
+    void registerPetGameSpend(long amountCents, UUID referenceId);
+
     TreasurySnapshot getSnapshot();
 
     /** Balance enriquecido con estado de umbrales para el endpoint de auditoría. */

@@ -140,12 +140,22 @@ public class AdLikeServiceImpl implements AdLikeService {
 
         Long rewardKeysCents = ad.getRewardPerLike();
 
-        // 4. Crear el like
+        // El multiplicador se resuelve antes de construir el like para poder dejar
+        // en la misma fila lo financiado y lo acreditado. Sin las dos cifras juntas
+        // el registro por like no sirve para reconciliar contra la billetera.
+        long userRewardKeysCents = Math.round(
+                rewardKeysCents * levelService.getMultiplier(consumerId));
+
+        // 4. Crear el like. El diferencial (financiado − acreditado) NO se liquida
+        // aquí: lo hace KeyIssuanceSettlementService por lotes, leyendo estas dos
+        // cifras. Liquidar inline tomaba lock pesimista sobre dos cuentas globales
+        // de tesorería en cada like.
         AdLike adLike = AdLike.builder()
                 .id(new AdLikeId(consumerId, adId))
                 .consumer(consumer)
                 .ad(ad)
                 .rewardAmount(rewardKeysCents)
+                .creditedAmountCents(userRewardKeysCents)
                 .createdAt(ZonedDateTime.now(clock))
                 .build();
 
@@ -169,9 +179,6 @@ public class AdLikeServiceImpl implements AdLikeService {
         } catch (OptimisticLockException e) {
             throw new ValidationException("El anuncio fue actualizado, intente nuevamente");
         }
-
-        long userRewardKeysCents = Math.round(
-                rewardKeysCents * levelService.getMultiplier(consumerId));
 
         KeyWallet keyWallet = consumer.getKeyWallet();
         creditRewardToUser(keyWallet, userRewardKeysCents, adId, sessionId);

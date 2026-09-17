@@ -66,4 +66,19 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
            @Param("todayStart") ZonedDateTime todayStart,
            Pageable pageable
     );
+
+    /**
+     * Presupuesto de campañas aún no entregado como llaves.
+     *
+     * Cuenta TODOS los estados, incluidos COMPLETED y CANCELLED: nada devuelve el
+     * remanente de una campaña a la wallet, así que ese dinero sigue respaldado en
+     * KEYS_RESERVE y tiene que aparecer del lado contabilizado.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(c.budgetCents - c.spentCents), 0)
+            FROM Campaign c
+            WHERE c.budgetCents IS NOT NULL AND c.spentCents IS NOT NULL
+              AND c.budgetCents > c.spentCents
+            """)
+    long sumUnspentBudgetCents();
 }

@@ -184,6 +184,10 @@ treasury:
     operations-pct: 30
     keys-reserve-warn-threshold-cents: 10000000 # Umbral WARNING: log de alerta, no bloquea (default $100.000 COP)
     keys-reserve-critical-threshold-cents: 2000000 # Umbral CRÍTICO: bloquea copagos con llaves hasta que se reponga (default $20.000 COP)
+  # Cada cuánto se liquida en tesorería el diferencial acumulado entre lo que
+  # el anunciante financió y lo que se acreditó al consumidor.
+  issuance-settlement:
+    cron: "0 0/10 * * * *"   # cada 10 minutos
 
 financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}

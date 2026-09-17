@@ -13,6 +13,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.config.metrics.PayoutMetrics;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.payout.PayoutResponseDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
@@ -56,6 +57,7 @@ public class PayoutServiceImpl implements PayoutService {
     private final WompiTransactionRepository wompiTransactionRepository;
     private final WompiPayoutConfig wompiPayoutConfig;
     private final PayoutMethodRepository payoutMethodRepository;
+    private final PayoutMetrics payoutMetrics;
 
     @Override
     public BigDecimal getCommercialEarningsForDateRange(Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate) {
@@ -122,6 +124,7 @@ public class PayoutServiceImpl implements PayoutService {
                 log.warn("[PAYOUT-SCHEDULER] Empresario {} ({}) no tiene método de pago verificado. " +
                         "Payout SCHEDULED sin transferencia posible.",
                         commercial.getId(), commercial.getCompanyName());
+                payoutMetrics.payoutWithoutMethod();
             }
 
             Payout payout = Payout.builder()
@@ -137,6 +140,7 @@ public class PayoutServiceImpl implements PayoutService {
                     .build();
 
             payout = payoutRepository.save(payout);
+            payoutMetrics.payoutScheduled(group.totalNetCents);
 
             for (Map.Entry<Copayment, Long> entry : group.copaymentAmounts.entrySet()) {
                 PayoutItem item = PayoutItem.builder()
@@ -171,6 +175,7 @@ public class PayoutServiceImpl implements PayoutService {
             } catch (Exception e) {
                 log.error("[PAYOUT-SCHEDULER] Error procesando payout {}: {}",
                         payout.getId(), e.getMessage(), e);
+                payoutMetrics.payoutProcessingFailed("PROCESS", e);
                 payout.setStatus(PayoutStatus.FAILED);
                 payout.setFailureReason(e.getMessage());
                 payoutRepository.save(payout);
@@ -197,6 +202,7 @@ public class PayoutServiceImpl implements PayoutService {
 
         for (Payout payout : failed) {
             payout.setRetryCount(payout.getRetryCount() + 1);
+            payoutMetrics.payoutRetried();
             payout.setStatus(PayoutStatus.SCHEDULED);
             payout.setFailureReason(null);
             payoutRepository.save(payout);
@@ -206,6 +212,7 @@ public class PayoutServiceImpl implements PayoutService {
             } catch (Exception e) {
                 log.error("[PAYOUT-RETRY] Reintento fallido para payout {}: {}",
                         payout.getId(), e.getMessage(), e);
+                payoutMetrics.payoutProcessingFailed("RETRY", e);
                 payout.setStatus(PayoutStatus.FAILED);
                 payout.setFailureReason(e.getMessage());
                 payoutRepository.save(payout);
@@ -255,11 +262,13 @@ public class PayoutServiceImpl implements PayoutService {
             treasuryService.registerPayoutSent(payout.getNetAmountCents(), payout.getId());
             payout.setStatus(PayoutStatus.PAID);
             payout.setPaidAt(ZonedDateTime.now(ZoneOffset.UTC));
+            payoutMetrics.payoutConfirmed(true, payout.getNetAmountCents(), "none");
             log.info("[PAYOUT] Payout PAID: id={}, commercial={}, net={}",
                     payout.getId(), payout.getCommercial().getCompanyName(), payout.getNetAmountCents());
         } else {
             payout.setStatus(PayoutStatus.FAILED);
             payout.setFailureReason(wompiTx.getStatus().name());
+            payoutMetrics.payoutConfirmed(false, payout.getNetAmountCents(), wompiTx.getStatus().name());
             log.warn("[PAYOUT] Payout FAILED: id={}, status={}", payout.getId(), wompiTx.getStatus());
         }
 
@@ -298,6 +307,7 @@ public class PayoutServiceImpl implements PayoutService {
         tx = wompiTransactionRepository.save(tx);
 
         payout.setWompiTransaction(tx);
+        payoutMetrics.payoutSent(response.isAccepted());
         payout.setStatus(response.isAccepted() ? PayoutStatus.PROCESSING : PayoutStatus.FAILED);
         if (!response.isAccepted()) payout.setFailureReason(response.getCode() + ": " + response.getMessage());
         payoutRepository.save(payout);

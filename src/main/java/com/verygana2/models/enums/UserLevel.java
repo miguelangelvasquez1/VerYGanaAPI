@@ -28,6 +28,20 @@ public enum UserLevel {
     /** Tickets que recibe el referidor cuando HAY rifa activa */
     private final int referralTickets;
 
+    static {
+        // El multiplicador entra en Math.round(base × mult) al emitir llaves, y esa
+        // emisión ya no es gratis: si supera 1.0, OPERATIONS tiene que financiar el
+        // exceso (ver TreasuryService.settleKeyIssuance). Un valor sin sentido aquí
+        // no puede llegar a producción como emisión silenciosa — revienta al cargar.
+        for (UserLevel level : values()) {
+            if (!Double.isFinite(level.multiplier) || level.multiplier <= 0) {
+                throw new IllegalStateException(
+                        "Multiplicador inválido en UserLevel." + level.name() +
+                        ": " + level.multiplier + ". Debe ser finito y mayor que 0.");
+            }
+        }
+    }
+
     // ─── Lógica de negocio ────────────────────────────────────────────────────
 
     /**

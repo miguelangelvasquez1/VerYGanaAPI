@@ -14,6 +14,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.verygana2.config.metrics.PayoutMetrics;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.models.User;
@@ -37,6 +38,7 @@ import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.wompi.WompiPayoutClient;
 
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import jakarta.persistence.EntityNotFoundException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -68,10 +70,29 @@ class PayoutServiceImplTest {
 
     private PayoutServiceImpl service;
 
+    /**
+     * PayoutMetrics va real y no mockeado: con un SimpleMeterRegistry, cada test del flujo
+     * verifica de paso que la instrumentación quedó conectada donde debe. Un mock solo
+     * probaría que se llamó a un doble, no que el contador existe con el nombre correcto.
+     */
+    private SimpleMeterRegistry meterRegistry;
+    private PayoutMetrics payoutMetrics;
+
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        payoutMetrics = new PayoutMetrics(meterRegistry, payoutRepository);
+        payoutMetrics.registerGauges();   // fuera de Spring no corre el @PostConstruct
+
         service = new PayoutServiceImpl(payoutRepository, payoutItemRepository, copaymentRepository, treasuryService,
-                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig, payoutMethodRepository);
+                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig, payoutMethodRepository,
+                payoutMetrics);
+    }
+
+    /** Valor actual de un contador, o 0 si nunca se incrementó. */
+    private double counter(String name, String... tags) {
+        var found = meterRegistry.find(name).tags(tags).counter();
+        return found == null ? 0d : found.count();
     }
 
     private CommercialDetails commercial(Long id, String name) {
@@ -340,6 +361,173 @@ class PayoutServiceImplTest {
 
             assertThatThrownBy(() -> service.handleWompiResult(tx.getId()))
                     .isInstanceOf(EntityNotFoundException.class);
+        }
+    }
+
+    /**
+     * El motivo de existir de PayoutMetrics: PayoutServiceImpl atrapa la excepción de cada
+     * payout dentro del bucle, así que el job termina en SUCCESS con todos sus payouts
+     * caídos. Estos tests fijan que los contadores sí registran lo que el job se traga.
+     */
+    @Nested
+    @DisplayName("métricas de negocio")
+    class BusinessMetrics {
+
+        private PayoutMethod verifiedMethod() {
+            return PayoutMethod.builder().verificationStatus(VerificationStatus.VERIFIED)
+                    .type(PayoutMethod.PayoutMethodType.BANK_TRANSFER)
+                    .accountHolderDocType(PayoutMethod.DocType.CC).accountHolderDoc("123")
+                    .accountHolderName("Juan").bankCode("bank-uuid-1007")
+                    .bankAccountType(PayoutMethod.BankAccountType.SAVINGS).accountNumber("999").build();
+        }
+
+        @Test
+        @DisplayName("crear un payout incrementa el conteo y el monto programado")
+        void schedulingCountsPayoutAndAmount() {
+            CommercialDetails commercial = commercial(1L, "Tienda X");
+            Copayment copayment = completedCopayment(commercial, 100_000L, 10_000L, 90_000L);
+
+            when(copaymentRepository.findCompletedInPeriod(any(), any(), any())).thenReturn(List.of(copayment));
+            when(payoutItemRepository.existsByCopaymentAndCommercial(copayment.getId(), 1L)).thenReturn(false);
+            when(payoutRepository.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            service.scheduleDailyPayouts(ZonedDateTime.now(), ZonedDateTime.now().plusDays(1));
+
+            assertThat(counter("payout.scheduled")).isEqualTo(1d);
+            assertThat(counter("payout.scheduled.amount.cents")).isEqualTo(90_000d);
+            // El helper commercial() no asigna defaultPayoutMethod, así que canReceivePayouts()
+            // es false: es exactamente el caso de plata que se debe y nunca sale.
+            assertThat(counter("payout.without.method")).isEqualTo(1d);
+        }
+
+        @Test
+        @DisplayName("la excepción que el bucle se traga queda contada con su fase y su tipo")
+        void swallowedExceptionIsCounted() {
+            CommercialDetails commercial = commercial(1L, "Tienda X");
+            Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
+                    .netAmountCents(90_000L).status(PayoutStatus.SCHEDULED).build();
+
+            when(payoutRepository.findByStatus(PayoutStatus.SCHEDULED)).thenReturn(List.of(payout));
+            when(payoutMethodRepository.findFirstByCommercialIdAndVerificationStatusAndActiveTrue(1L, VerificationStatus.VERIFIED))
+                    .thenReturn(Optional.empty());
+
+            service.processScheduledPayouts();
+
+            assertThat(counter("payout.processing.errors", "phase", "PROCESS", "exception", "IllegalStateException"))
+                    .isEqualTo(1d);
+            assertThat(counter("payout.sent", "outcome", "ACCEPTED")).isZero();
+        }
+
+        @Test
+        @DisplayName("Wompi acepta la transferencia: payout.sent con outcome ACCEPTED")
+        void acceptedTransferIsCounted() {
+            CommercialDetails commercial = commercial(1L, "Tienda X");
+            Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial)
+                    .netAmountCents(90_000L).status(PayoutStatus.SCHEDULED).build();
+
+            when(payoutRepository.findByStatus(PayoutStatus.SCHEDULED)).thenReturn(List.of(payout));
+            when(payoutMethodRepository.findFirstByCommercialIdAndVerificationStatusAndActiveTrue(1L, VerificationStatus.VERIFIED))
+                    .thenReturn(Optional.of(verifiedMethod()));
+            when(wompiPayoutConfig.getAccountId()).thenReturn("acc_123");
+
+            WompiPayoutResponseDTO response = new WompiPayoutResponseDTO();
+            response.setStatus(201);
+            response.setCode("OK");
+            WompiPayoutResponseDTO.PayoutData data = new WompiPayoutResponseDTO.PayoutData();
+            data.setPayoutId("wp_123");
+            data.setSuccess(1);
+            data.setFailed(0);
+            response.setData(data);
+            when(wompiPayoutClient.createPayout(any())).thenReturn(response);
+            when(wompiTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            service.processScheduledPayouts();
+
+            assertThat(counter("payout.sent", "outcome", "ACCEPTED")).isEqualTo(1d);
+        }
+
+        @Test
+        @DisplayName("webhook APPROVED: cuenta el payout confirmado y el dinero efectivamente dispersado")
+        void approvedWebhookCountsPaidAmount() {
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.APPROVED).build();
+            Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial(1L, "Tienda X"))
+                    .netAmountCents(90_000L).wompiTransaction(tx).status(PayoutStatus.PROCESSING).build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(counter("payout.confirmed", "outcome", "PAID", "reason", "none")).isEqualTo(1d);
+            assertThat(counter("payout.paid.amount.cents")).isEqualTo(90_000d);
+        }
+
+        @Test
+        @DisplayName("webhook DECLINED: la razón es el enum de Wompi, no el texto libre del failureReason")
+        void declinedWebhookUsesBoundedReasonTag() {
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .status(WompiTransactionStatus.DECLINED).build();
+            Payout payout = Payout.builder().id(UUID.randomUUID()).commercial(commercial(1L, "Tienda X"))
+                    .netAmountCents(90_000L).wompiTransaction(tx).status(PayoutStatus.PROCESSING).build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(payoutRepository.findByWompiTransactionId(tx.getId())).thenReturn(Optional.of(payout));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(counter("payout.confirmed", "outcome", "FAILED", "reason", "DECLINED")).isEqualTo(1d);
+            assertThat(counter("payout.paid.amount.cents")).isZero();
+        }
+
+        @Test
+        @DisplayName("los gauges vuelven a cero cuando el estado deja de aparecer en el agregado")
+        void gaugesResetWhenStatusDisappears() {
+            ZonedDateTime hace3Dias = ZonedDateTime.now(ZoneOffset.UTC).minusDays(3);
+            when(payoutRepository.aggregateByStatus(any()))
+                    .thenReturn(List.of(aggregate(PayoutStatus.PROCESSING, 2L, 180_000L, hace3Dias)))
+                    .thenReturn(List.of());
+
+            payoutMetrics.refreshPayoutGauges();
+
+            assertThat(gauge("payout.pending.count", "PROCESSING")).isEqualTo(2d);
+            assertThat(gauge("payout.pending.amount.cents", "PROCESSING")).isEqualTo(180_000d);
+            // ~3 días: es el payout cuyo webhook nunca llegó.
+            assertThat(gauge("payout.oldest.age", "PROCESSING")).isGreaterThan(3 * 24 * 3600 - 60d);
+            // Un estado sin filas debe leerse 0, no quedar sin serie.
+            assertThat(gauge("payout.pending.count", "FAILED")).isZero();
+
+            // Segundo refresco sin filas: si no se limpiara, la alerta quedaría disparada
+            // para siempre después de resolver el atasco.
+            payoutMetrics.refreshPayoutGauges();
+
+            assertThat(gauge("payout.pending.count", "PROCESSING")).isZero();
+            assertThat(gauge("payout.oldest.age", "PROCESSING")).isZero();
+        }
+
+        @Test
+        @DisplayName("el balance de Wompi es NaN hasta la primera lectura exitosa, no cero")
+        void balanceIsNaNUntilFirstRead() {
+            assertThat(meterRegistry.get("wompi.payout.balance.cents").gauge().value()).isNaN();
+
+            payoutMetrics.wompiBalanceRead(7_500_000L);
+
+            assertThat(meterRegistry.get("wompi.payout.balance.cents").gauge().value()).isEqualTo(7_500_000d);
+            assertThat(meterRegistry.get("wompi.payout.balance.age").gauge().value()).isLessThan(5d);
+        }
+
+        private double gauge(String name, String status) {
+            return meterRegistry.get(name).tag("status", status).gauge().value();
+        }
+
+        private PayoutRepository.PayoutStatusAggregate aggregate(
+                PayoutStatus status, long total, long netCents, ZonedDateTime oldest) {
+            return new PayoutRepository.PayoutStatusAggregate() {
+                @Override public PayoutStatus getStatus() { return status; }
+                @Override public long getTotal() { return total; }
+                @Override public long getNetCents() { return netCents; }
+                @Override public ZonedDateTime getOldestScheduledAt() { return oldest; }
+            };
         }
     }
 }

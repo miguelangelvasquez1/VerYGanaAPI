@@ -23,6 +23,7 @@ import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
+import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 
@@ -32,6 +33,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 /**
@@ -50,12 +52,16 @@ class KeyWalletServiceImplTest {
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private PetCatalogItemRepository petCatalogItemRepository;
+    @Mock private TreasuryService treasuryService;
 
     private KeyWalletServiceImpl service;
 
     private void setUpWithClock(Clock clock) {
         service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository,
-                consumerDetailsService, petCatalogItemRepository);
+                consumerDetailsService, petCatalogItemRepository, treasuryService);
+        // spendKeysForPetGame usa el id de la transacción persistida como referencia
+        // del movimiento de tesorería.
+        lenient().when(keyTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
         ReflectionTestUtils.setField(service, "PURCHASE_KEYS_PERCENTAGE", 75L);
         ReflectionTestUtils.setField(service, "keyValueCents", KEY_VALUE_CENTS);
     }
@@ -179,6 +185,31 @@ class KeyWalletServiceImplTest {
             assertThat(response.success()).isTrue();
             assertThat(response.newBalance()).isEqualTo(70L);
             verify(keyTransactionRepository).save(any());
+        }
+
+        @Test
+        @DisplayName("el gasto debita KEYS_RESERVE: el pasivo baja, el respaldo tiene que bajar con él")
+        void spendRegistersTreasuryMovement() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
+
+            // Sin esta llamada, las llaves salen de circulación y su respaldo se queda
+            // atrapado en KEYS_RESERVE sin nada detrás.
+            verify(treasuryService).registerPetGameSpend(org.mockito.ArgumentMatchers.eq(30L * KEY_VALUE_CENTS),
+                    org.mockito.ArgumentMatchers.any());
+        }
+
+        @Test
+        @DisplayName("saldo insuficiente: no toca tesorería")
+        void insufficientBalance_doesNotTouchTreasury() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(10L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
+
+            org.mockito.Mockito.verifyNoInteractions(treasuryService);
         }
 
         @Test

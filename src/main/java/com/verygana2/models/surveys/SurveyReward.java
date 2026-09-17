@@ -38,8 +38,30 @@ public class SurveyReward {
     @JoinColumn(name = "session_id", nullable = false, unique = true)
     private SurveySession session;
 
+    /**
+     * Lo que el anunciante FINANCIÓ por esta encuesta (preguntas × precio), en
+     * centavos. No es lo que recibió el consumidor: el multiplicador de nivel
+     * los separa. Para "cuánto ganó el usuario" usar {@link #creditedAmountCents}.
+     */
     @Column(name = "amount", nullable = false)
     private Long amountCents;
+
+    /**
+     * Lo que realmente se ACREDITÓ en la billetera del consumidor, en centavos
+     * (amountCents × multiplicador de nivel, redondeado).
+     *
+     * Nullable: las filas anteriores a esta columna no tienen el dato.
+     */
+    @Column(name = "credited_amount")
+    private Long creditedAmountCents;
+
+    /**
+     * Si el diferencial (financiado − acreditado) de esta fila ya se liquidó en
+     * tesorería. Lo pone el job por lotes, no el envío de la encuesta.
+     */
+    @Column(name = "issuance_settled", nullable = false)
+    @Builder.Default
+    private boolean issuanceSettled = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -54,6 +76,13 @@ public class SurveyReward {
     private ZonedDateTime processedAt;
 
     public enum RewardStatus {
-        PENDING, PROCESSED, FAILED
+        PENDING,
+        PROCESSED,
+        /**
+         * Ya no se escribe: si el crédito falla, la transacción de submitSurvey
+         * revierte entera y no queda fila. Se conserva el valor porque puede
+         * existir en filas históricas y nada lo reprocesa.
+         */
+        FAILED
     }
 }

@@ -18,6 +18,19 @@ import com.verygana2.models.finance.KeyTransaction;
 @Repository
 public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, UUID> {
 
+    /**
+     * Lo acreditado por una interacción concreta, en centavos. Es la única fuente
+     * que queda para reconstruir el monto de las filas anteriores a credited_amount.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(COALESCE(t.purchaseKeysDeltaCents, 0L)
+                              + COALESCE(t.connectivityKeysDeltaCents, 0L)), 0L)
+            FROM KeyTransaction t
+            WHERE t.referenceId = :referenceId
+              AND t.type = com.verygana2.models.enums.finance.KeyTransactionType.CREDIT_INTERACTION
+            """)
+    long sumInteractionCreditByReference(@Param("referenceId") UUID referenceId);
+
     @Query("""
             SELECT kt FROM KeyTransaction kt 
             WHERE kt.keyWallet.consumer.id = :consumerId 

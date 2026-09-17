@@ -25,6 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.ads.Ad;
+import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdAsset;
 import com.verygana2.models.ads.AdWatchSession;
 import com.verygana2.models.enums.AdStatus;
@@ -198,6 +199,31 @@ class AdLikeServiceImplTest {
             verify(keyWalletService).calculate(5000L);
             assertThat(wallet.getAvailableKeysCents()).isEqualTo(5000L);
             assertThat(response.getRewardAmount()).isEqualTo(5L);
+        }
+    }
+
+    @Nested
+    @DisplayName("el AdLike guarda financiado y acreditado por separado")
+    class PersistsCreditedAmount {
+
+        @Test
+        @DisplayName("ORO (×0.7): rewardAmount=10000 (financiado) y creditedAmountCents=7000 (acreditado)")
+        void storesBothAmounts() {
+            Ad ad = ad(10000);
+            stubHappyPath(ad);
+            when(levelService.getMultiplier(CONSUMER_ID)).thenReturn(0.7);
+            when(keyWalletService.calculate(7000L)).thenReturn(new RewardSplit(5250, 1750));
+
+            service.processAdLike(SESSION_ID, AD_ID, CONSUMER_ID, "127.0.0.1");
+
+            var captor = org.mockito.ArgumentCaptor.forClass(AdLike.class);
+            verify(adLikeRepository).save(captor.capture());
+            // Con solo rewardAmount, la fila no permitía reconciliar contra la billetera.
+            assertThat(captor.getValue().getRewardAmount()).isEqualTo(10000L);
+            assertThat(captor.getValue().getCreditedAmountCents()).isEqualTo(7000L);
+            // Sin liquidar: el diferencial lo recoge KeyIssuanceSettlementService.
+            // El like no puede tomar lock sobre las cuentas globales de tesorería.
+            assertThat(captor.getValue().isIssuanceSettled()).isFalse();
         }
     }
 }

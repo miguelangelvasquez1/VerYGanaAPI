@@ -47,8 +47,33 @@ public class AdLike {
     @JoinColumn(nullable = false)
     private Ad ad;
 
+    /**
+     * Lo que el anunciante FINANCIÓ por este like (ad.rewardPerLike), en centavos.
+     * No es lo que recibió el consumidor: el multiplicador de nivel los separa.
+     * Para "cuánto ganó el usuario" usar {@link #creditedAmountCents}.
+     */
     @Column(nullable = false, precision = 19, scale = 2)
     private Long rewardAmount;
+
+    /**
+     * Lo que realmente se ACREDITÓ en la billetera del consumidor, en centavos
+     * (rewardAmount × multiplicador de nivel, redondeado).
+     *
+     * Nullable: las filas anteriores a esta columna no tienen el dato y no se
+     * puede reconstruir desde aquí — habría que derivarlo de KeyTransaction.
+     */
+    @Column(name = "credited_amount")
+    private Long creditedAmountCents;
+
+    /**
+     * Si el diferencial (financiado − acreditado) de esta fila ya se liquidó en
+     * tesorería. Lo pone el job por lotes, no el like: liquidar inline tomaba
+     * lock pesimista sobre dos cuentas globales en cada like.
+     */
+    @Column(name = "issuance_settled", nullable = false)
+    @Builder.Default
+    private boolean issuanceSettled = false;
+
     @Column(nullable = false)
     private ZonedDateTime createdAt;
     

@@ -6,6 +6,7 @@ import java.time.ZonedDateTime;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.verygana2.config.metrics.PayoutMetrics;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutBalanceResponseDTO;
 import com.verygana2.services.interfaces.finance.PayoutService;
@@ -34,6 +35,7 @@ public class PayoutScheduler {
     private final PayoutService payoutService;
     private final WompiPayoutClient wompiPayoutClient;
     private final WompiPayoutConfig wompiPayoutConfig;
+    private final PayoutMetrics payoutMetrics;
 
     @Scheduled(cron = "${wompi.payout.cron}")
     public void runDailyPayouts() {
@@ -73,6 +75,8 @@ public class PayoutScheduler {
             long balanceCents = balance.getBalanceInCents();
             long alertThreshold = wompiPayoutConfig.getPayout().getMinBalanceAlertCents();
 
+            payoutMetrics.wompiBalanceRead(balanceCents);
+
             if (balanceCents < alertThreshold) {
                 log.warn("[PAYOUT-SCHEDULER] ⚠ Balance Wompi Payouts bajo: {} COP (umbral: {} COP). " +
                         "Recargar la cuenta de dispersión de Wompi.",
@@ -81,7 +85,11 @@ public class PayoutScheduler {
                 log.info("[PAYOUT-SCHEDULER] Balance Wompi Payouts OK: {} COP", balanceCents / 100);
             }
         } catch (Exception e) {
-            // No bloqueamos el job por un fallo en la consulta de balance
+            // No bloqueamos el job por un fallo en la consulta de balance. El costo de esa
+            // decisión es que el error queda solo en el log: la métrica de abajo hace que
+            // wompi_payout_balance_age_seconds siga creciendo, que es lo único que distingue
+            // "el balance está sano" de "llevo días sin poder leerlo".
+            payoutMetrics.wompiBalanceUnavailable(e);
             log.error("[PAYOUT-SCHEDULER] No se pudo consultar balance Wompi Payouts: {}", e.getMessage());
         }
     }

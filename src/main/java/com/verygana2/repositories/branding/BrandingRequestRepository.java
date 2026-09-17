@@ -28,4 +28,22 @@ public interface BrandingRequestRepository extends JpaRepository<BrandingRequest
     Optional<BrandingRequest> findByIdAndAssignedDesigner_User_Id(Long id, Long designerUserId);
 
     long countByCommercial_User_IdAndStatusNotIn(Long userId, List<BrandingRequestStatus> excludedStatuses);
+
+    /**
+     * Presupuesto ya descontado de la wallet y todavía no convertido en llaves.
+     *
+     * Excluye REJECTED y CANCELLED porque devuelven el monto a la wallet
+     * (BrandingRequestServiceImpl.refundBudget), y CAMPAIGN_CREATED porque a partir
+     * de ahí el presupuesto lo lleva la Campaign — contarlo aquí lo duplicaría.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(r.budgetCents), 0)
+            FROM BrandingRequest r
+            WHERE r.budgetCents IS NOT NULL
+              AND r.status NOT IN (
+                    com.verygana2.models.enums.BrandingRequestStatus.REJECTED,
+                    com.verygana2.models.enums.BrandingRequestStatus.CANCELLED,
+                    com.verygana2.models.enums.BrandingRequestStatus.CAMPAIGN_CREATED)
+            """)
+    long sumCommittedBudgetCents();
 }

@@ -218,6 +218,26 @@ prize:
     cron: "0 0/30 * * * *"  # cada 30 minutos
 
 # ============================================
+# TREASURY DISTRIBUTION
+# ============================================
+treasury:
+  distribution:
+    keys-reserve-pct: 60
+    fortification-pct: 10
+    operations-pct: 30
+    keys-reserve-warn-threshold-cents: 10000000 # Umbral WARNING: log de alerta, no bloquea ($100.000 COP)
+    keys-reserve-critical-threshold-cents: 2000000 # Umbral CRITICO: bloquea copagos con llaves hasta que se reponga ($20.000 COP)
+  # Cada cuánto se liquida en tesorería el diferencial acumulado entre lo que
+  # el anunciante financió y lo que se acreditó al consumidor.
+  issuance-settlement:
+    cron: "0 0/10 * * * *"   # cada 10 minutos
+
+financial:
+  purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
+  connectivity-keys-percentage: ${CONNECTIVITY_KEYS_PERCENTAGE:25}
+  key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
+
+# ============================================
 # PRODUCT CLEANUP (REJECTED / INACTIVE)
 # ============================================
 marketplace:
@@ -339,3 +359,19 @@ zapsign:
     secret-key: ${RECAPTCHA_SECRET_KEY:}
     min-score: 0.5
     login-action: login
+# ============================================
+# OBSERVABILIDAD (prod)
+# ============================================
+observability:
+  # Token que debe presentar el agente de scrapeo (Authorization: Bearer <token>).
+  # Se define acá y no solo en application.yml porque un perfil sin la clave hereda
+  # el default vacío del base y /actuator/prometheus responde 401 en silencio: la app
+  # arranca sana y el monitoreo simplemente no existe.
+  #
+  # Sin default a propósito para dev, pero con default vacío acá: un token faltante
+  # NO debe tumbar el arranque de producción. Si falta, ActuatorSecurityConfig loguea
+  # el WARN, el endpoint queda cerrado y la alerta APISinResponder (up == 0) avisa.
+  #
+  # Generar uno nuevo con:  openssl rand -hex 32
+  # Debe coincidir, byte por byte, con el que use el agente (monitoring/alloy/config.alloy).
+  scrape-token: ${METRICS_SCRAPE_TOKEN:}

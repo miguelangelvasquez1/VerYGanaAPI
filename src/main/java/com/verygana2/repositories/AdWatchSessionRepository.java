@@ -19,6 +19,19 @@ public interface AdWatchSessionRepository extends JpaRepository<AdWatchSession, 
     
     Optional<AdWatchSession> findByIdAndConsumerIdAndAdId(UUID id, Long consumerId, Long adId);
 
+    /**
+     * Sesión que produjo el like de un consumidor sobre un anuncio. AdLike tiene
+     * clave (consumer, ad), así que hay como mucho una. Usado por el backfill para
+     * llegar al referenceId de las KeyTransaction del crédito.
+     */
+    @Query("""
+        SELECT s FROM AdWatchSession s
+        WHERE s.consumer.id = :consumerId
+          AND s.ad.id = :adId
+          AND s.status = com.verygana2.models.enums.AdWatchSessionStatus.LIKED
+    """)
+    List<AdWatchSession> findLikedSessions(@Param("consumerId") Long consumerId, @Param("adId") Long adId);
+
     Optional<AdWatchSession> findFirstByConsumerIdAndStatusAndExpiresAtAfterOrderByExpiresAtDesc(
         Long consumerId,
         AdWatchSessionStatus status,

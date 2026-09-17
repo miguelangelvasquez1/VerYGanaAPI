@@ -164,4 +164,23 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     @Query("SELECT s FROM Survey s WHERE s.status = :status")
     List<Survey> findByStatus(@Param("status") Survey.SurveyStatus status);
+
+    /**
+     * Presupuesto de encuestas descontado de la wallet y aún no entregado:
+     * preguntas × precio por pregunta × (maxResponses − responseCount).
+     *
+     * Excluye REJECTED por la misma razón que los anuncios: es el único estado que
+     * reembolsa (SurveyService.refundRemainingBudget).
+     */
+    @Query("""
+            SELECT COALESCE(SUM(SIZE(s.questions) * s.rewardAmountPerQuestionCents
+                                * (s.maxResponses - s.responseCount)), 0)
+            FROM Survey s
+            WHERE s.status <> com.verygana2.models.surveys.Survey$SurveyStatus.REJECTED
+              AND s.maxResponses IS NOT NULL
+              AND s.responseCount IS NOT NULL
+              AND s.rewardAmountPerQuestionCents IS NOT NULL
+              AND s.maxResponses > s.responseCount
+            """)
+    long sumCommittedUnspentBudgetCents();
 }

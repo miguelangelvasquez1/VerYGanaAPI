@@ -27,4 +27,12 @@ public interface WalletRepository extends JpaRepository<Wallet, Long> {
     boolean existsByCommercialId (Long commercialId);
 
     List<Wallet> findByStatusIn(List<WalletStatus> statuses);
+
+    /**
+     * Saldo total sin comprometer de todos los anunciantes, en centavos.
+     * Es dinero que ya entró a KEYS_RESERVE al depositar pero todavía no se
+     * convirtió en llaves de nadie.
+     */
+    @Query("SELECT COALESCE(SUM(w.balanceCents), 0) FROM Wallet w")
+    long sumBalanceCents();
 }

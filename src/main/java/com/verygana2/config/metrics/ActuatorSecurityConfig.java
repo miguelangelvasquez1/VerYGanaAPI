@@ -70,7 +70,8 @@ public class ActuatorSecurityConfig {
                 .build();
     }
 
-    private boolean hasValidScrapeToken(HttpServletRequest request) {
+    /** Visible para test: es la decisión que separa un 200 de un 401 en /actuator/prometheus. */
+    boolean hasValidScrapeToken(HttpServletRequest request) {
         if (scrapeToken == null) {
             return false;
         }

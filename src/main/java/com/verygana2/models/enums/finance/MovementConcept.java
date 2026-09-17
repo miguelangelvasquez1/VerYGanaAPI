@@ -35,5 +35,30 @@ public enum MovementConcept {
     FORTIFICATION_PURCHASE,
 
     /** Plan básico mensual cobrado — distribución a operaciones */
-    BASIC_PLAN_SUBSCRIPTION
+    BASIC_PLAN_SUBSCRIPTION,
+
+    /**
+     * El multiplicador de nivel emitió MENOS llaves de las que el anunciante
+     * financió. El respaldo sobrante en KEYS_RESERVE deja de tener pasivo
+     * detrás y se reconoce como ingreso de OPERATIONS.
+     */
+    KEYS_ISSUANCE_SURPLUS_TO_OPERATIONS,
+
+    /**
+     * El multiplicador de nivel emitió MÁS llaves de las que el anunciante
+     * financió (multiplicador > 1). OPERATIONS financia el exceso para que
+     * cada llave emitida siga teniendo respaldo en KEYS_RESERVE.
+     */
+    KEYS_ISSUANCE_DEFICIT_FUNDING,
+
+    /**
+     * Llaves gastadas en el juego de mascotas. El consumidor las consume, así que
+     * dejan de ser pasivo y su respaldo se reconoce como ingreso de OPERATIONS.
+     *
+     * NO va a PAYOUTS_PENDING: aunque el ítem venga de la solicitud de integración
+     * de un comercial, hoy PayoutItem solo se construye desde Copayment y esas
+     * ventas nunca generan un pago. Mandar la plata a la sala de espera de payouts
+     * crearía una obligación que nada liquida.
+     */
+    PET_GAME_KEYS_TO_OPERATIONS
 } 

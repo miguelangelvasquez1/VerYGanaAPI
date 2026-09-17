@@ -1,5 +1,6 @@
 package com.verygana2.repositories;
 
+import java.time.ZonedDateTime;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -8,10 +9,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.ads.AdLike;
+import com.verygana2.models.records.IssuanceTotals;
 import com.verygana2.models.ads.AdLikeId;
 
 @Repository
@@ -86,8 +89,51 @@ public interface AdLikeRepository extends JpaRepository<AdLike, AdLikeId> {
            "ORDER BY DATE(al.createdAt) DESC")
     List<Object[]> getLikesByDay(@Param("adId") Long adId);
     
-    // Total ganado por usuario
-    @Query("SELECT SUM(al.rewardAmount) FROM AdLike al WHERE al.consumer.id = :consumerId")
+    /** Filas anteriores a credited_amount. Usado solo por el backfill de arranque. */
+    @Query("SELECT al FROM AdLike al WHERE al.creditedAmountCents IS NULL")
+    List<AdLike> findWithoutCreditedAmount();
+
+    /**
+     * Totales de emisión aún sin liquidar en tesorería, hasta un corte.
+     *
+     * Excluye las filas con credited nulo: son anteriores a la columna y su
+     * diferencial no es reconstruible desde aquí.
+     */
+    @Query("""
+            SELECT new com.verygana2.models.records.IssuanceTotals(
+                       COALESCE(SUM(al.rewardAmount), 0L),
+                       COALESCE(SUM(al.creditedAmountCents), 0L))
+            FROM AdLike al
+            WHERE al.issuanceSettled = false
+              AND al.creditedAmountCents IS NOT NULL
+              AND al.createdAt <= :cutoff
+            """)
+    IssuanceTotals sumUnsettledIssuance(@Param("cutoff") ZonedDateTime cutoff);
+
+    /** Fecha del like más viejo sin liquidar. null si no hay ninguno. */
+    @Query("""
+            SELECT MIN(al.createdAt) FROM AdLike al
+            WHERE al.issuanceSettled = false AND al.creditedAmountCents IS NOT NULL
+            """)
+    ZonedDateTime findOldestUnsettledAt();
+
+    /** Marca liquidadas exactamente las filas que sumó sumUnsettledIssuance. */
+    @Modifying
+    @Query("""
+            UPDATE AdLike al SET al.issuanceSettled = true
+            WHERE al.issuanceSettled = false
+              AND al.creditedAmountCents IS NOT NULL
+              AND al.createdAt <= :cutoff
+            """)
+    int markIssuanceSettled(@Param("cutoff") ZonedDateTime cutoff);
+
+    // Total ganado por usuario: lo ACREDITADO, no lo que financió el anunciante.
+    // El fallback a rewardAmount cubre las filas anteriores a credited_amount.
+    @Query("""
+            SELECT COALESCE(SUM(COALESCE(al.creditedAmountCents, al.rewardAmount)), 0)
+            FROM AdLike al
+            WHERE al.consumer.id = :consumerId
+            """)
     java.math.BigDecimal sumRewardsByConsumerId(@Param("consumerId") Long consumerId);
 
     // Likes recibidos por todos los anuncios de un comercial en un rango (panel de inicio).

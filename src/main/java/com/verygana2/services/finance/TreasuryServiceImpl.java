@@ -16,8 +16,10 @@ import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
 import com.verygana2.models.finance.TreasuryMovement;
+import com.verygana2.models.records.KeyBacking;
 import com.verygana2.models.records.TreasurySnapshot;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.TreasuryAccountRepository;
 import com.verygana2.repositories.finance.TreasuryMovementRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
@@ -47,6 +49,8 @@ public class TreasuryServiceImpl implements TreasuryService {
 
         private final TreasuryAccountRepository treasuryAccountRepository;
         private final TreasuryMovementRepository treasuryMovementRepository;
+        private final KeyWalletRepository keyWalletRepository;
+        private final KeyBackingCalculator keyBackingCalculator;
         private final TreasuryConfig treasuryConfig;
 
         /**
@@ -273,6 +277,143 @@ public class TreasuryServiceImpl implements TreasuryService {
         }
 
         /**
+         * Reconcilia lo financiado por el anunciante contra lo realmente emitido
+         * al consumidor cuando el multiplicador de nivel los separa.
+         *
+         * La parte financiada ya entró a KEYS_RESERVE en distributeDeposit(), así
+         * que aquí solo se mueve la diferencia. Con multiplicador 1.0 no hay
+         * movimiento: el caso normal no ensucia el libro contable.
+         *
+         * A diferencia de convertKeysToPayoutPending, el caso SOBRANTE no bloquea
+         * al cruzar el umbral crítico — solo alerta. Ese dinero nunca fue pasivo
+         * (no hay llaves detrás), así que retenerlo no mejora la solvencia del
+         * fondo, y rechazar la interacción del usuario por un umbral de tesorería
+         * sería un modo de falla peor que el problema. Mismo criterio que
+         * moveExpiredKeysToFortification.
+         */
+        @Transactional
+        @Override
+        public void settleKeyIssuance(long fundedCents, long issuedCents, UUID referenceId, String referenceType) {
+                if (fundedCents < 0 || issuedCents < 0) {
+                        throw new IllegalArgumentException(
+                                        "[TREASURY] Montos de emisión no pueden ser negativos. " +
+                                                        "financiado=" + fundedCents + " emitido=" + issuedCents);
+                }
+
+                long deltaCents = fundedCents - issuedCents;
+                if (deltaCents == 0) {
+                        return; // multiplicador 1.0 — nada que reconciliar
+                }
+
+                TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                if (deltaCents > 0) {
+                        // SOBRANTE: se emitieron menos llaves de las financiadas.
+                        if (keysReserve.getBalanceCents() < deltaCents) {
+                                log.error("[TREASURY] KEYS_RESERVE={} no cubre el sobrante de emisión={}. " +
+                                                "El fondo ya estaba descuadrado antes de esta interacción. reference={}",
+                                                keysReserve.getBalanceCents(), deltaCents, referenceId);
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en KEYS_RESERVE para liquidar el sobrante de emisión.");
+                        }
+
+                        keysReserve.setBalanceCents(keysReserve.getBalanceCents() - deltaCents);
+                        operations.setBalanceCents(operations.getBalanceCents() + deltaCents);
+
+                        treasuryAccountRepository.save(keysReserve);
+                        treasuryAccountRepository.save(operations);
+
+                        recordMovement(keysReserve, operations, deltaCents,
+                                        MovementConcept.KEYS_ISSUANCE_SURPLUS_TO_OPERATIONS, referenceId, referenceType);
+
+                        if (keysReserve.getBalanceCents() < treasuryConfig.getKeysReserveWarnThresholdCents()) {
+                                log.warn("[TREASURY] KEYS_RESERVE bajo tras liquidar sobrante: saldo={} < umbral_warn={}. " +
+                                                "reference={}",
+                                                keysReserve.getBalanceCents(),
+                                                treasuryConfig.getKeysReserveWarnThresholdCents(), referenceId);
+                        }
+
+                        log.debug("[TREASURY] Sobrante de emisión: {} centavos KEYS_RESERVE → OPERATIONS. " +
+                                        "financiado={} emitido={} reference={}",
+                                        deltaCents, fundedCents, issuedCents, referenceId);
+                        return;
+                }
+
+                // DÉFICIT: se emitieron más llaves de las financiadas (multiplicador > 1).
+                // Hoy inalcanzable (UserLevel tope 1.0). Falla cerrado a propósito: si
+                // alguien introduce un boost, debe enterarse antes de que el pasivo crezca
+                // sin respaldo, no meses después cuando los copagos se bloqueen solos.
+                long deficitCents = -deltaCents;
+
+                if (operations.getBalanceCents() < deficitCents) {
+                        log.error("[TREASURY] OPERATIONS={} no alcanza para financiar el exceso de emisión={}. " +
+                                        "reference={}", operations.getBalanceCents(), deficitCents, referenceId);
+                        throw new IllegalStateException(
+                                        "[TREASURY] Saldo insuficiente en OPERATIONS para respaldar las llaves emitidas por encima de lo financiado.");
+                }
+
+                operations.setBalanceCents(operations.getBalanceCents() - deficitCents);
+                keysReserve.setBalanceCents(keysReserve.getBalanceCents() + deficitCents);
+
+                treasuryAccountRepository.save(operations);
+                treasuryAccountRepository.save(keysReserve);
+
+                recordMovement(operations, keysReserve, deficitCents,
+                                MovementConcept.KEYS_ISSUANCE_DEFICIT_FUNDING, referenceId, referenceType);
+
+                log.info("[TREASURY] Exceso de emisión financiado: {} centavos OPERATIONS → KEYS_RESERVE. " +
+                                "financiado={} emitido={} reference={}",
+                                deficitCents, fundedCents, issuedCents, referenceId);
+        }
+
+        /**
+         * Consumo de llaves en el juego de mascotas: KEYS_RESERVE → OPERATIONS.
+         *
+         * Mismo criterio que settleKeyIssuance y moveExpiredKeysToFortification: no
+         * bloquea al cruzar el umbral crítico, solo alerta. El pasivo ya bajó cuando
+         * el usuario gastó las llaves; retener el respaldo no mejora la solvencia y
+         * rechazar una compra del juego por un umbral de tesorería sería peor que el
+         * problema.
+         */
+        @Transactional
+        @Override
+        public void registerPetGameSpend(long amountCents, UUID referenceId) {
+                if (amountCents <= 0) {
+                        return;
+                }
+
+                TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                if (keysReserve.getBalanceCents() < amountCents) {
+                        log.error("[TREASURY] KEYS_RESERVE={} no cubre el gasto en mascotas={}. "
+                                        + "El fondo ya estaba descuadrado antes de esta compra. reference={}",
+                                        keysReserve.getBalanceCents(), amountCents, referenceId);
+                        throw new IllegalStateException(
+                                        "[TREASURY] Saldo insuficiente en KEYS_RESERVE para registrar el gasto en el juego de mascotas.");
+                }
+
+                keysReserve.setBalanceCents(keysReserve.getBalanceCents() - amountCents);
+                operations.setBalanceCents(operations.getBalanceCents() + amountCents);
+
+                treasuryAccountRepository.save(keysReserve);
+                treasuryAccountRepository.save(operations);
+
+                recordMovement(keysReserve, operations, amountCents,
+                                MovementConcept.PET_GAME_KEYS_TO_OPERATIONS, referenceId, "PET_GAME");
+
+                if (keysReserve.getBalanceCents() < treasuryConfig.getKeysReserveWarnThresholdCents()) {
+                        log.warn("[TREASURY] KEYS_RESERVE bajo tras gasto en mascotas: saldo={} < umbral_warn={}. reference={}",
+                                        keysReserve.getBalanceCents(),
+                                        treasuryConfig.getKeysReserveWarnThresholdCents(), referenceId);
+                }
+
+                log.debug("[TREASURY] Gasto en mascotas: {} centavos KEYS_RESERVE → OPERATIONS. reference={}",
+                                amountCents, referenceId);
+        }
+
+        /**
          * Registra la salida del dinero cuando se ejecuta un payout al empresario.
          * El dinero sale físicamente vía Wompi — este movimiento lo refleja en
          * la tesorería virtual debitando PAYOUTS_PENDING.
@@ -407,14 +548,24 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long warn = treasuryConfig.getKeysReserveWarnThresholdCents();
                 long critical = treasuryConfig.getKeysReserveCriticalThresholdCents();
 
+                long keyLiabilityCents = keyWalletRepository.sumLiveKeyLiabilityCents();
+                boolean underBacked = snap.keysReserveCents() < keyLiabilityCents;
+
                 String status;
-                if (snap.keysReserveCents() < critical) {
+                // El respaldo insuficiente manda sobre los umbrales: tener saldo por
+                // encima del mínimo no sirve de nada si no alcanza para las llaves
+                // que ya se emitieron.
+                if (underBacked || snap.keysReserveCents() < critical) {
                         status = "CRITICAL";
                 } else if (snap.keysReserveCents() < warn) {
                         status = "WARNING";
                 } else {
                         status = "OK";
                 }
+
+                double backingPct = keyLiabilityCents == 0
+                                ? 100.0 // sin llaves en circulación no hay nada que respaldar
+                                : (snap.keysReserveCents() * 100.0) / keyLiabilityCents;
 
                 List<TreasuryAccount> all = treasuryAccountRepository.findAll();
                 boolean hasNegative = all.stream().anyMatch(a -> a.getBalanceCents() < 0);
@@ -426,6 +577,8 @@ public class TreasuryServiceImpl implements TreasuryService {
                                 snap.payoutsPendingCents(),
                                 snap.totalCents(),
                                 snap.keysReserveHealthPct(),
+                                keyLiabilityCents,
+                                backingPct,
                                 status,
                                 hasNegative);
         }
@@ -466,10 +619,67 @@ public class TreasuryServiceImpl implements TreasuryService {
                                                                 ? "WARNING"
                                                                 : "OK");
 
+                // Solvencia del fondo de llaves: KEYS_RESERVE debe alcanzar para respaldar
+                // todas las llaves vivas. Un deficit aqui significa que se emitieron llaves
+                // sin respaldo — el sintoma tardio es que convertKeysToPayoutPending empieza
+                // a rechazar copagos para TODA la plataforma al cruzar el umbral critico.
+                long keyLiabilityCents = keyWalletRepository.sumLiveKeyLiabilityCents();
+                long backingGapCents = keyLiabilityCents - snap.keysReserveCents();
+
+                log.info("[RECONCILIATION] PASIVO LLAVES  → {} centavos (respaldo: {})",
+                                keyLiabilityCents,
+                                keyLiabilityCents == 0
+                                                ? "n/a — sin llaves en circulacion"
+                                                : String.format("%.2f%%",
+                                                                (snap.keysReserveCents() * 100.0) / keyLiabilityCents));
+
+                boolean underBacked = backingGapCents > 0;
+                if (underBacked) {
+                        log.error("[RECONCILIATION] ANOMALIA CRITICA: KEYS_RESERVE={} < pasivo de llaves vivas={}. " +
+                                        "Deficit de {} centavos: hay llaves emitidas sin respaldo. " +
+                                        "ACCION REQUERIDA INMEDIATA.",
+                                        snap.keysReserveCents(), keyLiabilityCents, backingGapCents);
+                }
+
                 if (negativesCount > 0) {
                         log.error("[RECONCILIATION] ANOMALIA CRITICA: {} cuenta(s) con saldo negativo. " +
                                         "ACCION REQUERIDA INMEDIATA.", negativesCount);
-                } else {
+                }
+
+                // ── Identidad contable ───────────────────────────────────────
+                // Cada centavo que entró a KEYS_RESERVE (60% de cada depósito) está en
+                // exactamente un sitio: llaves que alguien tiene, saldo que el anunciante
+                // no ha gastado, o presupuesto comprometido en algo vivo (anuncios,
+                // encuestas, brandeo, campañas). El desglose vive en KeyBacking; si los
+                // sumandos no dan KEYS_RESERVE, hay dinero que entró o salió sin dejar
+                // rastro contable.
+                KeyBacking backing = keyBackingCalculator.compute(snap.keysReserveCents());
+                long identityDriftCents = backing.driftCents();
+
+                log.info("[RECONCILIATION] IDENTIDAD: KEYS_RESERVE={} vs. pasivo={} + saldos={} "
+                                + "+ ads={} + encuestas={} + brandeo={} + campañas={} = {} (desviación {})",
+                                backing.keysReserveCents(), backing.keyLiabilityCents(),
+                                backing.advertiserBalanceCents(), backing.committedAdsCents(),
+                                backing.committedSurveysCents(), backing.committedBrandingCents(),
+                                backing.committedCampaignsCents(), backing.accountedCents(),
+                                identityDriftCents);
+
+                if (identityDriftCents > 0) {
+                        // Sobra respaldo: hay llaves que salieron de las billeteras sin que
+                        // nada debitara KEYS_RESERVE. Hoy no se conoce ninguna vía que lo
+                        // haga — copago, juego de mascotas y vencimiento debitan el fondo —,
+                        // así que esto apunta a un débito de billetera nuevo que se olvidó
+                        // de llamar a TreasuryService. Buscar por tipo en KeyTransaction:
+                        // los DEBIT_ del período que no tengan TreasuryMovement detrás.
+                        log.warn("[RECONCILIATION] KEYS_RESERVE excede lo contabilizado en {} centavos. "
+                                        + "Hay llaves que salieron de circulación sin debitar el fondo.",
+                                        identityDriftCents);
+                } else if (identityDriftCents < 0) {
+                        log.error("[RECONCILIATION] ANOMALIA CRITICA: lo contabilizado excede KEYS_RESERVE "
+                                        + "en {} centavos. Hay compromisos sin respaldo.", -identityDriftCents);
+                }
+
+                if (negativesCount == 0 && !underBacked && identityDriftCents == 0) {
                         log.info("[RECONCILIATION] Reconciliacion completada sin anomalias.");
                 }
         }

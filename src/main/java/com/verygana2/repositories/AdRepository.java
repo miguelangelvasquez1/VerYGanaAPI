@@ -192,4 +192,24 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
               @Param("status") AdStatus status,
               @Param("now") ZonedDateTime now
        );
+
+    /**
+     * Presupuesto de anuncios ya descontado de la wallet pero todavía no entregado
+     * como llaves: rewardPerLike × (maxLikes − currentLikes).
+     *
+     * Excluye REJECTED porque ese es el único estado que devuelve el remanente a la
+     * wallet (AdServiceImpl.refundRemainingBudget) — ahí el dinero ya se contó en
+     * sumBalanceCents. BLOCKED sí cuenta: no se reembolsa, porque un admin puede
+     * reactivar el anuncio.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(a.rewardPerLike * (a.maxLikes - a.currentLikes)), 0)
+            FROM Ad a
+            WHERE a.status <> com.verygana2.models.enums.AdStatus.REJECTED
+              AND a.rewardPerLike IS NOT NULL
+              AND a.maxLikes IS NOT NULL
+              AND a.currentLikes IS NOT NULL
+              AND a.maxLikes > a.currentLikes
+            """)
+    long sumCommittedUnspentBudgetCents();
 }
