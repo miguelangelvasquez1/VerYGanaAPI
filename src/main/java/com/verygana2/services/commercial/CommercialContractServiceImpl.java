@@ -17,6 +17,8 @@ import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemD
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticAnswersSummaryDTO;
+import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.event.ContractRejectedEvent;
 import com.verygana2.exceptions.BusinessException;
@@ -25,6 +27,7 @@ import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialDocument;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.commercial.CommercialDocumentStatus;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.ContractPurpose;
@@ -452,9 +455,15 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     @Override
-    public ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId) {
+    public ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId, CommercialActivityType commercialActivityType) {
         CommercialContract contract = getContractOrThrow(contractId);
         requirePendingVeryganaReview(contract);
+
+        CommercialDetails details = contract.getCommercial();
+        if (commercialActivityType != null) {
+            details.setCommercialActivityType(commercialActivityType);
+            commercialDetailsRepository.save(details);
+        }
 
         contract.setStatus(ContractStatus.APPROVED);
         contract.setAdminReviewerUserId(reviewerUserId);
@@ -462,9 +471,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes("Aprobado");
         contractRepository.save(contract);
 
-        CommercialDetails details = contract.getCommercial();
         emailService.sendCommercialContractApprovedEmail(
-                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion());
+                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion(), commercialActivityType);
 
         publishAudit(details.getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
                 "VERYGANA aprobó el Contrato Marco v" + contract.getVersion() + ". Se envía a firma electrónica.",
@@ -704,6 +712,14 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     private ContractSummaryResponseDTO toSummary(CommercialContract c) {
+        LegalIdentificationSummaryDTO businessProfile = null;
+        DiagnosticAnswersSummaryDTO diagnosticAnswers = null;
+        if (c.getOnboarding() != null) {
+            CommercialOnboarding o = c.getOnboarding();
+            businessProfile = commercialOnboardingMapper.toLegalIdentificationSummary(o, o.getCommercialDetails());
+            diagnosticAnswers = commercialOnboardingMapper.toDiagnosticAnswersSummary(o, o.getDiagnosticAnswers());
+        }
+
         // CANCELLED borra el PDF de R2 (ver cancelForCommercial) — presignar igual
         // devolvería una URL que resuelve en 404.
         String downloadUrl = c.getStatus() != ContractStatus.CANCELLED
@@ -725,7 +741,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         return new ContractSummaryResponseDTO(
                 c.getId(), c.getVersion(), c.getStatus(), c.getGeneratedAt(),
                 c.getBusinessApprovedAt(), c.getAdminReviewedAt(), c.getAdminDecisionNotes(),
-                c.getEsignatureSentAt(), c.getEsignatureSignedAt(), downloadUrl, documents);
+                c.getEsignatureSentAt(), c.getEsignatureSignedAt(), downloadUrl, documents,
+                businessProfile, diagnosticAnswers);
     }
 
     private void publishAudit(Long userId, String action, String description, Map<String, Object> additionalData) {

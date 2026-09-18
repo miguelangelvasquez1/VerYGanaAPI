@@ -13,6 +13,7 @@ import org.mapstruct.ReportingPolicy;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentsStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticAnswersSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
@@ -100,6 +101,16 @@ public interface CommercialOnboardingMapper {
 
     @Mapping(target = "legalRepPepDeclaration", source = "details.pep")
     LegalIdentificationSummaryDTO toLegalIdentificationSummary(CommercialOnboarding onboarding, CommercialDetails details);
+
+    /**
+     * Todas las respuestas del diagnóstico comercial, de solo lectura — para que
+     * compliance las vea al revisar el Contrato Marco (ver
+     * ComplianceContractController). answers viaja aparte porque es un @Embeddable:
+     * MapStruct empareja por nombre contra ambas fuentes (mismo patrón que
+     * toLegalIdentificationSummary con onboarding/details).
+     */
+    @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
+    DiagnosticAnswersSummaryDTO toDiagnosticAnswersSummary(CommercialOnboarding onboarding, CommercialDiagnosticAnswers answers);
 
     @Mapping(target = "explanation", source = "routeExplanation")
     @Mapping(target = "confirmed", source = "routeConfirmed")

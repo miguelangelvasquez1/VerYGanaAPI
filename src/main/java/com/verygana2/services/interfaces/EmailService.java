@@ -2,6 +2,7 @@ package com.verygana2.services.interfaces;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
@@ -40,7 +41,13 @@ public interface EmailService {
     void sendBrandingRejectedEmail(String toEmail, String commercialName, String brandName, String rejectionNotes);
 
     // ===== ONBOARDING COMERCIAL =====
-    void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version);
+    /**
+     * correctedActivityType: no-null cuando compliance corrigió la actividad comercial
+     * (productos/servicios) del comercial al aprobar este contrato — el correo avisa
+     * también ese cambio (ver CommercialContractServiceImpl.approve).
+     */
+    void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version,
+            CommercialActivityType correctedActivityType);
     void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason, boolean documentsIssue);
 
     // ===== PLANES / RENOVACIÓN / PRESUPUESTO =====

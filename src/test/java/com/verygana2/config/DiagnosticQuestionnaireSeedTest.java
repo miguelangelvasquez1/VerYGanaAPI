@@ -26,7 +26,7 @@ import com.verygana2.dtos.user.commercial.onboarding.DiagnosticQuestionnaireResp
 import com.verygana2.models.enums.commercial.diagnostic.DiagnosticQuestionType;
 
 /**
- * El seed {@code db/seed/diagnostic-questionnaire-v1.json} debe estar alineado con
+ * El seed {@code db/seed/diagnostic-questionnaire-v2.json} debe estar alineado con
  * {@code CommercialDiagnosticRequestDTO} y sus enums — este test cae si alguien
  * introduce un fieldName o un value que el backend no sabe recibir.
  */
@@ -44,7 +44,7 @@ class DiagnosticQuestionnaireSeedTest {
 
     @BeforeAll
     static void load() throws Exception {
-        try (InputStream in = new ClassPathResource("db/seed/diagnostic-questionnaire-v1.json").getInputStream()) {
+        try (InputStream in = new ClassPathResource("db/seed/diagnostic-questionnaire-v2.json").getInputStream()) {
             spec = new ObjectMapper().readValue(in, DiagnosticQuestionnaireResponseDTO.class);
         }
     }

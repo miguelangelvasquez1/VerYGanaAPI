@@ -1,6 +1,7 @@
 package com.verygana2.dtos.user.commercial.onboarding;
 
 import com.verygana2.models.enums.AnnualRevenueRange;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.commercial.PersonType;
 
@@ -25,6 +26,7 @@ public class LegalIdentificationSummaryDTO {
     private AnnualRevenueRange annualIncomeRange;
     private String ciiuCode;
     private String economicActivityDescription;
+    private CommercialActivityType commercialActivityType;
     private String address;
     private String municipalityName;
     private String departmentName;

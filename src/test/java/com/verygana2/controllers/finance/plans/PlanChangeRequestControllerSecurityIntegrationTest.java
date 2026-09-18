@@ -289,7 +289,7 @@ class PlanChangeRequestControllerSecurityIntegrationTest {
     void approveContract_asCommercial_respondsOk() throws Exception {
         var expected = new ContractSummaryResponseDTO(
                 7L, 1, ContractStatus.PENDING_VERYGANA_REVIEW, ZonedDateTime.now(), ZonedDateTime.now(),
-                null, null, null, null, null, List.of());
+                null, null, null, null, null, List.of(), null, null);
         when(contractService.businessApproveContract(7L, 9L)).thenReturn(expected);
 
         int status = mockMvc.perform(post("/plans/change-request/contract/7/approve")

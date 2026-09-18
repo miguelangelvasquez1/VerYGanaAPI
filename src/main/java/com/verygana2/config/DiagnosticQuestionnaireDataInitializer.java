@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Siembra el catálogo del cuestionario de diagnóstico comercial desde
- * {@code db/seed/diagnostic-questionnaire-v1.json} al arrancar la app. Es
+ * {@code db/seed/diagnostic-questionnaire-v2.json} al arrancar la app. Es
  * IDEMPOTENTE por versión: si esa versión ya existe no hace nada, lo que permite
  * agregar una v2 más adelante sin borrar la v1 (trazabilidad §18).
  *
@@ -38,7 +38,7 @@ import lombok.RequiredArgsConstructor;
 public class DiagnosticQuestionnaireDataInitializer implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(DiagnosticQuestionnaireDataInitializer.class);
-    private static final String RESOURCE = "db/seed/diagnostic-questionnaire-v1.json";
+    private static final String RESOURCE = "db/seed/diagnostic-questionnaire-v2.json";
 
     private final DiagnosticQuestionnaireRepository repository;
     private final ObjectMapper objectMapper;
