@@ -1,5 +1,6 @@
 package com.verygana2.repositories.details;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -46,8 +47,8 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             LEFT JOIN UserLevelProfile ulp ON ulp.consumer = c
             WHERE (:level IS NULL OR ulp.currentLevel = :level)
             AND (:userState IS NULL OR c.user.userState = :userState)
-            AND (:maxAge IS NULL OR c.age <= :maxAge)
-            AND (:minAge IS NULL OR c.age >= :minAge)
+            AND (:bornOnOrBefore IS NULL OR c.birthDate <= :bornOnOrBefore)
+            AND (:bornAfter IS NULL OR c.birthDate > :bornAfter)
             AND (:gender IS NULL OR c.gender = :gender)
             AND (:departmentCode IS NULL OR :departmentCode = '' OR c.municipality.departmentCode = :departmentCode)
             AND (:municipalityCode IS NULL OR :municipalityCode = '' OR c.municipality.code = :municipalityCode)
@@ -64,8 +65,8 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             OR LOWER(c.departmentName) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.municipalityName) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("userState") UserState userState, @Param("maxAge") Integer maxAge,
-    @Param("minAge") Integer minAge, @Param("gender") Gender gender, @Param("departmentCode") String departmentCode, @Param("municipalityCode") String municipalityCode, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, Pageable pageable);
+    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("userState") UserState userState, @Param("bornOnOrBefore") LocalDate bornOnOrBefore,
+    @Param("bornAfter") LocalDate bornAfter, @Param("gender") Gender gender, @Param("departmentCode") String departmentCode, @Param("municipalityCode") String municipalityCode, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, Pageable pageable);
 
     @Query("""
                      SELECT c FROM ConsumerDetails c
