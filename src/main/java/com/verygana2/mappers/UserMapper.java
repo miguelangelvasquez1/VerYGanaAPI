@@ -130,7 +130,6 @@ public abstract class UserMapper {
     @Mapping(target = "categories", ignore = true)
     @Mapping(target = "favoriteProducts", ignore = true)
     @Mapping(target = "raffleTickets", ignore = true)
-    @Mapping(target = "age", ignore = true)
     @Mapping(target = "gender", ignore = true)
     @Mapping(target = "userHash", ignore = true)
     @Mapping(target = "hasPet", ignore = true)
@@ -188,6 +187,7 @@ public abstract class UserMapper {
     @Mapping(target = "pep", ignore = true)
     @Mapping(target = "annualIncomeRange", ignore = true)
     @Mapping(target = "onboarding", ignore = true)
+    @Mapping(target = "commercialActivityType", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")

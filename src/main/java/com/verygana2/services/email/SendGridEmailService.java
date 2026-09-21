@@ -19,6 +19,7 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.verygana2.mappers.finance.MoneyMapper;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
@@ -334,18 +335,33 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
-    public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version) {
+    public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version,
+            CommercialActivityType correctedActivityType) {
         log.info("Sending commercial contract approved email to: {}", toEmail);
         try {
+            String activityTypeChangeSection = correctedActivityType != null
+                    ? "<div class='notes-box'><strong>Actividad comercial actualizada</strong>"
+                            + "Al revisar tu Contrato Marco, actualizamos la actividad comercial registrada "
+                            + "para tu empresa a: <strong>" + activityTypeLabel(correctedActivityType) + "</strong>.</div>"
+                    : "";
+
             String html = templateLoader.render("commercial-contract-approved.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
                     "version", String.valueOf(version),
+                    "activityTypeChangeSection", activityTypeChangeSection,
                     "sloganSection", SLOGAN_COMMERCIAL));
 
             sendEmail(toEmail, "Tu Contrato Marco fue aprobado — VerYGana", html);
         } catch (Exception e) {
             log.error("Error sending commercial contract approved email to: {}", toEmail, e);
         }
+    }
+
+    private String activityTypeLabel(CommercialActivityType type) {
+        return switch (type) {
+            case PRODUCTS -> "Venta de productos";
+            case SERVICES -> "Prestación de servicios";
+        };
     }
 
     @Override

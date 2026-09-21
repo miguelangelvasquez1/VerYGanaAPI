@@ -248,6 +248,15 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         commercialOnboardingMapper.applyDiagnostic(dto, onboarding);
         onboarding.setDiagnosticCompletedAt(ZonedDateTime.now());
 
+        // Autocompleta la actividad comercial (productos/servicios) a partir de la
+        // respuesta G-5 — sigue siendo editable por compliance en la revisión KYC
+        // (ver ComplianceKycController), que prevalece sobre este valor preliminar.
+        // mainActivity viene null en la ruta alternativa de integración técnica
+        // (ver validateDiagnostic), donde el cuestionario se omite por completo.
+        if (dto.getMainActivity() != null) {
+            onboarding.getCommercialDetails().setCommercialActivityType(dto.getMainActivity().getActivityType());
+        }
+
         RouteClassificationResponseDTO classification = classify(onboarding);
         onboarding.setRoute(classification.getRoute());
         onboarding.setRouteExplanation(classification.getExplanation());

@@ -37,7 +37,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import java.time.LocalDate;
-import java.time.Period;
 
 @Slf4j
 @Transactional
@@ -153,7 +152,6 @@ public class UserServiceImpl implements UserService {
         details.setAvatar(avatar);
         details.setUserName(normalizeUsername(dto.getUserName()));
         details.setGender(dto.getGender());
-        details.setAge(calculateAge(dto.getBirthDate()));
 
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
@@ -296,9 +294,6 @@ public class UserServiceImpl implements UserService {
 
     private String normalizeUsername(String u) {
         return u == null ? null : u.trim();
-    }
-    private int calculateAge(LocalDate birthDate) {
-        return Period.between(birthDate, LocalDate.now()).getYears();
     }
 
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {

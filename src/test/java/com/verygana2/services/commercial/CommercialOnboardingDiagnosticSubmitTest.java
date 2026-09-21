@@ -37,6 +37,7 @@ import com.verygana2.models.enums.commercial.diagnostic.MarketReachStructure;
 import com.verygana2.models.enums.commercial.diagnostic.MetricsNeeded;
 import com.verygana2.models.enums.commercial.diagnostic.Understanding;
 import com.verygana2.models.enums.commercial.diagnostic.YesPartialNo;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
@@ -88,6 +89,7 @@ class CommercialOnboardingDiagnosticSubmitTest {
                 diagnosticQuestionnaireRepository, treasuryConfig);
 
         onboarding = new CommercialOnboarding();
+        onboarding.setCommercialDetails(new CommercialDetails());
         onboarding.setLegalIdentificationCompletedAt(ZonedDateTime.now());
         onboarding.setCurrentStep(OnboardingStep.DIAGNOSTIC_PENDING);
 

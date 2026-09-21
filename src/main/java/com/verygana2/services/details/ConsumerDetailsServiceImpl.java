@@ -1,6 +1,7 @@
 package com.verygana2.services.details;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.UUID;
@@ -100,7 +101,10 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
             Integer maxAge, Integer minAge, Gender gender, String departmentCode, String municipalityCode, ZonedDateTime startDate,
             ZonedDateTime endDate, Pageable pageable) {
 
-        return PagedResponse.from(consumerDetailsRepository.getConsumers(level, search, userState, maxAge, minAge, gender, departmentCode, municipalityCode, startDate, endDate, pageable).map(consumerDetailsMapper::toConsumerSummaryResponseDTO));
+        LocalDate bornOnOrBefore = minAge == null ? null : LocalDate.now().minusYears(minAge);
+        LocalDate bornAfter = maxAge == null ? null : LocalDate.now().minusYears(maxAge + 1L);
+
+        return PagedResponse.from(consumerDetailsRepository.getConsumers(level, search, userState, bornOnOrBefore, bornAfter, gender, departmentCode, municipalityCode, startDate, endDate, pageable).map(consumerDetailsMapper::toConsumerSummaryResponseDTO));
     }
 
     @Override

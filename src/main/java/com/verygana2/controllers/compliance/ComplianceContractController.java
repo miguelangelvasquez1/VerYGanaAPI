@@ -18,6 +18,7 @@ import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemD
 import com.verygana2.dtos.user.commercial.onboarding.ContractRejectRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 
@@ -49,11 +50,17 @@ public class ComplianceContractController {
         return ResponseEntity.ok(contractService.getForReview(contractId));
     }
 
+    /**
+     * @param commercialActivityType si viene informado, corrige el valor autocompletado desde
+     *                                el diagnóstico (ver businessProfile en getForReview) antes
+     *                                de aprobar. Omitido/null deja el valor tal como está.
+     */
     @PostMapping("/{contractId}/approve")
     public ResponseEntity<ContractSummaryResponseDTO> approve(
-            @AuthenticationPrincipal Jwt jwt, @PathVariable Long contractId) {
+            @AuthenticationPrincipal Jwt jwt, @PathVariable Long contractId,
+            @RequestParam(required = false) CommercialActivityType commercialActivityType) {
         Long reviewerUserId = jwt.getClaim("userId");
-        return ResponseEntity.ok(contractService.approve(contractId, reviewerUserId));
+        return ResponseEntity.ok(contractService.approve(contractId, reviewerUserId, commercialActivityType));
     }
 
     @PostMapping("/{contractId}/reject")

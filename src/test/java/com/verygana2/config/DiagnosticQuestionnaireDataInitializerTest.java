@@ -29,7 +29,7 @@ class DiagnosticQuestionnaireDataInitializerTest {
     DiagnosticQuestionnaireRepository repository;
 
     @Test
-    @DisplayName("carga el cuestionario v1 completo y es idempotente por versión")
+    @DisplayName("carga el cuestionario v2 completo y es idempotente por versión")
     void seedsFromJsonAndIsIdempotent() throws Exception {
         DiagnosticQuestionnaireDataInitializer initializer =
                 new DiagnosticQuestionnaireDataInitializer(repository, new ObjectMapper());
@@ -40,7 +40,7 @@ class DiagnosticQuestionnaireDataInitializerTest {
         assertThat(repository.findAll()).hasSize(1);
 
         DiagnosticQuestionnaire q = repository.findFirstByActiveTrueOrderByVersionDesc().orElseThrow();
-        assertThat(q.getVersion()).isEqualTo(1);
+        assertThat(q.getVersion()).isEqualTo(2);
         assertThat(q.isActive()).isTrue();
         assertThat(q.getOpeningActions()).containsExactly(
                 "Comenzar", "Conocer primero las modalidades", "Guardar y continuar después", "Cancelar");

@@ -27,7 +27,7 @@ import lombok.Setter;
  * del "Insumo técnico de caracterización empresarial"). Es contenido de solo
  * lectura para el front: se sirve en
  * {@code GET /commercials/onboarding/diagnostic/questionnaire} y se siembra desde
- * {@code db/seed/diagnostic-questionnaire-v1.json} vía
+ * {@code db/seed/diagnostic-questionnaire-v2.json} vía
  * {@code DiagnosticQuestionnaireDataInitializer}.
  *
  * Las respuestas que envía el empresario siguen viajando en

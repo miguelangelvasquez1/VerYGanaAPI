@@ -26,4 +26,14 @@ public class ContractSummaryResponseDTO {
 
     /** Documentos (no descartados) cargados por el comercial dueño de este contrato. */
     private List<CommercialDocumentResponseDTO> documents;
+
+    // Contexto de negocio para la revisión de compliance (ver ComplianceContractController):
+    // null cuando el contrato no tiene onboarding vinculado (purpose != ONBOARDING, p.ej.
+    // recarga o cambio de plan), igual que documents queda vacío en ese caso.
+
+    /** Razón social, NIT, CIIU, actividad económica y demás datos de identificación jurídica. */
+    private LegalIdentificationSummaryDTO businessProfile;
+
+    /** Respuestas completas del diagnóstico comercial (paso 4), como respaldo de la modalidad/ruta. */
+    private DiagnosticAnswersSummaryDTO diagnosticAnswers;
 }
