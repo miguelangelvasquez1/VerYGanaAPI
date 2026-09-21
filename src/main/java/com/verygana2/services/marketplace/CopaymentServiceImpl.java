@@ -160,7 +160,8 @@ public class CopaymentServiceImpl implements CopaymentService {
         // PAYOUTS_PENDING queda con el neto real del empresario (precio - comisión).
         long commissionCents = purchase.getCommissionCents();
         if (commissionCents > 0) {
-            treasuryService.retainCommission(commissionCents, copayment.getId(), "COPAYMENT");
+            treasuryService.retainCommission(
+                    commissionCents, purchase.getCommissionVatCents(), copayment.getId(), "COPAYMENT");
         }
 
         // 4. Entregar códigos de producto al comprador

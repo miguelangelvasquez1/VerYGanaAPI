@@ -1,7 +1,7 @@
 package com.verygana2.models.records;
 
 /**
-     * Snapshot inmutable de los 4 saldos de tesorería.
+     * Snapshot inmutable de los saldos de tesorería.
      * Usado para el endpoint de auditoría.
      */
     public record TreasurySnapshot(
@@ -9,6 +9,7 @@ package com.verygana2.models.records;
             long fortificationCents,
             long operationsCents,
             long payoutsPendingCents,
+            long taxReserveCents,
             long totalCents
     ) {
         /** Porcentaje que representa KEYS_RESERVE sobre el total. Útil para monitorear salud del fondo. */

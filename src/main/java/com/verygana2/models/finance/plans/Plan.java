@@ -109,6 +109,22 @@ public class Plan {
     @Column(name = "sale_commission_pct", nullable = false)
     private int saleCommissionPct;
 
+    /**
+     * Porcentaje de comisión por venta para comerciales STANDARD (Tipo B)
+     * cuya Vocación Empresarial Principal es SERVICES (Contrato B, cláusula
+     * 11.2 / MP-02). Solo tiene efecto cuando code == STANDARD; para BASIC y
+     * PREMIUM se ignora (siguen usando saleCommissionPct plano).
+     *
+     * Campo directo por el mismo motivo que saleCommissionPct: se consulta en
+     * cada venta de un comercial STANDARD. Modificable por el admin vía
+     * endpoint dedicado (mismo mecanismo que saleCommissionPct), para no
+     * dejar el 15 % hardcodeado en el código.
+     *
+     * Valor inicial: STANDARD → 15. En BASIC/PREMIUM no se usa (0).
+     */
+    @Column(name = "services_commission_pct", nullable = false)
+    private int servicesCommissionPct;
+
     /* Porcentaje maximo de llaves que pueden usar los usuarios al realizar una compra
     de un producto de un empresario (20%, 35% o 50%)
      */

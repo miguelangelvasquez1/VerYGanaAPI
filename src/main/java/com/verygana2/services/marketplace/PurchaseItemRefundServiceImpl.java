@@ -111,7 +111,8 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         long cashPortionCents = itemTotalCents - keysPortionCents;
 
         treasuryService.reversePurchaseItemForRefund(
-                item.getCommissionCents(), keysPortionCents, cashPortionCents, copayment.getId());
+                item.getCommissionCents(), item.getCommissionVatCents(),
+                keysPortionCents, cashPortionCents, copayment.getId());
 
         if (keysPortionCents > 0) {
             creditBackKeys(item, copayment, keysPortionCents);

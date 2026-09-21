@@ -61,10 +61,11 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .name("Básico")
                 .description("Suscripción mensual fija. Ideal para empezar a vender " +
                              "productos digitales sin inversión publicitaria.")
-                .monthlyPriceCents(20_000_000L)  // $200.000 COP
+                .monthlyPriceCents(30_000_000L)  // $300.000 COP
                 .minInvestmentCents(null)
                 .maxInvestmentCents(null)
                 .saleCommissionPct(20)            // 20% por venta
+                .servicesCommissionPct(0)         // no aplica: vocación aún sin efecto tarifario en BASIC
                 .maxKeysPct(20) // 20% del precio de cada producto se puede pagar con llaves
                 .build());
 
@@ -78,7 +79,8 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .monthlyPriceCents(null)
                 .minInvestmentCents(100_000_000L)   // $1.000.000 COP
                 .maxInvestmentCents(999_999_900L)   // $9.999.999 COP
-                .saleCommissionPct(10)              // 10% por venta
+                .saleCommissionPct(10)              // 10% por venta — comerciales con Vocación PRODUCTS
+                .servicesCommissionPct(15)          // 15% por venta — comerciales con Vocación SERVICES
                 .maxKeysPct(50) // 50% del precio de cada producto se puede pagar con llaves
                 .build());
 
@@ -94,11 +96,13 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .minInvestmentCents(1_000_000_000L) // $10.000.000 COP
                 .maxInvestmentCents(null)            // sin techo
                 .saleCommissionPct(0)              // no aplica: Premium no vende
+                .servicesCommissionPct(0)          // no aplica: Premium no vende
                 .maxKeysPct(0) // no aplica: Premium no vende
                 .build());
 
         // ── 2. Crear catálogo de features ─────────────────────────────────────
-        // SALES_COMMISSION NO está aquí — vive en Plan.saleCommissionPct
+        // SALES_COMMISSION NO está aquí — vive en Plan.saleCommissionPct /
+        // Plan.servicesCommissionPct (bifurcación por Vocación Empresarial en STANDARD)
         Feature canAdvertise = featureRepository.save(Feature.builder()
                 .code("CAN_ADVERTISE")
                 .name("Puede publicar anuncios")

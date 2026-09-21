@@ -148,7 +148,7 @@ class CopaymentServiceImplTest {
 
             verify(treasuryService, never()).convertKeysToPayoutPending(anyLong(), any());
             verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
-            verify(treasuryService).retainCommission(10_000L, copayment.getId(), "COPAYMENT");
+            verify(treasuryService).retainCommission(10_000L, 0L, copayment.getId(), "COPAYMENT");
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             assertThat(item.getAssignedProductStock().getStatus())
                     .isEqualTo(com.verygana2.models.enums.marketplace.StockStatus.SOLD);
@@ -224,7 +224,7 @@ class CopaymentServiceImplTest {
 
             service.handleWompiResult(tx.getId());
 
-            verify(treasuryService, never()).retainCommission(anyLong(), any(), any());
+            verify(treasuryService, never()).retainCommission(anyLong(), anyLong(), any(), any());
         }
 
         @Test
@@ -410,7 +410,7 @@ class CopaymentServiceImplTest {
             assertThat(stale.getFailureReason()).isNull();
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             verify(treasuryService).moveCashToPayoutPending(100_000L, stale.getId());
-            verify(treasuryService).retainCommission(10_000L, stale.getId(), "COPAYMENT");
+            verify(treasuryService).retainCommission(10_000L, 0L, stale.getId(), "COPAYMENT");
         }
 
         @Test

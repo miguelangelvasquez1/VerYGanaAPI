@@ -226,6 +226,10 @@ public class CommercialOnboarding {
     @Column(name = "monthly_fee_cents_snapshot")
     private Long monthlyFeeCentsSnapshot;
 
+    /** IVA adicional sobre monthlyFeeCentsSnapshot (ver TreasuryConfig.vatPct). Null para STANDARD/PREMIUM. */
+    @Column(name = "monthly_fee_vat_cents_snapshot")
+    private Long monthlyFeeVatCentsSnapshot;
+
     @Column(name = "min_investment_cents_snapshot")
     private Long minInvestmentCentsSnapshot;
 
@@ -235,6 +239,10 @@ public class CommercialOnboarding {
     /** Monto que el empresario se comprometió a invertir dentro del rango del plan. Null para BASIC. */
     @Column(name = "investment_amount_cents_snapshot")
     private Long investmentAmountCentsSnapshot;
+
+    /** IVA adicional sobre investmentAmountCentsSnapshot (ver TreasuryConfig.vatPct). Null para BASIC. */
+    @Column(name = "investment_vat_cents_snapshot")
+    private Long investmentVatCentsSnapshot;
 
     /** Duración del contrato en meses. Solo aplica a BASIC (suscripción con tarifa fija). Null para STANDARD/PREMIUM. */
     @Column(name = "contract_duration_months")

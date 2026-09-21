@@ -1,9 +1,9 @@
 package com.verygana2.models.enums.finance;
 
 /**
- * Los 4 bolsillos virtuales de tesorería de VeryGana.
+ * Los bolsillos virtuales de tesorería de VeryGana.
  * Cada uno corresponde a un destino específico del dinero que entra a la app.
- * La suma de los saldos de estas 4 cuentas siempre debe igualar el saldo
+ * La suma de los saldos de estas cuentas siempre debe igualar el saldo
  * real de la cuenta bancaria de Bancolombia.
  */
 public enum TreasuryAccountCode {
@@ -41,5 +41,14 @@ public enum TreasuryAccountCode {
     /**
      * Dinero que ingresan los empresarios al contratar planes (fuente externa a verygana)
      */
-    EXTERNAL_INCOME
+    EXTERNAL_INCOME,
+
+    /**
+     * IVA recaudado por VerYGana (19%), pendiente de declarar/pagar a la DIAN
+     * en el ciclo de declaración de IVA (bimestral/cuatrimestral) — no se
+     * remite venta a venta. Recibe: el 19% adicional que paga el empresario
+     * sobre un depósito de inversión o una suscripción BASIC, y el 19% de
+     * cada comisión de venta retenida por VerYGana (la comisión ya incluye IVA).
+     */
+    TAX_RESERVE
 }

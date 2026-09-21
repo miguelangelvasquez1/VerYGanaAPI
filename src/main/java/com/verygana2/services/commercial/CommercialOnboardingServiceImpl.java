@@ -75,6 +75,7 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private final PlanService planService;
     private final CommercialDiagnosticClassifier diagnosticClassifier;
     private final DiagnosticQuestionnaireRepository diagnosticQuestionnaireRepository;
+    private final com.verygana2.config.TreasuryConfig treasuryConfig;
 
     @Override
     @Transactional(readOnly = true)
@@ -388,9 +389,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
         onboarding.setSelectedPlan(plan);
         onboarding.setMonthlyFeeCentsSnapshot(plan.getMonthlyPriceCents());
+        onboarding.setMonthlyFeeVatCentsSnapshot(vatOf(plan.getMonthlyPriceCents()));
         onboarding.setMinInvestmentCentsSnapshot(plan.getMinInvestmentCents());
         onboarding.setMaxInvestmentCentsSnapshot(plan.getMaxInvestmentCents());
         onboarding.setInvestmentAmountCentsSnapshot(investmentAmountCents);
+        onboarding.setInvestmentVatCentsSnapshot(vatOf(investmentAmountCents));
         onboarding.setContractDurationMonths(contractDurationMonths);
         onboarding.setSaleCommissionPctSnapshot(plan.getSaleCommissionPct());
         onboarding.setMaxKeysPctSnapshot(plan.getMaxKeysPct());
@@ -437,6 +440,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
     private boolean isSpecialNegotiationPending(CommercialOnboarding onboarding) {
         return Boolean.TRUE.equals(onboarding.getRequiresSpecialNegotiation())
                 && onboarding.getSpecialNegotiationResolvedAt() == null;
+    }
+
+    /** IVA (TreasuryConfig.vatPct) sobre un monto base, o null si el monto base es null (ej. plan sin ese concepto). */
+    private Long vatOf(Long baseAmountCents) {
+        return baseAmountCents == null ? null : baseAmountCents * treasuryConfig.getVatPct() / 100;
     }
 
     private Long resolveInvestmentAmount(Plan plan, Long requestedAmountCents) {

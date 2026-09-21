@@ -17,7 +17,6 @@ import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,7 +43,9 @@ import com.verygana2.mappers.raffles.PrizeMapper;
 import com.verygana2.mappers.raffles.RaffleMapper;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.raffles.RaffleImagePolicy;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
@@ -52,19 +53,20 @@ import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.TargetAudience;
+import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.PrizeImageAsset;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
+import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.R2Service;
@@ -88,8 +90,8 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
-    private final MunicipalityRepository municipalityRepository;
     private final TargetAudienceAssembler targetAudienceAssembler;
+    private final ConsumerDetailsService consumerDetailsService;
     private final ClaimCodeEncryptor claimCodeEncryptor;
     private final ObjectMapper objectMapper;
 
@@ -751,32 +753,51 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode) {
-        Municipality municipality = resolveMunicipality(municipalityCode);
-        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality);
+    public List<RaffleSummaryResponseDTO> getLiveRaffles(Long consumerId) {
+        // El municipio/edad/género del consumidor solo priorizan el orden de
+        // resultados, nunca excluyen rifas (ver TargetAudienceAssembler/plan de
+        // sectorización). Sin consumer autenticado no hay perfil del que sacarlos
+        // (no se pueden aceptar como query param, son datos sensibles/spoofeables),
+        // así que quedan null y el orden es genérico.
+        Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
+        if (consumerId != null) {
+            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
+        }
+
+        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality, consumerAge,
+                consumerGender);
         lives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return lives;
     }
 
     @Override
-    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode,
-            int pageNumber) {
-        Municipality municipality = resolveMunicipality(municipalityCode);
-        Pageable pageable = PageRequest.of(pageNumber, 10);
-        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, pageable);
+    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(Long consumerId, RaffleType type, Pageable pageable) {
+        Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
+        if (consumerId != null) {
+            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
+        }
+
+        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, consumerAge,
+                consumerGender, pageable);
         actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(actives);
     }
 
-    /**
-     * municipalityCode es un filtro opcional de UX en endpoints públicos sin JWT
-     * garantizado: si el código no existe, se ignora en vez de fallar.
-     */
-    private Municipality resolveMunicipality(String municipalityCode) {
-        if (municipalityCode == null || municipalityCode.isBlank()) {
-            return null;
-        }
-        return municipalityRepository.findById(municipalityCode).orElse(null);
+    /** OTHER/PREFER_NOT_TO_SAY no tienen equivalente en TargetGender: se tratan como género desconocido. */
+    private TargetGender toTargetGender(Gender gender) {
+        if (gender == Gender.MALE) return TargetGender.MALE;
+        if (gender == Gender.FEMALE) return TargetGender.FEMALE;
+        return null;
     }
 
     @Override

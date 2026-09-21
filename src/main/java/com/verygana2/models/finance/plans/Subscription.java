@@ -82,6 +82,15 @@ public class Subscription {
     @NotNull
     private Long amountPaidCents;
 
+    /**
+     * IVA cobrado ADICIONAL sobre amountPaidCents (ej. amountPaidCents=$300.000,
+     * vatAmountCents=$57.000 con vatPct=19 → Wompi cobra $357.000 en total).
+     * Inmutable — snapshot de lo que se cobró realmente. 0 si no aplicó IVA.
+     */
+    @Column(name = "vat_amount_cents", nullable = false, updatable = false)
+    @Builder.Default
+    private Long vatAmountCents = 0L;
+
     @Column(name = "start_date")
     private ZonedDateTime startDate;
 

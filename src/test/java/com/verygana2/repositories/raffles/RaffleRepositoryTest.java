@@ -476,14 +476,14 @@ class RaffleRepositoryTest {
             persistImageAsset(live, "img-live.png");
             persistPrize(live, 1);
 
-            List<RaffleSummaryResponseDTO> result = raffleRepository.findLiveRaffles(null);
+            List<RaffleSummaryResponseDTO> result = raffleRepository.findLiveRaffles(null, null, null);
 
             assertThat(result).extracting(RaffleSummaryResponseDTO::getId).contains(live.getId());
         }
 
         @Test
-        @DisplayName("findLiveRaffles: con filtro de municipio excluye rifas dirigidas a otro municipio")
-        void findLiveRafflesFiltersByMunicipality() {
+        @DisplayName("findLiveRaffles: con filtro de municipio prioriza rifas afines, nunca las excluye")
+        void findLiveRafflesPrioritizesMunicipalityWithoutExcluding() {
             Municipality armenia = persistMunicipality("63001", "Armenia", "63", "Quindío");
             Municipality medellin = persistMunicipality("05001", "Medellín", "05", "Antioquia");
 
@@ -500,17 +500,22 @@ class RaffleRepositoryTest {
             persistImageAsset(noTarget, "img-notarget.png");
             persistPrize(noTarget, 1);
 
-            List<RaffleSummaryResponseDTO> resultForArmenia = raffleRepository.findLiveRaffles(armenia);
+            List<RaffleSummaryResponseDTO> resultForArmenia = raffleRepository.findLiveRaffles(armenia, null, null);
 
+            // Como en productos: el municipio solo prioriza el orden, nunca excluye.
             assertThat(resultForArmenia)
                     .extracting(RaffleSummaryResponseDTO::getId)
-                    .contains(noTarget.getId())
-                    .doesNotContain(targetedToMedellin.getId());
+                    .contains(noTarget.getId(), targetedToMedellin.getId());
+            assertThat(resultForArmenia.indexOf(
+                    resultForArmenia.stream().filter(r -> r.getId().equals(noTarget.getId())).findFirst().get()))
+                    .isLessThan(resultForArmenia.indexOf(
+                            resultForArmenia.stream().filter(r -> r.getId().equals(targetedToMedellin.getId()))
+                                    .findFirst().get()));
         }
 
         @Test
-        @DisplayName("findActiveRaffles: filtra por tipo y por municipio, pagina el resultado")
-        void findActiveRafflesFiltersByTypeAndMunicipality() {
+        @DisplayName("findActiveRaffles: filtra por tipo, prioriza por municipio sin excluir, pagina el resultado")
+        void findActiveRafflesFiltersByTypeAndPrioritizesByMunicipality() {
             Municipality armenia = persistMunicipality("63001", "Armenia", "63", "Quindío");
             Municipality medellin = persistMunicipality("05001", "Medellín", "05", "Antioquia");
 
@@ -528,23 +533,61 @@ class RaffleRepositoryTest {
             persistPrize(standardOpen, 1);
 
             Page<RaffleSummaryResponseDTO> onlyStandard = raffleRepository.findActiveRaffles(
-                    RaffleType.STANDARD, null, PageRequest.of(0, 10));
+                    RaffleType.STANDARD, null, null, null, PageRequest.of(0, 10));
             assertThat(onlyStandard.getContent())
                     .extracting(RaffleSummaryResponseDTO::getId)
                     .containsExactly(standardOpen.getId());
 
             Page<RaffleSummaryResponseDTO> allTypesForArmenia = raffleRepository.findActiveRaffles(
-                    null, armenia, PageRequest.of(0, 10));
+                    null, armenia, null, null, PageRequest.of(0, 10));
+            // Como en productos: el municipio solo prioriza el orden, nunca excluye.
             assertThat(allTypesForArmenia.getContent())
                     .extracting(RaffleSummaryResponseDTO::getId)
-                    .contains(standardOpen.getId())
-                    .doesNotContain(premiumForMedellin.getId());
+                    .contains(standardOpen.getId(), premiumForMedellin.getId());
+            List<Long> orderedIds = allTypesForArmenia.getContent().stream()
+                    .map(RaffleSummaryResponseDTO::getId).toList();
+            assertThat(orderedIds.indexOf(standardOpen.getId()))
+                    .isLessThan(orderedIds.indexOf(premiumForMedellin.getId()));
 
             Page<RaffleSummaryResponseDTO> allTypesNoFilter = raffleRepository.findActiveRaffles(
-                    null, null, PageRequest.of(0, 10));
+                    null, null, null, null, PageRequest.of(0, 10));
             assertThat(allTypesNoFilter.getContent())
                     .extracting(RaffleSummaryResponseDTO::getId)
                     .contains(standardOpen.getId(), premiumForMedellin.getId());
+        }
+
+        @Test
+        @DisplayName("findActiveRaffles: edad y género del consumidor priorizan el orden sin excluir")
+        void findActiveRafflesPrioritizesByAgeAndGenderWithoutExcluding() {
+            Raffle forAdultsOnly = persistRaffle("Rifa solo mayores", RaffleType.STANDARD, RaffleStatus.ACTIVE,
+                    now().minusDays(1), now().plusDays(5), now().plusDays(6));
+            persistImageAsset(forAdultsOnly, "img-adults.png");
+            persistPrize(forAdultsOnly, 1);
+            TargetAudience adultsAudience = TargetAudience.builder()
+                    .targetMunicipalities(new ArrayList<>())
+                    .minAge(60)
+                    .build();
+            em.persist(adultsAudience);
+            em.flush();
+            forAdultsOnly.setTargetAudience(adultsAudience);
+            em.persist(forAdultsOnly);
+            em.flush();
+
+            Raffle forEveryone = persistRaffle("Rifa para todas las edades", RaffleType.STANDARD, RaffleStatus.ACTIVE,
+                    now().minusDays(1), now().plusDays(5), now().plusDays(6));
+            persistImageAsset(forEveryone, "img-everyone.png");
+            persistPrize(forEveryone, 1);
+
+            Page<RaffleSummaryResponseDTO> result = raffleRepository.findActiveRaffles(
+                    null, null, 25, null, PageRequest.of(0, 10));
+
+            // Nunca excluye: ambas rifas siguen apareciendo para un consumidor de 25 años.
+            assertThat(result.getContent())
+                    .extracting(RaffleSummaryResponseDTO::getId)
+                    .contains(forAdultsOnly.getId(), forEveryone.getId());
+            List<Long> orderedIds = result.getContent().stream().map(RaffleSummaryResponseDTO::getId).toList();
+            assertThat(orderedIds.indexOf(forEveryone.getId()))
+                    .isLessThan(orderedIds.indexOf(forAdultsOnly.getId()));
         }
     }
 

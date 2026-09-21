@@ -49,8 +49,14 @@ public interface RaffleService {
     RaffleStatsResponseDTO getRaffleStats(Long raffleId);
     List<Raffle> getActiveRafflesOrderedByDrawDate(ZonedDateTime drawDate);
     Long countRafflesByStatus(RaffleStatus status);
-    List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode);
-    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode, int pageNumber);
+    /**
+     * @param consumerId id del consumer autenticado, o null si el request es
+     *                   anónimo/de otro rol. Cuando está presente, su municipio,
+     *                   edad y género de perfil priorizan el orden de resultados;
+     *                   nunca excluyen rifas. Sin consumer, el orden es genérico.
+     */
+    List<RaffleSummaryResponseDTO> getLiveRaffles(Long consumerId);
+    PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(Long consumerId, RaffleType type, Pageable pageable);
     PagedResponse<UserRaffleSummaryResponseDTO> getMyRafflesByStatus (Long consumerId, RaffleStatus status, Pageable pageable);
     Long countMyRafflesByStatus (Long consumerId, RaffleStatus status);
 }

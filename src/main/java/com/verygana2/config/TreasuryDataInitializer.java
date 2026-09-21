@@ -16,7 +16,7 @@ import com.verygana2.repositories.finance.TreasuryAccountRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Inicializa los 4 registros fijos de tesorería al arrancar la app.
+ * Inicializa los registros fijos de tesorería al arrancar la app.
  *
  * Es IDEMPOTENTE: si los registros ya existen no hace nada.
  * Es seguro ejecutarlo en cada startup, en producción y en tests.
@@ -34,7 +34,7 @@ public class TreasuryDataInitializer implements ApplicationRunner {
     private final TreasuryAccountRepository treasuryAccountRepository;
 
     /**
-     * Definición de los 4 bolsillos virtuales de tesorería.
+     * Definición de los bolsillos virtuales de tesorería.
      * El orden no importa porque la idempotencia se verifica por code,
      * no por posición.
      */
@@ -71,6 +71,13 @@ public class TreasuryDataInitializer implements ApplicationRunner {
             "Ingresos externos",
             "Origen virtual para dinero que entra desde Wompi. " +
             "El dinero entra aquí después de cada pago completado y se distribuye hacia los otros bolsillos correspondientes"
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.TAX_RESERVE,
+            "Reserva de IVA",
+            "Acumula el IVA recaudado por VerYGana (depósitos, suscripción BASIC y " +
+            "comisiones de venta) hasta el ciclo de declaración a la DIAN " +
+            "(bimestral/cuatrimestral) — no se remite venta a venta."
         )
 
     );

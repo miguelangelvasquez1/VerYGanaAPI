@@ -226,6 +226,7 @@ class PlanServiceImplTest {
         void approvedSubscription_activatesAndDistributes() {
             CommercialDetails commercial = commercial(1L);
             Subscription sub = Subscription.builder().commercial(commercial)
+                    .amountPaidCents(200_000L)
                     .status(SubscriptionStatus.PENDING_PAYMENT).build();
             Plan basic = Plan.builder().code(PlanCode.BASIC).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
@@ -241,7 +242,7 @@ class PlanServiceImplTest {
 
             assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
             assertThat(commercial.getCurrentPlan()).isSameAs(basic);
-            verify(treasuryService).distributeSubscription(200_000L, commercial, tx.getId());
+            verify(treasuryService).distributeSubscription(200_000L, 0L, commercial, tx.getId());
         }
 
         @Test
@@ -257,6 +258,7 @@ class PlanServiceImplTest {
             commercial.setCurrentPlan(standard);
 
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
@@ -272,7 +274,7 @@ class PlanServiceImplTest {
             assertThat(investment.getConfirmed()).isTrue();
             assertThat(wallet.getBalanceCents()).isEqualTo(6_600_000L); // 60% de 11.000.000
             assertThat(commercial.getCurrentPlan()).isSameAs(standard); // la recarga no cambia el plan
-            verify(treasuryService).distributeDeposit(11_000_000L, commercial, tx.getId());
+            verify(treasuryService).distributeDeposit(11_000_000L, 0L, commercial, tx.getId());
             verify(planRepository, never()).findByCodeAndActiveTrue(PlanCode.PREMIUM);
         }
 
@@ -289,6 +291,7 @@ class PlanServiceImplTest {
 
             Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
@@ -328,6 +331,7 @@ class PlanServiceImplTest {
             commercial.setCurrentPlan(standard);
 
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)

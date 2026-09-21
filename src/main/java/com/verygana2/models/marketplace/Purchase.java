@@ -91,6 +91,14 @@ public class Purchase {
     private Long commissionCents = 0L;
 
     /**
+     * Suma de PurchaseItem.commissionVatCents de todos los ítems — porción de
+     * commissionCents que corresponde a IVA (ver TreasuryServiceImpl.retainCommission).
+     */
+    @Column(name = "commission_vat_cents", nullable = false)
+    @Builder.Default
+    private Long commissionVatCents = 0L;
+
+    /**
      * Suma de PurchaseItem.netToCommercialCents de todos los ítems.
      * = totalCents - commissionCents
      * Lo que en conjunto se les debe pagar a todos los vendedores de esta compra.
@@ -163,6 +171,9 @@ public class Purchase {
                 .sum();
         this.commissionCents = items.stream()
                 .mapToLong(PurchaseItem::getCommissionCents)
+                .sum();
+        this.commissionVatCents = items.stream()
+                .mapToLong(PurchaseItem::getCommissionVatCents)
                 .sum();
         this.netToCommercialsCents = items.stream()
                 .mapToLong(PurchaseItem::getNetToCommercialCents)
