@@ -107,6 +107,10 @@ public final class TestEntities {
         consumer.setReferralCode("CODE" + String.format("%04d", n));
         consumer.setDocumentType(DocumentType.CC);
         consumer.setDocumentNumber("100000" + n);
+        consumer.setBirthDate(java.time.LocalDate.of(1995, 1, 1));
+        consumer.setTermsVersion("1");
+        consumer.setTermsAcceptedAt(ZonedDateTime.now());
+        consumer.setAgeDeclaredAt(ZonedDateTime.now());
 
         em.flush();
         return consumer;

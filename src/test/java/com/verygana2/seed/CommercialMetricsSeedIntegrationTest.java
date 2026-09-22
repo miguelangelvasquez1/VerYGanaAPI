@@ -154,10 +154,10 @@ class CommercialMetricsSeedIntegrationTest {
             exec("INSERT INTO user_details (user_id) VALUES (" + id + ")");
             exec("INSERT INTO consumer_details (user_id, user_hash, user_name, referral_code, municipality_code, "
                     + "name, last_name, department_name, municipality_name, has_pet, is_pep, ads_watched, daily_ad_count, "
-                    + "age, gender, document_type, document_number) "
+                    + "birth_date, gender, document_type, document_number, terms_version, terms_accepted_at, age_declared_at) "
                     + "VALUES (" + id + ", 'hash-" + id + "', 'consumer_" + id + "', 'REF-" + id + "', '63001', "
                     + "'N', 'A', 'Quindío', 'Armenia', false, false, 0, 0, "
-                    + "25, 'MALE', 'CC', 'DOC" + id + "')");
+                    + "'1995-01-01', 'MALE', 'CC', 'DOC" + id + "', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
         }
 
         exec("INSERT INTO games (id, title, description, url, front_page_url, active, delivery_type, created_at) "
