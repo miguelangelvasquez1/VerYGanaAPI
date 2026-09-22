@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.repositories.UserRepository;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -50,7 +50,7 @@ public class ComplianceKycController {
 
     @GetMapping("/pending")
     public ResponseEntity<List<KycPendingDTO>> getPendingKycReview() {
-        List<User> users = userRepository.findByUserState(UserState.PENDING_KYC_REVIEW);
+        List<User> users = userRepository.findByAccountStatus(AccountStatus.PENDING_ACTIVATION);
 
         List<KycPendingDTO> dtos = users.stream().map(u -> {
             String name = null, lastName = null, docType = null, docNumber = null;
@@ -87,11 +87,11 @@ public class ComplianceKycController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 
-        if (user.getUserState() != UserState.PENDING_KYC_REVIEW) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_ACTIVATION) {
             return ResponseEntity.badRequest().build();
         }
 
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
         return ResponseEntity.ok().build();
     }
@@ -103,11 +103,11 @@ public class ComplianceKycController {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 
-        if (user.getUserState() != UserState.PENDING_KYC_REVIEW) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_ACTIVATION) {
             return ResponseEntity.badRequest().build();
         }
 
-        user.setUserState(UserState.BLOCKED);
+        user.setAccountStatus(AccountStatus.SUSPENDED);
         userRepository.save(user);
         return ResponseEntity.ok().build();
     }

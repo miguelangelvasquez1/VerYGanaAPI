@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 
@@ -26,7 +26,7 @@ public interface CommercialDetailsRepository extends JpaRepository<CommercialDet
     boolean existsByMercantileRegistration(String mercantileRegistration);
     @Query("""
             SELECT c FROM CommercialDetails c
-            WHERE (:userState IS NULL OR c.user.userState = :userState)
+            WHERE (:accountStatus IS NULL OR c.user.accountStatus = :accountStatus)
             AND (:currentPlan IS NULL OR c.currentPlan.code = :currentPlan)
             AND (:search IS NULL OR :search = ''
             OR LOWER(c.user.email) LIKE LOWER(CONCAT('%', :search, '%'))
@@ -38,7 +38,7 @@ public interface CommercialDetailsRepository extends JpaRepository<CommercialDet
             OR LOWER(c.departmentName) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.municipalityName) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<CommercialDetails> findCommercials (@Param("search") String search, @Param("userState") UserState userState,
+    Page<CommercialDetails> findCommercials (@Param("search") String search, @Param("accountStatus") AccountStatus accountStatus,
     @Param("currentPlan") PlanCode currentPlan, Pageable pageable);
 
     @Query("""

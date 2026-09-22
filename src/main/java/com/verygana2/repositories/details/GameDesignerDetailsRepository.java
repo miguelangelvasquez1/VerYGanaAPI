@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.GameDesignerDetails;
 
 @Repository
@@ -27,7 +27,7 @@ public interface GameDesignerDetailsRepository extends JpaRepository<GameDesigne
 
     @Query("""
             SELECT g FROM GameDesignerDetails g
-            WHERE (:userState IS NULL OR g.user.userState = :userState)
+            WHERE (:accountStatus IS NULL OR g.user.accountStatus = :accountStatus)
             AND (:search IS NULL OR :search = ''
             OR LOWER(g.user.email) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(g.user.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))
@@ -36,7 +36,7 @@ public interface GameDesignerDetailsRepository extends JpaRepository<GameDesigne
             OR LOWER(g.designerCode) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(g.bio) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<GameDesignerDetails> findGameDesigners (@Param("search") String search, @Param("userState") UserState userState, Pageable pageable);
+    Page<GameDesignerDetails> findGameDesigners (@Param("search") String search, @Param("accountStatus") AccountStatus accountStatus, Pageable pageable);
 
     @Query("""
             SELECT g FROM GameDesignerDetails g

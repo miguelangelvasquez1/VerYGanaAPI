@@ -22,7 +22,7 @@ import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.UserLevel;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -97,14 +97,14 @@ public class ConsumerDetailsServiceImpl implements ConsumerDetailsService{
     }
 
     @Override
-    public PagedResponse<ConsumerSummaryResponseDTO> getConsumers(UserLevel level, String search, UserState userState,
+    public PagedResponse<ConsumerSummaryResponseDTO> getConsumers(UserLevel level, String search, AccountStatus accountStatus,
             Integer maxAge, Integer minAge, Gender gender, String departmentCode, String municipalityCode, ZonedDateTime startDate,
             ZonedDateTime endDate, Pageable pageable) {
 
         LocalDate bornOnOrBefore = minAge == null ? null : LocalDate.now().minusYears(minAge);
         LocalDate bornAfter = maxAge == null ? null : LocalDate.now().minusYears(maxAge + 1L);
 
-        return PagedResponse.from(consumerDetailsRepository.getConsumers(level, search, userState, bornOnOrBefore, bornAfter, gender, departmentCode, municipalityCode, startDate, endDate, pageable).map(consumerDetailsMapper::toConsumerSummaryResponseDTO));
+        return PagedResponse.from(consumerDetailsRepository.getConsumers(level, search, accountStatus, bornOnOrBefore, bornAfter, gender, departmentCode, municipalityCode, startDate, endDate, pageable).map(consumerDetailsMapper::toConsumerSummaryResponseDTO));
     }
 
     @Override

@@ -15,7 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.UserLevel;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 @Repository
@@ -46,7 +46,7 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             SELECT c FROM ConsumerDetails c
             LEFT JOIN UserLevelProfile ulp ON ulp.consumer = c
             WHERE (:level IS NULL OR ulp.currentLevel = :level)
-            AND (:userState IS NULL OR c.user.userState = :userState)
+            AND (:accountStatus IS NULL OR c.user.accountStatus = :accountStatus)
             AND (:bornOnOrBefore IS NULL OR c.birthDate <= :bornOnOrBefore)
             AND (:bornAfter IS NULL OR c.birthDate > :bornAfter)
             AND (:gender IS NULL OR c.gender = :gender)
@@ -65,7 +65,7 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             OR LOWER(c.departmentName) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.municipalityName) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("userState") UserState userState, @Param("bornOnOrBefore") LocalDate bornOnOrBefore,
+    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("accountStatus") AccountStatus accountStatus, @Param("bornOnOrBefore") LocalDate bornOnOrBefore,
     @Param("bornAfter") LocalDate bornAfter, @Param("gender") Gender gender, @Param("departmentCode") String departmentCode, @Param("municipalityCode") String municipalityCode, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, Pageable pageable);
 
     @Query("""

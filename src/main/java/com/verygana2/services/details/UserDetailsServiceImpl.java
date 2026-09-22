@@ -17,7 +17,7 @@ import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.UserDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.details.UserDetailsRepository;
@@ -59,11 +59,11 @@ public class UserDetailsServiceImpl implements UserDetailsService{
     public void blockUser(UUID publicId, String reason) {
         UserDetails user = userDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("User with public id: " + publicId + " not found"));
 
-        if (user.getUser().getUserState().equals(UserState.BLOCKED)) {
+        if (user.getUser().getAccountStatus().equals(AccountStatus.SUSPENDED)) {
             throw new InvalidRequestException("You cannot block user who is already blocked");
         }
 
-        user.getUser().setUserState(UserState.BLOCKED);
+        user.getUser().setAccountStatus(AccountStatus.SUSPENDED);
         notificationService.createInternalNotification(user.getId(), "Cuenta bloqueada", reason, Instant.now());
 
         userDetailsRepository.save(user);
@@ -73,11 +73,11 @@ public class UserDetailsServiceImpl implements UserDetailsService{
     public void unblockUser(UUID publicId, String reason) {
         UserDetails user = userDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("User with public id: " + publicId + " not found"));
 
-        if (user.getUser().getUserState().equals(UserState.ACTIVE)) {
+        if (user.getUser().getAccountStatus().equals(AccountStatus.ACTIVE)) {
             throw new InvalidRequestException("You cannot unblock user who is already active");
         }
 
-        user.getUser().setUserState(UserState.ACTIVE);
+        user.getUser().setAccountStatus(AccountStatus.ACTIVE);
         notificationService.createInternalNotification(user.getId(), "Cuenta desbloqueada", reason, Instant.now());
 
         userDetailsRepository.save(user);

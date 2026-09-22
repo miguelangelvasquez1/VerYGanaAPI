@@ -7,7 +7,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -60,7 +60,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -344,7 +344,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -489,7 +489,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -540,7 +540,7 @@ ON DUPLICATE KEY UPDATE designer_code = designer_code;
 -- ---- consumer1@verygana.com ----
 
 INSERT INTO users (
-    email, phone_number, password, role, user_state, registered_date, public_id
+    email, phone_number, password, role, account_status, registered_date, public_id
 )
 VALUES (
     'consumer1@verygana.com',
@@ -594,7 +594,7 @@ ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
 -- ---- consumer2@verygana.com ----
 
 INSERT INTO users (
-    email, phone_number, password, role, user_state, registered_date, public_id
+    email, phone_number, password, role, account_status, registered_date, public_id
 )
 VALUES (
     'consumer2@verygana.com',
@@ -648,7 +648,7 @@ ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
 -- ---- consumer3@verygana.com ----
 
 INSERT INTO users (
-    email, phone_number, password, role, user_state, registered_date, public_id
+    email, phone_number, password, role, account_status, registered_date, public_id
 )
 VALUES (
     'consumer3@verygana.com',
@@ -702,7 +702,7 @@ ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
 -- ---- consumer4@verygana.com ----
 
 INSERT INTO users (
-    email, phone_number, password, role, user_state, registered_date, public_id
+    email, phone_number, password, role, account_status, registered_date, public_id
 )
 VALUES (
     'consumer4@verygana.com',
@@ -756,7 +756,7 @@ ON DUPLICATE KEY UPDATE consumer_id = consumer_id;
 -- ---- consumer5@verygana.com ----
 
 INSERT INTO users (
-    email, phone_number, password, role, user_state, registered_date, public_id
+    email, phone_number, password, role, account_status, registered_date, public_id
 )
 VALUES (
     'consumer5@verygana.com',
@@ -818,7 +818,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -1074,7 +1074,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )
@@ -1409,7 +1409,7 @@ INSERT INTO users (
     phone_number,
     password,
     role,
-    user_state,
+    account_status,
     registered_date,
     public_id
 )

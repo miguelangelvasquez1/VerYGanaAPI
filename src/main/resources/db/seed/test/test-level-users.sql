@@ -6,7 +6,7 @@
 -- ============================================================
 -- 1. BRONCE  (XP: 500 — rango 0-999, mult: 0.5)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('bronce@verygana.com', '3101000001',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000001'))
@@ -43,7 +43,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- ============================================================
 -- 2. PLATA  (XP: 2000 — rango 1000-3999, mult: 0.6)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('plata@verygana.com', '3101000002',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000002'))
@@ -80,7 +80,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- ============================================================
 -- 3. ORO  (XP: 6000 — rango 4000-8999, mult: 0.7)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('oro@verygana.com', '3101000003',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000003'))
@@ -118,7 +118,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 4. RUBI  (XP: 13000 — rango 9000-17999, mult: 0.8)
 --    has_pet = true → acceso a rifas PREMIUM
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('rubi@verygana.com', '3101000004',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000004'))
@@ -156,7 +156,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 5. ESMERALDA  (XP: 26000 — rango 18000-34999, mult: 0.9)
 --    has_pet = true
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('esmeralda@verygana.com', '3101000005',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000005'))
@@ -194,7 +194,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 6. DIAMANTE  (XP: 40000 — rango 35000+, mult: 1.0)
 --    has_pet = true
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('diamante@verygana.com', '3101000006',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000006'))

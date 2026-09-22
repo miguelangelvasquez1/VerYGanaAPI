@@ -37,7 +37,7 @@ import com.verygana2.dtos.user.admin.gameDesigners.GameDesignerSummaryResponseDT
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserLevel;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
@@ -79,14 +79,14 @@ public class UserAdminController {
     }
 
     @GetMapping("/consumers")
-    public ResponseEntity<PagedResponse<ConsumerSummaryResponseDTO>> getConsumers (@RequestParam (required = false) UserLevel level, @RequestParam (required = false) String search, @RequestParam (required = false) UserState userState,
+    public ResponseEntity<PagedResponse<ConsumerSummaryResponseDTO>> getConsumers (@RequestParam (required = false) UserLevel level, @RequestParam (required = false) String search, @RequestParam (required = false) AccountStatus accountStatus,
         @RequestParam (required = false) Integer maxAge, @RequestParam (required = false) Integer minAge, @RequestParam (required = false) Gender gender, @RequestParam (required = false) String departmentCode, @RequestParam (required = false) String municipalityCode,
         @RequestParam (required = false) LocalDate startDate, @RequestParam (required = false) LocalDate endDate, Pageable pageable){
 
             ZonedDateTime start = startDate == null ? null : ZonedDateTime.of(startDate, LocalTime.of(0, 0, 0), BOGOTA_ZONE);
             ZonedDateTime end = endDate == null ? null : ZonedDateTime.of(endDate.plusDays(1), LocalTime.of(0, 0, 0), BOGOTA_ZONE);
 
-        return ResponseEntity.ok(consumerDetailsService.getConsumers(level, search, userState, maxAge, minAge, gender, departmentCode, municipalityCode, start, end, pageable));
+        return ResponseEntity.ok(consumerDetailsService.getConsumers(level, search, accountStatus, maxAge, minAge, gender, departmentCode, municipalityCode, start, end, pageable));
 
     }
 
@@ -96,8 +96,8 @@ public class UserAdminController {
     }
 
     @GetMapping("/admins")
-    public ResponseEntity<PagedResponse<AdminSummaryResponseDTO>> getAdmins (@RequestParam(required = false) String search, @RequestParam(required = false) UserState userState, Pageable pageable){
-        return ResponseEntity.ok(adminDetailsService.getAdmins(search, userState, pageable));
+    public ResponseEntity<PagedResponse<AdminSummaryResponseDTO>> getAdmins (@RequestParam(required = false) String search, @RequestParam(required = false) AccountStatus accountStatus, Pageable pageable){
+        return ResponseEntity.ok(adminDetailsService.getAdmins(search, accountStatus, pageable));
     }
 
     @GetMapping("/admins/{publicId}")
@@ -106,10 +106,10 @@ public class UserAdminController {
     }
 
     @GetMapping("/commercials")
-    public ResponseEntity<PagedResponse<CommercialSummaryResponseDTO>> getCommercials (@RequestParam(required = false) String search, @RequestParam(required = false) UserState userState,
+    public ResponseEntity<PagedResponse<CommercialSummaryResponseDTO>> getCommercials (@RequestParam(required = false) String search, @RequestParam(required = false) AccountStatus accountStatus,
     @RequestParam(required = false) PlanCode currentPlan, Pageable pageable) {
 
-        return ResponseEntity.ok(commercialDetailsService.getCommercials(search, userState, currentPlan, pageable));
+        return ResponseEntity.ok(commercialDetailsService.getCommercials(search, accountStatus, currentPlan, pageable));
     }
 
     @GetMapping("/commercials/{publicId}")
@@ -118,8 +118,8 @@ public class UserAdminController {
     }
 
     @GetMapping("/game-designers")
-    public ResponseEntity<PagedResponse<GameDesignerSummaryResponseDTO>> getGameDesigners (@RequestParam(required = false) String search, @RequestParam(required = false) UserState userState, Pageable pageable) {
-        return ResponseEntity.ok(gameDesignerDetailsService.getGameDesigners(search, userState, pageable));
+    public ResponseEntity<PagedResponse<GameDesignerSummaryResponseDTO>> getGameDesigners (@RequestParam(required = false) String search, @RequestParam(required = false) AccountStatus accountStatus, Pageable pageable) {
+        return ResponseEntity.ok(gameDesignerDetailsService.getGameDesigners(search, accountStatus, pageable));
     }
 
     @GetMapping("/game-designers/{publicId}")
@@ -128,8 +128,8 @@ public class UserAdminController {
     }
 
     @GetMapping("/compliance-officers")
-    public ResponseEntity<PagedResponse<ComplianceOfficerSummaryResponseDTO>> getComplianceOfficers(@RequestParam(required = false) String search, @RequestParam(required = false) UserState userState, Pageable pageable) {
-        return ResponseEntity.ok(complianceOfficerDetailsService.getComplianceOfficers(search, userState, pageable));
+    public ResponseEntity<PagedResponse<ComplianceOfficerSummaryResponseDTO>> getComplianceOfficers(@RequestParam(required = false) String search, @RequestParam(required = false) AccountStatus accountStatus, Pageable pageable) {
+        return ResponseEntity.ok(complianceOfficerDetailsService.getComplianceOfficers(search, accountStatus, pageable));
     }
 
     @GetMapping("/compliance-officers/{publicId}")

@@ -4,7 +4,7 @@ import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.ActivityType;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
@@ -156,7 +156,7 @@ public class UserServiceImpl implements UserService {
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
         if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            user.setUserState(UserState.PENDING_KYC_REVIEW);
+            user.setAccountStatus(AccountStatus.PENDING_ACTIVATION);
         }
 
         // userHash NOT NULL+UNIQUE requiere un valor único antes del INSERT (IDENTITY);
@@ -175,7 +175,7 @@ public class UserServiceImpl implements UserService {
         levelService.initializeProfile(user.getId());
 
         if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", user.getEmail());
+            log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_ACTIVATION).", user.getEmail());
         } else {
             sendVerificationEmail(user);
         }
@@ -187,13 +187,13 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
 
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
         emailVerificationService.verifyCode(email, code);
 
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
         triggerReferralRewardsIfApplicable(user);
 
@@ -205,7 +205,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
 
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
@@ -236,7 +236,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Código de verificación incorrecto o expirado");
         }
 
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         userRepository.save(user);
         triggerReferralRewardsIfApplicable(user);
         log.info("Account {} activated via SMS verification", email);
@@ -257,7 +257,7 @@ public class UserServiceImpl implements UserService {
     private User requirePendingEmailUser(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
         return user;

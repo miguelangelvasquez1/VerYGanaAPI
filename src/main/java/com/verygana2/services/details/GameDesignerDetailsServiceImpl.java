@@ -9,7 +9,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.user.admin.gameDesigners.GameDesignerResponseDTO;
 import com.verygana2.dtos.user.admin.gameDesigners.GameDesignerSummaryResponseDTO;
 import com.verygana2.mappers.UserMapper;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.repositories.details.GameDesignerDetailsRepository;
 import com.verygana2.services.interfaces.details.GameDesignerDetailsService;
 
@@ -23,10 +23,10 @@ public class GameDesignerDetailsServiceImpl implements GameDesignerDetailsServic
     private final UserMapper userMapper;
 
     @Override
-    public PagedResponse<GameDesignerSummaryResponseDTO> getGameDesigners(String search, UserState userState,
+    public PagedResponse<GameDesignerSummaryResponseDTO> getGameDesigners(String search, AccountStatus accountStatus,
             Pageable pageable) {
 
-            return PagedResponse.from(gameDesignerDetailsRepository.findGameDesigners(search, userState,
+            return PagedResponse.from(gameDesignerDetailsRepository.findGameDesigners(search, accountStatus,
             pageable).map(userMapper::toGameDesignerSummaryResponseDTO));
 
     }

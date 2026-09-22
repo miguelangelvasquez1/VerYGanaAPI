@@ -9,7 +9,7 @@ import org.mapstruct.Mapping;
 public interface ReferralMapper {
 
     @Mapping(source = "user.email",          target = "email")
-    @Mapping(source = "user.userState",      target = "userState")
+    @Mapping(source = "user.accountStatus",  target = "accountStatus")
     @Mapping(source = "user.registeredDate", target = "registeredDate")
     @Mapping(target = "municipality", source = "municipality.name")
     @Mapping(target = "department", ignore = true)
