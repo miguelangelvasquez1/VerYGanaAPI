@@ -384,7 +384,10 @@ INSERT INTO consumer_details (
     referral_code,
     document_type,
     document_number,
-    is_pep
+    is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id,
@@ -404,7 +407,7 @@ SELECT
     'REF-TEST-0001',
     'CC',
     '12345678',
-    false
+    false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
@@ -561,13 +564,16 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name, department_name,
     municipality_name, municipality_code, avatar_id, birth_date, gender, has_pet,
     ads_watched, daily_ad_count, referral_code,
-    document_type, document_number, is_pep
+    document_type, document_number, is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id, '550e8400-e29b-41d4-a716-446655440001', 'consumer_test1', 'Usuario', 'Prueba 1',
     'QUINDÍO', 'ARMENIA', '63001',
     (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0002', 'CC', '12345679', false
+    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0002', 'CC', '12345679', false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer1@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
@@ -615,13 +621,16 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name, department_name,
     municipality_name, municipality_code, avatar_id, birth_date, gender, has_pet,
     ads_watched, daily_ad_count, referral_code,
-    document_type, document_number, is_pep
+    document_type, document_number, is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id, '550e8400-e29b-41d4-a716-446655440002', 'consumer_test2', 'Usuario', 'Prueba 2',
     'QUINDÍO', 'ARMENIA', '63001',
     (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0003', 'CC', '12345680', false
+    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0003', 'CC', '12345680', false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer2@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
@@ -669,13 +678,16 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name, department_name,
     municipality_name, municipality_code, avatar_id, birth_date, gender, has_pet,
     ads_watched, daily_ad_count, referral_code,
-    document_type, document_number, is_pep
+    document_type, document_number, is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id, '550e8400-e29b-41d4-a716-446655440003', 'consumer_test3', 'Usuario', 'Prueba 3',
     'QUINDÍO', 'ARMENIA', '63001',
     (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0004', 'CC', '12345681', false
+    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0004', 'CC', '12345681', false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer3@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
@@ -723,13 +735,16 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name, department_name,
     municipality_name, municipality_code, avatar_id, birth_date, gender, has_pet,
     ads_watched, daily_ad_count, referral_code,
-    document_type, document_number, is_pep
+    document_type, document_number, is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id, '550e8400-e29b-41d4-a716-446655440004', 'consumer_test4', 'Usuario', 'Prueba 4',
     'QUINDÍO', 'ARMENIA', '63001',
     (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0005', 'CC', '12345682', false
+    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0005', 'CC', '12345682', false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer4@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
@@ -777,13 +792,16 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name, department_name,
     municipality_name, municipality_code, avatar_id, birth_date, gender, has_pet,
     ads_watched, daily_ad_count, referral_code,
-    document_type, document_number, is_pep
+    document_type, document_number, is_pep,
+    terms_version,
+    terms_accepted_at,
+    age_declared_at
 )
 SELECT
     u.id, '550e8400-e29b-41d4-a716-446655440005', 'consumer_test5', 'Usuario', 'Prueba 5',
     'QUINDÍO', 'ARMENIA', '63001',
     (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0006', 'CC', '12345683', false
+    DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-TEST-0006', 'CC', '12345683', false, '1', NOW(), NOW()
 FROM users u
 WHERE u.email = 'consumer5@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;

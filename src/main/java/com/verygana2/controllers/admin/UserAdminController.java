@@ -9,6 +9,7 @@ import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.PhoneChangeRequestDTO;
 import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.user.admin.AdminResponseDTO;
 import com.verygana2.dtos.user.admin.AdminSummaryResponseDTO;
@@ -38,6 +40,7 @@ import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.UserLevel;
 import com.verygana2.models.enums.AccountStatus;
+import com.verygana2.models.userDetails.UserDetails;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.services.interfaces.details.AdminDetailsService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
@@ -45,6 +48,7 @@ import com.verygana2.services.interfaces.details.ComplianceOfficerDetailsService
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.details.GameDesignerDetailsService;
 import com.verygana2.services.interfaces.details.UserDetailsService;
+import com.verygana2.services.interfaces.PhoneNumberChangeService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +67,7 @@ public class UserAdminController {
     private final CommercialDetailsService commercialDetailsService;
     private final GameDesignerDetailsService gameDesignerDetailsService;
     private final ComplianceOfficerDetailsService complianceOfficerDetailsService;
+    private final PhoneNumberChangeService phoneNumberChangeService;
 
     @GetMapping("/stats")
     public ResponseEntity<Integer> countActiveUsersByRole (@RequestParam(required = true) Role role){
@@ -138,20 +143,29 @@ public class UserAdminController {
     }
 
     @PatchMapping("/{publicId}/block")
-    public ResponseEntity<Void> blockUser (@PathVariable UUID publicId, @RequestParam String reason){
-        userDetailsService.blockUser(publicId, reason);
+    public ResponseEntity<Void> blockUser (@PathVariable UUID publicId, @RequestParam String reason, Authentication authentication){
+        userDetailsService.blockUser(publicId, reason, authentication.getName());
         return ResponseEntity.noContent().build();
-    } 
+    }
 
     @PatchMapping("/{publicId}/unblock")
-    public ResponseEntity<Void> unblockUser (@PathVariable UUID publicId, @RequestParam String reason){
-        userDetailsService.unblockUser(publicId, reason);
+    public ResponseEntity<Void> unblockUser (@PathVariable UUID publicId, @RequestParam String reason, Authentication authentication){
+        userDetailsService.unblockUser(publicId, reason, authentication.getName());
         return ResponseEntity.noContent().build();
-    } 
+    }
 
     @PutMapping("/{publicId}")
     public ResponseEntity<EntityUpdatedResponseDTO> editBasicInfo (@PathVariable UUID publicId, @Valid @RequestBody EditBasicInfoRequestDTO request){
         return ResponseEntity.ok(userDetailsService.editBasicInfo(publicId, request));
+    }
+
+    @PatchMapping("/{publicId}/phone")
+    public ResponseEntity<Void> changePhone(
+            @PathVariable UUID publicId,
+                @Valid @RequestBody PhoneChangeRequestDTO request) {
+            UserDetails user = userDetailsService.getUserByPublicId(publicId);
+            phoneNumberChangeService.adminChangePhone(user.getUser().getId(), request.getNewPhoneNumber());
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{publicId}/send-notification")

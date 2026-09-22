@@ -1,9 +1,11 @@
 package com.verygana2.mappers;
 
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.springframework.beans.factory.annotation.Value;
 
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
@@ -84,6 +86,8 @@ public abstract class UserMapper {
     @Mapping(target = "monthlyIncomeRange", ignore = true)
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "pep", ignore = true)
+    @Mapping(target = "termsAcceptedAt", ignore = true)
+    @Mapping(target = "ageDeclaredAt", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     @Mapping(target = "publicId", source = "user.publicId")
@@ -117,7 +121,8 @@ public abstract class UserMapper {
     @Mapping(target = "phoneNumber", source = "consumer.user.phoneNumber")
     @Mapping(target = "role", source = "consumer.user.role")
     @Mapping(target = "accountStatus", source = "consumer.user.accountStatus")
-    @Mapping(target = "department", ignore = true)
+    @Mapping(target = "department", source = "departmentName")
+    @Mapping(target = "municipalityName", source = "municipalityName")
     public abstract ConsumerProfileResponseDTO toConsumerProfileResponseDTO(ConsumerDetails consumer);
 
     @Mapping(target = "id", ignore = true)
@@ -137,18 +142,20 @@ public abstract class UserMapper {
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "user.email", source = "email")
-    @Mapping(target = "user.phoneNumber", source = "phoneNumber")
+    @Mapping(target = "user.phoneNumber", ignore = true)  // Ya no se actualiza aquí — se cambia vía OTP
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "referredBy", ignore = true)
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "keyWallet", ignore = true)
-    @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "departmentName", source = "department")
+    @Mapping(target = "municipalityName", source = "municipalityName")
     @Mapping(target = "lastDailyLoginDate", ignore = true)
     @Mapping(target = "documentType", ignore = true)
     @Mapping(target = "documentNumber", ignore = true)
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "monthlyIncomeRange", ignore = true)
     @Mapping(target = "pep", ignore = true)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     // ---- COMMERCIAL ----

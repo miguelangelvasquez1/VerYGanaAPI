@@ -57,6 +57,17 @@ public class ConsumerRegisterDTO {
     @NotNull(message = "Gender is required")
     private Gender gender;
 
+    // ==================== ELIGIBILITY ENGINE (mayoría de edad) ====================
+
+    @NotNull(message = "Age declaration is required")
+    private Boolean ageDeclaration;
+
+    @NotNull(message = "Terms acceptance is required")
+    private Boolean termsAccepted;
+
+    @NotBlank(message = "Terms version is required")
+    private String termsVersion;
+
     // ==================== KYC / SAGRILAFT ====================
 
     @NotNull(message = "Document type is required")

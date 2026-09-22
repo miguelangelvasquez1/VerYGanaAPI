@@ -20,12 +20,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000001', 'bronce_test',
        'Usuario', 'Bronce', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false
+       DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'bronce@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -57,12 +58,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000002', 'plata_test',
        'Usuario', 'Plata', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 28 YEAR), 'FEMALE', false, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false
+       DATE_SUB(CURDATE(), INTERVAL 28 YEAR), 'FEMALE', false, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'plata@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -94,12 +96,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000003', 'oro_test',
        'Usuario', 'Oro', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 30 YEAR), 'MALE', false, 0, 0, 'REF-ORO-003', 'CC', '10000003', false
+       DATE_SUB(CURDATE(), INTERVAL 30 YEAR), 'MALE', false, 0, 0, 'REF-ORO-003', 'CC', '10000003', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'oro@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -132,12 +135,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'rubi_test',
        'Usuario', 'Rubi', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 32 YEAR), 'FEMALE', true, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false
+       DATE_SUB(CURDATE(), INTERVAL 32 YEAR), 'FEMALE', true, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'rubi@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -170,12 +174,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000005', 'esmeralda_test',
        'Usuario', 'Esmeralda', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 35 YEAR), 'MALE', true, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false
+       DATE_SUB(CURDATE(), INTERVAL 35 YEAR), 'MALE', true, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'esmeralda@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -208,12 +213,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000006', 'diamante_test',
        'Usuario', 'Diamante', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 40 YEAR), 'FEMALE', true, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false
+       DATE_SUB(CURDATE(), INTERVAL 40 YEAR), 'FEMALE', true, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 

@@ -14,9 +14,10 @@ import com.verygana2.models.userDetails.UserDetails;
 
 public interface UserDetailsService {
     UserDetails getUserById (Long userId);
+    UserDetails getUserByPublicId (UUID publicId);
     Integer countActiveUsersByRole (Role role);
     PagedResponse<UserSummaryResponseDTO> getNewUsers (ZonedDateTime startDate, ZonedDateTime endDate, String search, Pageable pageable);
-    void blockUser (UUID publicId, String reason);
-    void unblockUser (UUID publicId, String reason);
+    void blockUser (UUID publicId, String reason, String actor);
+    void unblockUser (UUID publicId, String reason, String actor);
     EntityUpdatedResponseDTO editBasicInfo (UUID publicId, EditBasicInfoRequestDTO request);
 }

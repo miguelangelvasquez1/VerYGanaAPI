@@ -30,6 +30,7 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
     Optional<ConsumerDetails> findByReferralCode(String referralCode);
     Optional<ConsumerDetails> findByUserId(Long userId);
     boolean existsByReferralCode(String referralCode);
+    boolean existsByDocumentNumber(String documentNumber);
 
     Optional<ConsumerDetails> findByUserEmail(String email);
     int countByReferredBy(ConsumerDetails referredBy);

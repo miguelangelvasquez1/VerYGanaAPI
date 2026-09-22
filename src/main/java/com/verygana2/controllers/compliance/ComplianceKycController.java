@@ -5,6 +5,7 @@ import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,6 +17,7 @@ import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.services.interfaces.AccountStatusService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import lombok.RequiredArgsConstructor;
 public class ComplianceKycController {
 
     private final UserRepository userRepository;
+    private final AccountStatusService accountStatusService;
 
     public record KycPendingDTO(
             Long id,
@@ -83,7 +86,7 @@ public class ComplianceKycController {
     }
 
     @PostMapping("/{userId}/approve")
-    public ResponseEntity<Void> approveKyc(@PathVariable Long userId) {
+    public ResponseEntity<Void> approveKyc(@PathVariable Long userId, Authentication authentication) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 
@@ -91,15 +94,15 @@ public class ComplianceKycController {
             return ResponseEntity.badRequest().build();
         }
 
-        user.setAccountStatus(AccountStatus.ACTIVE);
-        userRepository.save(user);
+        accountStatusService.transition(userId, AccountStatus.ACTIVE, "KYC aprobado por oficial de cumplimiento", authentication.getName());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/{userId}/reject")
     public ResponseEntity<Void> rejectKyc(
             @PathVariable Long userId,
-            @RequestParam(required = false, defaultValue = "KYC rejected by compliance officer") String reason) {
+            @RequestParam(required = false, defaultValue = "KYC rejected by compliance officer") String reason,
+            Authentication authentication) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
 
@@ -107,8 +110,7 @@ public class ComplianceKycController {
             return ResponseEntity.badRequest().build();
         }
 
-        user.setAccountStatus(AccountStatus.SUSPENDED);
-        userRepository.save(user);
+        accountStatusService.transition(userId, AccountStatus.SUSPENDED, reason, authentication.getName());
         return ResponseEntity.ok().build();
     }
 }
