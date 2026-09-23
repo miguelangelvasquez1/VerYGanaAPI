@@ -17,6 +17,7 @@ import jakarta.persistence.LockModeType;
 import com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO;
 import com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.raffles.Raffle;
@@ -159,17 +160,33 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                                LEFT JOIN r.imageAsset ia
                                LEFT JOIN r.targetAudience ta
                                WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.LIVE)
-                               AND (:municipality IS NULL
-                                    OR ta IS NULL
-                                    OR ta.targetMunicipalities IS EMPTY
-                                    OR :municipality MEMBER OF ta.targetMunicipalities)
                                GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus,
                                     r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
-                                    r.totalParticipants
-                                ORDER BY r.drawDate ASC
+                                    r.totalParticipants, ta.id
+                                ORDER BY
+                                    (CASE WHEN (:municipality IS NULL
+                                             OR ta IS NULL
+                                             OR ta.targetMunicipalities IS EMPTY
+                                             OR :municipality MEMBER OF ta.targetMunicipalities)
+                                     THEN 0 ELSE 1 END) +
+                                    (CASE WHEN (:consumerAge IS NULL
+                                             OR ta IS NULL
+                                             OR ((ta.minAge IS NULL OR ta.minAge <= :consumerAge)
+                                                 AND (ta.maxAge IS NULL OR ta.maxAge >= :consumerAge)))
+                                     THEN 0 ELSE 1 END) +
+                                    (CASE WHEN (:consumerGender IS NULL
+                                             OR ta IS NULL
+                                             OR ta.targetGender IS NULL
+                                             OR ta.targetGender = com.verygana2.models.enums.TargetGender.ALL
+                                             OR ta.targetGender = :consumerGender)
+                                     THEN 0 ELSE 1 END)
+                                    ASC, r.drawDate ASC
                                 LIMIT 10
                             """)
-        List<RaffleSummaryResponseDTO> findLiveRaffles(@Param("municipality") Municipality municipality);
+        List<RaffleSummaryResponseDTO> findLiveRaffles(
+                        @Param("municipality") Municipality municipality,
+                        @Param("consumerAge") Integer consumerAge,
+                        @Param("consumerGender") TargetGender consumerGender);
 
         @Query("""
                         SELECT new com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO(
@@ -190,18 +207,33 @@ public interface RaffleRepository extends JpaRepository<Raffle, Long> {
                         LEFT JOIN r.targetAudience ta
                         WHERE (r.raffleStatus = com.verygana2.models.enums.raffles.RaffleStatus.ACTIVE)
                         AND (:type IS NULL OR r.raffleType = :type)
-                        AND (:municipality IS NULL
-                             OR ta IS NULL
-                             OR ta.targetMunicipalities IS EMPTY
-                             OR :municipality MEMBER OF ta.targetMunicipalities)
                         GROUP BY r.id, r.title, ia.objectKey, r.raffleType, r.raffleStatus,
                              r.startDate, r.endDate, r.drawDate, r.totalTicketsIssued,
-                             r.totalParticipants
-                         ORDER BY r.drawDate ASC
+                             r.totalParticipants, ta.id
+                         ORDER BY
+                             (CASE WHEN (:municipality IS NULL
+                                      OR ta IS NULL
+                                      OR ta.targetMunicipalities IS EMPTY
+                                      OR :municipality MEMBER OF ta.targetMunicipalities)
+                              THEN 0 ELSE 1 END) +
+                             (CASE WHEN (:consumerAge IS NULL
+                                      OR ta IS NULL
+                                      OR ((ta.minAge IS NULL OR ta.minAge <= :consumerAge)
+                                          AND (ta.maxAge IS NULL OR ta.maxAge >= :consumerAge)))
+                              THEN 0 ELSE 1 END) +
+                             (CASE WHEN (:consumerGender IS NULL
+                                      OR ta IS NULL
+                                      OR ta.targetGender IS NULL
+                                      OR ta.targetGender = com.verygana2.models.enums.TargetGender.ALL
+                                      OR ta.targetGender = :consumerGender)
+                              THEN 0 ELSE 1 END)
+                             ASC, r.drawDate ASC
                         """)
         Page<RaffleSummaryResponseDTO> findActiveRaffles(
                         @Param("type") RaffleType type,
                         @Param("municipality") Municipality municipality,
+                        @Param("consumerAge") Integer consumerAge,
+                        @Param("consumerGender") TargetGender consumerGender,
                         Pageable pageable);
 
         @Query("""

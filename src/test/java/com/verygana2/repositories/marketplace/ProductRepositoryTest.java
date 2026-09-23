@@ -297,7 +297,7 @@ class ProductRepositoryTest {
             persistSearchableProduct(commercial, category, "Producto pendiente sin filtros", 10000,
                     ProductStatus.PENDING);
 
-            Page<Product> page = productRepository.searchProducts(null, null, null, null, null,
+            Page<Product> page = productRepository.searchProducts(null, null, null, null, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(active.getId());
@@ -311,7 +311,7 @@ class ProductRepositoryTest {
             Product target = persistSearchableProduct(commercial, category, "Audífonos Bluetooth Pro", 10000);
             persistSearchableProduct(commercial, category, "Otro producto distinto", 10000);
 
-            Page<Product> page = productRepository.searchProducts("audífonos", null, null, null, null,
+            Page<Product> page = productRepository.searchProducts("audífonos", null, null, null, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(target.getId());
@@ -327,7 +327,7 @@ class ProductRepositoryTest {
             em.flush();
             persistSearchableProduct(commercial, category, "Producto Y", 10000);
 
-            Page<Product> page = productRepository.searchProducts("especialisima", null, null, null, null,
+            Page<Product> page = productRepository.searchProducts("especialisima", null, null, null, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(target.getId());
@@ -346,7 +346,7 @@ class ProductRepositoryTest {
                     10000);
             persistSearchableProduct(otherCommercial, category, "Producto otra empresa", 10000);
 
-            Page<Product> page = productRepository.searchProducts("buscadísima", null, null, null, null,
+            Page<Product> page = productRepository.searchProducts("buscadísima", null, null, null, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(target.getId());
@@ -364,7 +364,7 @@ class ProductRepositoryTest {
             persistSearchableProduct(commercial, otherCategory, "Producto en categoría hogar", 10000);
 
             Page<Product> page = productRepository.searchProducts("electrónica especial", null, null, null, null,
-                    PageRequest.of(0, 10));
+                    null, null, PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(target.getId());
         }
@@ -378,8 +378,8 @@ class ProductRepositoryTest {
             Product inA = persistSearchableProduct(commercial, categoryA, "Producto en A", 10000);
             persistSearchableProduct(commercial, categoryB, "Producto en B", 10000);
 
-            Page<Product> page = productRepository.searchProducts(null, categoryA.getId(), null, null, null,
-                    PageRequest.of(0, 10));
+            Page<Product> page = productRepository.searchProducts(null, categoryA.getId(), null, null, null, null,
+                    null, PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(inA.getId());
         }
@@ -396,7 +396,7 @@ class ProductRepositoryTest {
             lowRated.setAverageRate(1.0);
             em.flush();
 
-            Page<Product> page = productRepository.searchProducts(null, null, 4.0, null, null,
+            Page<Product> page = productRepository.searchProducts(null, null, 4.0, null, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(highRated.getId());
@@ -410,7 +410,7 @@ class ProductRepositoryTest {
             Product cheap = persistSearchableProduct(commercial, category, "Producto barato", 5000);
             persistSearchableProduct(commercial, category, "Producto caro", 500000);
 
-            Page<Product> page = productRepository.searchProducts(null, null, null, 10000L, null,
+            Page<Product> page = productRepository.searchProducts(null, null, null, 10000L, null, null, null,
                     PageRequest.of(0, 10));
 
             assertThat(page.getContent()).extracting(Product::getId).containsExactly(cheap.getId());
@@ -437,7 +437,7 @@ class ProductRepositoryTest {
                     10000);
 
             Page<Product> resultForArmenia = productRepository.searchProducts(null, null, null, null, armenia,
-                    PageRequest.of(0, 10));
+                    null, null, PageRequest.of(0, 10));
 
             // El producto dirigido a OTRO municipio (Medellín) sigue apareciendo
             // cuando se busca desde Armenia: el municipio solo reordena.
@@ -461,14 +461,46 @@ class ProductRepositoryTest {
                     ProductStatus.ACTIVE);
 
             Page<Product> withoutMunicipality = productRepository.searchProducts(null, null, null, null, null,
-                    PageRequest.of(0, 10));
+                    null, null, PageRequest.of(0, 10));
             assertThat(withoutMunicipality.getContent()).extracting(Product::getId).containsExactly(noTarget.getId());
 
             // Tampoco lo excluye cuando se pasa un municipio: el municipio solo prioriza.
             Municipality armenia = persistMunicipality("63001", "Armenia", "63", "Quindío");
             Page<Product> withMunicipality = productRepository.searchProducts(null, null, null, null, armenia,
-                    PageRequest.of(0, 10));
+                    null, null, PageRequest.of(0, 10));
             assertThat(withMunicipality.getContent()).extracting(Product::getId).containsExactly(noTarget.getId());
+        }
+
+        @Test
+        @DisplayName("edad y género del consumidor priorizan el orden sin excluir a los productos fuera de rango")
+        void ageAndGenderPrioritizeWithoutExcluding() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            ProductCategory category = persistCategory("Categoria edad y genero");
+
+            Product forAdultsOnly = persistProduct(commercial, category, "Producto solo para adultos mayores", 10000,
+                    ProductStatus.ACTIVE);
+            TargetAudience adultsAudience = TargetAudience.builder()
+                    .targetMunicipalities(new ArrayList<>())
+                    .minAge(60)
+                    .build();
+            em.persist(adultsAudience);
+            em.flush();
+            forAdultsOnly.setTargetAudience(adultsAudience);
+            em.persist(forAdultsOnly);
+            em.flush();
+
+            Product forEveryone = persistSearchableProduct(commercial, category, "Producto para todas las edades",
+                    10000);
+
+            // Consumidor de 25 años: ambos productos siguen apareciendo (nunca se
+            // excluye), pero el que sí encaja en su rango de edad se lista primero.
+            Page<Product> result = productRepository.searchProducts(null, null, null, null, null, 25, null,
+                    PageRequest.of(0, 10));
+
+            assertThat(result.getContent())
+                    .extracting(Product::getId)
+                    .containsExactlyInAnyOrder(forAdultsOnly.getId(), forEveryone.getId());
+            assertThat(result.getContent().get(0).getId()).isEqualTo(forEveryone.getId());
         }
     }
 

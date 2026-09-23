@@ -8,6 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -15,18 +16,23 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.exceptions.ProductNotAvailableException;
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.models.marketplace.Purchase;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
@@ -42,6 +48,7 @@ import com.verygana2.services.wompi.WompiService;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -68,6 +75,7 @@ class PurchaseServiceImplTest {
     @Mock private WompiService wompiService;
     @Mock private WompiTransactionRepository wompiTransactionRepository;
     @Mock private PurchaseMapper purchaseMapper;
+    @Mock private TreasuryConfig treasuryConfig;
 
     private PurchaseServiceImpl service;
 
@@ -75,7 +83,7 @@ class PurchaseServiceImplTest {
     void setUp() {
         service = new PurchaseServiceImpl(purchaseRepository, productService, productRepository,
                 productStockRepository, consumerDetailsService, keyWalletRepository, copaymentRepository,
-                wompiService, wompiTransactionRepository, purchaseMapper);
+                wompiService, wompiTransactionRepository, purchaseMapper, treasuryConfig);
         ReflectionTestUtils.setField(service, "KEY_VALUE", KEY_VALUE_CENTS);
     }
 
@@ -97,6 +105,29 @@ class PurchaseServiceImplTest {
             stockItems.add(ProductStock.builder().status(StockStatus.AVAILABLE).build());
         }
         product.setStockItems(stockItems);
+        return product;
+    }
+
+    /** Producto de un comercial STANDARD (Tipo B) con vocación empresarial asignada. */
+    private Product standardProduct(long priceCents, CommercialActivityType vocation) {
+        Product product = new Product();
+        product.setId(1L);
+        product.setName("Netflix");
+        product.setStatus(ProductStatus.ACTIVE);
+        product.setPriceCents(priceCents);
+        product.setMaxKeysPct(30);
+
+        CommercialDetails commercial = new CommercialDetails();
+        Plan plan = Plan.builder()
+                .code(PlanCode.STANDARD)
+                .saleCommissionPct(10)
+                .servicesCommissionPct(15)
+                .build();
+        commercial.setCurrentPlan(plan);
+        commercial.setCommercialActivityType(vocation);
+        product.setCommercial(commercial);
+
+        product.setStockItems(List.of(ProductStock.builder().status(StockStatus.AVAILABLE).build()));
         return product;
     }
 
@@ -234,6 +265,85 @@ class PurchaseServiceImplTest {
 
             assertThatThrownBy(() -> service.createPurchase(9L, requestFor(100L, 1)))
                     .isInstanceOf(InsufficientFundsException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("comisión por Vocación Empresarial (MP-02, comerciales STANDARD/Tipo B)")
+    class CommissionByBusinessVocation {
+
+        private PurchaseItem createAndCaptureFirstItem(Product product) {
+            stubHappyPathCollaborators(product);
+            ArgumentCaptor<Purchase> captor = ArgumentCaptor.forClass(Purchase.class);
+
+            service.createPurchase(9L, requestFor(0L, 1));
+
+            verify(purchaseRepository, atLeastOnce()).save(captor.capture());
+            return captor.getValue().getItems().get(0);
+        }
+
+        @Test
+        @DisplayName("STANDARD + PRODUCTS: comisión = plan.saleCommissionPct (10%)")
+        void standardProducts_usesSaleCommissionPct() {
+            Product product = standardProduct(1_000_000L, CommercialActivityType.PRODUCTS);
+
+            PurchaseItem item = createAndCaptureFirstItem(product);
+
+            assertThat(item.getCommissionPctApplied()).isEqualTo(10);
+            assertThat(item.getCommissionCents()).isEqualTo(100_000L);
+            assertThat(item.getCommercialActivityTypeAtPurchase()).isEqualTo(CommercialActivityType.PRODUCTS);
+        }
+
+        @Test
+        @DisplayName("STANDARD + SERVICES: comisión = plan.servicesCommissionPct (15%)")
+        void standardServices_usesServicesCommissionPct() {
+            Product product = standardProduct(1_000_000L, CommercialActivityType.SERVICES);
+
+            PurchaseItem item = createAndCaptureFirstItem(product);
+
+            assertThat(item.getCommissionPctApplied()).isEqualTo(15);
+            assertThat(item.getCommissionCents()).isEqualTo(150_000L);
+            assertThat(item.getCommercialActivityTypeAtPurchase()).isEqualTo(CommercialActivityType.SERVICES);
+        }
+
+        @Test
+        @DisplayName("BASIC (Tipo A): ignora la vocación, sigue en plan.saleCommissionPct plano (20%)")
+        void basicPlan_ignoresVocationAndUsesFlatCommission() {
+            Product product = new Product();
+            product.setId(1L);
+            product.setName("Netflix");
+            product.setStatus(ProductStatus.ACTIVE);
+            product.setPriceCents(1_000_000L);
+            product.setMaxKeysPct(20);
+
+            CommercialDetails commercial = new CommercialDetails();
+            Plan plan = Plan.builder()
+                    .code(PlanCode.BASIC)
+                    .saleCommissionPct(20)
+                    .servicesCommissionPct(0) // no aplica en BASIC
+                    .build();
+            commercial.setCurrentPlan(plan);
+            commercial.setCommercialActivityType(CommercialActivityType.SERVICES); // aunque tenga vocación, no afecta
+            product.setCommercial(commercial);
+            product.setStockItems(List.of(ProductStock.builder().status(StockStatus.AVAILABLE).build()));
+
+            PurchaseItem item = createAndCaptureFirstItem(product);
+
+            assertThat(item.getCommissionPctApplied()).isEqualTo(20);
+        }
+
+        @Test
+        @DisplayName("STANDARD sin vocación asignada: lanza BusinessException")
+        void standardWithoutVocation_throwsBusinessException() {
+            // Comisión se calcula antes de reservar stock, así que solo se necesitan
+            // estos stubs (evita UnnecessaryStubbingException con Mockito strict stubs).
+            Product product = standardProduct(1_000_000L, null);
+            when(consumerDetailsService.getConsumerById(9L)).thenReturn(consumer(9L));
+            when(purchaseRepository.save(any(Purchase.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(productService.getById(1L)).thenReturn(product);
+
+            assertThatThrownBy(() -> service.createPurchase(9L, requestFor(0L, 1)))
+                    .isInstanceOf(BusinessException.class);
         }
     }
 

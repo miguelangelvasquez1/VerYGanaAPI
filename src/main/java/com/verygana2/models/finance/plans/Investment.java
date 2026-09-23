@@ -84,6 +84,25 @@ public class Investment {
     private Long depositAmountCents;
 
     /**
+     * IVA cobrado ADICIONAL sobre depositAmountCents (ej. depositAmountCents=
+     * $1.000.000, vatAmountCents=$190.000 con vatPct=19 → Wompi cobra
+     * $1.190.000 en total). Inmutable — snapshot de lo que se cobró
+     * realmente. 0 si no aplicó IVA.
+     */
+    @Column(name = "vat_amount_cents", nullable = false, updatable = false)
+    @Builder.Default
+    private Long vatAmountCents = 0L;
+
+    /**
+     * Otros tributos (ICA, coljuegos, etc.) que en el futuro podrían cobrarse
+     * ADICIONAL sobre depositAmountCents, siguiendo el mismo patrón que
+     * vatAmountCents. Sin uso todavía — siempre 0.
+     */
+    @Column(name = "other_taxes_cents", nullable = false, updatable = false)
+    @Builder.Default
+    private Long otherTaxesCents = 0L;
+
+    /**
      * true cuando Wompi confirmó el pago y el saldo fue acreditado al Wallet.
      * false mientras está pendiente de confirmación.
      */

@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,10 +14,22 @@ import org.springframework.stereotype.Repository;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.Investment;
 
+import jakarta.persistence.LockModeType;
+
 @Repository
 public interface InvestmentRepository extends JpaRepository<Investment, Long> {
 
     Optional<Investment> findByWompiReference(String wompiReference);
+
+    /**
+     * Lookup con lock pesimista para el webhook de Wompi — serializa entregas
+     * duplicadas/concurrentes del mismo evento para que la segunda espere a
+     * que la primera confirme (commit) antes de leer el registro.
+     * Ver PlanServiceImpl#activateInvestment.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT i FROM Investment i WHERE i.wompiReference = :wompiReference")
+    Optional<Investment> findByWompiReferenceForUpdate(@Param("wompiReference") String wompiReference);
 
     List<Investment> findByWalletAndConfirmedTrue(Wallet wallet);
 

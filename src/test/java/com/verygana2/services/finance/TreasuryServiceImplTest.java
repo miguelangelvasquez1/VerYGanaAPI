@@ -77,7 +77,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.FORTIFICATION, 0);
             stubAccount(TreasuryAccountCode.OPERATIONS, 0);
 
-            service.distributeDeposit(1_000_001L, commercial(1L), UUID.randomUUID()); // monto impar a propósito
+            service.distributeDeposit(1_000_001L, 0L, commercial(1L), UUID.randomUUID()); // monto impar a propósito
 
             var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
             verify(treasuryAccountRepository, org.mockito.Mockito.times(3)).save(captor.capture());
@@ -89,7 +89,7 @@ class TreasuryServiceImplTest {
         @Test
         @DisplayName("monto no positivo: lanza InvalidAmountException sin tocar ninguna cuenta")
         void nonPositiveAmount_throwsWithoutTouchingAccounts() {
-            assertThatThrownBy(() -> service.distributeDeposit(0L, commercial(1L), UUID.randomUUID()))
+            assertThatThrownBy(() -> service.distributeDeposit(0L, 0L, commercial(1L), UUID.randomUUID()))
                     .isInstanceOf(InvalidAmountException.class);
             verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
         }
@@ -101,7 +101,7 @@ class TreasuryServiceImplTest {
         stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0);
         stubAccount(TreasuryAccountCode.OPERATIONS, 500_000L);
 
-        service.distributeSubscription(200_000L, commercial(1L), UUID.randomUUID());
+        service.distributeSubscription(200_000L, 0L, commercial(1L), UUID.randomUUID());
 
         var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
         verify(treasuryAccountRepository).save(captor.capture());
@@ -171,7 +171,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 100_000L);
             stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
 
-            service.retainCommission(10_000L, UUID.randomUUID(), "COPAYMENT");
+            service.retainCommission(10_000L, 0L, UUID.randomUUID(), "COPAYMENT");
 
             verify(treasuryAccountRepository, org.mockito.Mockito.times(2)).save(any());
         }
@@ -179,7 +179,7 @@ class TreasuryServiceImplTest {
         @Test
         @DisplayName("comisión en cero: no hace nada, ni siquiera consulta las cuentas")
         void zeroCommission_doesNothing() {
-            service.retainCommission(0L, UUID.randomUUID(), "COPAYMENT");
+            service.retainCommission(0L, 0L, UUID.randomUUID(), "COPAYMENT");
 
             verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
         }
@@ -187,10 +187,11 @@ class TreasuryServiceImplTest {
         @Test
         @DisplayName("PAYOUTS_PENDING sin saldo suficiente: lanza IllegalStateException")
         void insufficientPayoutsPending_throws() {
+            // El chequeo de saldo ocurre sobre PAYOUTS_PENDING antes de tocar
+            // OPERATIONS/TAX_RESERVE, así que no hace falta stubear esas cuentas.
             stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 100L);
-            stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
 
-            assertThatThrownBy(() -> service.retainCommission(1_000L, UUID.randomUUID(), "COPAYMENT"))
+            assertThatThrownBy(() -> service.retainCommission(1_000L, 0L, UUID.randomUUID(), "COPAYMENT"))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -219,7 +220,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.OPERATIONS, 50_000L);
             stubAccount(TreasuryAccountCode.KEYS_RESERVE, 0L);
 
-            service.reversePurchaseItemForRefund(10_000L, 30_000L, 60_000L, UUID.randomUUID());
+            service.reversePurchaseItemForRefund(10_000L, 0L, 30_000L, 60_000L, UUID.randomUUID());
 
             // comisión: OPERATIONS+PAYOUTS_PENDING (2) / llaves: PAYOUTS_PENDING+KEYS_RESERVE (2) / efectivo: PAYOUTS_PENDING+OPERATIONS (2) = 6
             verify(treasuryAccountRepository, org.mockito.Mockito.times(6)).save(any());
@@ -232,7 +233,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
             stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
 
-            service.reversePurchaseItemForRefund(0L, 0L, 90_000L, UUID.randomUUID());
+            service.reversePurchaseItemForRefund(0L, 0L, 0L, 90_000L, UUID.randomUUID());
 
             verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(TreasuryAccountCode.KEYS_RESERVE);
             verify(treasuryMovementRepository, org.mockito.Mockito.times(1)).save(any(TreasuryMovement.class));
@@ -244,7 +245,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
             stubAccount(TreasuryAccountCode.OPERATIONS, 100L);
 
-            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 90_000L, UUID.randomUUID()))
+            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 0L, 90_000L, UUID.randomUUID()))
                     .isInstanceOf(IllegalStateException.class);
         }
 
@@ -254,7 +255,7 @@ class TreasuryServiceImplTest {
             stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 5_000L);
             stubAccount(TreasuryAccountCode.OPERATIONS, 50_000L);
 
-            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 90_000L, UUID.randomUUID()))
+            assertThatThrownBy(() -> service.reversePurchaseItemForRefund(10_000L, 0L, 0L, 90_000L, UUID.randomUUID()))
                     .isInstanceOf(IllegalStateException.class);
         }
     }
@@ -287,8 +288,8 @@ class TreasuryServiceImplTest {
     }
 
     @Test
-    @DisplayName("getSnapshot: suma los 4 saldos y calcula el total")
-    void getSnapshot_sumsAllFourBalances() {
+    @DisplayName("getSnapshot: suma los saldos y calcula el total")
+    void getSnapshot_sumsAllBalances() {
         when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
                 .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, 100L)));
         when(treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION))

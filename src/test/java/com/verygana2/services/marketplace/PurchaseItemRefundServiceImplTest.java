@@ -116,7 +116,7 @@ class PurchaseItemRefundServiceImplTest {
 
             PurchaseItemCashRefund result = service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
-            verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 100_000L, copayment.getId());
+            verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 0L, 100_000L, copayment.getId());
             // Hay porción en efectivo pendiente de pago manual: el ítem NO pasa a
             // REFUNDED todavía — eso solo ocurre en CashRefundServiceImpl.markPaid.
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
@@ -177,7 +177,7 @@ class PurchaseItemRefundServiceImplTest {
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(20_000L);
             verify(keyWalletRepository).save(wallet);
             verify(keyTransactionRepository).save(any());
-            verify(treasuryService).reversePurchaseItemForRefund(5_000L, 20_000L, 30_000L, copayment.getId());
+            verify(treasuryService).reversePurchaseItemForRefund(5_000L, 0L, 20_000L, 30_000L, copayment.getId());
 
             var captor = org.mockito.ArgumentCaptor.forClass(PurchaseItemCashRefund.class);
             verify(purchaseItemCashRefundRepository).save(captor.capture());
@@ -242,7 +242,7 @@ class PurchaseItemRefundServiceImplTest {
 
             service.expireUnclaimed(item);
 
-            verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 100_000L, copayment.getId());
+            verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 0L, 100_000L, copayment.getId());
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.EXPIRED_UNCLAIMED);
             // a diferencia de refund(CODE_INVALID), expireUnclaimed nunca marca el stock INVALID
             assertThat(item.getAssignedProductStock().getStatus()).isEqualTo(StockStatus.SOLD);

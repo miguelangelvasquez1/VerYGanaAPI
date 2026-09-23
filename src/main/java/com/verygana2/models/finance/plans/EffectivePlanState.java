@@ -40,7 +40,7 @@ public class EffectivePlanState {
 
     boolean canSellDirectly;
 
-    boolean canHavePets;
+    boolean canUsePets;
 
     boolean canPromoteAllyProducts;
 
@@ -88,7 +88,7 @@ public class EffectivePlanState {
                 .canUseGames(false)
                 .canUseSurveys(false)
                 .canSellDirectly(false)
-                .canHavePets(false)
+                .canUsePets(false)
                 .canPromoteAllyProducts(false)
                 .canExportReport(false)
                 .canViewPerformanceMetrics(false)

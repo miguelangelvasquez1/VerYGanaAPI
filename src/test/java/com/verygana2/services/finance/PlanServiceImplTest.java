@@ -226,6 +226,7 @@ class PlanServiceImplTest {
         void approvedSubscription_activatesAndDistributes() {
             CommercialDetails commercial = commercial(1L);
             Subscription sub = Subscription.builder().commercial(commercial)
+                    .amountPaidCents(200_000L)
                     .status(SubscriptionStatus.PENDING_PAYMENT).build();
             Plan basic = Plan.builder().code(PlanCode.BASIC).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
@@ -234,14 +235,14 @@ class PlanServiceImplTest {
                     .reference("VG-SUB-123").amountInCents(200_000L).build();
 
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
-            when(subscriptionRepository.findByWompiReference("VG-SUB-123")).thenReturn(Optional.of(sub));
+            when(subscriptionRepository.findByWompiReferenceForUpdate("VG-SUB-123")).thenReturn(Optional.of(sub));
             when(planRepository.findByCodeAndActiveTrue(PlanCode.BASIC)).thenReturn(Optional.of(basic));
 
             service.handleWompiResult(tx.getId());
 
             assertThat(sub.getStatus()).isEqualTo(SubscriptionStatus.ACTIVE);
             assertThat(commercial.getCurrentPlan()).isSameAs(basic);
-            verify(treasuryService).distributeSubscription(200_000L, commercial, tx.getId());
+            verify(treasuryService).distributeSubscription(200_000L, 0L, commercial, tx.getId());
         }
 
         @Test
@@ -257,6 +258,7 @@ class PlanServiceImplTest {
             commercial.setCurrentPlan(standard);
 
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
@@ -264,7 +266,7 @@ class PlanServiceImplTest {
                     .reference("VG-DEP-123").amountInCents(11_000_000L).build();
 
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
-            when(investmentRepository.findByWompiReference("VG-DEP-123")).thenReturn(Optional.of(investment));
+            when(investmentRepository.findByWompiReferenceForUpdate("VG-DEP-123")).thenReturn(Optional.of(investment));
             when(treasuryConfig.getKeysReservePct()).thenReturn(60);
 
             service.handleWompiResult(tx.getId());
@@ -272,7 +274,7 @@ class PlanServiceImplTest {
             assertThat(investment.getConfirmed()).isTrue();
             assertThat(wallet.getBalanceCents()).isEqualTo(6_600_000L); // 60% de 11.000.000
             assertThat(commercial.getCurrentPlan()).isSameAs(standard); // la recarga no cambia el plan
-            verify(treasuryService).distributeDeposit(11_000_000L, commercial, tx.getId());
+            verify(treasuryService).distributeDeposit(11_000_000L, 0L, commercial, tx.getId());
             verify(planRepository, never()).findByCodeAndActiveTrue(PlanCode.PREMIUM);
         }
 
@@ -289,6 +291,7 @@ class PlanServiceImplTest {
 
             Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
@@ -300,7 +303,7 @@ class PlanServiceImplTest {
             onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.PAYMENT_PENDING);
 
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
-            when(investmentRepository.findByWompiReference("VG-DEP-999")).thenReturn(Optional.of(investment));
+            when(investmentRepository.findByWompiReferenceForUpdate("VG-DEP-999")).thenReturn(Optional.of(investment));
             when(treasuryConfig.getKeysReservePct()).thenReturn(60);
             when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
 
@@ -328,6 +331,7 @@ class PlanServiceImplTest {
             commercial.setCurrentPlan(standard);
 
             Investment investment = Investment.builder().wallet(wallet).confirmed(false)
+                    .depositAmountCents(11_000_000L)
                     .planAtDeposit(standard).build();
             WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
                     .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
@@ -339,7 +343,7 @@ class PlanServiceImplTest {
             onboarding.setCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep.COMPLETED);
 
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
-            when(investmentRepository.findByWompiReference("VG-DEP-777")).thenReturn(Optional.of(investment));
+            when(investmentRepository.findByWompiReferenceForUpdate("VG-DEP-777")).thenReturn(Optional.of(investment));
             when(treasuryConfig.getKeysReservePct()).thenReturn(60);
             when(onboardingRepository.findByCommercialDetails_Id(1L)).thenReturn(Optional.of(onboarding));
 
@@ -395,6 +399,57 @@ class PlanServiceImplTest {
             when(wompiTransactionRepository.findById(id)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.handleWompiResult(id)).isInstanceOf(IllegalStateException.class);
+        }
+
+        @Test
+        @DisplayName("APPROVED + CHARGE_BUSINESS_DEPOSIT: Investment ya confirmado (entrega duplicada del webhook) "
+                + "no vuelve a acreditar el wallet ni a distribuir en tesorería")
+        void approvedInvestment_alreadyConfirmed_isIdempotent() {
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(6_600_000L);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setWallet(wallet);
+            wallet.setCommercial(commercial);
+
+            Plan standard = Plan.builder().code(PlanCode.STANDARD).build();
+            Investment investment = Investment.builder().wallet(wallet).confirmed(true)
+                    .depositAmountCents(11_000_000L)
+                    .planAtDeposit(standard).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_BUSINESS_DEPOSIT)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-DEP-DUP").amountInCents(11_000_000L).build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(investmentRepository.findByWompiReferenceForUpdate("VG-DEP-DUP")).thenReturn(Optional.of(investment));
+
+            service.handleWompiResult(tx.getId());
+
+            assertThat(wallet.getBalanceCents()).isEqualTo(6_600_000L); // sin cambios
+            verify(treasuryService, never()).distributeDeposit(any(), any(), any(), any());
+            verify(walletRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("APPROVED + CHARGE_PLAN_SUBSCRIPTION: Subscription ya ACTIVE (entrega duplicada del webhook) "
+                + "no vuelve a distribuir en tesorería ni a reasignar el plan")
+        void approvedSubscription_alreadyActive_isIdempotent() {
+            CommercialDetails commercial = commercial(1L);
+            Subscription sub = Subscription.builder().commercial(commercial)
+                    .amountPaidCents(200_000L)
+                    .status(SubscriptionStatus.ACTIVE).build();
+            WompiTransaction tx = WompiTransaction.builder().id(UUID.randomUUID())
+                    .type(WompiTransactionType.CHARGE_PLAN_SUBSCRIPTION)
+                    .status(WompiTransactionStatus.APPROVED)
+                    .reference("VG-SUB-DUP").amountInCents(200_000L).build();
+
+            when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
+            when(subscriptionRepository.findByWompiReferenceForUpdate("VG-SUB-DUP")).thenReturn(Optional.of(sub));
+
+            service.handleWompiResult(tx.getId());
+
+            verify(treasuryService, never()).distributeSubscription(any(), any(), any(), any());
+            verify(commercialDetailsRepository, never()).save(any());
         }
     }
 

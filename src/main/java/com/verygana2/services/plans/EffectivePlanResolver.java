@@ -42,7 +42,7 @@ public class EffectivePlanResolver {
     private static final String FEAT_CAN_USE_GAMES     = "CAN_USE_GAMES";
     private static final String FEAT_CAN_USE_SURVEYS   = "CAN_USE_SURVEYS";
     private static final String FEAT_CAN_SELL_DIRECTLY = "CAN_SELL_DIRECTLY";
-    private static final String FEAT_CAN_HAVE_PETS     = "CAN_HAVE_PETS";
+    private static final String FEAT_CAN_USE_PETS     = "CAN_USE_PETS";
     private static final String FEAT_CAN_PROMOTE_ALLY_PRODUCTS = "CAN_PROMOTE_ALLY_PRODUCTS";
     private static final String FEAT_CAN_EXPORT_REPORT = "CAN_EXPORT_REPORT";
     private static final String FEAT_CAN_VIEW_PERFORMANCE_METRICS = "CAN_VIEW_PERFORMANCE_METRICS";
@@ -130,8 +130,8 @@ public class EffectivePlanResolver {
                         () -> getFeatureBool(code, FEAT_CAN_USE_SURVEYS, false)))
                 .canSellDirectly(resolveBool(onboarding == null ? null : onboarding.getCanSellDirectlyOverride(),
                         () -> getFeatureBool(code, FEAT_CAN_SELL_DIRECTLY, false)))
-                .canHavePets(resolveBool(onboarding == null ? null : onboarding.getCanHavePetsOverride(),
-                        () -> getFeatureBool(code, FEAT_CAN_HAVE_PETS, false)))
+                .canUsePets(resolveBool(onboarding == null ? null : onboarding.getCanUsePetsOverride(),
+                        () -> getFeatureBool(code, FEAT_CAN_USE_PETS, false)))
                 .canPromoteAllyProducts(resolveBool(onboarding == null ? null : onboarding.getCanPromoteAllyProductsOverride(),
                         () -> getFeatureBool(code, FEAT_CAN_PROMOTE_ALLY_PRODUCTS, false)))
                 // Sin override de onboarding todavía — solo depende del feature del Plan.
