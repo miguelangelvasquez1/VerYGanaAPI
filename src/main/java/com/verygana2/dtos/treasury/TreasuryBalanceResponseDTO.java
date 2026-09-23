@@ -6,6 +6,9 @@ public record TreasuryBalanceResponseDTO(
         long operationsCents,
         long payoutsPendingCents,
         long taxReserveCents,
+        long connectivityCents,
+        long infrastructureCents,
+        long payrollCents,
         long totalCents,
         double keysReserveHealthPct,
         /** OK | WARNING | CRITICAL según los umbrales de TreasuryConfig */

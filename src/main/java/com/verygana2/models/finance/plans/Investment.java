@@ -94,6 +94,15 @@ public class Investment {
     private Long vatAmountCents = 0L;
 
     /**
+     * Otros tributos (ICA, coljuegos, etc.) que en el futuro podrían cobrarse
+     * ADICIONAL sobre depositAmountCents, siguiendo el mismo patrón que
+     * vatAmountCents. Sin uso todavía — siempre 0.
+     */
+    @Column(name = "other_taxes_cents", nullable = false, updatable = false)
+    @Builder.Default
+    private Long otherTaxesCents = 0L;
+
+    /**
      * true cuando Wompi confirmó el pago y el saldo fue acreditado al Wallet.
      * false mientras está pendiente de confirmación.
      */

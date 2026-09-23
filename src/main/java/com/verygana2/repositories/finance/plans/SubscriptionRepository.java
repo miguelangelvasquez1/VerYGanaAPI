@@ -6,24 +6,37 @@ import java.util.Optional;
 import java.util.UUID;
  
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
- 
+
 import com.verygana2.models.enums.finance.plans.SubscriptionStatus;
 import com.verygana2.models.finance.plans.Subscription;
 import com.verygana2.models.userDetails.CommercialDetails;
- 
+
+import jakarta.persistence.LockModeType;
+
 @Repository
 public interface SubscriptionRepository extends JpaRepository<Subscription, UUID> {
- 
+
     /**
      * Lookup principal desde el webhook.
      * Cuando llega el evento de Wompi, buscamos por la referencia
      * para encontrar la Subscription sin necesitar commercial en WompiTransaction.
      */
     Optional<Subscription> findByWompiReference(String wompiReference);
- 
+
+    /**
+     * Lookup con lock pesimista para el webhook de Wompi — serializa entregas
+     * duplicadas/concurrentes del mismo evento para que la segunda espere a
+     * que la primera confirme (commit) antes de leer el registro.
+     * Ver PlanServiceImpl#activateSubscription.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT s FROM Subscription s WHERE s.wompiReference = :wompiReference")
+    Optional<Subscription> findByWompiReferenceForUpdate(@Param("wompiReference") String wompiReference);
+
     /**
      * Suscripción activa actual de un comercial.
      */

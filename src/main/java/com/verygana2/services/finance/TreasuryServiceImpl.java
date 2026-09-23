@@ -66,6 +66,10 @@ public class TreasuryServiceImpl implements TreasuryService {
          * aparte a TAX_RESERVE (ver MP-02 Frente 2: el empresario paga
          * baseAmountCents + IVA, pero solo baseAmountCents es la inversión real).
          *
+         * Los bolsillos CONNECTIVITY/INFRASTRUCTURE/PAYROLL (MP-04) existen como
+         * cuentas de tesorería pero NO se alimentan desde este reparto — se nutrirán
+         * de otras operaciones (fuera del alcance de este cambio).
+         *
          * @param baseAmountCents monto de inversión sin IVA, en centavos de COP
          * @param vatAmountCents  IVA cobrado sobre el depósito, en centavos (puede ser 0)
          * @param commercial      empresario que realizó el depósito
@@ -498,9 +502,14 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long operations = getBalance(TreasuryAccountCode.OPERATIONS);
                 long payouts = getBalance(TreasuryAccountCode.PAYOUTS_PENDING);
                 long taxReserve = getBalance(TreasuryAccountCode.TAX_RESERVE);
-                long total = keysReserve + fortification + operations + payouts + taxReserve;
+                long connectivity = getBalance(TreasuryAccountCode.CONNECTIVITY);
+                long infrastructure = getBalance(TreasuryAccountCode.INFRASTRUCTURE);
+                long payroll = getBalance(TreasuryAccountCode.PAYROLL);
+                long total = keysReserve + fortification + operations + payouts + taxReserve
+                                + connectivity + infrastructure + payroll;
 
-                return new TreasurySnapshot(keysReserve, fortification, operations, payouts, taxReserve, total);
+                return new TreasurySnapshot(keysReserve, fortification, operations, payouts, taxReserve,
+                                connectivity, infrastructure, payroll, total);
         }
 
         // ─── Privados ─────────────────────────────────────────────────────────────
@@ -605,6 +614,9 @@ public class TreasuryServiceImpl implements TreasuryService {
                                 snap.operationsCents(),
                                 snap.payoutsPendingCents(),
                                 snap.taxReserveCents(),
+                                snap.connectivityCents(),
+                                snap.infrastructureCents(),
+                                snap.payrollCents(),
                                 snap.totalCents(),
                                 snap.keysReserveHealthPct(),
                                 status,

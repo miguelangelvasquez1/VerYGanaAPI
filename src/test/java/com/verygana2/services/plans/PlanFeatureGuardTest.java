@@ -74,7 +74,7 @@ class PlanFeatureGuardTest {
                 .canUseGames(true)
                 .canUseSurveys(true)
                 .canSellDirectly(true)
-                .canHavePets(true)
+                .canUsePets(true)
                 .canPromoteAllyProducts(true)
                 .canExportReport(true)
                 .budgetSuspended(false)
@@ -140,13 +140,13 @@ class PlanFeatureGuardTest {
         }
 
         @Test
-        @DisplayName("CAN_HAVE_PETS: pasa si true, lanza si false")
-        void canHavePets() {
-            mockState(baseState().canHavePets(true).build());
-            assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_HAVE_PETS)).doesNotThrowAnyException();
+        @DisplayName("CAN_USE_PETS: pasa si true, lanza si false")
+        void canUsePets() {
+            mockState(baseState().canUsePets(true).build());
+            assertThatCode(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_USE_PETS)).doesNotThrowAnyException();
 
-            mockState(baseState().canHavePets(false).build());
-            assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_HAVE_PETS))
+            mockState(baseState().canUsePets(false).build());
+            assertThatThrownBy(() -> guard.assertCapability(COMMERCIAL_ID, Capability.CAN_USE_PETS))
                     .isInstanceOf(PlanCapabilityException.class);
         }
 

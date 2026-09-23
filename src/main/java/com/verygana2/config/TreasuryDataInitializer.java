@@ -78,6 +78,27 @@ public class TreasuryDataInitializer implements ApplicationRunner {
             "Acumula el IVA recaudado por VerYGana (depósitos, suscripción BASIC y " +
             "comisiones de venta) hasta el ciclo de declaración a la DIAN " +
             "(bimestral/cuatrimestral) — no se remite venta a venta."
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.CONNECTIVITY,
+            "Programa de conectividad",
+            "Subsidia el costo de datos móviles/internet de los usuarios (MP-04). " +
+            "No se alimenta del reparto de depósitos empresariales — se nutre de " +
+            "otras operaciones, aún no implementadas."
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.INFRASTRUCTURE,
+            "Infraestructura tecnológica",
+            "Cubre hosting, CDN y servicios en la nube (MP-04). No se alimenta del " +
+            "reparto de depósitos empresariales — se nutre de otras operaciones, " +
+            "aún no implementadas."
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.PAYROLL,
+            "Nómina VerYGana",
+            "Cubre la remuneración del equipo de VerYGana (MP-04). No se alimenta del " +
+            "reparto de depósitos empresariales — se nutre de otras operaciones, " +
+            "aún no implementadas."
         )
 
     );

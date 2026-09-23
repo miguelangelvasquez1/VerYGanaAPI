@@ -305,12 +305,23 @@ public class PlanServiceImpl implements PlanService {
         }
 
         private void activateSubscription(WompiTransaction wompiTx) {
-                // Lookup por referencia — sin necesitar commercial en WompiTransaction
+                // Lookup con lock pesimista — bloquea la fila hasta que esta transacción
+                // haga commit, para que una segunda entrega concurrente del mismo webhook
+                // espere aquí y no lea status=PENDING_PAYMENT dos veces.
                 Subscription subscription = subscriptionRepository
-                                .findByWompiReference(wompiTx.getReference())
+                                .findByWompiReferenceForUpdate(wompiTx.getReference())
                                 .orElseThrow(() -> new IllegalStateException(
                                                 "Subscription no encontrada para reference: " +
                                                                 wompiTx.getReference()));
+
+                // Idempotencia: si ya fue activada (por esta misma llamada en una entrega
+                // anterior, o por una transacción concurrente que ya liberó el lock), no
+                // repetir activate()/distributeSubscription().
+                if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+                        log.info("[PLAN] Subscription ya activa — entrega duplicada del webhook ignorada: reference={}",
+                                        wompiTx.getReference());
+                        return;
+                }
 
                 subscription.activate(wompiTx);
                 subscriptionRepository.save(subscription);
@@ -408,11 +419,19 @@ public class PlanServiceImpl implements PlanService {
                                                 .divide(BigDecimal.valueOf(100)).longValue()
                                 : 0L;
 
+                // IVA sobre el monto base — es lo que realmente se cobra en Wompi al generar
+                // el checkout (ver generateRechargeCheckout), así el preview no muestra un
+                // número menor al que se le va a cobrar.
+                Long vatAmountCents = amountCents != null ? vatFor(amountCents) : null;
+                Long totalToPayCents = amountCents != null && vatAmountCents != null ? amountCents + vatAmountCents : null;
+
                 return new RechargePreviewResponseDTO(
                                 plan != null ? plan.getCode() : null,
                                 eligible,
                                 message,
                                 centsToPesos(amountCents),
+                                centsToPesos(vatAmountCents),
+                                centsToPesos(totalToPayCents),
                                 plan != null ? centsToPesos(plan.getMinInvestmentCents()) : null,
                                 plan != null ? centsToPesos(plan.getMaxInvestmentCents()) : null,
                                 centsToPesos(currentBalance),
@@ -572,12 +591,23 @@ public class PlanServiceImpl implements PlanService {
         }
 
         private void activateInvestment(WompiTransaction wompiTx) {
-                // 1. Lookup por referencia Wompi
+                // 1. Lookup con lock pesimista — bloquea la fila hasta que esta transacción
+                // haga commit, para que una segunda entrega concurrente del mismo webhook
+                // espere aquí y no lea confirmed=false dos veces.
                 Investment investment = investmentRepository
-                                .findByWompiReference(wompiTx.getReference())
+                                .findByWompiReferenceForUpdate(wompiTx.getReference())
                                 .orElseThrow(() -> new IllegalStateException(
                                                 "Investment no encontrado para reference: " +
                                                                 wompiTx.getReference()));
+
+                // Idempotencia: si ya fue confirmado (por esta misma llamada en una entrega
+                // anterior, o por una transacción concurrente que ya liberó el lock), no
+                // repetir confirm()/registerDeposit()/distributeDeposit().
+                if (Boolean.TRUE.equals(investment.getConfirmed())) {
+                        log.info("[PLAN] Investment ya confirmado — entrega duplicada del webhook ignorada: reference={}",
+                                        wompiTx.getReference());
+                        return;
+                }
 
                 // 2. Confirmar el depósito (marca confirmed=true, guarda wompiTx)
                 investment.confirm(wompiTx);

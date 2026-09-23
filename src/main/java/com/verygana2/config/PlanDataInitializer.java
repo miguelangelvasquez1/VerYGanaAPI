@@ -157,9 +157,9 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.PERCENTAGE)
                 .build());
 
-        Feature canHavePets = featureRepository.save(Feature.builder()
-                .code("CAN_HAVE_PETS")
-                .name("Puede tener mascotas")
+        Feature canUsePets = featureRepository.save(Feature.builder()
+                .code("CAN_USE_PETS")
+                .name("Puede usar mascotas")
                 .type(FeatureType.BOOLEAN)
                 .build());
 
@@ -226,7 +226,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, maxBrandedGames, 0,    null,  null),
             pf(basic, maxSurveys,      0,    null,  null),
             pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
-            pf(basic, canHavePets,     null, false, null),
+            pf(basic, canUsePets,     null, false, null),
             pf(basic, canPromoteAllyProducts, null, false, null),
             pf(basic, canExportReport, null, false, null),
             pf(basic, canViewPerformanceMetrics, null, false, null),
@@ -242,7 +242,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, maxBrandedGames, 5,    null,  null),
             pf(standard, maxSurveys,      10,   null,  null),
             pf(standard, visibilityBoost, null, null,  new BigDecimal("30.00")),
-            pf(standard, canHavePets,     null, false, null),
+            pf(standard, canUsePets,     null, false, null),
             pf(standard, canPromoteAllyProducts, null, false, null),
             pf(standard, canExportReport, null, false, null),
             pf(standard, canViewPerformanceMetrics, null, true,  null),
@@ -261,7 +261,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, maxBrandedGames, 20,   null,  null),
             pf(premium, maxSurveys,      50,   null,  null),
             pf(premium, visibilityBoost, null, null,  new BigDecimal("70.00")),
-            pf(premium, canHavePets,     null, true,  null),
+            pf(premium, canUsePets,     null, true,  null),
             pf(premium, canPromoteAllyProducts, null, true, null),
             pf(premium, canExportReport, null, true, null),
             pf(premium, canViewPerformanceMetrics, null, true, null),

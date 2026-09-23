@@ -50,5 +50,27 @@ public enum TreasuryAccountCode {
      * sobre un depósito de inversión o una suscripción BASIC, y el 19% de
      * cada comisión de venta retenida por VerYGana (la comisión ya incluye IVA).
      */
-    TAX_RESERVE
+    TAX_RESERVE,
+
+    /**
+     * Programa de conectividad (MP-04). Subsidia el costo de datos
+     * móviles/internet de los usuarios. NO se alimenta del reparto de
+     * depósitos empresariales (ver TreasuryServiceImpl#distributeDeposit) —
+     * se nutre de otras operaciones, aún no implementadas.
+     */
+    CONNECTIVITY,
+
+    /**
+     * Infraestructura tecnológica de la plataforma (MP-04). Cubre hosting,
+     * CDN y servicios en la nube. NO se alimenta del reparto de depósitos
+     * empresariales — se nutre de otras operaciones, aún no implementadas.
+     */
+    INFRASTRUCTURE,
+
+    /**
+     * Nómina / remuneración del equipo de VerYGana (MP-04). NO se alimenta
+     * del reparto de depósitos empresariales — se nutre de otras
+     * operaciones, aún no implementadas.
+     */
+    PAYROLL
 }

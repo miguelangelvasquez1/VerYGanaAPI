@@ -530,6 +530,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (plan == null) {
             return null;
         }
+
+        Long netAmountCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeCentsSnapshot()
+                : o.getInvestmentAmountCentsSnapshot();
+        Long vatCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeVatCentsSnapshot()
+                : o.getInvestmentVatCentsSnapshot();
+        Long grossAmountCents = netAmountCents != null
+                ? netAmountCents + (vatCents != null ? vatCents : 0L)
+                : null;
+
         return new PlanSummaryResponseDTO(
                 plan.getCode(),
                 plan.getName(),
@@ -545,7 +556,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 o.getSpecialNegotiationResolvedAt(),
                 o.getSpecialNegotiationDetails(),
                 o.getPlanAcceptedAt() != null,
-                o.getPlanAcceptedAt());
+                o.getPlanAcceptedAt(),
+                grossAmountCents,
+                0L, // excludedTaxesCents — placeholder, no hay tributo excluido modelado todavía
+                commercialOnboardingMapper.toPlanBenefitsDTO(plan),
+                null); // prosperityThresholdCents — placeholder, concepto no definido
     }
 
     @Override

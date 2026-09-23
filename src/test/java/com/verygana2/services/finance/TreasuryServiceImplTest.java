@@ -288,8 +288,8 @@ class TreasuryServiceImplTest {
     }
 
     @Test
-    @DisplayName("getSnapshot: suma los 4 saldos y calcula el total")
-    void getSnapshot_sumsAllFourBalances() {
+    @DisplayName("getSnapshot: suma los saldos y calcula el total")
+    void getSnapshot_sumsAllBalances() {
         when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
                 .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, 100L)));
         when(treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION))

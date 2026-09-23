@@ -276,8 +276,8 @@ public class CommercialOnboarding {
     @Column(name = "can_sell_directly_override")
     private Boolean canSellDirectlyOverride;
 
-    @Column(name = "can_have_pets_override")
-    private Boolean canHavePetsOverride;
+    @Column(name = "can_use_pets_override")
+    private Boolean canUsePetsOverride;
 
     @Column(name = "can_promote_ally_products_override")
     private Boolean canPromoteAllyProductsOverride;

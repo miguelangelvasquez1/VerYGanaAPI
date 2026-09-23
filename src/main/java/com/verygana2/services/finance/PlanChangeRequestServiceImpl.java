@@ -9,6 +9,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.PlanChangeBlockerDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
@@ -56,6 +57,7 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
     private final CommercialContractRepository commercialContractRepository;
     private final NotificationService notificationService;
     private final PlanChangeAssetValidator planChangeAssetValidator;
+    private final TreasuryConfig treasuryConfig;
 
     @Override
     @Transactional
@@ -164,18 +166,32 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
                 ? amountError
                 : buildPreviewMessage(targetPlanCode, downgradeToBasic, balanceBlocksBasic, balance, blockers);
 
+        // IVA sobre el abono requerido — es lo que realmente se cobra en Wompi al generar
+        // el checkout (ver PlanServiceImpl#generatePlanChangeTopUpCheckout), tanto si el
+        // destino es BASIC como STANDARD/PREMIUM.
+        Long requiredTopUpVat = requiredTopUp != null ? vatFor(requiredTopUp) : null;
+        Long requiredTopUpTotal = requiredTopUp != null && requiredTopUpVat != null
+                ? requiredTopUp + requiredTopUpVat : null;
+
         return new PlanChangePreviewResponseDTO(
                 fromPlan != null ? fromPlan.getCode() : null,
                 targetPlanCode,
                 eligible,
                 message,
                 centsToPesos(requiredTopUp),
+                centsToPesos(requiredTopUpVat),
+                centsToPesos(requiredTopUpTotal),
                 centsToPesos(balance),
                 targetPlan.getCode() == PlanCode.BASIC ? centsToPesos(targetPlan.getMonthlyPriceCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMinInvestmentCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMaxInvestmentCents()) : null,
                 targetPlan.getSaleCommissionPct(),
                 blockers);
+    }
+
+    /** IVA sobre un monto base, en centavos (ver TreasuryConfig.vatPct). Mismo cálculo que PlanServiceImpl#vatFor. */
+    private long vatFor(long baseAmountCents) {
+        return baseAmountCents * treasuryConfig.getVatPct() / 100;
     }
 
     /**

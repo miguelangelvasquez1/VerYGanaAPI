@@ -488,6 +488,21 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
     private PlanSummaryResponseDTO buildPlanSummary(CommercialOnboarding onboarding, Plan plan) {
         boolean accepted = onboarding.getPlanAcceptedAt() != null;
+
+        Long netAmountCents = accepted
+                ? (plan.getCode() == Plan.PlanCode.BASIC
+                        ? onboarding.getMonthlyFeeCentsSnapshot()
+                        : onboarding.getInvestmentAmountCentsSnapshot())
+                : null;
+        Long vatCents = accepted
+                ? (plan.getCode() == Plan.PlanCode.BASIC
+                        ? onboarding.getMonthlyFeeVatCentsSnapshot()
+                        : onboarding.getInvestmentVatCentsSnapshot())
+                : null;
+        Long grossAmountCents = netAmountCents != null
+                ? netAmountCents + (vatCents != null ? vatCents : 0L)
+                : null;
+
         return new PlanSummaryResponseDTO(
                 plan.getCode(),
                 plan.getName(),
@@ -503,7 +518,11 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 onboarding.getSpecialNegotiationResolvedAt(),
                 onboarding.getSpecialNegotiationDetails(),
                 accepted,
-                onboarding.getPlanAcceptedAt());
+                onboarding.getPlanAcceptedAt(),
+                grossAmountCents,
+                0L, // excludedTaxesCents — placeholder, no hay tributo excluido modelado todavía
+                commercialOnboardingMapper.toPlanBenefitsDTO(plan),
+                null); // prosperityThresholdCents — placeholder, concepto no definido
     }
 
     private static boolean requestsTechIntegration(CommercialDiagnosticRequestDTO dto) {

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.event.ContractSignedEvent;
@@ -64,6 +65,7 @@ class PlanChangeRequestServiceImplTest {
     @Mock private CommercialContractRepository commercialContractRepository;
     @Mock private NotificationService notificationService;
     @Mock private PlanChangeAssetValidator planChangeAssetValidator;
+    @Mock private TreasuryConfig treasuryConfig;
 
     private PlanChangeRequestServiceImpl service;
 
@@ -71,10 +73,11 @@ class PlanChangeRequestServiceImplTest {
     void setUp() {
         service = new PlanChangeRequestServiceImpl(planChangeRequestRepository, commercialDetailsRepository,
                 planRepository, commercialContractService, commercialContractRepository, notificationService,
-                planChangeAssetValidator);
+                planChangeAssetValidator, treasuryConfig);
         // La mayoría de los tests no ejercitan el bloqueo por activos excedentes — se stubea
         // en blanco (lenient) para no reventar por NPE en los que sí llegan a llamarlo.
         lenient().when(planChangeAssetValidator.findBlockers(any(), any())).thenReturn(List.of());
+        lenient().when(treasuryConfig.getVatPct()).thenReturn(19);
     }
 
     // ─── helpers ────────────────────────────────────────────────────────────
