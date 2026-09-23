@@ -9,7 +9,7 @@ import org.springframework.security.core.userdetails.UserDetailsChecker;
 import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
 import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
 import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 /**
  * Reemplaza el DefaultPreAuthenticationChecks de Spring Security para poder
@@ -28,12 +28,12 @@ public class CustomUserDetailsChecker implements UserDetailsChecker {
 
         if (!user.isEnabled()) {
             if (user instanceof CustomUserDetails customUserDetails) {
-                UserState state = customUserDetails.getUserState();
+                AccountStatus state = customUserDetails.getAccountStatus();
 
-                if (state == UserState.PENDING_EMAIL) {
+                if (state == AccountStatus.PENDING_VERIFICATION) {
                     throw new PendingEmailVerificationException("Email not verified");
                 }
-                if (state == UserState.PENDING_KYC_REVIEW) {
+                if (state == AccountStatus.PENDING_ACTIVATION) {
                     throw new PendingKycReviewException("Account pending KYC review");
                 }
                 if (!customUserDetails.isPasswordConfigured()) {

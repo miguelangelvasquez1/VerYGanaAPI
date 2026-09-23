@@ -149,15 +149,15 @@ class CommercialMetricsSeedIntegrationTest {
         for (int i = 0; i < 6; i++) {
             long id = 6000L + i;
             String email = i == 0 ? "consumer@verygana.com" : "consumer" + i + "@verygana.com";
-            exec("INSERT INTO users (id, email, phone_number, password, role, user_state, registered_date, public_id) "
+            exec("INSERT INTO users (id, email, phone_number, password, role, account_status, registered_date, public_id) "
                     + "VALUES (" + id + ", '" + email + "', '30010000" + (10 + i) + "', 'x', 'CONSUMER', 'ACTIVE', CURRENT_TIMESTAMP, RANDOM_UUID())");
             exec("INSERT INTO user_details (user_id) VALUES (" + id + ")");
             exec("INSERT INTO consumer_details (user_id, user_hash, user_name, referral_code, municipality_code, "
                     + "name, last_name, department_name, municipality_name, has_pet, is_pep, ads_watched, daily_ad_count, "
-                    + "age, gender, document_type, document_number) "
+                    + "birth_date, gender, document_type, document_number, terms_version, terms_accepted_at, age_declared_at) "
                     + "VALUES (" + id + ", 'hash-" + id + "', 'consumer_" + id + "', 'REF-" + id + "', '63001', "
                     + "'N', 'A', 'Quindío', 'Armenia', false, false, 0, 0, "
-                    + "25, 'MALE', 'CC', 'DOC" + id + "')");
+                    + "'1995-01-01', 'MALE', 'CC', 'DOC" + id + "', '1', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)");
         }
 
         exec("INSERT INTO games (id, title, description, url, front_page_url, active, delivery_type, created_at) "
@@ -187,7 +187,7 @@ class CommercialMetricsSeedIntegrationTest {
     }
 
     private void commercialUser(long id, String email, String company) {
-        exec("INSERT INTO users (id, email, phone_number, password, role, user_state, registered_date, public_id) "
+        exec("INSERT INTO users (id, email, phone_number, password, role, account_status, registered_date, public_id) "
                 + "VALUES (" + id + ", '" + email + "', '3009" + id + "', 'x', 'COMMERCIAL', 'ACTIVE', CURRENT_TIMESTAMP, RANDOM_UUID())");
         exec("INSERT INTO user_details (user_id) VALUES (" + id + ")");
         exec("INSERT INTO commercial_details (user_id, company_name, is_pep) VALUES (" + id + ", '" + company + "', false)");

@@ -12,7 +12,7 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
@@ -89,7 +89,7 @@ public final class TestEntities {
         user.setPhoneNumber("300000" + String.format("%04d", n));
         user.setPassword("hash");
         user.setRole(Role.CONSUMER);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setRegisteredDate(ZonedDateTime.now());
         em.persist(user);
 
@@ -107,6 +107,10 @@ public final class TestEntities {
         consumer.setReferralCode("CODE" + String.format("%04d", n));
         consumer.setDocumentType(DocumentType.CC);
         consumer.setDocumentNumber("100000" + n);
+        consumer.setBirthDate(java.time.LocalDate.of(1995, 1, 1));
+        consumer.setTermsVersion("1");
+        consumer.setTermsAcceptedAt(ZonedDateTime.now());
+        consumer.setAgeDeclaredAt(ZonedDateTime.now());
 
         em.flush();
         return consumer;
@@ -143,7 +147,7 @@ public final class TestEntities {
         user.setPhoneNumber("310000" + String.format("%04d", n));
         user.setPassword("hash");
         user.setRole(Role.COMMERCIAL);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setRegisteredDate(ZonedDateTime.now());
         em.persist(user);
 

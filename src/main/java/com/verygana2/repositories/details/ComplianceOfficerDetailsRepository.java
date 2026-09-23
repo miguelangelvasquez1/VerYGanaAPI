@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ComplianceOfficerDetails;
 
 @Repository
@@ -18,7 +18,7 @@ public interface ComplianceOfficerDetailsRepository extends JpaRepository<Compli
 
     @Query("""
             SELECT c FROM ComplianceOfficerDetails c
-            WHERE (:userState IS NULL OR c.user.userState = :userState)
+            WHERE (:accountStatus IS NULL OR c.user.accountStatus = :accountStatus)
             AND (:search IS NULL OR :search = ''
             OR LOWER(c.user.email) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.user.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))
@@ -26,7 +26,7 @@ public interface ComplianceOfficerDetailsRepository extends JpaRepository<Compli
             OR LOWER(c.lastName) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.badgeNumber) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<ComplianceOfficerDetails> findComplianceOfficers (@Param("search") String search, @Param("userState") UserState userState, Pageable pageable);
+    Page<ComplianceOfficerDetails> findComplianceOfficers (@Param("search") String search, @Param("accountStatus") AccountStatus accountStatus, Pageable pageable);
 
     @Query("""
             SELECT c FROM ComplianceOfficerDetails c

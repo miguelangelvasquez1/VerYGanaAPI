@@ -1,9 +1,11 @@
 package com.verygana2.mappers;
 
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.Named;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 import org.springframework.beans.factory.annotation.Value;
 
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
@@ -53,7 +55,7 @@ public abstract class UserMapper {
     @Mapping(target = "failedLoginAttempts", ignore = true)
     @Mapping(target = "role", constant = "CONSUMER")
     @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "PENDING_EMAIL")
+    @Mapping(target = "accountStatus", constant = "PENDING_VERIFICATION")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -84,18 +86,20 @@ public abstract class UserMapper {
     @Mapping(target = "monthlyIncomeRange", ignore = true)
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "pep", ignore = true)
+    @Mapping(target = "termsAcceptedAt", ignore = true)
+    @Mapping(target = "ageDeclaredAt", ignore = true)
     public abstract ConsumerDetails toConsumerDetails(ConsumerRegisterDTO dto);
 
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     public abstract ConsumerSummaryResponseDTO toConsumerSummaryResponseDTO (ConsumerDetails consumerDetails);
 
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     @Mapping(target = "phoneNumber", source = "user.phoneNumber")
     @Mapping(target = "registeredDate", source = "user.registeredDate")
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
@@ -116,8 +120,9 @@ public abstract class UserMapper {
     @Mapping(target = "email", source = "consumer.user.email")
     @Mapping(target = "phoneNumber", source = "consumer.user.phoneNumber")
     @Mapping(target = "role", source = "consumer.user.role")
-    @Mapping(target = "userState", source = "consumer.user.userState")
-    @Mapping(target = "department", ignore = true)
+    @Mapping(target = "accountStatus", source = "consumer.user.accountStatus")
+    @Mapping(target = "department", source = "departmentName")
+    @Mapping(target = "municipalityName", source = "municipalityName")
     public abstract ConsumerProfileResponseDTO toConsumerProfileResponseDTO(ConsumerDetails consumer);
 
     @Mapping(target = "id", ignore = true)
@@ -137,25 +142,27 @@ public abstract class UserMapper {
     @Mapping(target = "userName", ignore = true)
     @Mapping(target = "notifications", ignore = true)
     @Mapping(target = "user.email", source = "email")
-    @Mapping(target = "user.phoneNumber", source = "phoneNumber")
+    @Mapping(target = "user.phoneNumber", ignore = true)  // Ya no se actualiza aquí — se cambia vía OTP
     @Mapping(target = "municipality", ignore = true)
     @Mapping(target = "referredBy", ignore = true)
     @Mapping(target = "referrals", ignore = true)
     @Mapping(target = "keyWallet", ignore = true)
-    @Mapping(target = "departmentName", ignore = true)
+    @Mapping(target = "departmentName", source = "department")
+    @Mapping(target = "municipalityName", source = "municipalityName")
     @Mapping(target = "lastDailyLoginDate", ignore = true)
     @Mapping(target = "documentType", ignore = true)
     @Mapping(target = "documentNumber", ignore = true)
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "monthlyIncomeRange", ignore = true)
     @Mapping(target = "pep", ignore = true)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
     // ---- COMMERCIAL ----
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "role", constant = "COMMERCIAL")
     @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "PENDING_EMAIL")
+    @Mapping(target = "accountStatus", constant = "PENDING_VERIFICATION")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -205,7 +212,7 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     public abstract CommercialSummaryResponseDTO toCommercialSummaryResponseDTO (CommercialDetails commercial);
 
     @Mapping(target = "planCode", source = "code")
@@ -223,7 +230,7 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     @Mapping(target = "phoneNumber", source = "user.phoneNumber")
     @Mapping(target = "registeredDate", source = "user.registeredDate")
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
@@ -234,7 +241,7 @@ public abstract class UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "role", constant = "GAME_DESIGNER")
     @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "PENDING_EMAIL")
+    @Mapping(target = "accountStatus", constant = "PENDING_VERIFICATION")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -256,13 +263,13 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     public abstract GameDesignerSummaryResponseDTO toGameDesignerSummaryResponseDTO (GameDesignerDetails gameDesigner);
 
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     @Mapping(target = "phoneNumber", source = "user.phoneNumber")
     @Mapping(target = "registeredDate", source = "user.registeredDate")
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
@@ -273,7 +280,7 @@ public abstract class UserMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "role", constant = "COMPLIANCE_OFFICER")
     @Mapping(target = "userDetails", ignore = true)
-    @Mapping(target = "userState", constant = "ACTIVE")
+    @Mapping(target = "accountStatus", constant = "ACTIVE")
     @Mapping(target = "registeredDate", expression = "java(java.time.ZonedDateTime.now())")
     @Mapping(target = "verification", ignore = true)
     @Mapping(target = "publicId", ignore = true)
@@ -291,13 +298,13 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     public abstract ComplianceOfficerSummaryResponseDTO toComplianceOfficerSummaryResponseDTO (ComplianceOfficerDetails complianceOfficer);
 
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     @Mapping(target = "phoneNumber", source = "user.phoneNumber")
     @Mapping(target = "registeredDate", source = "user.registeredDate")
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
@@ -308,13 +315,13 @@ public abstract class UserMapper {
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     public abstract AdminSummaryResponseDTO toAdminSummaryResponseDTO (AdminDetails adminDetails);
 
     @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "role", source = "user.role")
     @Mapping(target = "email", source = "user.email")
-    @Mapping(target = "userState", source = "user.userState")
+    @Mapping(target = "accountStatus", source = "user.accountStatus")
     @Mapping(target = "phoneNumber", source = "user.phoneNumber")
     @Mapping(target = "registeredDate", source = "user.registeredDate")
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")

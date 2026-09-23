@@ -6,7 +6,7 @@
 -- ============================================================
 -- 1. BRONCE  (XP: 500 — rango 0-999, mult: 0.5)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('bronce@verygana.com', '3101000001',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000001'))
@@ -20,12 +20,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000001', 'bronce_test',
        'Usuario', 'Bronce', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false
+       DATE_SUB(CURDATE(), INTERVAL 25 YEAR), 'MALE', false, 0, 0, 'REF-BRONCE-001', 'CC', '10000001', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'bronce@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -43,7 +44,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- ============================================================
 -- 2. PLATA  (XP: 2000 — rango 1000-3999, mult: 0.6)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('plata@verygana.com', '3101000002',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000002'))
@@ -57,12 +58,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000002', 'plata_test',
        'Usuario', 'Plata', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 28 YEAR), 'FEMALE', false, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false
+       DATE_SUB(CURDATE(), INTERVAL 28 YEAR), 'FEMALE', false, 0, 0, 'REF-PLATA-002', 'CC', '10000002', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'plata@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -80,7 +82,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- ============================================================
 -- 3. ORO  (XP: 6000 — rango 4000-8999, mult: 0.7)
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('oro@verygana.com', '3101000003',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000003'))
@@ -94,12 +96,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000003', 'oro_test',
        'Usuario', 'Oro', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 30 YEAR), 'MALE', false, 0, 0, 'REF-ORO-003', 'CC', '10000003', false
+       DATE_SUB(CURDATE(), INTERVAL 30 YEAR), 'MALE', false, 0, 0, 'REF-ORO-003', 'CC', '10000003', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'oro@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -118,7 +121,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 4. RUBI  (XP: 13000 — rango 9000-17999, mult: 0.8)
 --    has_pet = true → acceso a rifas PREMIUM
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('rubi@verygana.com', '3101000004',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000004'))
@@ -132,12 +135,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000004', 'rubi_test',
        'Usuario', 'Rubi', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 32 YEAR), 'FEMALE', true, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false
+       DATE_SUB(CURDATE(), INTERVAL 32 YEAR), 'FEMALE', true, 0, 0, 'REF-RUBI-004', 'CC', '10000004', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'rubi@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -156,7 +160,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 5. ESMERALDA  (XP: 26000 — rango 18000-34999, mult: 0.9)
 --    has_pet = true
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('esmeralda@verygana.com', '3101000005',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000005'))
@@ -170,12 +174,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000005', 'esmeralda_test',
        'Usuario', 'Esmeralda', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 35 YEAR), 'MALE', true, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false
+       DATE_SUB(CURDATE(), INTERVAL 35 YEAR), 'MALE', true, 0, 0, 'REF-ESMER-005', 'CC', '10000005', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'esmeralda@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 
@@ -194,7 +199,7 @@ ON DUPLICATE KEY UPDATE xp_total = xp_total;
 -- 6. DIAMANTE  (XP: 40000 — rango 35000+, mult: 1.0)
 --    has_pet = true
 -- ============================================================
-INSERT INTO users (email, phone_number, password, role, user_state, registered_date, public_id)
+INSERT INTO users (email, phone_number, password, role, account_status, registered_date, public_id)
 VALUES ('diamante@verygana.com', '3101000006',
         '$2a$10$e5w/jR0653YLZK8t9lQIhe1/yA9u5oqcvjmQQpV9zCGq27onNPzWu',
         'CONSUMER', 'ACTIVE', NOW(), UUID_TO_BIN('aaaaaaaa-0000-0000-0000-000000000006'))
@@ -208,12 +213,13 @@ INSERT INTO consumer_details (
     user_id, user_hash, user_name, name, last_name,
     department_name, municipality_name, municipality_code,
     avatar_id, birth_date, gender, has_pet, ads_watched,
-    daily_ad_count, referral_code, document_type, document_number, is_pep
+    daily_ad_count, referral_code, document_type, document_number, is_pep,
+    terms_version, terms_accepted_at, age_declared_at
 )
 SELECT u.id, 'aaaaaaaa-0000-0000-0000-000000000006', 'diamante_test',
        'Usuario', 'Diamante', 'QUINDÍO', 'ARMENIA', '63001',
        (SELECT id FROM avatars ORDER BY sort_order ASC LIMIT 1),
-       DATE_SUB(CURDATE(), INTERVAL 40 YEAR), 'FEMALE', true, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false
+       DATE_SUB(CURDATE(), INTERVAL 40 YEAR), 'FEMALE', true, 0, 0, 'REF-DIAM-006', 'CC', '10000006', false, '1', NOW(), NOW()
 FROM users u WHERE u.email = 'diamante@verygana.com'
 ON DUPLICATE KEY UPDATE user_name = user_name;
 

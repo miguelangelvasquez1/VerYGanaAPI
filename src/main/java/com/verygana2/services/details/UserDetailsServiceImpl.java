@@ -15,13 +15,17 @@ import com.verygana2.dtos.user.admin.EditBasicInfoRequestDTO;
 import com.verygana2.dtos.user.admin.UserSummaryResponseDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.UserMapper;
+import com.verygana2.models.AccountStatusHistory;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.UserDetails;
+import com.verygana2.repositories.AccountStatusHistoryRepository;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.details.UserDetailsRepository;
+import com.verygana2.services.interfaces.AccountStatusService;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.interfaces.PhoneNumberChangeService;
 import com.verygana2.services.interfaces.details.UserDetailsService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -35,6 +39,9 @@ public class UserDetailsServiceImpl implements UserDetailsService{
     private final UserRepository userRepository;
     private final NotificationService notificationService;
     private final UserMapper userMapper;
+    private final AccountStatusService accountStatusService;
+    private final AccountStatusHistoryRepository accountStatusHistoryRepository;
+    private final PhoneNumberChangeService phoneNumberChangeService;
 
     @Override
     public UserDetails getUserById(Long userId) {
@@ -43,6 +50,13 @@ public class UserDetailsServiceImpl implements UserDetailsService{
         }
 
         return userDetailsRepository.findById(userId).orElseThrow(() -> new ObjectNotFoundException("User with id: " + userId + " not found " , UserDetails.class));
+    }
+
+    @Override
+    public UserDetails getUserByPublicId(UUID publicId) {
+        return userDetailsRepository.findByPublicId(publicId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "User with public id: " + publicId + " not found"));
     }
 
     @Override
@@ -56,31 +70,35 @@ public class UserDetailsServiceImpl implements UserDetailsService{
     }
 
     @Override
-    public void blockUser(UUID publicId, String reason) {
+    public void blockUser(UUID publicId, String reason, String actor) {
         UserDetails user = userDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("User with public id: " + publicId + " not found"));
 
-        if (user.getUser().getUserState().equals(UserState.BLOCKED)) {
+        if (user.getUser().getAccountStatus().equals(AccountStatus.SUSPENDED)) {
             throw new InvalidRequestException("You cannot block user who is already blocked");
         }
 
-        user.getUser().setUserState(UserState.BLOCKED);
+        accountStatusService.transition(user.getId(), AccountStatus.SUSPENDED, reason, actor);
         notificationService.createInternalNotification(user.getId(), "Cuenta bloqueada", reason, Instant.now());
-
-        userDetailsRepository.save(user);
     }
 
     @Override
-    public void unblockUser(UUID publicId, String reason) {
+    public void unblockUser(UUID publicId, String reason, String actor) {
         UserDetails user = userDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("User with public id: " + publicId + " not found"));
 
-        if (user.getUser().getUserState().equals(UserState.ACTIVE)) {
-            throw new InvalidRequestException("You cannot unblock user who is already active");
+        if (!user.getUser().getAccountStatus().equals(AccountStatus.SUSPENDED)) {
+            throw new InvalidRequestException("You can only unblock an account that is currently blocked");
         }
 
-        user.getUser().setUserState(UserState.ACTIVE);
-        notificationService.createInternalNotification(user.getId(), "Cuenta desbloqueada", reason, Instant.now());
+        // Vuelve al estado en el que estaba justo antes de la última suspensión
+        // (ej. PENDING_ACTIVATION si el KYC fue rechazado), no siempre a ACTIVE.
+        // Cuentas suspendidas antes de que existiera este historial caen al ACTIVE de siempre.
+        AccountStatus target = accountStatusHistoryRepository
+                .findFirstByUserIdAndToStatusOrderByOccurredAtDesc(user.getId(), AccountStatus.SUSPENDED)
+                .map(AccountStatusHistory::getFromStatus)
+                .orElse(AccountStatus.ACTIVE);
 
-        userDetailsRepository.save(user);
+        accountStatusService.transition(user.getId(), target, reason, actor);
+        notificationService.createInternalNotification(user.getId(), "Cuenta desbloqueada", reason, Instant.now());
     }
 
     @Override
@@ -88,8 +106,11 @@ public class UserDetailsServiceImpl implements UserDetailsService{
         UserDetails user = userDetailsRepository.findByPublicId(publicId).orElseThrow(() -> new EntityNotFoundException("User with public id: " + publicId + " not found"));
         User u = user.getUser();
 
+        if (!u.getPhoneNumber().equals(request.getPhoneNumber())) {
+            phoneNumberChangeService.adminChangePhone(u.getId(), request.getPhoneNumber());
+        }
+
         u.setEmail(request.getEmail());
-        u.setPhoneNumber(request.getPhoneNumber());
 
         userDetailsRepository.save(user);
 

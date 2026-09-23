@@ -17,7 +17,7 @@ public interface UserDetailsRepository extends JpaRepository<UserDetails, Long>{
     @Query("""
             SELECT COUNT(u) from UserDetails u WHERE
             u.user.role = :role
-            AND u.user.userState = com.verygana2.models.enums.UserState.ACTIVE
+            AND u.user.accountStatus = com.verygana2.models.enums.AccountStatus.ACTIVE
             """)
     Integer countActiveUsersByRole (@Param("role") Role role);
 

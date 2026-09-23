@@ -48,6 +48,7 @@ import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
 import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
 import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.models.enums.RegistrationRejectionReason;
 import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
@@ -347,6 +348,26 @@ public class GlobalExceptionHandler {
             InvalidStatusException ex, WebRequest request) {
         log.warn("Invalid status error: {}", ex.getMessage());
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(RegistrationRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleRegistrationRejectedException(
+            RegistrationRejectedException ex, WebRequest request) {
+        log.warn("Registration rejected ({}): {}", ex.getReason(), ex.getMessage());
+
+        HttpStatus status = ex.getReason() == RegistrationRejectionReason.MINOR_AGE
+                ? HttpStatus.FORBIDDEN
+                : HttpStatus.UNPROCESSABLE_ENTITY;
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(getPath(request))
+                .details(Map.of("reason", ex.getReason().name()))
+                .build();
+
+        return new ResponseEntity<>(errorResponse, status);
     }
 
     // ==================== ERRORES DE VALIDACIÓN (400) ====================

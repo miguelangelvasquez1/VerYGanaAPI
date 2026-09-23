@@ -22,7 +22,7 @@ import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
 import com.verygana2.mappers.UserMapper;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
@@ -179,10 +179,10 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
     }
 
     @Override
-    public PagedResponse<CommercialSummaryResponseDTO> getCommercials(String search, UserState userState,
+    public PagedResponse<CommercialSummaryResponseDTO> getCommercials(String search, AccountStatus accountStatus,
             PlanCode currentPlan, Pageable pageable) {
 
-        return PagedResponse.from(commercialDetailsRepository.findCommercials(search, userState, currentPlan, pageable).map(userMapper::toCommercialSummaryResponseDTO));
+        return PagedResponse.from(commercialDetailsRepository.findCommercials(search, accountStatus, currentPlan, pageable).map(userMapper::toCommercialSummaryResponseDTO));
     }
 
     @Override

@@ -4,9 +4,12 @@ import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.Avatar;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.enums.ActivityType;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
+import com.verygana2.models.PhoneNumberHistory;
+import com.verygana2.repositories.PhoneNumberHistoryRepository;
 import com.verygana2.services.interfaces.*;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
+import com.verygana2.services.interfaces.eligibility.ConsumerEligibilityService;
 import com.verygana2.services.interfaces.levels.LevelService;
 
 import org.hibernate.ObjectNotFoundException;
@@ -19,6 +22,7 @@ import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ComplianceOfficerRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
 import com.verygana2.dtos.user.GameDesignerRegisterDTO;
+import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.UserMapper;
 import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
@@ -27,6 +31,7 @@ import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.utils.generators.UserHashGenerator;
 
@@ -36,7 +41,11 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.ZonedDateTime;
+
+import static com.verygana2.utils.ColombiaTime.BOGOTA_ZONE;
 
 @Slf4j
 @Transactional
@@ -60,6 +69,11 @@ public class UserServiceImpl implements UserService {
     private final TwilioSmsService twilioSmsService;
     private final com.verygana2.security.auth.refreshToken.RefreshTokenRepository refreshTokenRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AccountStatusService accountStatusService;
+    private final ConsumerEligibilityService consumerEligibilityService;
+    private final PhoneNumberHistoryRepository phoneNumberHistoryRepository;
+    private final ConsumerDetailsRepository consumerDetailsRepository;
+    private final Clock clock;
 
     @Override
     public User registerGameDesigner(GameDesignerRegisterDTO dto) {
@@ -76,6 +90,7 @@ public class UserServiceImpl implements UserService {
         user.setUserDetails(details);
 
         User savedUser = userRepository.save(user);
+        recordInitialPhoneNumber(savedUser);
         passwordSetupService.initiatePasswordSetup(savedUser, dto.getName(), details.getDesignerCode());
 
         return savedUser;
@@ -93,7 +108,9 @@ public class UserServiceImpl implements UserService {
         details.setUser(user);
         user.setUserDetails(details);
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        recordInitialPhoneNumber(savedUser);
+        return savedUser;
     }
 
     /**
@@ -123,6 +140,7 @@ public class UserServiceImpl implements UserService {
         // de esto fallaba con TransientPropertyValueException porque details todavía
         // no tenía id asignado.
         User savedUser = userRepository.save(user);
+        recordInitialPhoneNumber(savedUser);
 
         sendVerificationEmail(savedUser);
         return savedUser;
@@ -130,6 +148,11 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public User registerConsumer(ConsumerRegisterDTO dto) {
+        // Elegibilidad primero, antes de tocar la BD: rechazo estructural de menores
+        // y de aceptación de términos inválida, sin importar disponibilidad de email/teléfono.
+        consumerEligibilityService.assertEligible(dto);
+
+        validateUniqueConsumerAccount(dto.getDocumentNumber(), dto.getEmail());
         validateEmailAndPhoneNumber(dto.getEmail(), dto.getPhoneNumber());
 
         User user = userMapper.toUser(dto);
@@ -138,6 +161,11 @@ public class UserServiceImpl implements UserService {
         ConsumerDetails details = userMapper.toConsumerDetails(dto);
         details.setUser(user);
         user.setUserDetails(details);
+
+        ZonedDateTime now = ZonedDateTime.now(clock.withZone(BOGOTA_ZONE));
+        details.setTermsVersion(dto.getTermsVersion());
+        details.setTermsAcceptedAt(now);
+        details.setAgeDeclaredAt(now);
 
         // === ASIGNACIÓN DEL MUNICIPIO ===
         if (dto.getMunicipalityCode() != null) {
@@ -155,8 +183,10 @@ public class UserServiceImpl implements UserService {
 
         referralService.prepareNewConsumer(user, details, dto.getReferredByCode());
 
+        // Set directo, no accountStatusService.transition(): el user todavía no existe en BD
+        // (se persiste más abajo), así que no hay un estado previo del que "transicionar".
         if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            user.setUserState(UserState.PENDING_KYC_REVIEW);
+            user.setAccountStatus(AccountStatus.PENDING_ACTIVATION);
         }
 
         // userHash NOT NULL+UNIQUE requiere un valor único antes del INSERT (IDENTITY);
@@ -164,6 +194,7 @@ public class UserServiceImpl implements UserService {
         details.setUserHash(UUID.randomUUID().toString());
         userRepository.saveAndFlush(user);
         details.setUserHash(userHashGenerator.generate(user.getId()));
+        recordInitialPhoneNumber(user);
 
         // Screening contra listas restrictivas — lanza ScreeningHitException si HIT (rollback)
         screeningService.screenOrThrow(
@@ -175,11 +206,27 @@ public class UserServiceImpl implements UserService {
         levelService.initializeProfile(user.getId());
 
         if (Boolean.TRUE.equals(dto.getIsPEP())) {
-            log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_KYC_REVIEW).", user.getEmail());
+            log.info("Usuario {} marcado como PEP. Cuenta en revisión manual (PENDING_ACTIVATION).", user.getEmail());
         } else {
             sendVerificationEmail(user);
         }
         return user;
+    }
+
+    private void validateUniqueConsumerAccount(String documentNumber, String email) {
+        if (consumerDetailsRepository.existsByDocumentNumber(documentNumber)) {
+            log.warn("POSIBLE_DUPLICIDAD detectada: intento de registro con documento ya existente {} para {}",
+                    documentNumber, email);
+            throw new InvalidRequestException(
+                    "Ya existe una cuenta asociada a este documento de identidad.");
+        }
+    }
+
+    private void recordInitialPhoneNumber(User user) {
+        PhoneNumberHistory history = new PhoneNumberHistory();
+        history.setUser(user);
+        history.setPhoneNumber(user.getPhoneNumber());
+        phoneNumberHistoryRepository.save(history);
     }
 
     @Override
@@ -187,14 +234,13 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
 
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
         emailVerificationService.verifyCode(email, code);
 
-        user.setUserState(UserState.ACTIVE);
-        userRepository.save(user);
+        accountStatusService.transition(user.getId(), AccountStatus.ACTIVE, "Email verificado", "SYSTEM");
         triggerReferralRewardsIfApplicable(user);
 
         log.info("Email verified for user {}", user.getEmail());
@@ -205,7 +251,7 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
 
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
 
@@ -236,8 +282,7 @@ public class UserServiceImpl implements UserService {
             throw new IllegalArgumentException("Código de verificación incorrecto o expirado");
         }
 
-        user.setUserState(UserState.ACTIVE);
-        userRepository.save(user);
+        accountStatusService.transition(user.getId(), AccountStatus.ACTIVE, "Teléfono verificado vía SMS (Twilio)", "SYSTEM");
         triggerReferralRewardsIfApplicable(user);
         log.info("Account {} activated via SMS verification", email);
     }
@@ -257,7 +302,7 @@ public class UserServiceImpl implements UserService {
     private User requirePendingEmailUser(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("No existe una cuenta con ese correo"));
-        if (user.getUserState() != UserState.PENDING_EMAIL) {
+        if (user.getAccountStatus() != AccountStatus.PENDING_VERIFICATION) {
             throw new IllegalStateException("La cuenta ya está activa");
         }
         return user;
@@ -299,11 +344,13 @@ public class UserServiceImpl implements UserService {
     private void validateEmailAndPhoneNumber(String email, String phoneNumber) {
 
         if (userRepository.existsByEmail(email)) {
-            throw new ValidationException("Email already registered");
+            log.warn("POSIBLE_DUPLICIDAD detectada: intento de registro con email ya existente: {}", email);
+            throw new ValidationException("Ya existe una cuenta asociada a este correo electrónico.");
         }
 
         if (userRepository.existsByPhoneNumber(phoneNumber)) {
-            throw new ValidationException("Phone number already registered");
+            log.warn("POSIBLE_DUPLICIDAD detectada: intento de registro con teléfono ya existente: {}", phoneNumber);
+            throw new ValidationException("Ya existe una cuenta asociada a este número telefónico.");
         }
     }
 

@@ -14,7 +14,7 @@ import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.userDetails.CommercialDetails;
 
@@ -35,6 +35,6 @@ public interface CommercialDetailsService {
     PagedResponse<DailySaleResponseDTO> getDailySales(
             Long commercialId, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
     CommercialProfileResponseDTO getCommercialProfile (Long commercialId);
-    PagedResponse<CommercialSummaryResponseDTO> getCommercials (String search, UserState userState, PlanCode currentPlan, Pageable pageable);
+    PagedResponse<CommercialSummaryResponseDTO> getCommercials (String search, AccountStatus accountStatus, PlanCode currentPlan, Pageable pageable);
     CommercialResponseDTO getCommercial (UUID publicId);
 }
