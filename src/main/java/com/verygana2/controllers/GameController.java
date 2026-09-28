@@ -19,26 +19,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.verygana2.controllers.gameAssetsBorrar.DashRunnerAssets;
-import com.verygana2.controllers.gameAssetsBorrar.EndlessRunnerAssets;
-import com.verygana2.controllers.gameAssetsBorrar.MemoryMatchAssets;
-import com.verygana2.controllers.gameAssetsBorrar.MiniFlappyAssets;
-import com.verygana2.controllers.gameAssetsBorrar.SimpleCrosswordAssets;
-import com.verygana2.controllers.gameAssetsBorrar.StackTowerAssets;
-import com.verygana2.controllers.gameAssetsBorrar.TicTacToeAssets;
-import com.verygana2.controllers.gameAssetsBorrar.TilePuzzleAssets;
-import com.verygana2.controllers.gameAssetsBorrar.TriviaQuizAssets;
-import com.verygana2.controllers.gameAssetsBorrar.WordSearchAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.AvoidTheBombAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.BallBounceAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.BalloonLiftAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.CatchItAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.HangmanAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.Match3Assets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.MemoryAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.SudokuAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.TapToRotateAssets;
-import com.verygana2.controllers.gameAssetsBorrar.cali.WhackAMoleAssets;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.GameDTO;
@@ -97,55 +77,9 @@ public class GameController {
             return ResponseEntity.ok(objectMapper.valueToTree(gameService.getPreviewAssets(req.getCampaignId())));
         }
 
-        if (req.getCampaignId() != null && req.getCampaignId() == 1L) {
-            return ResponseEntity.ok(TapToRotateAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 2L) {
-            return ResponseEntity.ok(MemoryAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 3L) {
-            return ResponseEntity.ok(HangmanAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 4L) {
-            return ResponseEntity.ok(SudokuAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 5L) {
-            return ResponseEntity.ok(Match3Assets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 6L) {
-            return ResponseEntity.ok(BalloonLiftAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 7L) {
-            return ResponseEntity.ok(AvoidTheBombAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 8L) {
-            return ResponseEntity.ok(BallBounceAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 9L) {
-            return ResponseEntity.ok(WhackAMoleAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 10L) {
-            return ResponseEntity.ok(CatchItAssets.ASSETS);
-        }
-
-            // ==================== NUEVOS JUEGOS (11 al 20) ====================
-
-          else if (req.getCampaignId() != null && req.getCampaignId() == 11L) {
-            return ResponseEntity.ok(MiniFlappyAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 12L) {
-            return ResponseEntity.ok(EndlessRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 13L) { // minimo 10 preguntas
-            return ResponseEntity.ok(TriviaQuizAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 14L) {
-            return ResponseEntity.ok(StackTowerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 15L) {
-            return ResponseEntity.ok(MemoryMatchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 16L) { // minimo 10-16 palabras
-            return ResponseEntity.ok(WordSearchAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 17L) {
-            return ResponseEntity.ok(DashRunnerAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 18L) { // minimo 8-16 palabras intermedias
-                                                                                    // de longitud
-            return ResponseEntity.ok(SimpleCrosswordAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 19L) { 
-            return ResponseEntity.ok(TicTacToeAssets.ASSETS);
-        } else if (req.getCampaignId() != null && req.getCampaignId() == 20L) { // imagen jpg cuadrada 1200x1200
-            return ResponseEntity.ok(TilePuzzleAssets.ASSETS);
-            }
-        
-        return ResponseEntity.badRequest().body(null);
-        }
+        // Partida real: el service valida la sesión y saca de ella la campaña.
+        return ResponseEntity.ok(objectMapper.valueToTree(gameService.getGameAssets(req)));
+    }
 
     @PostMapping("/metrics")
     public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event,

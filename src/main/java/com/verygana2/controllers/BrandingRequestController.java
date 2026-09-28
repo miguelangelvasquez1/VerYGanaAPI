@@ -29,8 +29,10 @@ import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.ConfirmCorporateResourceDTO;
 import com.verygana2.dtos.branding.CorporateResourceUploadPermissionDTO;
 import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
+import com.verygana2.dtos.branding.SaveGameBriefDTO;
 import com.verygana2.dtos.branding.SubmitForReviewDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
+import com.verygana2.dtos.branding.GameBriefRequirementsDTO;
 import com.verygana2.models.enums.CampaignGoal;
 import com.verygana2.services.interfaces.BrandingRequestService;
 
@@ -94,6 +96,34 @@ public class BrandingRequestController {
 
         Long userId = jwt.getClaim("userId");
         brandingRequestService.submitForReview(id, userId, dto != null ? dto.getNotes() : null);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Lo que este juego le pide al anunciante: el esquema del texto que escribe la
+     * marca —preguntas de trivia, palabras de la sopa de letras— y cuántos archivos
+     * tiene que subir como recursos corporativos. Los esquemas vienen en null si el
+     * juego no pide texto, y el conteo en cero si no exige archivos.
+     * GET /branding-requests/games/{gameId}/brief-schema
+     */
+    @GetMapping("/games/{gameId}/brief-schema")
+    public ResponseEntity<GameBriefRequirementsDTO> getBriefRequirements(@PathVariable Long gameId) {
+        return ResponseEntity.ok(brandingRequestService.getBriefRequirements(gameId));
+    }
+
+    /**
+     * Guarda ese contenido mientras la solicitud está en borrador. Se valida contra el
+     * esquema al guardar, así el anunciante corrige en el momento y no al enviar.
+     * PATCH /branding-requests/{id}/brief
+     */
+    @PatchMapping("/{id}/brief")
+    public ResponseEntity<Void> saveBrief(
+            @PathVariable Long id,
+            @Valid @RequestBody SaveGameBriefDTO dto,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        Long userId = jwt.getClaim("userId");
+        brandingRequestService.saveBrief(id, userId, dto.getContent());
         return ResponseEntity.ok().build();
     }
 

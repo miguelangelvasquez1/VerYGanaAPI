@@ -73,6 +73,10 @@ public class BrandingRequestDetailDTO {
     // ===== Recursos corporativos =====
     private List<CorporateResourceDTO> corporateResources;
 
+    // El contenido de marca ya cargado (preguntas, palabras, cartas). Va en el detalle
+    // para que el formulario se repinte con lo guardado y no se pida dos veces.
+    private java.util.Map<String, Object> briefData;
+
     // ===== Flag de completitud de targeting (para guiar el formulario en el frontend) =====
     private boolean hasCompleteTargeting;
 

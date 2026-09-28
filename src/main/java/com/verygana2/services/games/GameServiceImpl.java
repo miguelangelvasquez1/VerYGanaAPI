@@ -8,7 +8,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
@@ -57,6 +56,8 @@ import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.utils.games.GameConfigStamper;
+import com.verygana2.utils.games.GameResponseEnvelope;
+import com.verygana2.utils.games.PreviewRewardSamples;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 import com.verygana2.utils.validators.MetricValidator;
 
@@ -97,6 +98,8 @@ public class GameServiceImpl implements GameService {
     private final CampaignScoringConfig campaignScoringConfig;
     private final GameConfigStamper gameConfigStamper;
     private final GameConfigValidator gameConfigValidator;
+    private final GameResponseEnvelope gameResponseEnvelope;
+    private final PreviewRewardSamples previewRewardSamples;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -140,12 +143,6 @@ public class GameServiceImpl implements GameService {
 
         String baseUrl = generateGameUrl(game);
 
-        // Para pruebas
-        // String testUrl = String.format(
-        // "http://localhost:63035/?game_title=%s&session_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-        // game.getUrl(), sessionToken, userHash, isBrandedMode, campaignId
-        // );
-
         return String.format(
                 "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
                 baseUrl, sessionToken, userHash, isBrandedMode, campaignId);
@@ -159,22 +156,25 @@ public class GameServiceImpl implements GameService {
         Game game = gameRepository.findByIdAndActiveTrue(gameId)
                 .orElseThrow(() -> new ValidationException("Game not available"));
 
+        ConsumerDetails consumer = entityManager.find(ConsumerDetails.class, userId);
+        if (consumer == null) {
+            throw new UnauthorizedException("Consumer not found");
+        }
+
         String baseUrl = generateGameUrl(game);
 
-        return String.format(
-                "%ssession_token=%s&user_hash=%s&is_branded_mode=%s&campaign_id=%s",
-                baseUrl, "public", userId.toString(), "true", 20L); //"none", false
+        // Sin patrocinio el juego arranca con su contenido de fábrica: se va sin
+        // campaign_id y con is_branded_mode=false, así no pide configuración de campaña.
+        // El user_hash es el mismo que usa el camino patrocinado: el id interno del
+        // usuario no sale en una URL que queda en el historial y en los logs del host.
+        return String.format("%ssession_token=none&user_hash=%s&is_branded_mode=false",
+                baseUrl, consumer.getUserHash());
     }
 
     @Transactional(readOnly = true)
     public Map<String, Object> getGameAssets(GameEventDTO<Void> req) {
-        if (req.getCampaignId() == null) {
-            throw new ObjectNotFoundException("Campaign ID is required", Campaign.class);
-        }
+        Campaign campaign = campaignOfSession(req);
 
-        Campaign campaign = campaignRepository.findById(req.getCampaignId())
-                .orElseThrow(() -> new ObjectNotFoundException("Campaign not found with id: " + req.getCampaignId(), Campaign.class));
-        
         // brand_id ya viene sellado desde la entrega; el campaign_id real solo se
         // conoce acá, porque la Campaign se crea al aprobar.
         Map<String, Object> assets = new java.util.HashMap<>(gameConfigStamper.stamp(
@@ -184,7 +184,9 @@ public class GameServiceImpl implements GameService {
                 String.valueOf(campaign.getId())));
         assets.put("reward_popup", buildRewardPopup(campaign.getCommercial()));
 
-        return assets;
+        // Envolver va al final: el juego que lo necesita espera la config completa
+        // —reward_popup incluido— dentro de su clave.
+        return gameResponseEnvelope.wrap(campaign.getGame(), assets);
     }
 
     /**
@@ -198,6 +200,33 @@ public class GameServiceImpl implements GameService {
         return Map.of(
                 "popup_title", "Recompensas desbloqueadas",
                 "products", getGameRewards(commercial)
+        );
+    }
+
+    /**
+     * El popup de la preview, que nunca queda vacío.
+     *
+     * Un comercial sin productos marcados como recompensa —lo normal mientras la
+     * campaña se está diseñando— dejaba el bloque en {@code []}, y el juego mostraba
+     * «No hay anunciantes por el momento». En producción eso es correcto; en la
+     * preview impide revisar el popup, que es parte de lo que hay que aprobar.
+     *
+     * Los ejemplos van marcados como tales y solo viven acá: {@code getGameAssets},
+     * que es lo que ve el jugador, sigue entregando la lista vacía cuando no hay nada
+     * que ofrecer.
+     */
+    private Map<String, Object> buildPreviewRewardPopup(CommercialDetails commercial) {
+        List<RewardCardResponseDTO> products = getGameRewards(commercial);
+
+        if (products.isEmpty()) {
+            log.info("Preview sin productos de recompensa para el comercial {}: se usan ejemplos",
+                    commercial.getId());
+            products = previewRewardSamples.products(commercial.getCompanyName());
+        }
+
+        return Map.of(
+                "popup_title", "Recompensas desbloqueadas",
+                "products", products
         );
     }
 
@@ -287,9 +316,9 @@ public class GameServiceImpl implements GameService {
                 gameConfigValidator.latestDefinition(request.getGame()).getJsonSchema(),
                 GameConfigStamper.brandId(request.getBrandName(), request.getCommercial().getId()),
                 "preview-" + request.getId()));
-        assets.put("reward_popup", buildRewardPopup(request.getCommercial()));
+        assets.put("reward_popup", buildPreviewRewardPopup(request.getCommercial()));
 
-        return assets;
+        return gameResponseEnvelope.wrap(request.getGame(), assets);
     }
 
     private Map<String, Object> stripPreviewMap(Map<String, Object> map) {
@@ -311,34 +340,33 @@ public class GameServiceImpl implements GameService {
 
     // Métodos privados auxiliares
 
+    /**
+     * El host que sirve los builds, sin esquema.
+     *
+     * {@code generateGameUrl} antepone {@code https://}. Si {@code GAMES_CDN_URL} se
+     * configura con esquema, sin esto la URL sale {@code https://https://…}: el
+     * navegador no la abre y el backend no se entera.
+     */
+    private String gamesHost() {
+        return cdnUrl.replaceFirst("^https?://", "").replaceAll("/+$", "");
+    }
+
     private String generateGameUrl(Game game) {
         String baseUrl;
 
         if (game.getDeliveryType() == Game.DeliveryType.PATH) {
-
-            // Para justudios
-        //     baseUrl = String.format("https://%s/%s/build/?",
-        //             "justudios.co/test-verygana",
-        //             game.getUrl());
-
             baseUrl = String.format("https://%s/%s/%s/%s/?",
-                cdnUrl,
+                gamesHost(),
                 "builds/build-bogota",
                 "08-08-2026", // Cambia segun version
                 game.getUrl()
                 );
         } else if (game.getDeliveryType() == Game.DeliveryType.QUERY) {
-
-            // baseUrl = String.format("https://%s/?game_title=%s&",
-            //         "https://minijuegos.rtainor.com",
-            //         game.getUrl());
-
             baseUrl = String.format("https://%s/%s/%s/?game_title=%s&",
-                cdnUrl,
+                gamesHost(),
                 "builds/build-cali",
                 "build-04-08-2026",
                 game.getUrl());
-
         } else {
             throw new ValidationException("Unsupported routing type");
         }
@@ -391,6 +419,30 @@ public class GameServiceImpl implements GameService {
         return null;
     }
 
+    /**
+     * La campaña que le corresponde a la sesión que pide los assets.
+     *
+     * {@code /games/assets} es público —el juego no lleva JWT—, así que la sesión es la
+     * credencial: la crea {@code initGame} solo para una campaña ACTIVE y elegible
+     * para ese consumidor. Sin esta validación cualquiera podía recorrer
+     * {@code campaignId} y leer la configuración de campañas en DRAFT o pausadas.
+     *
+     * La campaña sale de la sesión, no del cuerpo: el {@code campaignId} que manda
+     * el juego solo se usa para rechazar si no coincide.
+     */
+    private Campaign campaignOfSession(GameEventDTO<Void> req) {
+        if (req.getSessionToken() == null || req.getUserHash() == null) {
+            throw new UnauthorizedException("session_token y user_hash son requeridos");
+        }
+
+        Campaign campaign = validateSessionOwnership(req.getSessionToken(), req.getUserHash()).getCampaign();
+
+        if (req.getCampaignId() != null && !req.getCampaignId().equals(campaign.getId())) {
+            throw new UnauthorizedException("La sesión no corresponde a esa campaña");
+        }
+        return campaign;
+    }
+
     private GameSession validateSessionOwnership(String sessionToken, String userHash) {
 
         GameSession session = gameSessionRepository.findBySessionToken(
@@ -400,10 +452,6 @@ public class GameServiceImpl implements GameService {
         if (!session.getUserHash().equals(userHash)) {
             throw new UnauthorizedException("Session does not belong to user");
         }
-
-        // if (!session.getConsumer().getId().equals(userId)) {
-        // throw new UnauthorizedException("Session does not belong to user");
-        // }
 
         if (session.getStartTime().plusMinutes(sessionExpirationTime).isBefore(ZonedDateTime.now())) {
             throw new BusinessException("Session expired");
@@ -422,7 +470,6 @@ public class GameServiceImpl implements GameService {
         metric.setMetricKey(dto.getKey());
         metric.setMetricType(dto.getType());
         metric.setMetricValue(toJsonNode(dto.getValue()));
-        // metric.setUnit(dto.getUnit());
         metric.setRecordedAt(ZonedDateTime.now());
         return metric;
     }

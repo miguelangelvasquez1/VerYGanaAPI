@@ -1,5 +1,6 @@
 package com.verygana2.controllers.games;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -9,6 +10,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -29,6 +31,7 @@ import com.verygana2.controllers.GameController;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.GlobalExceptionHandler;
+import com.verygana2.exceptions.UnauthorizedException;
 import com.verygana2.services.interfaces.GameService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -133,6 +136,43 @@ class GameControllerPreviewAssetsTest {
                 .andExpect(jsonPath("$.meta.brand_id").value("coca-cola"))
                 .andExpect(jsonPath("$.meta.campaign_id").value("preview-5"))
                 .andExpect(jsonPath("$.reward_popup.title").value("¡Ganaste!"));
+    }
+
+    @Test
+    @DisplayName("una campaña real entrega su configuración: antes se perdía en un 400 vacío")
+    void realCampaignReachesTheService() throws Exception {
+        // El endpoint interceptaba los campaign_id 1 a 20 con configuraciones
+        // hardcodeadas y respondía 400 sin cuerpo al resto: ninguna campaña con id
+        // mayor a 20 recibía su brandeo.
+        when(gameService.getGameAssets(any())).thenReturn(Map.of(
+                "meta", Map.of("brand_id", "coca-cola", "campaign_id", "21"),
+                "game", Map.of("words", List.of())));
+
+        GameEventDTO<Void> req = new GameEventDTO<>();
+        req.setSessionToken("una-sesion-real");
+        req.setCampaignId(21L);
+
+        postAssets(objectMapper.writeValueAsString(req))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.meta.campaign_id").value("21"));
+    }
+
+    @Test
+    @DisplayName("una sesión rechazada responde 401 con el motivo, no con un cuerpo vacío")
+    void rejectedSessionExplainsItself() throws Exception {
+        // Sin sesión válida el service no lee ninguna campaña. El juego y quien depura
+        // tienen que ver por qué, no un 400 mudo.
+        when(gameService.getGameAssets(any()))
+                .thenThrow(new UnauthorizedException("La sesión no corresponde a esa campaña"));
+
+        GameEventDTO<Void> req = new GameEventDTO<>();
+        req.setSessionToken("una-sesion-real");
+        req.setUserHash("hash");
+        req.setCampaignId(99L);
+
+        postAssets(objectMapper.writeValueAsString(req))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("campaña")));
     }
 
     @Test

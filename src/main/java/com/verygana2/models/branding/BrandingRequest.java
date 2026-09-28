@@ -145,6 +145,19 @@ public class BrandingRequest {
     @Column(name = "draft_form_data", columnDefinition = "json")
     private Map<String, Object> draftFormData;
 
+    /**
+     * El contenido de marca que entrega el anunciante: las preguntas de la trivia, las
+     * palabras de la sopa de letras, las imágenes de las cartas del memoria.
+     *
+     * Va aparte de {@code draftFormData} —que es del diseñador— porque son dos autores
+     * distintos en dos momentos distintos: esto se llena antes de que exista diseñador,
+     * y tiene que sobrevivir a que el diseño se rehaga. Al aprobar la solicitud se
+     * siembra dentro del borrador para que el diseñador lo vea ya cargado.
+     */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "brief_data", columnDefinition = "json")
+    private Map<String, Object> briefData;
+
     // ===== CAMPAÑA GENERADA =====
 
     @OneToOne(fetch = FetchType.LAZY)

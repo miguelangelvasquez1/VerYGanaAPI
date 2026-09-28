@@ -3,6 +3,7 @@ package com.verygana2.services.games;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import com.verygana2.dtos.branding.ConfirmCorporateResourceDTO;
 import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.dtos.branding.CorporateResourceUploadPermissionDTO;
 import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
+import com.verygana2.dtos.branding.GameBriefRequirementsDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
@@ -64,6 +66,9 @@ import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.plans.BudgetService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
+import com.verygana2.utils.games.GameBriefCatalog;
+import com.verygana2.utils.games.GameBriefNumbering;
+import com.verygana2.utils.games.GameBriefValidator;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -106,6 +111,9 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final WalletRepository walletRepository;
     private final BudgetService budgetService;
     private final GameConfigValidator gameConfigValidator;
+    private final GameBriefValidator gameBriefValidator;
+    private final GameBriefCatalog gameBriefCatalog;
+    private final GameBriefNumbering gameBriefNumbering;
 
     // ===== CATÁLOGO DE JUEGOS =====
 
@@ -202,6 +210,12 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             throw new ValidationException("Request cannot be submitted from status: " + request.getStatus());
         }
 
+        // El contenido del juego se exige acá y no al crear la solicitud, porque la
+        // solicitud nace en borrador y el anunciante lo carga en un paso aparte.
+        // Ojo: este rechazo también cancela el guardado de las notas de más abajo.
+        gameBriefValidator.validateOrThrow(request.getGame(), request.getBriefData());
+        assertEnoughResources(request);
+
         request.setStatus(BrandingRequestStatus.PENDING_REVIEW);
         log.info("BrandingRequest {} submitted for review by commercial user {}", requestId, userId);
 
@@ -215,6 +229,54 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
                     .relatedStatus(BrandingRequestStatus.PENDING_REVIEW)
                     .build());
         }
+    }
+
+    // ===== CONTENIDO DE MARCA (BRIEF) =====
+
+    @Override
+    @Transactional(readOnly = true)
+    public GameBriefRequirementsDTO getBriefRequirements(Long gameId) {
+        Game game = gameRepository.findByIdAndActiveTrue(gameId)
+            .orElseThrow(() -> new ValidationException("Game not available"));
+
+        // jsonSchema nulo = el juego no pide texto. Es una respuesta válida, no un
+        // error: el frontend simplemente no pinta ese paso.
+        var resources = gameBriefCatalog.requiredResourcesFor(game);
+
+        return GameBriefRequirementsDTO.builder()
+            .gameId(game.getId())
+            .gameName(game.getTitle())
+            .jsonSchema(gameBriefValidator.briefJsonSchema(game))
+            .uiSchema(gameBriefValidator.briefUiSchema(game))
+            .requiredResourceCount(resources.map(r -> r.minFiles()).orElse(0))
+            .requiredResourceLabel(resources.map(r -> r.label()).orElse(null))
+            .build();
+    }
+
+    @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
+    public void saveBrief(Long requestId, Long userId, Map<String, Object> content) {
+        BrandingRequest request = findOwnedRequest(requestId, userId);
+
+        // Solo en borrador: después de enviarla, el contenido ya viajó al diseñador y
+        // cambiarlo por debajo dejaría el diseño y la solicitud contando cosas distintas.
+        if (request.getStatus() != BrandingRequestStatus.DRAFT) {
+            throw new ValidationException(
+                "El contenido solo se puede editar mientras la solicitud está en borrador");
+        }
+
+        // Los ids los pone el backend por posición: el formulario no los pide porque
+        // son contabilidad interna del juego, no algo que la marca deba llevar.
+        Map<String, Object> numbered = gameBriefNumbering.apply(
+            gameBriefCatalog.fieldsFor(request.getGame()), content);
+
+        // Se valida al guardar, no solo al enviar: el anunciante está mirando el
+        // formulario y puede corregir ahora. Enterarse al final de que faltaban
+        // preguntas obliga a rehacer el paso completo.
+        gameBriefValidator.validateOrThrow(request.getGame(), numbered);
+
+        request.setBriefData(numbered);
+        log.info("Brief guardado para BrandingRequest {} por el anunciante {}", requestId, userId);
     }
 
     @Override
@@ -368,6 +430,8 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         request.setReviewedByAdmin(admin);
         request.setAssignedDesigner(designer);
         if (dto.getAdminNotes() != null) request.setAdminNotes(dto.getAdminNotes());
+
+        seedDraftWithBrief(request);
 
         log.info("BrandingRequest {} approved by admin {} and assigned to designer user {}",
             requestId, adminUserId, dto.getDesignerUserId());
@@ -616,6 +680,51 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     }
 
     // ===== HELPERS =====
+
+    /**
+     * Siembra el borrador del diseñador con el contenido del anunciante.
+     *
+     * Sin esto el diseñador abre el formulario vacío y tiene que copiar a mano las
+     * preguntas o las palabras desde otra pantalla — que es la forma más segura de
+     * que se pierdan o lleguen distintas a lo que aprobó la marca.
+     *
+     * Solo siembra cuando el borrador está vacío: si el diseño se rehace tras un
+     * rechazo, el trabajo del diseñador manda.
+     */
+    private void seedDraftWithBrief(BrandingRequest request) {
+        Map<String, Object> brief = request.getBriefData();
+        if (brief == null || brief.isEmpty()) return;
+        if (request.getDraftFormData() != null && !request.getDraftFormData().isEmpty()) return;
+
+        request.setDraftFormData(new java.util.LinkedHashMap<>(brief));
+        log.info("Borrador de BrandingRequest {} sembrado con el contenido del anunciante", request.getId());
+    }
+
+    /**
+     * Los archivos que el juego necesita para poder armarse.
+     *
+     * No son assets del juego: el anunciante los sube como recursos corporativos y el
+     * diseñador los audita —contenido apropiado, calidad suficiente— antes de
+     * publicarlos. Pero si llegan tres imágenes para un memoria que arma 25 parejas,
+     * el diseñador se entera al abrir el diseño y la solicitud ya ocupó la cola.
+     */
+    private void assertEnoughResources(BrandingRequest request) {
+        var requirement = gameBriefCatalog.requiredResourcesFor(request.getGame());
+        if (requirement.isEmpty()) return;
+
+        long validated = request.getCorporateResources().stream()
+            .filter(r -> r.getStatus() == AssetStatus.VALIDATED)
+            .count();
+
+        if (validated < requirement.get().minFiles()) {
+            throw new ValidationException(String.format(
+                "%s necesita al menos %d %s. Van %d.",
+                request.getGame().getTitle(),
+                requirement.get().minFiles(),
+                requirement.get().label(),
+                validated));
+        }
+    }
 
     private BrandingRequest findOwnedRequest(Long requestId, Long userId) {
         return brandingRequestRepository.findByIdAndCommercialUserId(requestId, userId)

@@ -19,6 +19,7 @@ import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
+import com.verygana2.dtos.branding.GameBriefRequirementsDTO;
 
 public interface BrandingRequestService {
 
@@ -35,6 +36,12 @@ public interface BrandingRequestService {
     void confirmCorporateResource(Long requestId, ConfirmCorporateResourceDTO dto, Long userId);
 
     void submitForReview(Long requestId, Long userId, String notes);
+
+    /** Lo que el juego le pide al anunciante: esquema del texto y mínimo de archivos. */
+    GameBriefRequirementsDTO getBriefRequirements(Long gameId);
+
+    /** Guarda el contenido de marca del anunciante, validado contra ese esquema. */
+    void saveBrief(Long requestId, Long userId, java.util.Map<String, Object> content);
 
     /** Cancela una solicitud aún en borrador: devuelve el presupuesto reservado y borra los recursos del CDN. */
     void cancelBrandingRequest(Long requestId, Long userId);

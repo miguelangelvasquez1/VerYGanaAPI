@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,17 +20,22 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.games.GameConfigDefinition;
+import com.verygana2.models.games.GameSession;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
+import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.games.GameServiceImpl;
 import com.verygana2.utils.games.GameConfigStamper;
+import com.verygana2.utils.games.GameResponseEnvelope;
+import com.verygana2.utils.games.PreviewRewardSamples;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 
 /**
@@ -52,6 +58,7 @@ class GameAssetsStampingTest {
     private static final String COIN = "https://cdn.verygana.com/public/logos/moneda-llave.png";
 
     @Mock private CampaignRepository campaignRepository;
+    @Mock private GameSessionRepository gameSessionRepository;
     @Mock private BrandingRequestRepository brandingRequestRepository;
     @Mock private ProductRepository productRepository;
     @Mock private GameConfigValidator gameConfigValidator;
@@ -59,7 +66,19 @@ class GameAssetsStampingTest {
     /** El stamper real: el punto del test es que el service lo llame bien. */
     @Spy private GameConfigStamper gameConfigStamper = new GameConfigStamper(COIN);
 
+    /** El envoltorio real: para estos juegos no cambia nada, y así se prueba. */
+    @Spy private GameResponseEnvelope gameResponseEnvelope = new GameResponseEnvelope();
+
+    /** Real: sin productos del comercial, la preview usa ejemplos. */
+    @Spy private PreviewRewardSamples previewRewardSamples = new PreviewRewardSamples("https://cdn/ejemplo.png");
+
     @InjectMocks private GameServiceImpl gameService;
+
+    /** El @Value de la expiración no llega con @InjectMocks. */
+    @BeforeEach
+    void sessionExpiration() {
+        ReflectionTestUtils.setField(gameService, "sessionExpirationTime", 30);
+    }
 
     /** Como los esquemas de cali: declaran personalization con los dos iconos. */
     private static Map<String, Object> caliSchema() {
@@ -93,10 +112,13 @@ class GameAssetsStampingTest {
     class RealCampaign {
 
         private Map<String, Object> assetsFor(Campaign campaign) {
-            when(campaignRepository.findById(42L)).thenReturn(Optional.of(campaign));
+            when(gameSessionRepository.findBySessionToken("tok")).thenReturn(Optional.of(
+                GameSession.builder().sessionToken("tok").userHash("u").campaign(campaign).build()));
             when(productRepository.findGameRewardsProducts(any())).thenReturn(List.of());
 
             GameEventDTO<Void> req = new GameEventDTO<>();
+            req.setSessionToken("tok");
+            req.setUserHash("u");
             req.setCampaignId(42L);
             return gameService.getGameAssets(req);
         }

@@ -71,8 +71,14 @@ public class GameConfigValidator {
             "La configuración del juego no es válida: " + describe(errors));
     }
 
-    /** Junta los mensajes para el texto de la excepción, acotado para no inundar la UI. */
-    static String describe(List<ValidationError> errors) {
+    /**
+     * Junta los mensajes para el texto de la excepción, acotado para no inundar la UI.
+     *
+     * Público porque {@code GameBriefValidator} arma el mismo tipo de mensaje para el
+     * anunciante, y dos formatos distintos de error de esquema confunden a quien
+     * soporta ambos formularios.
+     */
+    public static String describe(List<ValidationError> errors) {
         String detail = errors.stream()
             .limit(10)
             .map(ValidationError::getMessage)

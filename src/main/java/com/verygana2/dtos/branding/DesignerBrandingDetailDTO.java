@@ -62,6 +62,17 @@ public class DesignerBrandingDetailDTO {
     // Borrador del formData RJSF con los valores que el diseñador ha ido guardando
     private Map<String, Object> draftFormData;
 
+    /**
+     * El contenido que escribió la marca, tal como lo envió.
+     *
+     * Va aparte del borrador a propósito. El borrador ya viene sembrado con esto, así
+     * que el diseñador lo ve como campos pre-llenados, indistinguibles de un valor por
+     * defecto del esquema: puede reescribir las 10 preguntas sin saber que está
+     * pisando lo que pidió el anunciante, y el anunciante se entera recién en la
+     * preview. Esta copia es de solo lectura y sirve para comparar.
+     */
+    private Map<String, Object> briefData;
+
     // ===== Auditoría =====
     private ZonedDateTime createdAt;
     private ZonedDateTime updatedAt;

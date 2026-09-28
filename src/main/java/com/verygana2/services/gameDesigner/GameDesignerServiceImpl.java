@@ -431,6 +431,7 @@ public class GameDesignerServiceImpl implements GameDesignerService {
 
         dto.setGameSchema(buildGameSchema(request.getGame()));
         dto.setDraftFormData(request.getDraftFormData());
+        dto.setBriefData(request.getBriefData());
 
         return dto;
     }

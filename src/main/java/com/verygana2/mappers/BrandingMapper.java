@@ -1,5 +1,7 @@
 package com.verygana2.mappers;
 
+import java.util.List;
+
 import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
@@ -12,6 +14,7 @@ import com.verygana2.dtos.branding.BrandingRequestDetailDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.models.Municipality;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.branding.CorporateResource;
@@ -73,16 +76,38 @@ public abstract class BrandingMapper {
     @Mapping(target = "hasCompleteTargeting", ignore = true)
     public abstract BrandingRequestDetailDTO toDetailDTO(BrandingRequest request);
 
+    /**
+     * Ojo con el tipo del {@code @MappingTarget}: tiene que ser el <b>builder</b>.
+     *
+     * El DTO usa {@code @Builder} de Lombok, así que MapStruct construye por builder y
+     * saltea —sin avisar— los {@code @AfterMapping} cuyo target es el DTO ya
+     * construido: este método no aparecería en el mapper generado y los nombres del
+     * diseñador y del admin saldrían en null.
+     */
     @AfterMapping
-    protected void setDetailComputedFields(@MappingTarget BrandingRequestDetailDTO dto, BrandingRequest request) {
+    protected void setDetailComputedFields(
+            @MappingTarget BrandingRequestDetailDTO.BrandingRequestDetailDTOBuilder dto,
+            BrandingRequest request) {
+
         if (request.getAssignedDesigner() != null) {
-            dto.setAssignedDesignerName(
+            dto.assignedDesignerName(
                 request.getAssignedDesigner().getName() + " " + request.getAssignedDesigner().getLastName()
             );
-            dto.setAssignedDesignerCode(request.getAssignedDesigner().getDesignerCode());
+            dto.assignedDesignerCode(request.getAssignedDesigner().getDesignerCode());
         }
         if (request.getReviewedByAdmin() != null) {
-            dto.setReviewedByAdminName("Admin #" + request.getReviewedByAdmin().getId());
+            dto.reviewedByAdminName("Admin #" + request.getReviewedByAdmin().getId());
+        }
+
+        // Un borrador que no pasó por el paso de configuración no tiene TargetAudience.
+        // Las listas van vacías y no en null: el frontend hace `categories.map(...)`
+        // apenas recibe el detalle.
+        TargetAudience audience = request.getTargetAudience();
+        if (audience == null || audience.getCategories() == null) {
+            dto.categories(List.of());
+        }
+        if (audience == null || audience.getTargetMunicipalities() == null) {
+            dto.targetMunicipalities(List.of());
         }
     }
 

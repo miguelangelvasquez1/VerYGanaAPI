@@ -1,10 +1,15 @@
 package com.verygana2.mappers;
 
+import java.util.List;
+
+import org.mapstruct.AfterMapping;
 import org.mapstruct.Mapper;
+import org.mapstruct.MappingTarget;
 import org.mapstruct.Mapping;
 
 import com.verygana2.dtos.branding.DesignerBrandingDetailDTO;
 import com.verygana2.dtos.user.gamedesigner.GameDesignerProfileResponseDTO;
+import com.verygana2.models.TargetAudience;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.models.userDetails.GameDesignerDetails;
 
@@ -33,4 +38,27 @@ public interface GameDesignerMapper {
     @Mapping(target = "corporateResources",   ignore = true)
     @Mapping(target = "gameSchema",           ignore = true)
     DesignerBrandingDetailDTO toDesignerDetailDTO(BrandingRequest request);
+
+    /**
+     * Mismo relleno que en {@code BrandingMapper}, y por el mismo motivo: una solicitud
+     * puede aprobarse sin targeting, y el panel del diseñador hace
+     * {@code categories.length} apenas abre el brief.
+     *
+     * El {@code @MappingTarget} tiene que ser el <b>builder</b>: el DTO usa
+     * {@code @Builder} de Lombok y MapStruct saltea en silencio los
+     * {@code @AfterMapping} que apuntan al DTO ya construido.
+     */
+    @AfterMapping
+    default void fillEmptyTargeting(
+            @MappingTarget DesignerBrandingDetailDTO.DesignerBrandingDetailDTOBuilder dto,
+            BrandingRequest request) {
+
+        TargetAudience audience = request.getTargetAudience();
+        if (audience == null || audience.getCategories() == null) {
+            dto.categories(List.of());
+        }
+        if (audience == null || audience.getTargetMunicipalities() == null) {
+            dto.targetMunicipalities(List.of());
+        }
+    }
 }

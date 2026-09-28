@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
@@ -26,6 +27,8 @@ import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.services.games.GameServiceImpl;
 import com.verygana2.utils.games.GameConfigStamper;
+import com.verygana2.utils.games.GameResponseEnvelope;
+import com.verygana2.utils.games.PreviewRewardSamples;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 
 /**
@@ -45,6 +48,12 @@ class PreviewAssetsRewardPopupTest {
     @Mock private ProductRepository productRepository;
     @Mock private GameConfigValidator gameConfigValidator;
     @Mock private GameConfigStamper gameConfigStamper;
+
+    /** El envoltorio real: para estos juegos no cambia nada, y así se prueba. */
+    @Spy private GameResponseEnvelope gameResponseEnvelope = new GameResponseEnvelope();
+
+    /** Real: sin productos del comercial, la preview usa ejemplos. */
+    @Spy private PreviewRewardSamples previewRewardSamples = new PreviewRewardSamples("https://cdn/ejemplo.png");
 
     @InjectMocks private GameServiceImpl gameService;
 
