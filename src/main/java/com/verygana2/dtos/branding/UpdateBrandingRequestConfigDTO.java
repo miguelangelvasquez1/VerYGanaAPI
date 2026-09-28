@@ -16,11 +16,11 @@ public class UpdateBrandingRequestConfigDTO {
     private List<Long> categoryIds;
     private List<String> municipalityCodes;
 
-    @Min(value = 13, message = "Minimum age must be at least 13")
+    @Min(value = 18, message = "Minimum age must be at least 18")
     @Max(value = 100)
     private Integer minAge;
 
-    @Min(value = 13)
+    @Min(value = 18, message = "Maximum age must be at least 18")
     @Max(value = 100, message = "Maximum age must not exceed 100")
     private Integer maxAge;
 
