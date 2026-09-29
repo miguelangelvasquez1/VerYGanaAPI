@@ -1,5 +1,6 @@
 package com.verygana2.repositories.details;
 
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -14,7 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.UserLevel;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 @Repository
@@ -29,6 +30,7 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
     Optional<ConsumerDetails> findByReferralCode(String referralCode);
     Optional<ConsumerDetails> findByUserId(Long userId);
     boolean existsByReferralCode(String referralCode);
+    boolean existsByDocumentNumber(String documentNumber);
 
     Optional<ConsumerDetails> findByUserEmail(String email);
     int countByReferredBy(ConsumerDetails referredBy);
@@ -45,9 +47,9 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             SELECT c FROM ConsumerDetails c
             LEFT JOIN UserLevelProfile ulp ON ulp.consumer = c
             WHERE (:level IS NULL OR ulp.currentLevel = :level)
-            AND (:userState IS NULL OR c.user.userState = :userState)
-            AND (:maxAge IS NULL OR c.age <= :maxAge)
-            AND (:minAge IS NULL OR c.age >= :minAge)
+            AND (:accountStatus IS NULL OR c.user.accountStatus = :accountStatus)
+            AND (:bornOnOrBefore IS NULL OR c.birthDate <= :bornOnOrBefore)
+            AND (:bornAfter IS NULL OR c.birthDate > :bornAfter)
             AND (:gender IS NULL OR c.gender = :gender)
             AND (:departmentCode IS NULL OR :departmentCode = '' OR c.municipality.departmentCode = :departmentCode)
             AND (:municipalityCode IS NULL OR :municipalityCode = '' OR c.municipality.code = :municipalityCode)
@@ -64,8 +66,8 @@ public interface ConsumerDetailsRepository extends JpaRepository<ConsumerDetails
             OR LOWER(c.departmentName) LIKE LOWER(CONCAT('%', :search, '%'))
             OR LOWER(c.municipalityName) LIKE LOWER(CONCAT('%', :search, '%')))
             """)
-    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("userState") UserState userState, @Param("maxAge") Integer maxAge,
-    @Param("minAge") Integer minAge, @Param("gender") Gender gender, @Param("departmentCode") String departmentCode, @Param("municipalityCode") String municipalityCode, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, Pageable pageable);
+    Page<ConsumerDetails> getConsumers(@Param("level") UserLevel level, @Param("search") String search, @Param("accountStatus") AccountStatus accountStatus, @Param("bornOnOrBefore") LocalDate bornOnOrBefore,
+    @Param("bornAfter") LocalDate bornAfter, @Param("gender") Gender gender, @Param("departmentCode") String departmentCode, @Param("municipalityCode") String municipalityCode, @Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, Pageable pageable);
 
     @Query("""
                      SELECT c FROM ConsumerDetails c

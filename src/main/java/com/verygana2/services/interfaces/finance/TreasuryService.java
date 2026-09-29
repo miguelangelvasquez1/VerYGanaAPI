@@ -12,11 +12,31 @@ import com.verygana2.models.records.TreasurySnapshot;
 import com.verygana2.models.userDetails.CommercialDetails;
 
 public interface TreasuryService {
-    void distributeDeposit(Long amountCents, CommercialDetails commercial, UUID referenceId);
-    void distributeSubscription(Long amountCents, CommercialDetails commercial, UUID referenceId);
+
+    /**
+     * @param baseAmountCents monto de inversión sin IVA — se reparte 60/10/30
+     *                        entre KEYS_RESERVE/FORTIFICATION/OPERATIONS.
+     * @param vatAmountCents  IVA adicional cobrado sobre el depósito (puede ser
+     *                        0) — va completo a TAX_RESERVE, no se mezcla con
+     *                        la distribución 60/10/30.
+     */
+    void distributeDeposit(Long baseAmountCents, Long vatAmountCents, CommercialDetails commercial, UUID referenceId);
+
+    /**
+     * @param baseAmountCents precio de la suscripción sin IVA — va completo a OPERATIONS.
+     * @param vatAmountCents  IVA adicional cobrado sobre la suscripción (puede ser 0) — va a TAX_RESERVE.
+     */
+    void distributeSubscription(Long baseAmountCents, Long vatAmountCents, CommercialDetails commercial,
+            UUID referenceId);
     void convertKeysToPayoutPending(Long amountCents, UUID referenceId);
     void moveCashToPayoutPending(Long amountCents, UUID referenceId);
-    void retainCommission(Long amountCents, UUID referenceId, String referenceType);
+
+    /**
+     * @param amountCents comisión total retenida (ya incluye IVA)
+     * @param vatCents    porción de esa comisión correspondiente a IVA (puede ser 0) — se
+     *                    extrae y va a TAX_RESERVE; el resto (amountCents - vatCents) va a OPERATIONS.
+     */
+    void retainCommission(Long amountCents, Long vatCents, UUID referenceId, String referenceType);
     void registerPayoutSent(Long amountCents, UUID referenceId);
 
     /**
@@ -29,13 +49,17 @@ public interface TreasuryService {
      * PurchaseItemCashRefund) — Wompi no documenta un endpoint de reverso de
      * cargos, así que ese pago no se automatiza.
      *
-     * @param commissionCents  comisión retenida sobre este ítem (puede ser 0)
-     * @param keysPortionCents porción del precio del ítem pagada con llaves (puede ser 0)
-     * @param cashPortionCents porción del precio del ítem pagada en efectivo (puede ser 0)
-     * @param referenceId      id del Copayment original, para trazabilidad
+     * La porción de IVA de la comisión (si la hubo) también se revierte:
+     * TAX_RESERVE → PAYOUTS_PENDING.
+     *
+     * @param commissionCents    comisión retenida sobre este ítem (puede ser 0), incluye IVA
+     * @param commissionVatCents porción de esa comisión que fue a TAX_RESERVE (puede ser 0)
+     * @param keysPortionCents   porción del precio del ítem pagada con llaves (puede ser 0)
+     * @param cashPortionCents   porción del precio del ítem pagada en efectivo (puede ser 0)
+     * @param referenceId        id del Copayment original, para trazabilidad
      */
-    void reversePurchaseItemForRefund(Long commissionCents, Long keysPortionCents, Long cashPortionCents,
-            UUID referenceId);
+    void reversePurchaseItemForRefund(Long commissionCents, Long commissionVatCents, Long keysPortionCents,
+            Long cashPortionCents, UUID referenceId);
 
     /**
      * Registra que el admin ya hizo la transferencia manual de un reembolso

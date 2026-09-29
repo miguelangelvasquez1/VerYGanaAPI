@@ -58,7 +58,6 @@ class AssetOrphanedServiceRollbackTest {
     static class ConfirmLikeFlow {
         @Autowired private AssetOrphanedService assetOrphanedService;
         @Autowired private RaffleImageAssetRepository raffleImageAssetRepository;
-        @Autowired private StoryMediaAssetRepository storyMediaAssetRepository;
 
         /** Forma corregida: el marcado va por AssetOrphanedService. */
         public void confirmFailsUsingAssetOrphanedService(Long raffleAssetId, Long storyAssetId) {

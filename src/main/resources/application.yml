@@ -22,7 +22,7 @@ spring:
     locations: classpath:db/migration
     clean-disabled: true
     validate-on-migrate: true
-    baseline-on-migrate: false
+    baseline-on-migrate: true
     baseline-version: 1
   mvc:
     async:

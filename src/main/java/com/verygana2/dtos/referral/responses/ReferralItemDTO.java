@@ -2,7 +2,7 @@ package com.verygana2.dtos.referral.responses;
 
 import java.time.ZonedDateTime;
 
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 /**
  * Información de cada consumer referido por el usuario autenticado.
@@ -14,6 +14,6 @@ public record ReferralItemDTO(
         String   email,
         String   department,
         String   municipality,
-        UserState userState,
+        AccountStatus accountStatus,
         ZonedDateTime registeredDate
 ) {}

@@ -85,6 +85,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     private final ApplicationEventPublisher eventPublisher;
     private final ESignatureService esignatureService;
     private final EmailService emailService;
+    private final com.verygana2.config.TreasuryConfig treasuryConfig;
 
     // ==================== LADO COMERCIAL (PASOS 7-10) ====================
 
@@ -382,6 +383,9 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("legalRepDocNumber", nullSafe(details.getLegalRepDocNumber()));
         vars.put("planName", plan.getName());
         vars.put("amountFormatted", formatMoney(amountCents));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("vatAmountFormatted", formatMoney(vatOf(amountCents)));
+        vars.put("totalAmountFormatted", formatMoney(plusVat(amountCents)));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(plan.getMinInvestmentCents(), plan.getMaxInvestmentCents()));
         return templateLoader.render("contrato-recarga.html", vars);
@@ -400,6 +404,9 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("fromPlanName", fromPlan != null ? fromPlan.getName() : "Sin plan");
         vars.put("toPlanName", targetPlan.getName());
         vars.put("monthlyFeeFormatted", formatMoney(targetPlan.getMonthlyPriceCents()));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("monthlyFeeVatFormatted", formatMoney(vatOf(targetPlan.getMonthlyPriceCents())));
+        vars.put("monthlyFeeTotalFormatted", formatMoney(plusVat(targetPlan.getMonthlyPriceCents())));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(targetPlan.getMinInvestmentCents(), targetPlan.getMaxInvestmentCents()));
         vars.put("saleCommissionPct", String.valueOf(targetPlan.getSaleCommissionPct()));
@@ -523,6 +530,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (plan == null) {
             return null;
         }
+
+        Long netAmountCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeCentsSnapshot()
+                : o.getInvestmentAmountCentsSnapshot();
+        Long vatCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeVatCentsSnapshot()
+                : o.getInvestmentVatCentsSnapshot();
+        Long grossAmountCents = netAmountCents != null
+                ? netAmountCents + (vatCents != null ? vatCents : 0L)
+                : null;
+
         return new PlanSummaryResponseDTO(
                 plan.getCode(),
                 plan.getName(),
@@ -538,7 +556,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 o.getSpecialNegotiationResolvedAt(),
                 o.getSpecialNegotiationDetails(),
                 o.getPlanAcceptedAt() != null,
-                o.getPlanAcceptedAt());
+                o.getPlanAcceptedAt(),
+                grossAmountCents,
+                0L, // excludedTaxesCents — placeholder, no hay tributo excluido modelado todavía
+                commercialOnboardingMapper.toPlanBenefitsDTO(plan),
+                null); // prosperityThresholdCents — placeholder, concepto no definido
     }
 
     @Override
@@ -615,9 +637,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
 
         vars.put("planName", o.getSelectedPlan() != null ? o.getSelectedPlan().getName() : "");
         vars.put("monthlyFeeFormatted", formatMoney(o.getMonthlyFeeCentsSnapshot()));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("monthlyFeeVatFormatted", formatMoney(o.getMonthlyFeeVatCentsSnapshot()));
+        vars.put("monthlyFeeTotalFormatted", formatMoney(plusVat(o.getMonthlyFeeCentsSnapshot())));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(o.getMinInvestmentCentsSnapshot(), o.getMaxInvestmentCentsSnapshot()));
         vars.put("investmentAmountFormatted", formatMoney(o.getInvestmentAmountCentsSnapshot()));
+        vars.put("investmentVatFormatted", formatMoney(o.getInvestmentVatCentsSnapshot()));
+        vars.put("investmentTotalFormatted", formatMoney(plusVat(o.getInvestmentAmountCentsSnapshot())));
+        vars.put("taxNote", "El IVA (" + treasuryConfig.getVatPct()
+                + "%) sobre la tarifa mensual/inversión se cobra adicional al momento del pago. "
+                + "La comisión de venta a VERYGANA ya incluye IVA.");
         vars.put("saleCommissionPct", String.valueOf(o.getSaleCommissionPctSnapshot()));
         vars.put("maxKeysPct", String.valueOf(o.getMaxKeysPctSnapshot()));
 
@@ -650,6 +680,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (cents == null) return "No aplica";
         long pesos = cents / 100;
         return "$ " + NumberFormat.getNumberInstance(CO_LOCALE).format(pesos) + " COP";
+    }
+
+    /** IVA (TreasuryConfig.vatPct) sobre un monto base, o null si el monto base es null. */
+    private Long vatOf(Long baseAmountCents) {
+        return baseAmountCents == null ? null : baseAmountCents * treasuryConfig.getVatPct() / 100;
+    }
+
+    /** Total = base + IVA, o null si el monto base es null. */
+    private Long plusVat(Long baseAmountCents) {
+        Long vat = vatOf(baseAmountCents);
+        return vat == null ? null : baseAmountCents + vat;
     }
 
     private String formatInvestmentRange(Long min, Long max) {

@@ -45,11 +45,14 @@
 <table>
     <tr><th>Plan anterior</th><td>{{fromPlanName}}</td></tr>
     <tr><th>Plan nuevo</th><td>{{toPlanName}}</td></tr>
-    <tr><th>Tarifa mensual</th><td>{{monthlyFeeFormatted}}</td></tr>
+    <tr><th>Tarifa mensual (base)</th><td>{{monthlyFeeFormatted}}</td></tr>
+    <tr><th>IVA ({{vatPct}}%) sobre la tarifa mensual</th><td>{{monthlyFeeVatFormatted}}</td></tr>
+    <tr><th>Tarifa mensual total</th><td>{{monthlyFeeTotalFormatted}}</td></tr>
     <tr><th>Rango de inversión</th><td>{{investmentRangeFormatted}}</td></tr>
     <tr><th>Comisión por venta a favor de VERYGANA</th><td>{{saleCommissionPct}}%</td></tr>
     <tr><th>Abono adicional requerido para aplicar el cambio</th><td>{{topUpFormatted}}</td></tr>
 </table>
+<p>La tarifa mensual solo aplica si el plan nuevo es BASIC. El IVA se cobra de forma adicional. El abono adicional (si aplica) también incluye IVA — el desglose exacto se muestra al generar el pago.</p>
 
 <p class="footer">VERYGANA S.A.S. — Documento generado electrónicamente, sujeto a firma electrónica.</p>
 </body>

@@ -33,7 +33,7 @@ public @interface RequirePlanCapability {
         CAN_USE_GAMES,
         CAN_USE_SURVEYS,
         CAN_SELL_DIRECTLY,
-        CAN_HAVE_PETS,
+        CAN_USE_PETS,
         CAN_PROMOTE_ALLY_PRODUCTS,
         CAN_EXPORT_REPORT,
         /** Métricas de rendimiento de anuncios, encuestas y campañas (Estándar y Premium). */

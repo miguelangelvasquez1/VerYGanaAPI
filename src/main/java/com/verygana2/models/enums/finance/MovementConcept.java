@@ -55,5 +55,17 @@ public enum MovementConcept {
     REFUND_CASH_TO_OPERATIONS,
 
     /** Reembolso en efectivo pagado manualmente por el admin: sale de OPERATIONS hacia afuera del sistema */
-    REFUND_TO_BUYER
+    REFUND_TO_BUYER,
+
+    /** IVA (19%) sobre un depósito de inversión STANDARD/PREMIUM → TAX_RESERVE */
+    BUSINESS_DEPOSIT_VAT,
+
+    /** IVA (19%) sobre una suscripción mensual BASIC → TAX_RESERVE */
+    BASIC_PLAN_SUBSCRIPTION_VAT,
+
+    /** Porción de IVA (19%) de una comisión de venta retenida → TAX_RESERVE (la comisión ya incluye IVA) */
+    COMMISSION_VAT_RETENTION,
+
+    /** Reembolso de un PurchaseItem: revierte la porción de IVA de la comisión (TAX_RESERVE → PAYOUTS_PENDING) */
+    COMMISSION_VAT_REVERSAL
 }

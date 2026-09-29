@@ -6,7 +6,7 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 import lombok.Builder;
 import lombok.Data;
@@ -19,7 +19,7 @@ public class GameDesignerResponseDTO {
     private Role role;
     private String email;
     private String phoneNumber;
-    private UserState userState;
+    private AccountStatus accountStatus;
     private ZonedDateTime registeredDate;
     private int failedLoginAttempts;
     private Instant accountLockedAt;

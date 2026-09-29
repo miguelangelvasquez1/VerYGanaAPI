@@ -13,7 +13,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -22,11 +22,11 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByEmail(String email);
     boolean existsByPhoneNumber(String phoneNumber);
     Optional<User> findByEmailOrPhoneNumber(String email, String phoneNumber);
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userDetails WHERE u.userState = :state")
-    List<User> findByUserState(@Param("state") UserState state);
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.userDetails WHERE u.accountStatus = :state")
+    List<User> findByAccountStatus(@Param("state") AccountStatus state);
 
-    @Query("SELECT u FROM User u WHERE u.userState = :state AND u.role IN :roles")
-    List<User> findByUserStateAndRoleIn(@Param("state") UserState state, @Param("roles") List<Role> roles);
+    @Query("SELECT u FROM User u WHERE u.accountStatus = :state AND u.role IN :roles")
+    List<User> findByAccountStatusAndRoleIn(@Param("state") AccountStatus state, @Param("roles") List<Role> roles);
 
     @Query("""
             SELECT u FROM User u

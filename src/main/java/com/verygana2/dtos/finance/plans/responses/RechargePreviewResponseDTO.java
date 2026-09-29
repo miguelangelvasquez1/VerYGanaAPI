@@ -27,6 +27,16 @@ public class RechargePreviewResponseDTO {
 
     /** Todos los montos van en pesos colombianos (no en centavos). */
     private Long requestedAmountPesos;
+
+    /** IVA sobre requestedAmountPesos (ver TreasuryConfig.vatPct). Null si requestedAmountPesos es null. */
+    private Long vatAmountPesos;
+
+    /**
+     * requestedAmountPesos + vatAmountPesos — el monto real que Wompi va a cobrar en el
+     * checkout (ver PlanServiceImpl#generateRechargeCheckout). Null si requestedAmountPesos es null.
+     */
+    private Long totalToPayPesos;
+
     private Long minInvestmentPesos;
     private Long maxInvestmentPesos;
     private Long currentWalletBalancePesos;

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
@@ -31,9 +32,12 @@ import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.WompiTransaction;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.marketplace.Product;
@@ -75,6 +79,7 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final WompiService wompiService;
     private final WompiTransactionRepository wompiTransactionRepository;
     private final PurchaseMapper purchaseMapper;
+    private final TreasuryConfig treasuryConfig;
 
     // ─── Queries ──────────────────────────────────────────────────────────────
 
@@ -287,6 +292,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
                 long unitPriceCents = product.getPriceCents();
                 long commissionCents = unitPriceCents * commissionPct / 100;
+                // La comisión ya incluye IVA — se extrae, no se suma aparte (a diferencia
+                // del IVA de depósitos/suscripción). Ver TreasuryServiceImpl.retainCommission.
+                long commissionVatCents = commissionCents * treasuryConfig.getVatPct() / 100;
                 long netToCommercial = unitPriceCents - commissionCents;
 
                 PurchaseItem item = PurchaseItem.builder()
@@ -298,7 +306,9 @@ public class PurchaseServiceImpl implements PurchaseService {
                         .subtotalCents(unitPriceCents)
                         .commissionPctApplied(commissionPct)
                         .commissionCents(commissionCents)
+                        .commissionVatCents(commissionVatCents)
                         .netToCommercialCents(netToCommercial)
+                        .commercialActivityTypeAtPurchase(commercial.getCommercialActivityType())
                         .maxKeysPctAtPurchase(product.getMaxKeysPct())
                         .status(PurchaseItemStatus.PENDING)
                         .createdAt(ZonedDateTime.now(ZoneOffset.UTC))
@@ -336,13 +346,32 @@ public class PurchaseServiceImpl implements PurchaseService {
     /**
      * Calcula el porcentaje de comisión que aplica para un comercial concreto.
      *
-     * Reglas:
-     * - BASIC → 15 %
-     * - STANDARD → 10 %
-     * - PREMIUM → 5 %
+     * Reglas (Contrato Tipo B, cláusula 11.2 / MP-02):
+     * - STANDARD (Empresa Tipo B) → depende de su Vocación Empresarial Principal:
+     *     PRODUCTS → plan.saleCommissionPct (10% por defecto)
+     *     SERVICES → plan.servicesCommissionPct (15% por defecto)
+     * - BASIC y PREMIUM → sin cambios, comisión plana de plan.saleCommissionPct
+     *   (la vocación aún no tiene efecto tarifario fuera de Tipo B).
+     *
+     * Los porcentajes NUNCA se hardcodean aquí: viven en Plan (mismo campo
+     * directo admin-editable que saleCommissionPct) para poder ajustarse desde
+     * un futuro endpoint de administración sin tocar código.
      */
     private int calculateCommissionPct(CommercialDetails commercial) {
-        return commercial.getCurrentPlan().getSaleCommissionPct();
+        Plan plan = commercial.getCurrentPlan();
+        if (plan.getCode() != PlanCode.STANDARD) {
+            return plan.getSaleCommissionPct();
+        }
+
+        CommercialActivityType vocacion = commercial.getCommercialActivityType();
+        if (vocacion == null) {
+            throw new BusinessException(
+                    "El comercial Tipo B (STANDARD) no tiene Vocación Empresarial Principal asignada");
+        }
+
+        return vocacion == CommercialActivityType.SERVICES
+                ? plan.getServicesCommissionPct()
+                : plan.getSaleCommissionPct();
     }
 
     private String resolveDeliveryEmail(CreatePurchaseRequestDTO request, ConsumerDetails consumer) {

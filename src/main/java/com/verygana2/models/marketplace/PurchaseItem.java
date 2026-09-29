@@ -2,6 +2,7 @@ package com.verygana2.models.marketplace;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 
 import jakarta.persistence.CascadeType;
@@ -117,19 +118,32 @@ public class PurchaseItem {
 
     /**
      * Porcentaje de comisión aplicado sobre este ítem específico.
-     * Snapshot calculado en PurchaseService al momento de crear el ítem:
+     * Snapshot calculado en PurchaseService.calculateCommissionPct al momento
+     * de crear el ítem:
      *
-     *   - Si commercial.investment.roiReached = false → 0 (aún no alcanzó 6× inversión)
-     *   - Si plan = BASIC                             → ~30 (comisión alta desde el inicio)
-     *   - Si plan = STANDARD/PREMIUM y roiReached     → 10
+     *   - BASIC/PREMIUM       → plan.saleCommissionPct (plano)
+     *   - STANDARD + PRODUCTS → plan.saleCommissionPct
+     *   - STANDARD + SERVICES → plan.servicesCommissionPct
      *
      * Se persiste aquí porque cada ítem puede pertenecer a un comercial distinto
-     * con su propio plan. Guardar el porcentaje por ítem hace que
-     * el historial sea autocontenido y auditable individualmente.
+     * con su propio plan y vocación. Guardar el porcentaje por ítem hace que
+     * el historial sea autocontenido, auditable individualmente, y que una
+     * reclasificación de vocación posterior nunca lo altere retroactivamente.
      */
     @Column(name = "commission_pct_applied", nullable = false)
     @Builder.Default
     private Integer commissionPctApplied = 0;
+
+    /**
+     * Vocación Empresarial del comercial (CommercialDetails.commercialActivityType)
+     * en el momento de esta compra. Snapshot inmutable: si el comercial se
+     * reclasifica después (PRODUCTS <-> SERVICES), este ítem histórico no
+     * cambia — la reclasificación es siempre prospectiva, nunca retroactiva.
+     * Null si el comercial no tenía vocación asignada al momento de la compra.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commercial_activity_type_at_purchase", length = 20)
+    private CommercialActivityType commercialActivityTypeAtPurchase;
 
     /**
      * Comisión en centavos retenida por VeryGana sobre este ítem.
@@ -144,6 +158,17 @@ public class PurchaseItem {
     @Column(name = "commission_cents", nullable = false)
     @Builder.Default
     private Long commissionCents = 0L;
+
+    /**
+     * Porción de commissionCents correspondiente a IVA (la comisión ya lo
+     * incluye — no se suma aparte, se extrae). Snapshot inmutable, calculado
+     * con TreasuryConfig.vatPct al momento de la compra — se usa para dividir
+     * la retención entre OPERATIONS/TAX_RESERVE (TreasuryServiceImpl.retainCommission)
+     * y para revertir exactamente lo mismo en un reembolso.
+     */
+    @Column(name = "commission_vat_cents", nullable = false)
+    @Builder.Default
+    private Long commissionVatCents = 0L;
 
     /**
      * Lo que le corresponde al empresario después de comisión.

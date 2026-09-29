@@ -10,7 +10,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.user.admin.complianceOfficers.ComplianceOfficerResponseDTO;
 import com.verygana2.dtos.user.admin.complianceOfficers.ComplianceOfficerSummaryResponseDTO;
 import com.verygana2.mappers.UserMapper;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ComplianceOfficerDetails;
 import com.verygana2.repositories.details.ComplianceOfficerDetailsRepository;
 import com.verygana2.services.interfaces.details.ComplianceOfficerDetailsService;
@@ -37,10 +37,10 @@ public class ComplianceOfficerDetailsServiceImpl implements ComplianceOfficerDet
     }
 
     @Override
-    public PagedResponse<ComplianceOfficerSummaryResponseDTO> getComplianceOfficers(String search, UserState userState,
+    public PagedResponse<ComplianceOfficerSummaryResponseDTO> getComplianceOfficers(String search, AccountStatus accountStatus,
             Pageable pageable) {
 
-        return PagedResponse.from(complianceOfficerDetailsRepository.findComplianceOfficers(search, userState, pageable).map(userMapper::toComplianceOfficerSummaryResponseDTO));
+        return PagedResponse.from(complianceOfficerDetailsRepository.findComplianceOfficers(search, accountStatus, pageable).map(userMapper::toComplianceOfficerSummaryResponseDTO));
     }
 
     @Override

@@ -37,8 +37,10 @@ import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.Municipality;
@@ -487,17 +489,22 @@ public class ProductServiceImpl implements ProductService {
 
         Long maxPriceCents = maxPrice != null ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue() : null;
 
-        // El municipio del consumidor solo prioriza el orden de resultados, nunca
-        // excluye productos (ver TargetAudienceAssembler/plan de sectorización).
+        // El municipio/edad/género del consumidor solo priorizan el orden de
+        // resultados, nunca excluyen productos (ver TargetAudienceAssembler/plan de
+        // sectorización).
         Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
         if (personalized) {
             ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
             municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
         }
 
         PagedResponse<Product> productPage = PagedResponse
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
-                        municipality, pageable));
+                        municipality, consumerAge, consumerGender, pageable));
 
         return productPage.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
@@ -519,6 +526,13 @@ public class ProductServiceImpl implements ProductService {
         }
 
         return "createdAt";
+    }
+
+    /** OTHER/PREFER_NOT_TO_SAY no tienen equivalente en TargetGender: se tratan como género desconocido. */
+    private TargetGender toTargetGender(Gender gender) {
+        if (gender == Gender.MALE) return TargetGender.MALE;
+        if (gender == Gender.FEMALE) return TargetGender.FEMALE;
+        return null;
     }
 
     @Override

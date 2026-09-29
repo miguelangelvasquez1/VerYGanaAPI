@@ -90,7 +90,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     private final KeyTransactionRepository keyTransactionRepository;
 
     @Override
-    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_USE_PETS, commercialIdParam = "userId")
     public PetImageUploadPermissionDTO prepareImageUpload(Long userId, PetImageUploadRequestDTO dto) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
@@ -126,7 +126,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     }
 
     @Override
-    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId", requiresBudget = true)
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_USE_PETS, commercialIdParam = "userId", requiresBudget = true)
     public CatalogIntegrationResponseDTO submit(Long userId, CatalogIntegrationRequestDTO dto) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
@@ -513,7 +513,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
      */
     @Override
     @Transactional(readOnly = true)
-    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_USE_PETS, commercialIdParam = "userId")
     public List<PetProductMetricsDTO> getMyProductMetrics(Long userId, LocalDate from, LocalDate to) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));
@@ -546,7 +546,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
      */
     @Override
     @Transactional(readOnly = true)
-    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_HAVE_PETS, commercialIdParam = "userId")
+    @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_USE_PETS, commercialIdParam = "userId")
     public List<PetSalesPointDTO> getMyDailySales(Long userId, LocalDate from, LocalDate to) {
         CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Commercial not found for userId=" + userId));

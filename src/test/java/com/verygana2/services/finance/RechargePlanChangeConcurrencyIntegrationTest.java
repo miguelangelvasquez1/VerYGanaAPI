@@ -34,7 +34,7 @@ import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.commercial.CommercialContract;
@@ -259,7 +259,7 @@ class RechargePlanChangeConcurrencyIntegrationTest {
         user.setPhoneNumber("3009998877");
         user.setPassword("hash");
         user.setRole(Role.COMMERCIAL);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setPublicId(UUID.randomUUID());
         user.setRegisteredDate(ZonedDateTime.now());
         em.persist(user);

@@ -84,8 +84,8 @@ public class PlanFeatureGuard {
                         "El plan " + state.getEffectivePlan().name() + " no permite vender productos propios en el marketplace");
                 }
             }
-            case CAN_HAVE_PETS -> {
-                if (!state.isCanHavePets()) {
+            case CAN_USE_PETS -> {
+                if (!state.isCanUsePets()) {
                     throw new PlanCapabilityException(
                         "El módulo de mascotas no está disponible en el plan: " + state.getEffectivePlan().name());
                 }

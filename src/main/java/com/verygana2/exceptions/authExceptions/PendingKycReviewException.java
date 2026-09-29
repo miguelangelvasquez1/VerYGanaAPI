@@ -4,7 +4,7 @@ import org.springframework.security.authentication.DisabledException;
 
 /**
  * Login rechazado porque la cuenta está en revisión de cumplimiento/KYC
- * (UserState.PENDING_KYC_REVIEW). Subtipo de DisabledException para que
+ * (AccountStatus.PENDING_ACTIVATION). Subtipo de DisabledException para que
  * GlobalExceptionHandler pueda dar un mensaje específico en vez del
  * genérico de cuenta deshabilitada.
  */

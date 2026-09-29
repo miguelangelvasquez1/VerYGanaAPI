@@ -17,7 +17,7 @@ import org.springframework.data.domain.PageRequest;
 
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.enums.pqrs.PqrsType;
@@ -75,7 +75,7 @@ class PqrsRepositoryTest {
         user.setPhoneNumber("320000" + String.format("%04d", n));
         user.setPassword("hash");
         user.setRole(Role.ADMIN);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setRegisteredDate(now());
         em.persist(user);
 

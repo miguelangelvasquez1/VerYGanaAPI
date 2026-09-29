@@ -8,7 +8,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.models.enums.AnnualRevenueRange;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 import lombok.Builder;
 import lombok.Data;
@@ -21,7 +21,7 @@ public class CommercialResponseDTO {
     private Role role;
     private String email;
     private String phoneNumber;
-    private UserState userState;
+    private AccountStatus accountStatus;
     private ZonedDateTime registeredDate;
     private int failedLoginAttempts;
     private Instant accountLockedAt;

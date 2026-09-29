@@ -25,6 +25,7 @@ import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.mappers.raffles.PrizeMapper;
 import com.verygana2.mappers.raffles.RaffleMapper;
+import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.models.enums.raffles.DrawMethod;
 import com.verygana2.models.enums.raffles.PrizeType;
 import com.verygana2.models.enums.raffles.RaffleStatus;
@@ -40,7 +41,6 @@ import com.verygana2.repositories.raffles.RaffleParticipationRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
@@ -74,9 +74,9 @@ class RaffleServiceImplTest {
     @Mock private RaffleMapper raffleMapper;
     @Mock private PrizeMapper prizeMapper;
     @Mock private ClaimCodeEncryptor claimCodeEncryptor;
-    @Mock private MunicipalityRepository municipalityRepository;
     @Mock private TargetAudienceAssembler targetAudienceAssembler;
     @Mock private AssetOrphanedService assetOrphanedService;
+    @Mock private ConsumerDetailsService consumerDetailsService;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
 
@@ -86,8 +86,9 @@ class RaffleServiceImplTest {
     void setUp() {
         service = new RaffleServiceImpl(raffleRepository, prizeRepository, ticketEarningRuleRepository,
                 raffleTicketRepository, raffleImageAssetRepository,
-                prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper, municipalityRepository,
-                targetAudienceAssembler, claimCodeEncryptor, objectMapper, assetOrphanedService);
+                prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper,
+                targetAudienceAssembler, consumerDetailsService, claimCodeEncryptor, objectMapper,
+                assetOrphanedService);
     }
 
     private Raffle raffle(Long id, RaffleStatus status) {

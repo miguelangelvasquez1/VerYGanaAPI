@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * Bloqueo de cuenta por intentos fallidos de login consecutivos, distinto del
- * bloqueo de compliance/admin (UserState.BLOCKED): es automático, temporal y
+ * bloqueo de compliance/admin (AccountStatus.SUSPENDED): es automático, temporal y
  * se resuelve por el propio usuario con un código enviado a su correo — no
  * requiere intervención de soporte.
  */
