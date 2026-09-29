@@ -45,5 +45,6 @@ public class AdResponseDTO { // Response for commercial
     private String targetGender;
     private String rejectionReason;
     private MediaType mediaType;
+    private Integer durationSeconds;
     private List<MunicipalityResponseDTO> targetMunicipalities;
 }

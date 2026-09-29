@@ -1,6 +1,7 @@
 package com.verygana2.repositories;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -20,6 +21,22 @@ public interface StoryMediaAssetRepository extends JpaRepository<StoryMediaAsset
     """)
     List<StoryMediaAsset> findDeletableAssets(
         @Param("status") StoryMediaAsset.MediaAssetStatus status,
+        @Param("threshold") ZonedDateTime threshold
+    );
+
+    /**
+     * PENDING (u otros estados dados) nunca vinculados a una historia y más viejos que el umbral:
+     * flujos de subida abandonados. Los ya vinculados nunca se devuelven, así que un archivo
+     * en uso no puede entrar al barrido.
+     */
+    @Query("""
+        SELECT a FROM StoryMediaAsset a
+        WHERE a.impactStory IS NULL
+        AND a.status IN :statuses
+        AND a.createdAt < :threshold
+    """)
+    List<StoryMediaAsset> findStaleUnattachedAssets(
+        @Param("statuses") Collection<StoryMediaAsset.MediaAssetStatus> statuses,
         @Param("threshold") ZonedDateTime threshold
     );
 }

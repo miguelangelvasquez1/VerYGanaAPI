@@ -15,6 +15,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -54,9 +55,16 @@ public class ImpactStoryController {
         return ResponseEntity.ok(page);
     }
 
+    // Cualquier usuario autenticado, pero cada rol ve lo suyo: un consumidor solo las PUBLISHED, un
+    // admin también DRAFT y ARCHIVED; una DELETED no existe para nadie (404).
     @GetMapping("/{id}")
     public ResponseEntity<ImpactStoryResponseDTO> findById(@PathVariable Long id) {
-        return ResponseEntity.ok(impactStoryService.findById(id));
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return ResponseEntity.ok(impactStoryService.findById(id, isAdmin));
     }
 
     // Solo administradores. PASO 3 del flujo: los assets ya deben estar en R2.

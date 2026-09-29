@@ -1,6 +1,7 @@
 package com.verygana2.repositories.commercial;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -17,6 +18,7 @@ public interface CommercialContractRepository extends JpaRepository<CommercialCo
     Optional<CommercialContract> findByOnboarding_Id(Long onboardingId);
     List<CommercialContract> findByStatus(ContractStatus status);
     List<CommercialContract> findByStatusIn(List<ContractStatus> statuses);
+    boolean existsByCommercial_IdAndStatusIn(Long commercialId, Collection<ContractStatus> statuses);
     Optional<CommercialContract> findByEsignatureEnvelopeId(String envelopeId);
 
     List<CommercialContract> findByPurposeAndStatus(ContractPurpose purpose, ContractStatus status);

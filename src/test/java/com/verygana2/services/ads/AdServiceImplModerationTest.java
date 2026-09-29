@@ -194,4 +194,46 @@ class AdServiceImplModerationTest {
             assertThat(dto.getContentUrl()).startsWith("https://signed.example/");
         }
     }
+
+    @Nested
+    @DisplayName("anuncio REJECTED: su archivo se borra de R2, así que no se sirve ninguna URL")
+    class RejectedContentUrl {
+
+        @Test
+        @DisplayName("rejectAd no devuelve contentUrl ni firma/expone URLs hacia el archivo")
+        void reject_doesNotServeContent() {
+            Ad ad = adWith(AdStatus.PENDING);
+            when(adRepository.findById(AD_ID)).thenReturn(Optional.of(ad));
+
+            AdResponseDTO dto = adServiceImpl.rejectAd(AD_ID, "no cumple las políticas", 9L);
+
+            assertThat(ad.getStatus()).isEqualTo(AdStatus.REJECTED);
+            assertThat(dto.getContentUrl()).isNull();
+            verify(r2Service, never()).getPrivateObject(any(), anyInt());
+            verify(r2Service, never()).buildPublicUrl(any());
+        }
+
+        @Test
+        @DisplayName("getAdDetails de un anuncio REJECTED no firma una URL hacia el objeto borrado")
+        void details_ofRejectedAd_hasNoContentUrl() {
+            Ad ad = adWith(AdStatus.REJECTED);
+            when(adRepository.findByIdAndCommercialId(AD_ID, 7L)).thenReturn(Optional.of(ad));
+
+            AdResponseDTO dto = adServiceImpl.getAdDetails(AD_ID, 7L);
+
+            assertThat(dto.getContentUrl()).isNull();
+            verify(r2Service, never()).getPrivateObject(any(), anyInt());
+        }
+
+        @Test
+        @DisplayName("getAdDetails de un anuncio no rechazado sigue firmando la URL como antes")
+        void details_ofPendingAd_stillSignsUrl() {
+            Ad ad = adWith(AdStatus.PENDING);
+            when(adRepository.findByIdAndCommercialId(AD_ID, 7L)).thenReturn(Optional.of(ad));
+
+            AdResponseDTO dto = adServiceImpl.getAdDetails(AD_ID, 7L);
+
+            assertThat(dto.getContentUrl()).startsWith("https://signed.example/");
+        }
+    }
 }

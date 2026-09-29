@@ -5,16 +5,28 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.games.GameSession;
 
+import jakarta.persistence.LockModeType;
+
 @Repository
 public interface GameSessionRepository extends JpaRepository<GameSession, Long> {
 
     Optional<GameSession> findBySessionToken(String sessionToken);
+
+    /**
+     * Igual que {@link #findBySessionToken} pero con {@code SELECT … FOR UPDATE}. Cerrar una sesión
+     * cobra su costo a la campaña; el lock hace que dos {@code end-session} simultáneos de la misma
+     * sesión se serialicen y el segundo vea {@code completed = true} en vez de cobrar dos veces.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT gs FROM GameSession gs WHERE gs.sessionToken = :sessionToken")
+    Optional<GameSession> findBySessionTokenForUpdate(@Param("sessionToken") String sessionToken);
 
     /**
      * Retorna la última vez que el consumidor jugó cada una de las campañas indicadas.

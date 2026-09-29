@@ -189,6 +189,8 @@ public abstract class UserMapper {
     @Mapping(target = "annualIncomeRange", ignore = true)
     @Mapping(target = "onboarding", ignore = true)
     @Mapping(target = "commercialActivityType", ignore = true)
+    @Mapping(target = "whatsappAvailable", ignore = true)
+    @Mapping(target = "whatsappNumber", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")

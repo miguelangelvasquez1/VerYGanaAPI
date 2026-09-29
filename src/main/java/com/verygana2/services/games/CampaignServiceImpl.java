@@ -2,25 +2,34 @@ package com.verygana2.services.games;
 
 import java.time.Clock;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CampaignSummaryDTO;
+import com.verygana2.dtos.game.campaign.IncreaseCampaignBudgetRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO.TargetAudienceDTO;
+import com.verygana2.exceptions.StaleBudgetException;
 import com.verygana2.mappers.CampaignMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.TargetAudience;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.CampaignStatus;
+import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.finance.plans.RequirePlanCapability.Capability;
+import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.services.interfaces.CampaignService;
 import com.verygana2.services.interfaces.CategoryService;
+import com.verygana2.services.plans.PlanFeatureGuard;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityManager;
@@ -43,6 +52,8 @@ public class CampaignServiceImpl implements CampaignService {
     private final TargetingValidator targetingValidator;
     private final CampaignMapper campaignMapper;
     private final CampaignRepository campaignRepository;
+    private final WalletRepository walletRepository;
+    private final PlanFeatureGuard planFeatureGuard;
     private final Clock clock;
 
     @Override
@@ -103,6 +114,85 @@ public class CampaignServiceImpl implements CampaignService {
         applyTargetAudience(campaign, request);
 
         campaignRepository.save(campaign);
+    }
+
+    /**
+     * Estados en los que una campaña admite aumento de presupuesto: los que ya están en su ciclo
+     * de vida activo. Quedan fuera DRAFT (aún no se lanzó; el monto se fijó al crear la solicitud
+     * de branding) y CANCELLED (terminal).
+     */
+    private static final Set<CampaignStatus> BUDGET_INCREASE_STATUSES =
+            EnumSet.of(CampaignStatus.ACTIVE, CampaignStatus.PAUSED, CampaignStatus.COMPLETED);
+
+    /**
+     * Suma {@code additionalBudgetCents} al presupuesto de una campaña y lo descuenta de la wallet.
+     *
+     * <p>Una campaña COMPLETED (agotó su presupuesto) se reabre: vuelve a ACTIVE. Como los COMPLETED
+     * no ocupan cupo del plan, reabrirla exige que quede cupo {@code MAX_BRANDED_GAMES}. ACTIVE y
+     * PAUSED conservan su estado.
+     *
+     * <p>Exige que {@code expectedBudgetCents} coincida con el {@code budgetCents} actual —anti doble
+     * cobro: 409 {@link StaleBudgetException} si otro aumento ya se aplicó. El gasto por sesión
+     * mueve {@code spentCents} (ver {@link Campaign#chargeSession}), nunca el presupuesto, así que
+     * esa comparación no se ve afectada por sesiones en curso.
+     *
+     * <p>Toma lock pesimista sobre la campaña y sobre la wallet. Todas las validaciones y el cobro
+     * ocurren antes de mutar la campaña, así que un fallo no deja nada a medias.
+     */
+    @Override
+    @RequirePlanCapability(value = {Capability.CAN_USE_GAMES}, commercialIdParam = "userId")
+    @RetryOnConcurrencyConflict
+    public BudgetIncreaseResponseDTO increaseCampaignBudget(Long campaignId, Long userId, IncreaseCampaignBudgetRequestDTO request) {
+        Campaign campaign = campaignRepository.findByIdAndCommercialIdForUpdate(Objects.requireNonNull(campaignId), userId)
+                .orElseThrow(() -> new EntityNotFoundException("Campaña no encontrada"));
+
+        // Anti doble cobro: budgetCents solo lo cambia un aumento (el gasto por sesión mueve
+        // spentCents, no el presupuesto), así que si ya no coincide con lo que el cliente vio, otro
+        // aumento (doble clic, reintento, otra pestaña) se aplicó primero. Se compara ya con la fila
+        // bloqueada, por lo que dos envíos simultáneos no pasan ambos.
+        if (!campaign.getBudgetCents().equals(request.getExpectedBudgetCents())) {
+            throw new StaleBudgetException(String.format(
+                    "El presupuesto de la campaña cambió: ahora es de %d ¢ y esperabas %d ¢. Puede que el "
+                            + "aumento ya se haya aplicado; actualiza la información y vuelve a intentarlo.",
+                    campaign.getBudgetCents(), request.getExpectedBudgetCents()));
+        }
+
+        if (!BUDGET_INCREASE_STATUSES.contains(campaign.getStatus())) {
+            throw new ValidationException(
+                    "Solo se puede aumentar el presupuesto de campañas activas, pausadas o completadas. Estado actual: "
+                            + campaign.getStatus());
+        }
+
+        boolean reopening = campaign.getStatus() == CampaignStatus.COMPLETED;
+        if (reopening) {
+            planFeatureGuard.assertCanReopen(userId, Capability.MAX_BRANDED_GAMES);
+        }
+
+        long additionalBudgetCents = request.getAdditionalBudgetCents();
+
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+        wallet.consume(additionalBudgetCents);
+        walletRepository.save(wallet);
+
+        campaign.setBudgetCents(campaign.getBudgetCents() + additionalBudgetCents);
+        if (reopening) {
+            campaign.setStatus(CampaignStatus.ACTIVE);
+        }
+        campaignRepository.save(campaign);
+
+        log.info("Campaign {} budget increased by {} ¢ for commercial {}{}",
+                campaignId, additionalBudgetCents, userId, reopening ? " — reopened from COMPLETED" : "");
+
+        return BudgetIncreaseResponseDTO.builder()
+                .assetId(campaign.getId())
+                .chargedCents(additionalBudgetCents)
+                .totalBudgetCents(campaign.getBudgetCents())
+                .remainingBudgetCents(campaign.getBudgetCents() - campaign.getSpentCents())
+                .status(campaign.getStatus().name())
+                .reopened(reopening)
+                .walletBalanceCents(wallet.getBalanceCents())
+                .build();
     }
 
     private void validateStatusTransition(Campaign campaign, CampaignStatus from, CampaignStatus to) {

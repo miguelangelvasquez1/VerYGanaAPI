@@ -3,11 +3,13 @@ package com.verygana2.services.interfaces;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.requests.IncreaseAdBudgetRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
@@ -38,7 +40,9 @@ public interface AdService {
     AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId);
         
     AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId);
-    
+
+    BudgetIncreaseResponseDTO increaseAdBudget(Long adId, IncreaseAdBudgetRequestDTO request, Long commercialId);
+
     // Gestión de estado (Admin)
     AdResponseDTO activateAdAsAdmin(Long adId);
         

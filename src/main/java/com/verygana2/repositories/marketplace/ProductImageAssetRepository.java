@@ -1,6 +1,7 @@
 package com.verygana2.repositories.marketplace;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -23,6 +24,22 @@ public interface ProductImageAssetRepository extends JpaRepository<ProductImageA
     """)
     List<ProductImageAsset> findDeletableAssets(
         @Param("status") AssetStatus status,
+        @Param("threshold") ZonedDateTime threshold
+    );
+
+    /**
+     * PENDING (u otros estados dados) nunca vinculados a un producto y más viejos que el umbral:
+     * flujos de subida abandonados. Los ya vinculados nunca se devuelven, así que un archivo
+     * en uso no puede entrar al barrido.
+     */
+    @Query("""
+        SELECT a FROM ProductImageAsset a
+        WHERE a.product IS NULL
+        AND a.status IN :statuses
+        AND a.uploadedAt < :threshold
+    """)
+    List<ProductImageAsset> findStaleUnattachedAssets(
+        @Param("statuses") Collection<AssetStatus> statuses,
         @Param("threshold") ZonedDateTime threshold
     );
 }

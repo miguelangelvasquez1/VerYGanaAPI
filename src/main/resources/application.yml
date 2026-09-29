@@ -88,3 +88,11 @@ pqrs:
     RECLAMO: 15
     SUGERENCIA: 10
 
+# ============================================
+# SEGMENTACIÓN DE AUDIENCIA
+# ============================================
+app:
+  targeting:
+    # Edad mínima permitida en minAge/maxAge de ads, surveys, campañas y branding.
+    min-age: 18
+

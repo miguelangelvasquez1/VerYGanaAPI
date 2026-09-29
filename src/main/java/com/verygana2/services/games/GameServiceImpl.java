@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
@@ -37,6 +38,8 @@ import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.TargetGender;
+import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.models.games.GameMetricDefinition;
@@ -46,6 +49,8 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
+import com.verygana2.repositories.finance.KeyTransactionRepository;
+import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
@@ -53,8 +58,12 @@ import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
+import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.GameService;
+import com.verygana2.services.interfaces.finance.KeyWalletService;
+import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.services.scoring.ScoringContext;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 import com.verygana2.utils.validators.MetricValidator;
 
 import jakarta.persistence.EntityManager;
@@ -92,6 +101,10 @@ public class GameServiceImpl implements GameService {
     private final ApplicationEventPublisher eventPublisher;
     private final CampaignScorer campaignScorer;
     private final CampaignScoringConfig campaignScoringConfig;
+    private final KeyWalletService keyWalletService;
+    private final KeyWalletRepository keyWalletRepository;
+    private final KeyTransactionRepository keyTransactionRepository;
+    private final LevelService levelService;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -214,6 +227,7 @@ public class GameServiceImpl implements GameService {
     }
 
     @Override
+    @RetryOnConcurrencyConflict
     public void completeSession(GameEventDTO<EndSessionDTO> event, Long userId) {
 
         GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
@@ -225,6 +239,9 @@ public class GameServiceImpl implements GameService {
         session.setPlayTimeSeconds(
                 java.time.Duration.between(session.getStartTime(), end).getSeconds());
         session.setScore(event.getPayload().getFinalScore());
+
+        long charged = chargeCampaignForSession(session);
+        creditPlayerForSession(session, charged);
 
         gameSessionRepository.save(session);
 
@@ -361,9 +378,85 @@ public class GameServiceImpl implements GameService {
         return null;
     }
 
+    /**
+     * Carga y cobra al presupuesto de la campaña el costo de la sesión que se está cerrando, y deja
+     * en la sesión lo cobrado ({@code coinsEarned}, en centavos) y {@code rewardGranted}. Si la
+     * campaña ya no tiene presupuesto (o no está en circulación) la sesión cierra igual, sin cobro.
+     *
+     * <p>Toma lock pesimista sobre la campaña: las sesiones concurrentes se serializan y el
+     * recorte al presupuesto restante ({@link Campaign#chargeSession}) no puede sobregirarlo. El
+     * lock de la sesión ya lo tomó {@link #validateSessionOwnership}, así que el orden es siempre
+     * sesión → campaña.
+     *
+     * @return lo cobrado en centavos (0 si la sesión no cobró: sin campaña, o sin presupuesto)
+     */
+    private long chargeCampaignForSession(GameSession session) {
+        if (session.getCampaign() == null) {
+            return 0L;
+        }
+
+        Campaign campaign = campaignRepository.findByIdForUpdate(session.getCampaign().getId())
+                .orElseThrow(() -> new EntityNotFoundException("Campaign not found"));
+
+        long charged = campaign.chargeSession(session.getScore());
+        session.setCoinsEarned(charged);
+
+        if (charged > 0) {
+            session.setRewardGranted(true);
+            campaignRepository.save(campaign);
+            log.info("Session {} charged {} ¢ to campaign {} (spent {}/{}, status {})",
+                    session.getSessionToken(), charged, campaign.getId(),
+                    campaign.getSpentCents(), campaign.getBudgetCents(), campaign.getStatus());
+        }
+
+        return charged;
+    }
+
+    /**
+     * Acredita al {@code KeyWallet} del jugador lo cobrado a la campaña por esta sesión — mismo
+     * patrón que anuncios ({@code AdLikeServiceImpl.creditRewardToUser}) y encuestas
+     * ({@code RewardService.creditPoints}): se ajusta por el multiplicador de nivel del jugador,
+     * se reparte en llaves de compra/conectividad ({@code KeyWalletService.calculate}) y se
+     * registran dos {@code KeyTransaction} CREDIT_INTERACTION.
+     *
+     * <p>No hace nada si {@code chargedCents <= 0} (la sesión no cobró: sin campaña, campaña sin
+     * presupuesto, o no ACTIVE/PAUSED). Corre en la misma transacción que
+     * {@link #chargeCampaignForSession} y el guardado de la sesión: si algo aquí falla, el cobro a
+     * la campaña también se revierte, así que nunca queda un cobro sin su crédito correspondiente.
+     * El guard de "sesión ya completada" en {@link #validateSessionOwnership} impide que un
+     * reintento del cliente vuelva a acreditar la misma sesión.
+     */
+    private void creditPlayerForSession(GameSession session, long chargedCents) {
+        if (chargedCents <= 0) {
+            return;
+        }
+
+        Long consumerId = session.getConsumer().getId();
+        KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
+        long adjustedCents = Math.round(chargedCents * levelService.getMultiplier(consumerId));
+        RewardSplit split = keyWalletService.calculate(adjustedCents);
+
+        UUID referenceId = UUID.nameUUIDFromBytes(("game-session-" + session.getId()).getBytes());
+        String reason = "Sesión de juego branded #" + session.getId();
+
+        ZonedDateTime purchaseExpiry = keyWalletService.calculatePurchaseExpiry();
+        ZonedDateTime connectivityExpiry = keyWalletService.calculateConnectivityExpiry();
+
+        keyTransactionRepository.saveAll(List.of(
+                KeyTransaction.forInteractionPurchaseKeys(
+                        keyWallet, split.purchaseKeysReward(), reason, referenceId, purchaseExpiry),
+                KeyTransaction.forInteractionConnectivityKeys(
+                        keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
+
+        keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
+        keyWalletRepository.save(keyWallet);
+    }
+
     private GameSession validateSessionOwnership(String sessionToken, String userHash) {
 
-        GameSession session = gameSessionRepository.findBySessionToken(
+        // FOR UPDATE: tanto completeSession (que cobra la sesión a la campaña) como
+        // submitGameMetrics escriben sobre la sesión; serializar evita el doble cierre/cobro.
+        GameSession session = gameSessionRepository.findBySessionTokenForUpdate(
                 java.util.Objects.requireNonNull(sessionToken, "sessionToken must not be null"))
                 .orElseThrow(() -> new EntityNotFoundException("Session not found"));
 

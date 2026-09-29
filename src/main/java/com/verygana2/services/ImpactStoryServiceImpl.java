@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.dtos.impactStory.CreateImpactStoryRequestDTO;
 import com.verygana2.dtos.impactStory.ImpactStoryResponseDTO;
 import com.verygana2.dtos.impactStory.UpdateImpactStoryRequestDTO;
+import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.mappers.ImpactStoryMapper;
 import com.verygana2.models.ImpactStory.ImpactStory;
 import com.verygana2.models.ImpactStory.StoryMediaAsset;
@@ -21,6 +22,7 @@ import com.verygana2.models.ImpactStory.StoryStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.repositories.ImpactStoryRepository;
 import com.verygana2.services.interfaces.ImpactStoryService;
+import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -37,6 +39,7 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
     private final StoryMediaAssetServiceImpl mediaAssetService;
     private final ImpactStoryMapper mapper;
     private final R2Service r2Service;
+    private final AssetOrphanedService assetOrphanedService;
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -48,6 +51,8 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
      */
     @Override
     public ImpactStoryResponseDTO create(CreateImpactStoryRequestDTO request) {
+
+        assertNotDeletedStatusRequested(request.getStatus());
 
         List<Long> assetIds = request.getMediaFiles() == null
             ? List.of()
@@ -67,7 +72,10 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
         } catch (Exception e) {
             log.error("Error validando assets al crear historia: {}", assetIds, e);
             if (!assetIds.isEmpty()) {
-                mediaAssetService.markOrphaned(assetIds);
+                // Transacción propia y solo lo que sigue sin vincular: esta transacción se
+                // revierte al relanzar (un markOrphaned dentro de ella se perdería y el archivo
+                // quedaría en R2), y un reintento con assets ya reclamados no debe condenarlos.
+                assetOrphanedService.markImpactStoryAssetsAsOrphanedByIds(assetIds);
             }
             throw e;
         }
@@ -117,7 +125,7 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
 
         } catch (Exception e) {
             log.error("Error creando historia, marcando assets como huérfanos: {}", assetIds, e);
-            mediaAssetService.markOrphaned(assetIds);
+            assetOrphanedService.markImpactStoryAssetsAsOrphanedByIds(assetIds);
             throw e;
         }
     }
@@ -144,14 +152,30 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
     
     @Transactional(readOnly = true)
     @Override
-    public ImpactStoryResponseDTO findById(Long id) {
-        return mapper.toResponse(getOrThrow(id));
+    public ImpactStoryResponseDTO findById(Long id, boolean isAdmin) {
+        ImpactStory story = getOrThrow(id);
+        boolean visible = isAdmin
+            ? story.getStatus() != StoryStatus.DELETED
+            : story.getStatus() == StoryStatus.PUBLISHED;
+        if (!visible) {
+            // Mismo mensaje que un id inexistente: no se revela que la historia existe.
+            throw new EntityNotFoundException("ImpactStory not found: " + id);
+        }
+        return mapper.toResponse(story);
     }
 
     // ── Update ────────────────────────────────────────────────────────────────
     @Override
     public ImpactStoryResponseDTO update(Long id, UpdateImpactStoryRequestDTO request) {
         ImpactStory story = getOrThrow(id);
+        // DELETED es terminal. Borrar una historia deja su media en ORPHANED y OrphanedAssetsCleanupJob
+        // la borra de R2 (sin papelera). Si un update pudiera devolverla a PUBLISHED/DRAFT, la historia
+        // reaparecería con todas sus imágenes rotas.
+        if (story.getStatus() == StoryStatus.DELETED) {
+            throw new InvalidStatusException(
+                "La historia " + id + " fue eliminada: sus archivos se borran del CDN y no se puede modificar ni restaurar");
+        }
+        assertNotDeletedStatusRequested(request.getStatus());
         mapper.updateEntity(story, request);
         return mapper.toResponse(storyRepository.save(story));
     }
@@ -166,6 +190,19 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * DELETED solo se alcanza con {@link #delete}: es lo que deja la media en ORPHANED para que el job
+     * la borre de R2. Asignarlo por create/update ocultaría la historia sin liberar sus archivos, que
+     * se quedarían en el CDN sin que nada los barra.
+     */
+    private void assertNotDeletedStatusRequested(StoryStatus requested) {
+        if (requested == StoryStatus.DELETED) {
+            throw new InvalidStatusException(
+                "El estado DELETED solo se asigna eliminando la historia (DELETE /impact-stories/{id}), "
+                + "que además libera sus archivos del CDN");
+        }
+    }
 
     private ImpactStory getOrThrow(Long id) {
         return storyRepository.findById(id)

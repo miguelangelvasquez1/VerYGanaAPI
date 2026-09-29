@@ -280,6 +280,13 @@ public class GlobalExceptionHandler {
 
     // ==================== CONFLICTOS (409) ====================
 
+    @ExceptionHandler(StaleBudgetException.class)
+    public ResponseEntity<ErrorResponse> handleStaleBudgetException(
+            StaleBudgetException ex, WebRequest request) {
+        log.warn("Stale budget increase: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateLikeException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateLikeException(
             DuplicateLikeException ex, WebRequest request) {

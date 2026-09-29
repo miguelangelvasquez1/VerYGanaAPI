@@ -18,12 +18,14 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdRejectDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.requests.IncreaseAdBudgetRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
@@ -178,6 +180,21 @@ public class AdController {
         
         AdResponseDTO ad = adService.pauseAdAsCommercial(id, jwt.getClaim("userId"));
         return ResponseEntity.ok(ad);
+    }
+
+    /**
+     * Compra más likes (al mismo precio por like) para un anuncio ACTIVE, PAUSED o COMPLETED y
+     * cobra de la wallet. Un anuncio COMPLETED se reabre. POST porque no es idempotente: cada
+     * llamada cobra.
+     */
+    @PostMapping("/{id}/increase-budget")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<BudgetIncreaseResponseDTO> increaseAdBudget(
+            @PathVariable Long id,
+            @Valid @RequestBody IncreaseAdBudgetRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(adService.increaseAdBudget(id, request, jwt.getClaim("userId")));
     }
 
     // ==================== ENDPOINTS PARA ADMINISTRADORES ====================
