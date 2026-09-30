@@ -105,7 +105,7 @@ public abstract class UserMapper {
     @Mapping(target = "failedLoginAttempts", source = "user.failedLoginAttempts")
     @Mapping(target = "accountLockedAt", source = "user.accountLockedAt")
     @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
-    @Mapping(target = "referredBy", source = "referredBy.user.id")
+    @Mapping(target = "referredByPublicId", source = "referredBy.user.publicId")
     public abstract ConsumerResponseDTO toConsumerResponseDTO (ConsumerDetails consumerDetails);
 
     @Mapping(target = "totalAvailableKeys", source = "keyWallet.availableKeysCents", qualifiedByName = "centsToKeys")
@@ -114,9 +114,10 @@ public abstract class UserMapper {
     @Mapping(target = "blockedPurchaseKeys", source = "keyWallet.blockedPurchaseKeysCents", qualifiedByName = "centsToKeys")
     @Mapping(target = "blockedConnectivityKeys", source = "keyWallet.blockedConnectivityKeysCents", qualifiedByName = "centsToKeys")
     @Mapping(target = "avatarUrl", source = "avatar.imageUrl")
+    @Mapping(target = "publicId", source = "user.publicId")
     public abstract ConsumerInitialDataResponseDTO toConsumerInitialDataResponseDTO(ConsumerDetails consumer);
 
-    @Mapping(target = "id", source = "user.id")
+    @Mapping(target = "publicId", source = "user.publicId")
     @Mapping(target = "email", source = "consumer.user.email")
     @Mapping(target = "phoneNumber", source = "consumer.user.phoneNumber")
     @Mapping(target = "role", source = "consumer.user.role")

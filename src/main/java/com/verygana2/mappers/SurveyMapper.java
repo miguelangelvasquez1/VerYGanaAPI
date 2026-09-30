@@ -89,7 +89,7 @@ public abstract class SurveyMapper {
     @Mapping(target = "targetGender",     source = "targetAudience.targetGender")
     @Mapping(target = "questions",        source = "survey.questions")
     @Mapping(target = "totalQuestions",   expression = "java(survey.getQuestions().size())")
-    @Mapping(target = "creatorId",        source = "survey.creator.id")
+    @Mapping(target = "creatorPublicId",  source = "survey.creator.user.publicId")
     @Mapping(target = "companyName",      source = "survey.creator.companyName")
     @Mapping(target = "creatorEmail",     source = "survey.creator.user.email")
     @Mapping(target = "totalSessions",    ignore = true)

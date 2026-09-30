@@ -1,5 +1,7 @@
 package com.verygana2.dtos.pet;
 
+import java.util.UUID;
+
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
@@ -10,8 +12,8 @@ import jakarta.validation.constraints.Size;
  */
 public record ApprovePetRequestDTO(
 
-        @NotNull(message = "El id de usuario del diseñador es requerido")
-        Long designerUserId,
+        @NotNull(message = "El publicId del diseñador es requerido")
+        UUID designerPublicId,
 
         @Size(max = 1000)
         String adminNotes

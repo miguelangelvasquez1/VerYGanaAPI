@@ -146,8 +146,28 @@ public class PurchaseItem {
     private CommercialActivityType commercialActivityTypeAtPurchase;
 
     /**
+     * Porción de la Venta Computable (subtotalCents, incluida la parte pagada con
+     * llaves) absorbida por el Saldo de Prosperidad del comercial STANDARD al aprobarse
+     * el pago (ver ProsperityServiceImpl.absorbPurchase). No genera comisión. 0 si no
+     * hubo absorción (otros planes, saldo agotado o cuenta congelada).
+     */
+    @Column(name = "prosperity_absorbed_cents", nullable = false)
+    @Builder.Default
+    private Long prosperityAbsorbedCents = 0L;
+
+    /**
+     * Base Comisionable definitiva = subtotalCents − prosperityAbsorbedCents (Contrato B
+     * 10.10). Se fija al aprobar el pago; null mientras la compra está pendiente y en los
+     * ítems anteriores a MP-05 (su base fue el subtotal).
+     */
+    @Column(name = "commission_base_cents")
+    private Long commissionBaseCents;
+
+    /**
      * Comisión en centavos retenida por VeryGana sobre este ítem.
-     * = subtotalCents × commissionPctApplied / 100
+     * = base × commissionPctApplied / 100, donde base = subtotalCents al crear la compra
+     * (valor provisional) y subtotalCents − prosperityAbsorbedCents al aprobar el pago
+     * (valor definitivo). Ver {@link #applyCommission(long, int)}.
      *
      * La suma de este campo en todos los ítems de una Purchase
      * es igual a Purchase.commissionCents.
@@ -271,5 +291,30 @@ public class PurchaseItem {
     public void exitReviewDismissed() {
         this.status = statusBeforeReview != null ? statusBeforeReview : PurchaseItemStatus.CLAIMED;
         this.statusBeforeReview = null;
+    }
+
+    /**
+     * Única fórmula de comisión del ítem, sobre la base dada (subtotal completo o la
+     * porción no absorbida por el Saldo de Prosperidad). La comisión ya incluye IVA —
+     * se extrae, no se suma aparte (ver TreasuryServiceImpl.retainCommission).
+     */
+    public void applyCommission(long baseCents, int vatPct) {
+        long commission = baseCents * commissionPctApplied / 100;
+        this.commissionCents = commission;
+        this.commissionVatCents = commission * vatPct / 100;
+        this.netToCommercialCents = subtotalCents - commission;
+    }
+
+    /**
+     * Fija la comisión definitiva al aprobarse el pago, después de que el Saldo de
+     * Prosperidad absorbió {@code absorbedCents} de la Venta Computable.
+     */
+    public void settleCommission(long absorbedCents, int vatPct) {
+        if (absorbedCents < 0 || absorbedCents > subtotalCents) {
+            throw new IllegalArgumentException("Porción absorbida fuera de rango: " + absorbedCents);
+        }
+        this.prosperityAbsorbedCents = absorbedCents;
+        this.commissionBaseCents = subtotalCents - absorbedCents;
+        applyCommission(this.commissionBaseCents, vatPct);
     }
 }

@@ -1,5 +1,7 @@
 package com.verygana2.dtos.branding;
 
+import java.util.UUID;
+
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -9,8 +11,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class GameDesignerSummaryDTO {
 
-    private Long id;
-    private Long userId;
+    private UUID publicId;
     private String name;
     private String lastName;
     private String designerCode;

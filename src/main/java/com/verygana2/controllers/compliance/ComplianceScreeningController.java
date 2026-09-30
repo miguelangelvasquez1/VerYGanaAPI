@@ -1,6 +1,9 @@
 package com.verygana2.controllers.compliance;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,9 +19,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.compliance.ScreeningResultResponseDTO;
 import com.verygana2.models.compliance.ScreeningResult;
 import com.verygana2.models.enums.ScreeningStatus;
 import com.verygana2.repositories.compliance.ScreeningResultRepository;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 
 import lombok.RequiredArgsConstructor;
@@ -31,18 +36,22 @@ public class ComplianceScreeningController {
 
     private final ScreeningService screeningService;
     private final ScreeningResultRepository screeningResultRepository;
+    private final UserIdResolver userIdResolver;
 
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<List<ScreeningResult>> getByUser(@PathVariable Long userId) {
-        return ResponseEntity.ok(screeningService.getResultsByUserId(userId));
+    @GetMapping("/user/{publicId}")
+    public ResponseEntity<List<ScreeningResultResponseDTO>> getUserScreeningHistory(@PathVariable UUID publicId) {
+        List<ScreeningResult> results = screeningService.getResultsByUserId(userIdResolver.toInternalId(publicId));
+        Map<Long, UUID> publicIds = resolvePublicIds(results);
+        return ResponseEntity.ok(results.stream().map(r -> ScreeningResultResponseDTO.from(r, publicIds)).toList());
     }
 
     @GetMapping("/hits")
-    public ResponseEntity<Page<ScreeningResult>> getUnresolvedHits(
+    public ResponseEntity<Page<ScreeningResultResponseDTO>> getUnresolvedHits(
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable) {
         Page<ScreeningResult> hits = screeningResultRepository.findUnresolvedHits(
                 List.of(ScreeningStatus.HIT, ScreeningStatus.FUZZY_HIT), pageable);
-        return ResponseEntity.ok(hits);
+        Map<Long, UUID> publicIds = resolvePublicIds(hits.getContent());
+        return ResponseEntity.ok(hits.map(r -> ScreeningResultResponseDTO.from(r, publicIds)));
     }
 
     @PostMapping("/{id}/review")
@@ -53,5 +62,11 @@ public class ComplianceScreeningController {
         Long officerId = jwt.getClaim("userId");
         screeningService.reviewResult(id, officerId, notes);
         return ResponseEntity.ok().build();
+    }
+
+    private Map<Long, UUID> resolvePublicIds(List<ScreeningResult> results) {
+        return userIdResolver.toPublicIds(results.stream()
+                .flatMap(r -> Stream.of(r.getUserId(), r.getReviewedByOfficerId()))
+                .toList());
     }
 }

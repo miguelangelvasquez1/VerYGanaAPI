@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Instant;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -20,6 +21,11 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.BadJwtException;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+
+import com.verygana2.services.UserIdResolver;
+
+import jakarta.persistence.EntityNotFoundException;
 
 /**
  * Pruebas de seguridad del filtro de autenticación por Bearer.
@@ -29,12 +35,17 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
  *  - el token por query param (?token=) solo se admite en el SSE, no en
  *    endpoints normales (evita tokens en URLs que se loguean/cachean).
  *  - un token inválido no autentica pero no rompe la cadena (→ 401 luego).
+ *  - el token solo trae el publicId; el filtro lo traduce al id interno y lo
+ *    expone como claim "userId" en memoria (nunca viaja en el token).
  */
 @DisplayName("JwtBearerFilter — autenticación por Bearer (seguridad)")
 class JwtBearerFilterTest {
 
     private final JwtDecoder decoder = mock(JwtDecoder.class);
-    private final JwtBearerFilter filter = new JwtBearerFilter(decoder);
+    private final UserIdResolver userIdResolver = mock(UserIdResolver.class);
+    private final JwtBearerFilter filter = new JwtBearerFilter(decoder, userIdResolver);
+
+    private static final UUID PUBLIC_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
 
     @AfterEach
     void clearContext() {
@@ -49,6 +60,7 @@ class JwtBearerFilterTest {
                 .subject("user@test.com")
                 .claim("type", type)
                 .claim("scope", scope)
+                .claim("publicId", PUBLIC_ID.toString())
                 .build();
     }
 
@@ -69,6 +81,59 @@ class JwtBearerFilterTest {
         assertThat(auth).isNotNull();
         assertThat(auth.isAuthenticated()).isTrue();
         assertThat(auth.getAuthorities()).extracting("authority").containsExactly("ROLE_ADMIN");
+    }
+
+    @Test
+    @DisplayName("traduce el claim publicId al id interno y lo expone como claim userId")
+    void resolvesPublicIdToInternalUserId() throws Exception {
+        when(decoder.decode("tok")).thenReturn(jwt("access", "ROLE_CONSUMER"));
+        when(userIdResolver.toInternalId(PUBLIC_ID)).thenReturn(42L);
+        MockHttpServletRequest req = request("/api/consumers/me");
+        req.addHeader("Authorization", "Bearer tok");
+
+        filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+
+        JwtAuthenticationToken auth = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        assertThat(auth).isNotNull();
+        Long userId = auth.getToken().getClaim("userId");
+        assertThat(userId).isEqualTo(42L);
+        assertThat(auth.getToken().getClaimAsString("publicId")).isEqualTo(PUBLIC_ID.toString());
+    }
+
+    @Test
+    @DisplayName("access token sin claim publicId NO autentica")
+    void accessTokenWithoutPublicIdDoesNotAuthenticate() throws Exception {
+        Jwt legacy = Jwt.withTokenValue("tok")
+                .header("alg", "RS256")
+                .issuedAt(Instant.now())
+                .expiresAt(Instant.now().plusSeconds(300))
+                .subject("user@test.com")
+                .claim("type", "access")
+                .claim("scope", "ROLE_CONSUMER")
+                .claim("userId", 42L)
+                .build();
+        when(decoder.decode("tok")).thenReturn(legacy);
+        MockHttpServletRequest req = request("/api/consumers/me");
+        req.addHeader("Authorization", "Bearer tok");
+
+        filter.doFilter(req, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+    }
+
+    @Test
+    @DisplayName("publicId que no corresponde a ningún usuario NO autentica")
+    void unknownPublicIdDoesNotAuthenticate() throws Exception {
+        when(decoder.decode("tok")).thenReturn(jwt("access", "ROLE_CONSUMER"));
+        when(userIdResolver.toInternalId(PUBLIC_ID)).thenThrow(new EntityNotFoundException("not found"));
+        MockHttpServletRequest req = request("/api/consumers/me");
+        req.addHeader("Authorization", "Bearer tok");
+        MockFilterChain chain = new MockFilterChain();
+
+        filter.doFilter(req, new MockHttpServletResponse(), chain);
+
+        assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull();
+        assertThat(chain.getRequest()).isNotNull();
     }
 
     @Test

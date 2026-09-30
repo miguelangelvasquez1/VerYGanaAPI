@@ -41,6 +41,7 @@ import jakarta.persistence.EntityManager;
  * abierto sobre un ítem de compra (usado para bloquear payouts/duplicados).
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:pqrs-repo-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",

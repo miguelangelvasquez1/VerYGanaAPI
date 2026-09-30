@@ -7,7 +7,7 @@ import com.verygana2.models.enums.finance.PayoutStatus;
 
 public record PayoutResponseDTO(
         UUID id,
-        Long commercialId,
+        UUID commercialPublicId,
         String companyName,
         Long grossAmountCents,
         Long commissionAmountCents,

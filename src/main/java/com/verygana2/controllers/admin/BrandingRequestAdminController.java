@@ -12,14 +12,14 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import com.verygana2.dtos.branding.ApproveBrandingRequestDTO;
-import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.BrandingRequestDetailDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
+import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
 import com.verygana2.services.interfaces.BrandingRequestService;
+
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

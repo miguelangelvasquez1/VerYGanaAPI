@@ -1,6 +1,7 @@
 package com.verygana2.dtos.product.responses;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import com.verygana2.models.enums.marketplace.ProductStatus;
 
@@ -21,7 +22,7 @@ public class ProductSummaryResponseDTO {
     private String categoryName;
     private Integer stock;
     private ProductStatus status;
-    private Long commercialId;
+    private UUID commercialPublicId;
     private String companyName;
     private Boolean isGameReward;
 }

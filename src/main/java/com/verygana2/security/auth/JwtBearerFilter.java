@@ -21,6 +21,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.UUID;
+
+import com.verygana2.services.UserIdResolver;
+
+import jakarta.persistence.EntityNotFoundException;
 
 @Component
 public class JwtBearerFilter extends OncePerRequestFilter {
@@ -34,9 +39,11 @@ public class JwtBearerFilter extends OncePerRequestFilter {
     private static final String PAYOUT_CERTIFICATE_SUFFIX = "/certificate";
 
     private final JwtDecoder jwtDecoder;
+    private final UserIdResolver userIdResolver;
 
-    public JwtBearerFilter(JwtDecoder jwtDecoder) {
+    public JwtBearerFilter(JwtDecoder jwtDecoder, UserIdResolver userIdResolver) {
         this.jwtDecoder = jwtDecoder;
+        this.userIdResolver = userIdResolver;
     }
 
     @Override
@@ -62,11 +69,13 @@ public class JwtBearerFilter extends OncePerRequestFilter {
                     return;
                 }
 
+                jwt = withInternalUserId(jwt);
+
                 Collection<GrantedAuthority> authorities = extractAuthorities(jwt);
                 JwtAuthenticationToken authentication = new JwtAuthenticationToken(jwt, authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            } catch (JwtException e) {
+            } catch (JwtException | EntityNotFoundException | IllegalArgumentException e) {
                 logger.warn("Auth error: {}", e.getMessage());
                 SecurityContextHolder.clearContext();
             }
@@ -104,6 +113,26 @@ public class JwtBearerFilter extends OncePerRequestFilter {
             return AuthorityUtils.createAuthorityList(scopes.split("\\s+"));
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * El token solo transporta el publicId (el payload de un JWT es legible por cualquiera).
+     * Aquí se traduce al id interno y se agrega como claim "userId" al Jwt en memoria, que es
+     * lo que leen los controllers vía {@code jwt.getClaim("userId")}. El token firmado no cambia.
+     */
+    private Jwt withInternalUserId(Jwt jwt) {
+        String publicId = jwt.getClaimAsString("publicId");
+        if (!StringUtils.hasText(publicId)) {
+            throw new JwtException("Access token without publicId claim");
+        }
+        Long userId = userIdResolver.toInternalId(UUID.fromString(publicId));
+        return Jwt.withTokenValue(jwt.getTokenValue())
+                .headers(h -> h.putAll(jwt.getHeaders()))
+                .claims(c -> {
+                    c.putAll(jwt.getClaims());
+                    c.put("userId", userId);
+                })
+                .build();
     }
 
     private boolean isAccessToken(Jwt jwt) {

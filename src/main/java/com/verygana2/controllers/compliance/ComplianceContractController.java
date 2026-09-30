@@ -39,6 +39,7 @@ public class ComplianceContractController {
      * relevantes para VERYGANA (PENDING_VERYGANA_REVIEW, APPROVED, REJECTED). Con
      * `status`, filtra a ese estado únicamente.
      */
+    
     @GetMapping
     public ResponseEntity<List<ContractReviewListItemDTO>> listContracts(
             @RequestParam(required = false) ContractStatus status) {

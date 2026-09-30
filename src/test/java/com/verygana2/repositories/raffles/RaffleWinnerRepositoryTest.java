@@ -35,6 +35,7 @@ import jakarta.persistence.EntityManager;
  * Tests de integración H2 (modo MySQL) para RaffleWinnerRepository.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         // NON_KEYWORDS=VALUE: Prize.value se mapea a una columna "value", que
         // H2 2.x reserva como palabra clave por defecto y rompe el CREATE TABLE

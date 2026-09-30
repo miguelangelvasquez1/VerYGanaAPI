@@ -104,6 +104,7 @@ public interface ProductMapper {
     // ===== MAPPING to ProductResponseDTO (completed) =====
     @Mapping(target = "categoryName", source = "productCategory.name")
     @Mapping(target = "companyName", source = "commercial.companyName")
+    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
     @Mapping(target = "reviews", source = "reviews")
     @Mapping(target = "imageUrl", ignore = true)
     @Mapping(target = "price", source = "priceCents")
@@ -121,7 +122,7 @@ public interface ProductMapper {
     @Mapping(target = "price", source = "priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
-    @Mapping(target = "commercialId", source = "commercial.id")
+    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     @Mapping(target = "id", source = "product.id")
@@ -138,7 +139,7 @@ public interface ProductMapper {
     @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "isGameReward", ignore = true)
-    @Mapping(target = "commercialId", source = "product.commercial.id")
+    @Mapping(target = "commercialPublicId", source = "product.commercial.user.publicId")
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping

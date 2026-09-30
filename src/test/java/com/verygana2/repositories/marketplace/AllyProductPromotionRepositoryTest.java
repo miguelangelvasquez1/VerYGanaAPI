@@ -32,6 +32,7 @@ import jakarta.persistence.PersistenceException;
  * Tests de integración H2 (modo MySQL) para AllyProductPromotionRepository.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:ally-product-promotion-repo-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",

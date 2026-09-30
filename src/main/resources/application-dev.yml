@@ -20,6 +20,12 @@ spring:
       max-lifetime: 900000
       pool-name: HikariDev
 
+  # Solo en dev: cada rama numera sus migraciones en paralelo, así que al integrar
+  # puede llegar una versión menor que la última ya aplicada en la BD local
+  # (ej. V5–V7 de otra rama después de haber aplicado V8). Producción sigue estricto.
+  flyway:
+    out-of-order: false
+
   # ============================================
   # JPA/HIBERNATE CONFIGURATION
   # ============================================

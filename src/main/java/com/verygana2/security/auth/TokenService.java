@@ -140,7 +140,9 @@ public class TokenService {
                 .id(UUID.randomUUID().toString()) // <- JTI Unique
                 .audience(List.of("verygana-frontend"))
                 .claim("type", "access")
-                .claim("userId", ((CustomUserDetails) authentication.getPrincipal()).getId())
+                // Solo el publicId viaja en el token (el payload es legible por el cliente).
+                // JwtBearerFilter lo traduce al id interno y lo expone como claim "userId" en memoria.
+                .claim("publicId", ((CustomUserDetails) authentication.getPrincipal()).getPublicId().toString())
                 .claim("scope", scope)
                 .build();
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();

@@ -1,6 +1,7 @@
 package com.verygana2.dtos.user.commercial.responses;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.time.ZonedDateTime;
 import java.util.List;
 
@@ -20,7 +21,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SalesReportResponseDTO {
-    private Long commercialId;
+    private UUID commercialPublicId;
     /** Presente solo cuando el reporte proviene de {@code getSalesReports} (reporte mensual). */
     private Integer month;
     /** Presente solo cuando el reporte proviene de {@code getSalesReports} (reporte mensual). */

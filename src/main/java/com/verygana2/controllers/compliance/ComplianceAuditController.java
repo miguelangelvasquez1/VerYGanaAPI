@@ -1,6 +1,7 @@
 package com.verygana2.controllers.compliance;
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,9 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.audit.AuditLogDTO;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.utils.audit.AuditLevel;
 import com.verygana2.utils.audit.AuditLog;
 import com.verygana2.utils.audit.AuditLogRepository;
+import com.verygana2.utils.audit.AuditLogService;
 
 import lombok.RequiredArgsConstructor;
 
@@ -26,10 +30,12 @@ import lombok.RequiredArgsConstructor;
 public class ComplianceAuditController {
 
     private final AuditLogRepository auditLogRepository;
+    private final AuditLogService auditLogService;
+    private final UserIdResolver userIdResolver;
 
     @GetMapping
-    public ResponseEntity<Page<AuditLog>> search(
-            @RequestParam(required = false) Long userId,
+    public ResponseEntity<Page<AuditLogDTO>> getAuditLogs(
+            @RequestParam(required = false) UUID userPublicId,
             @RequestParam(required = false) String action,
             @RequestParam(required = false) AuditLevel level,
             @RequestParam(required = false) String category,
@@ -42,13 +48,13 @@ public class ComplianceAuditController {
         ZonedDateTime end = to != null ? to : ZonedDateTime.now();
 
         Page<AuditLog> logs = auditLogRepository.searchAuditLogs(
-                userId, action, level, category, success, start, end, pageable);
+                userIdResolver.toInternalIdOrNull(userPublicId), action, level, category, success, start, end, pageable);
 
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(auditLogService.toDTOs(logs));
     }
 
     @GetMapping("/critical")
-    public ResponseEntity<Page<AuditLog>> getCritical(
+    public ResponseEntity<Page<AuditLogDTO>> getCritical(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) ZonedDateTime to,
             @PageableDefault(size = 50, sort = "createdAt") Pageable pageable) {
@@ -56,6 +62,6 @@ public class ComplianceAuditController {
         ZonedDateTime start = from != null ? from : ZonedDateTime.now().minusDays(30);
 
         Page<AuditLog> logs = auditLogRepository.findRecentByLevel(AuditLevel.CRITICAL, start, pageable);
-        return ResponseEntity.ok(logs);
+        return ResponseEntity.ok(auditLogService.toDTOs(logs));
     }
 }

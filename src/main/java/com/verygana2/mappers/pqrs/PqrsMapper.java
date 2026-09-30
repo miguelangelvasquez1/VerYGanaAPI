@@ -29,7 +29,7 @@ public abstract class PqrsMapper {
     @Mapping(target = "assets", ignore = true)
     public abstract PqrsResponseDTO toResponseDTO(Pqrs pqrs);
 
-    @Mapping(target = "requesterId", source = "requester.id")
+    @Mapping(target = "requesterPublicId", source = "requester.publicId")
     @Mapping(target = "requesterEmail", source = "requester.email")
     @Mapping(target = "requesterPhone", source = "requester.phoneNumber")
     @Mapping(target = "requesterName", ignore = true)
@@ -64,7 +64,7 @@ public abstract class PqrsMapper {
     @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
     protected abstract PqrsProductContextDTO toProductContext(Product product);
 
-    @Mapping(target = "commercialUserId", source = "user.id")
+    @Mapping(target = "commercialPublicId", source = "user.publicId")
     @Mapping(target = "contactEmail", source = "user.email")
     @Mapping(target = "contactPhone", source = "user.phoneNumber")
     @Mapping(target = "currentPlanName", expression = "java(commercial.getCurrentPlanName())")

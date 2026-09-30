@@ -76,7 +76,7 @@ public class PetCatalogRequestAdminController {
 
     /** Aprueba y asigna el diseñador que armará el ítem. */
     @PatchMapping("/{id}/approve")
-    public ResponseEntity<CatalogIntegrationResponseDTO> approve(
+    public ResponseEntity<CatalogIntegrationResponseDTO> approvePetRequest(
             @PathVariable Long id,
             @Valid @RequestBody ApprovePetRequestDTO dto) {
         return ResponseEntity.ok(requestService.approve(id, dto));
@@ -84,10 +84,10 @@ public class PetCatalogRequestAdminController {
 
     /** Reasigna el diseñador de una solicitud ya aprobada. */
     @PatchMapping("/{id}/assign-designer")
-    public ResponseEntity<CatalogIntegrationResponseDTO> assignDesigner(
+    public ResponseEntity<CatalogIntegrationResponseDTO> assignPetDesigner(
             @PathVariable Long id,
             @Valid @RequestBody AssignPetDesignerDTO dto) {
-        return ResponseEntity.ok(requestService.assignDesigner(id, dto.designerUserId()));
+        return ResponseEntity.ok(requestService.assignDesigner(id, dto.designerPublicId()));
     }
 
     @PatchMapping("/{id}/reject")

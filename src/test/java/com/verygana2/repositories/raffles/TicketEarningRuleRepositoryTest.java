@@ -21,6 +21,7 @@ import jakarta.persistence.EntityManager;
  * Tests de integración H2 (modo MySQL) para TicketEarningRuleRepository.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:ticket-earning-rule-repo-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",
@@ -105,14 +106,16 @@ class TicketEarningRuleRepositoryTest {
         @Test
         @DisplayName("filtra solo por ruleType cuando isActive es null")
         void filtersOnlyByRuleTypeWhenIsActiveNull() {
-            persistRule("Compra inactiva 2", TicketEarningRuleType.PURCHASE, 3, false);
+            TicketEarningRule active = persistRule("Compra activa 2", TicketEarningRuleType.PURCHASE, 6, true);
+            TicketEarningRule inactive = persistRule("Compra inactiva 2", TicketEarningRuleType.PURCHASE, 3, false);
             persistRule("Login activo", TicketEarningRuleType.DAILY_LOGIN, 8, true);
 
             List<TicketEarningRule> result = ticketEarningRuleRepository
                     .findByRuleTypeAndIsActiveOrderByPriorityDesc(TicketEarningRuleType.PURCHASE, null, PageRequest.of(0, 10));
 
-            assertThat(result).hasSize(2);
-            assertThat(result).allMatch(r -> r.getRuleType() == TicketEarningRuleType.PURCHASE);
+            // isActive=null no filtra por estado: vienen activas e inactivas del tipo pedido.
+            assertThat(result).extracting(TicketEarningRule::getId)
+                    .containsExactly(active.getId(), inactive.getId());
         }
 
         @Test

@@ -1,10 +1,12 @@
 package com.verygana2.dtos.user.consumer.responses;
 
+import java.util.UUID;
+
 import lombok.Data;
 
 @Data
 public class ConsumerInitialDataResponseDTO {
-    private Long id;
+    private UUID publicId;
     private String name;
     private Long totalAvailableKeys;
     private Long purchaseKeys;

@@ -212,6 +212,12 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .name("Días de gracia con saldo agotado antes de pasar a cuenta en pausa (DORMANT)")
                 .type(FeatureType.LIMIT)
                 .build());
+        
+        Feature prosperityThresholdMultiplier = featureRepository.save(Feature.builder()
+                .code("PROSPERITY_THRESHOLD_MULTIPLIER")
+                .name("Multiplicador de umbral de prosperidad")
+                .type(FeatureType.LIMIT)
+                .build());
 
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
@@ -250,6 +256,7 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
             pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
             pf(standard, budgetGracePeriodDays, 15,   null, null),
+            pf(standard, prosperityThresholdMultiplier, 4, null, null),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),

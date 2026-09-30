@@ -92,7 +92,6 @@ class CommercialDashboardServiceImplTest {
 
     private SalesReportResponseDTO salesReport(long amountCop, int count, long commissionCop) {
         return SalesReportResponseDTO.builder()
-                .commercialId(COMMERCIAL_ID)
                 .totalSalesAmount(BigDecimal.valueOf(amountCop))
                 .totalSalesCount(count)
                 .totalPlatformCommissionsAmount(BigDecimal.valueOf(commissionCop))

@@ -40,8 +40,10 @@ public class User{
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    // Id interno: nunca se serializa hacia el cliente; lo expuesto es publicId.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @JsonIgnore
     private Long id;
 
     @Column(unique = true, nullable = false, updatable = false)

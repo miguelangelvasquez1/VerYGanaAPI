@@ -69,6 +69,7 @@ class CopaymentServiceImplTest {
     @Mock private ProductStockRepository productStockRepository;
     @Mock private ProductRepository productRepository;
     @Mock private TreasuryService treasuryService;
+    @Mock private com.verygana2.services.interfaces.finance.ProsperityService prosperityService;
     @Mock private EmailService emailService;
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private WompiService wompiService;
@@ -80,7 +81,7 @@ class CopaymentServiceImplTest {
     void setUp() {
         service = new CopaymentServiceImpl(copaymentRepository, ticketDeliveryService, wompiTransactionRepository,
                 purchaseRepository, keyWalletRepository, keyTransactionRepository, productStockRepository,
-                productRepository, treasuryService, emailService, eventPublisher, wompiService, passwordEncoder);
+                productRepository, treasuryService, prosperityService, emailService, eventPublisher, wompiService, passwordEncoder);
     }
 
     private PurchaseItem itemWithStock(Product product) {
@@ -148,7 +149,10 @@ class CopaymentServiceImplTest {
 
             verify(treasuryService, never()).convertKeysToPayoutPending(anyLong(), any());
             verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
-            verify(treasuryService).retainCommission(10_000L, 0L, copayment.getId(), "COPAYMENT");
+            // La comisión definitiva se fija contra el Saldo de Prosperidad ANTES de retenerla.
+            org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(prosperityService, treasuryService);
+            inOrder.verify(prosperityService).absorbPurchase(purchase);
+            inOrder.verify(treasuryService).retainCommission(10_000L, 0L, copayment.getId(), "COPAYMENT");
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             assertThat(item.getAssignedProductStock().getStatus())
                     .isEqualTo(com.verygana2.models.enums.marketplace.StockStatus.SOLD);

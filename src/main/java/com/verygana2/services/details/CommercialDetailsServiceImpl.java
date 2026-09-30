@@ -46,6 +46,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.UserRepository;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.interfaces.finance.PayoutService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
@@ -82,6 +83,7 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
     private final ProductCategoryService productCategoryService;
     private final PayoutService payoutService;
     private final ApplicationEventPublisher eventPublisher;
+    private final UserIdResolver userIdResolver;
 
     // @Lazy rompe el ciclo: CommercialDetailsService ↔ ProductService
     @Lazy
@@ -132,7 +134,7 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
         BigDecimal monthlyEarningsAmount = payoutService.getCommercialEarningsForDateRange(commercialId, startDate, endDate);
         BigDecimal commissionsAmount = purchaseItemService.getTotalPlatformComissionsByDateRange(commercialId, startDate, endDate);
 
-        return PayoutReportResponseDTO.builder().commercialId(commercialId).month(month).earnings(monthlyEarningsAmount)
+        return PayoutReportResponseDTO.builder().commercialPublicId(userIdResolver.toPublicId(commercialId)).month(month).earnings(monthlyEarningsAmount)
         .totalPlatformCommissionsAmount(commissionsAmount).year(year).build();
     }
 
@@ -174,7 +176,7 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
                 .getData();
 
         return SalesReportResponseDTO.builder()
-                .commercialId(commercialId)
+                .commercialPublicId(userIdResolver.toPublicId(commercialId))
                 .startDate(startDate)
                 .endDate(endDate)
                 .totalSalesAmount(salesAmount)

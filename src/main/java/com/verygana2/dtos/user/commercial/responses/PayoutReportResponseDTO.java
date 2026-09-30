@@ -1,6 +1,7 @@
 package com.verygana2.dtos.user.commercial.responses;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +13,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @Builder
 public class PayoutReportResponseDTO {
-    private Long commercialId;
+    private UUID commercialPublicId;
     private Integer month;
     private BigDecimal earnings;
     private BigDecimal totalPlatformCommissionsAmount;

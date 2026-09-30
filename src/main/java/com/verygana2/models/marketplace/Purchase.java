@@ -81,8 +81,9 @@ public class Purchase {
 
     /**
      * Comisión retenida por VeryGana sobre esta compra, en centavos.
-     * Calculada al momento de crear la Purchase según el plan del empresario
-     * y si su commissionActive = true o false.
+     * Provisional al crear la Purchase (tarifa del plan sobre el precio completo) y
+     * definitiva al aprobarse el pago, cuando el Saldo de Prosperidad de los
+     * comerciales STANDARD ya absorbió su parte (ver ProsperityServiceImpl.absorbPurchase).
      * Se persiste como snapshot para auditoría histórica: si la tasa cambia
      * en el futuro, este registro muestra lo que se cobró realmente.
      */
@@ -106,6 +107,11 @@ public class Purchase {
     @Column(name = "net_to_commercials_cents", nullable = false)
     @Builder.Default
     private Long netToCommercialsCents = 0L;
+
+    /** Suma de PurchaseItem.prosperityAbsorbedCents: ventas absorbidas por Saldo de Prosperidad. */
+    @Column(name = "prosperity_absorbed_cents", nullable = false)
+    @Builder.Default
+    private Long prosperityAbsorbedCents = 0L;
 
     // ===== ESTADO DE LA COMPRA =====
 
@@ -162,8 +168,9 @@ public class Purchase {
 
     /**
      * Calcula y persiste todos los campos financieros a partir de los ítems.
-     * Se llama UNA SOLA VEZ en PurchaseService.create() después de agregar
-     * todos los ítems. Nunca se vuelve a llamar.
+     * Se llama en PurchaseService.createPurchase() (valores provisionales) y otra vez
+     * al aprobarse el pago, después de que ProsperityService fija la comisión
+     * definitiva de cada ítem. Nunca después de eso.
      */
     public void calculateFinancials() {
         this.totalCents = items.stream()
@@ -177,6 +184,9 @@ public class Purchase {
                 .sum();
         this.netToCommercialsCents = items.stream()
                 .mapToLong(PurchaseItem::getNetToCommercialCents)
+                .sum();
+        this.prosperityAbsorbedCents = items.stream()
+                .mapToLong(PurchaseItem::getProsperityAbsorbedCents)
                 .sum();
         // keysValueCents y cashCents se asignan externamente
         // cuando el Copayment confirma cuánto pagó con llaves si aplica y cuánto con Wompi.

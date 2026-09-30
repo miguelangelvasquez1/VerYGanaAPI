@@ -365,7 +365,8 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
         metadata.put("raffleId", ticket.getRaffle().getId());
         metadata.put("raffleTitle", ticket.getRaffle().getTitle());
         metadata.put("ticketNumber", ticket.getTicketNumber());
-        metadata.put("consumerId", ticket.getTicketOwner().getId());
+        // Metadata se expone vía TicketAuditLogResponseDTO: solo publicId, nunca el id interno.
+        metadata.put("consumerPublicId", ticket.getTicketOwner().getUser().getPublicId());
 
         try {
             return objectMapper.writeValueAsString(metadata);

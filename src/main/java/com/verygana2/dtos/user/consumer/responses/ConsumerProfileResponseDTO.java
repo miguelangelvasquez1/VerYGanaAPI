@@ -3,11 +3,13 @@ package com.verygana2.dtos.user.consumer.responses;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.AccountStatus;
 
+import java.util.UUID;
+
 import lombok.Data;
 
 @Data
 public class ConsumerProfileResponseDTO {
-    private Long id;
+    private UUID publicId;
     private String name;
     private String lastName;
     private String email;

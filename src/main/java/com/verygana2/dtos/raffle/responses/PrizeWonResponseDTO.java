@@ -2,6 +2,7 @@ package com.verygana2.dtos.raffle.responses;
 
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import com.verygana2.models.enums.raffles.PrizeType;
 
@@ -12,7 +13,7 @@ import lombok.Data;
 @Builder
 public class PrizeWonResponseDTO {
     private Long prizeId;
-    private Long winnerId;
+    private UUID winnerPublicId;
     private String title;
     private String description;
     private String brand;
