@@ -14,6 +14,8 @@ import com.verygana2.models.finance.plans.RequirePlanCapability;
 import com.verygana2.models.finance.plans.RequirePlanCapability.Capability;
 import com.verygana2.services.plans.PlanFeatureGuard.PlanCapabilityException;
 
+import jakarta.validation.ValidationException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -103,13 +105,14 @@ class PlanGuardAspectTest {
         }
 
         @Test
-        @DisplayName("ningún parámetro coincide con el nombre esperado: lanza IllegalArgumentException")
-        void noMatchingParam_throwsIllegalArgumentException() throws Throwable {
+        @DisplayName("ningún parámetro coincide con el nombre esperado: lanza ValidationException")
+        void noMatchingParam_throwsValidationException() throws Throwable {
             when(methodSignature.getParameterNames()).thenReturn(new String[] { "otherParam" });
             when(joinPoint.getArgs()).thenReturn(new Object[] { 42L });
 
             assertThatThrownBy(() -> aspect.checkPlanCapabilities(joinPoint, annotationOf("defaultParamName")))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("commercialId");
 
             verify(joinPoint, never()).proceed();
         }

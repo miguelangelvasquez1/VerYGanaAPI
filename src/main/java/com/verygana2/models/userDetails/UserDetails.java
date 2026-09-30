@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.verygana2.models.Notification;
 import com.verygana2.models.User;
 
@@ -27,8 +28,10 @@ import lombok.Setter;
 @Setter
 public abstract class UserDetails {
     
+    // Id interno (= User.id): nunca se serializa hacia el cliente; lo expuesto es User.publicId.
     @Id
     @Column(name = "user_id")
+    @JsonIgnore
     private Long id;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)

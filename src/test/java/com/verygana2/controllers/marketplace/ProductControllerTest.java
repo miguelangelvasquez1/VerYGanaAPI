@@ -27,6 +27,7 @@ import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
 import com.verygana2.dtos.product.responses.ProductResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.ProductStockService;
 
@@ -52,12 +53,13 @@ class ProductControllerTest {
 
     @Mock private ProductService productService;
     @Mock private ProductStockService productStockService;
+    @Mock private UserIdResolver userIdResolver;
 
     private ProductController controller;
 
     @BeforeEach
     void setUp() {
-        controller = new ProductController(productService, productStockService);
+        controller = new ProductController(productService, userIdResolver, productStockService);
     }
 
     private Jwt jwtWithUserId(Long userId) {

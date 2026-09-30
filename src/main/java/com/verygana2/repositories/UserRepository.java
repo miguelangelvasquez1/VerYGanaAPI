@@ -1,8 +1,10 @@
 package com.verygana2.repositories;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -36,5 +38,20 @@ public interface UserRepository extends JpaRepository<User, Long> {
             ORDER BY u.registeredDate DESC
             """)
     Page<User> findNewUsers(@Param("startDate") ZonedDateTime startDate, @Param("endDate") ZonedDateTime endDate, @Param("search") String search, Pageable pageable);
+
+    // ── Traducción publicId <-> id interno (ver UserIdResolver) ─────────────
+    @Query("SELECT u.id FROM User u WHERE u.publicId = :publicId")
+    Optional<Long> findIdByPublicId(@Param("publicId") UUID publicId);
+
+    @Query("SELECT u.publicId FROM User u WHERE u.id = :id")
+    Optional<UUID> findPublicIdById(@Param("id") Long id);
+
+    @Query("SELECT u.id AS id, u.publicId AS publicId FROM User u WHERE u.id IN :ids")
+    List<UserIdPair> findPublicIdsByIds(@Param("ids") Collection<Long> ids);
+
+    interface UserIdPair {
+        Long getId();
+        UUID getPublicId();
+    }
 }
 

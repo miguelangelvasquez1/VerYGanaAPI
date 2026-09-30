@@ -1,5 +1,7 @@
 package com.verygana2.mappers.pqrs;
 
+import java.util.UUID;
+
 import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -41,6 +43,9 @@ import static org.mockito.Mockito.when;
 @DisplayName("PqrsMapper")
 class PqrsMapperTest {
 
+    private static final UUID REQUESTER_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    private static final UUID COMMERCIAL_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-000000000050");
+
     @Mock private RequesterNameResolver requesterNameResolver;
 
     private PqrsMapperImpl mapper;
@@ -54,6 +59,7 @@ class PqrsMapperTest {
     private Pqrs samplePqrs() {
         User requester = new User();
         requester.setId(1L);
+        requester.setPublicId(REQUESTER_PUBLIC_ID);
         requester.setEmail("consumidor@test.com");
         requester.setPhoneNumber("3001234567");
 
@@ -99,7 +105,7 @@ class PqrsMapperTest {
 
         PqrsAdminDetailDTO dto = mapper.toAdminDetailDTO(pqrs);
 
-        assertThat(dto.getRequesterId()).isEqualTo(1L);
+        assertThat(dto.getRequesterPublicId()).isEqualTo(REQUESTER_PUBLIC_ID);
         assertThat(dto.getRequesterEmail()).isEqualTo("consumidor@test.com");
         assertThat(dto.getRequesterPhone()).isEqualTo("3001234567");
         // Este campo no viene de una propiedad plana de Pqrs: lo llena el
@@ -125,6 +131,7 @@ class PqrsMapperTest {
     void toAdminDetailDTO_withPurchaseItem_mapsProductAndCommercialContext() {
         User commercialUser = new User();
         commercialUser.setId(50L);
+        commercialUser.setPublicId(COMMERCIAL_PUBLIC_ID);
         commercialUser.setEmail("tienda@test.com");
         commercialUser.setPhoneNumber("3009876543");
 
@@ -174,7 +181,7 @@ class PqrsMapperTest {
         assertThat(dto.getProduct().getPriceCents()).isEqualTo(50000L);
 
         assertThat(dto.getCommercial()).isNotNull();
-        assertThat(dto.getCommercial().getCommercialUserId()).isEqualTo(50L);
+        assertThat(dto.getCommercial().getCommercialPublicId()).isEqualTo(COMMERCIAL_PUBLIC_ID);
         assertThat(dto.getCommercial().getCompanyName()).isEqualTo("Tienda XYZ");
         assertThat(dto.getCommercial().getNit()).isEqualTo("900123456");
         assertThat(dto.getCommercial().getContactEmail()).isEqualTo("tienda@test.com");

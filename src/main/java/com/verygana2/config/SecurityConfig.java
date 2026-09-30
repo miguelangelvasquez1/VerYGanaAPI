@@ -46,6 +46,7 @@ import com.verygana2.security.CustomUserDetailsChecker;
 import com.verygana2.security.CustomUserDetailsService;
 import com.verygana2.security.PublicPaths;
 import com.verygana2.security.auth.JwtBearerFilter;
+import com.verygana2.services.UserIdResolver;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -62,7 +63,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, UserIdResolver userIdResolver) throws Exception {
         
         return http
                     .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -72,7 +73,7 @@ public class SecurityConfig {
                     }) //Put csrf for refresh token endpoint
                     .authorizeHttpRequests(auth -> auth.requestMatchers(PublicPaths.PATHS).permitAll().anyRequest().authenticated())
                     .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) //Spring Security will never create an HttpSession and it will never use it to obtain the Security Context.
-                    .addFilterBefore(new JwtBearerFilter(jwtDecoder()), UsernamePasswordAuthenticationFilter.class) //Filter to extract JWT from cookies and set authentication in the security context.
+                    .addFilterBefore(new JwtBearerFilter(jwtDecoder(), userIdResolver), UsernamePasswordAuthenticationFilter.class) //Filter to extract JWT from cookies and set authentication in the security context.
                     // .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults())) //Enable JWT authentication for the application. Lambda used to configure the OAuth2 resource server to use JWT tokens.
                     .exceptionHandling(ex -> ex
                         .authenticationEntryPoint(authenticationEntryPoint())

@@ -13,6 +13,7 @@ public interface GameDesignerMapper {
 
     // ===== GameDesignerDetails → GameDesignerProfileResponseDTO =====
 
+    @Mapping(target = "publicId",     source = "user.publicId")
     @Mapping(target = "email",        source = "user.email")
     @Mapping(target = "phoneNumber",  source = "user.phoneNumber")
     @Mapping(target = "gamesCreated", expression = "java(0)")

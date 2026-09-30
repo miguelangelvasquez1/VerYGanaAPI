@@ -9,6 +9,9 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 
+import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
+import com.verygana2.services.UserIdResolver;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
@@ -56,6 +59,14 @@ class PqrsAdminControllerSecurityIntegrationTest {
     @MockitoBean private PqrsService pqrsService;
     // Requerido por SecurityConfig.authenticationProvider(), no se invoca en este flujo.
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private UserIdResolver userIdResolver;
+
+    /** El token solo lleva publicId; en estos tests publicId = UUID(0, userId) y el resolver lo invierte. */
+    @BeforeEach
+    void stubUserIdResolver() {
+        when(userIdResolver.toInternalId(any(UUID.class)))
+                .thenAnswer(inv -> inv.<UUID>getArgument(0).getLeastSignificantBits());
+    }
     // Requerido por el FeatureFlagInterceptor global (WebMvcConfigurer), no relevante aquí.
     @MockitoBean private FeatureFlagService featureFlagService;
 
@@ -81,7 +92,7 @@ class PqrsAdminControllerSecurityIntegrationTest {
                 .audience(List.of("verygana-frontend"))
                 .claim("type", "access")
                 .claim("scope", role)
-                .claim("userId", userId)
+                .claim("publicId", new UUID(0L, userId).toString())
                 .build();
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }

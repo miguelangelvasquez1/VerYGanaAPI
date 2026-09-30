@@ -51,6 +51,7 @@ class PurchaseItemRefundServiceImplTest {
     @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private ProductStockRepository productStockRepository;
     @Mock private TreasuryService treasuryService;
+    @Mock private com.verygana2.services.interfaces.finance.ProsperityService prosperityService;
     @Mock private CopaymentRepository copaymentRepository;
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private KeyTransactionRepository keyTransactionRepository;
@@ -61,7 +62,7 @@ class PurchaseItemRefundServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PurchaseItemRefundServiceImpl(purchaseItemRepository, productStockRepository, treasuryService,
-                copaymentRepository, keyWalletRepository, keyTransactionRepository, purchaseItemCashRefundRepository);
+                prosperityService, copaymentRepository, keyWalletRepository, keyTransactionRepository, purchaseItemCashRefundRepository);
     }
 
     private ConsumerDetails consumer(Long id) {
@@ -103,8 +104,8 @@ class PurchaseItemRefundServiceImplTest {
             PurchaseItemCashRefund result = service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
             assertThat(result).isNull();
-            verifyNoInteractions(treasuryService, copaymentRepository, keyWalletRepository, purchaseItemRepository,
-                    purchaseItemCashRefundRepository);
+            verifyNoInteractions(treasuryService, prosperityService, copaymentRepository, keyWalletRepository,
+                    purchaseItemRepository, purchaseItemCashRefundRepository);
         }
 
         @Test
@@ -117,6 +118,7 @@ class PurchaseItemRefundServiceImplTest {
             PurchaseItemCashRefund result = service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
             verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 0L, 100_000L, copayment.getId());
+            verify(prosperityService).reintegrateRefund(item);
             // Hay porción en efectivo pendiente de pago manual: el ítem NO pasa a
             // REFUNDED todavía — eso solo ocurre en CashRefundServiceImpl.markPaid.
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);

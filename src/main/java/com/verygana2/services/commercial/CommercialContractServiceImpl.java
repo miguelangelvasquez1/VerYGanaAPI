@@ -440,7 +440,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                     CommercialDetails details = onboarding.getCommercialDetails();
                     return new ContractReviewListItemDTO(
                             c.getId(),
-                            details.getId(),
+                            details.getUser().getPublicId(),
                             details.getCompanyName(),
                             details.getUser().getEmail(),
                             details.isPep(),
@@ -504,7 +504,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                     CommercialDetails details = o.getCommercialDetails();
                     return new AdvisorNegotiationListItemDTO(
                             o.getId(),
-                            details.getId(),
+                            details.getUser().getPublicId(),
                             details.getCompanyName(),
                             details.getUser().getEmail(),
                             details.getUser().getPhoneNumber(),

@@ -3,6 +3,7 @@ package com.verygana2.services.raffles;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +18,7 @@ import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.rafflesExceptions.LimitReachedException;
 import com.verygana2.mappers.raffles.RaffleTicketMapper;
 import com.verygana2.mappers.raffles.TicketAuditLogMapper;
+import com.verygana2.models.User;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.enums.raffles.RaffleTicketStatus;
@@ -86,8 +88,12 @@ class RaffleTicketServiceImplTest {
     }
 
     private ConsumerDetails consumer() {
+        User user = new User();
+        user.setId(9L);
+        user.setPublicId(UUID.fromString("00000000-0000-0000-0000-000000000009"));
         ConsumerDetails consumer = new ConsumerDetails();
         consumer.setId(9L);
+        consumer.setUser(user);
         return consumer;
     }
 

@@ -3,6 +3,7 @@ package com.verygana2.dtos.branding;
 import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.models.Category;
@@ -23,6 +24,7 @@ public class BrandingRequestDetailDTO {
 
     private Long id;
     private BrandingRequestStatus status;
+    private UUID commercialPublicId;
     private String commercialName;
 
     // ===== Información de marca =====
@@ -67,6 +69,7 @@ public class BrandingRequestDetailDTO {
     private String reviewedByAdminName;
 
     // ===== Diseñador =====
+    private UUID assignedDesignerPublicId;
     private String assignedDesignerName;
     private String assignedDesignerCode;
 

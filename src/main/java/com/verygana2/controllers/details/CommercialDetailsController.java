@@ -3,6 +3,7 @@ package com.verygana2.controllers.details;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -22,6 +23,7 @@ import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 
 import lombok.RequiredArgsConstructor;
@@ -32,6 +34,7 @@ import lombok.RequiredArgsConstructor;
 public class CommercialDetailsController {
 
     private final CommercialDetailsService commercialDetailsService;
+    private final UserIdResolver userIdResolver;
 
     @GetMapping("/initialData")
     @PreAuthorize("hasRole('COMMERCIAL')")
@@ -100,8 +103,8 @@ public class CommercialDetailsController {
         return ResponseEntity.ok(commercialDetailsService.getDailySales(commercialId, start, end, pageable));
     }
 
-    @GetMapping("/{commercialId}/profile")
-    public ResponseEntity<CommercialProfileResponseDTO> getCommercialProfile(@PathVariable Long commercialId) {
-        return ResponseEntity.ok(commercialDetailsService.getCommercialProfile(commercialId));
+    @GetMapping("/{publicId}/profile")
+    public ResponseEntity<CommercialProfileResponseDTO> getCommercialProfile(@PathVariable UUID publicId) {
+        return ResponseEntity.ok(commercialDetailsService.getCommercialProfile(userIdResolver.toInternalId(publicId)));
     }
 }

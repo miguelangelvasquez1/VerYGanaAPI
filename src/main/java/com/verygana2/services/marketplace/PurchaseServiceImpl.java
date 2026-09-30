@@ -291,11 +291,6 @@ public class PurchaseServiceImpl implements PurchaseService {
                 productStockRepository.save(stock);
 
                 long unitPriceCents = product.getPriceCents();
-                long commissionCents = unitPriceCents * commissionPct / 100;
-                // La comisión ya incluye IVA — se extrae, no se suma aparte (a diferencia
-                // del IVA de depósitos/suscripción). Ver TreasuryServiceImpl.retainCommission.
-                long commissionVatCents = commissionCents * treasuryConfig.getVatPct() / 100;
-                long netToCommercial = unitPriceCents - commissionCents;
 
                 PurchaseItem item = PurchaseItem.builder()
                         .product(product)
@@ -305,14 +300,15 @@ public class PurchaseServiceImpl implements PurchaseService {
                         .unitPriceCents(unitPriceCents)
                         .subtotalCents(unitPriceCents)
                         .commissionPctApplied(commissionPct)
-                        .commissionCents(commissionCents)
-                        .commissionVatCents(commissionVatCents)
-                        .netToCommercialCents(netToCommercial)
                         .commercialActivityTypeAtPurchase(commercial.getCommercialActivityType())
                         .maxKeysPctAtPurchase(product.getMaxKeysPct())
                         .status(PurchaseItemStatus.PENDING)
                         .createdAt(ZonedDateTime.now(ZoneOffset.UTC))
                         .build();
+                // Comisión provisional sobre el precio completo: la definitiva se fija al
+                // aprobarse el pago, descontando lo que absorba el Saldo de Prosperidad
+                // (ProsperityService.absorbPurchase).
+                item.applyCommission(unitPriceCents, treasuryConfig.getVatPct());
 
                 purchase.addItem(item);
                 totalMaxKeysAllowed += product.getMaxKeysAllowed();

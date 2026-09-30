@@ -28,6 +28,8 @@ import com.verygana2.config.RsaKeyProperties;
 import com.verygana2.config.SecurityConfig;
 import com.verygana2.controllers.UserController;
 import com.verygana2.security.systemFeatures.FeatureFlagService;
+import com.verygana2.services.UserIdResolver;
+import com.verygana2.services.interfaces.PhoneNumberChangeService;
 import com.verygana2.services.interfaces.UserService;
 
 /**
@@ -57,6 +59,15 @@ class PublicPathsAuthorizationTest {
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
 
+    @MockitoBean
+    private PhoneNumberChangeService phoneNumberChangeService;
+
+    /** Lo exigen JwtBearerFilter y UserController (traducción publicId -> id interno). */
+    @MockitoBean
+    private UserIdResolver userIdResolver;
+
+    private static final String SOME_PUBLIC_ID = "00000000-0000-0000-0000-000000000001";
+
     /** Lo exige el FeatureFlagInterceptor que @WebMvcTest registra por ser WebMvcConfigurer. */
     @MockitoBean
     private FeatureFlagService featureFlagService;
@@ -79,18 +90,18 @@ class PublicPathsAuthorizationTest {
     class AnonymousAccessToUserEndpoints {
 
         @Test
-        @DisplayName("DELETE /users/delete/id/{id} debe denegarse y NO llegar al service")
+        @DisplayName("DELETE /users/delete/public-id/{publicId} debe denegarse y NO llegar al service")
         void anonymousCannotDeleteUsers() {
-            assertThat(mvc.delete().uri("/users/delete/id/1"))
+            assertThat(mvc.delete().uri("/users/delete/public-id/" + SOME_PUBLIC_ID))
                     .hasStatus4xxClientError();
 
             verify(userService, never()).deleteById(anyLong());
         }
 
         @Test
-        @DisplayName("GET /users/id/{id} debe denegarse (expone PII de cualquier usuario)")
+        @DisplayName("GET /users/public-id/{publicId} debe denegarse (expone PII de cualquier usuario)")
         void anonymousCannotReadUserById() {
-            assertThat(mvc.get().uri("/users/id/1"))
+            assertThat(mvc.get().uri("/users/public-id/" + SOME_PUBLIC_ID))
                     .hasStatus4xxClientError();
 
             verify(userService, never()).getUserById(anyLong());

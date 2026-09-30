@@ -50,6 +50,8 @@ public abstract class BrandingMapper {
 
     @Mapping(target = "gameName", source = "game.title")
     @Mapping(target = "commercialName", source = "commercial.companyName")
+    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
+    @Mapping(target = "assignedDesignerPublicId", source = "assignedDesigner.user.publicId")
     @Mapping(target = "assignedDesignerName", expression = "java(request.getAssignedDesigner() != null ? request.getAssignedDesigner().getName() + \" \" + request.getAssignedDesigner().getLastName() : null)")
     @Mapping(target = "corporateResourceCount", ignore = true)
     public abstract BrandingRequestSummaryDTO toSummaryDTO(BrandingRequest request);
@@ -60,6 +62,8 @@ public abstract class BrandingMapper {
     @Mapping(target = "gameName", source = "game.title")
     @Mapping(target = "gameFrontPageUrl", source = "game.frontPageUrl")
     @Mapping(target = "commercialName", source = "commercial.companyName")
+    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
+    @Mapping(target = "assignedDesignerPublicId", source = "assignedDesigner.user.publicId")
     @Mapping(target = "categories", source = "targetAudience.categories")
     @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
     @Mapping(target = "minAge", source = "targetAudience.minAge")

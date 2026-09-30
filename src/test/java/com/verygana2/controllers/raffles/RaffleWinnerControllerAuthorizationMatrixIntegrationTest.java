@@ -1,10 +1,14 @@
 package com.verygana2.controllers.raffles;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import org.junit.jupiter.api.BeforeEach;
+import java.util.UUID;
+import com.verygana2.services.UserIdResolver;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.interfaces.RSAPrivateKey;
@@ -69,6 +73,14 @@ class RaffleWinnerControllerAuthorizationMatrixIntegrationTest {
     @MockitoBean private TwilioSmsService twilioSmsService;
     @MockitoBean private EmailVerificationService emailVerificationService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private UserIdResolver userIdResolver;
+
+    /** El token solo lleva publicId; en estos tests publicId = UUID(0, userId) y el resolver lo invierte. */
+    @BeforeEach
+    void stubUserIdResolver() {
+        when(userIdResolver.toInternalId(any(UUID.class)))
+                .thenAnswer(inv -> inv.<UUID>getArgument(0).getLeastSignificantBits());
+    }
     @MockitoBean private FeatureFlagService featureFlagService;
 
     @TestConfiguration
@@ -92,7 +104,7 @@ class RaffleWinnerControllerAuthorizationMatrixIntegrationTest {
                 .audience(List.of("verygana-frontend"))
                 .claim("type", "access")
                 .claim("scope", role)
-                .claim("userId", userId)
+                .claim("publicId", new UUID(0L, userId).toString())
                 .build();
         return jwtEncoder.encode(JwtEncoderParameters.from(claims)).getTokenValue();
     }

@@ -2,6 +2,7 @@ package com.verygana2.controllers.compliance;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,7 +14,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.compliance.BackgroundCheckResponseDTO;
 import com.verygana2.models.compliance.BackgroundCheck;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.compliance.BackgroundCheckService;
 
 import lombok.RequiredArgsConstructor;
@@ -30,24 +33,35 @@ import lombok.RequiredArgsConstructor;
 public class ComplianceBackgroundCheckController {
 
     private final BackgroundCheckService backgroundCheckService;
+    private final UserIdResolver userIdResolver;
 
     /** Dispara una nueva consulta de antecedentes (persona + empresa si aplica). Tiene costo en ZapSign. */
     @PostMapping("/{contractId}/background-checks")
-    public ResponseEntity<List<BackgroundCheck>> requestChecks(
+    public ResponseEntity<List<BackgroundCheckResponseDTO>> requestChecks(
             @AuthenticationPrincipal Jwt jwt, @PathVariable Long contractId) {
         Long officerId = jwt.getClaim("userId");
-        return ResponseEntity.ok(backgroundCheckService.requestChecks(contractId, officerId));
+        return ResponseEntity.ok(toDTOs(backgroundCheckService.requestChecks(contractId, officerId)));
     }
 
     @GetMapping("/{contractId}/background-checks")
-    public ResponseEntity<List<BackgroundCheck>> listByContract(@PathVariable Long contractId) {
-        return ResponseEntity.ok(backgroundCheckService.listByContract(contractId));
+    public ResponseEntity<List<BackgroundCheckResponseDTO>> listByContract(@PathVariable Long contractId) {
+        return ResponseEntity.ok(toDTOs(backgroundCheckService.listByContract(contractId)));
     }
 
     /** Reconsulta el estado en ZapSign por si el webhook aún no llegó. */
     @PostMapping("/background-checks/{id}/refresh")
-    public ResponseEntity<BackgroundCheck> refresh(@PathVariable Long id) {
-        return ResponseEntity.ok(backgroundCheckService.refreshStatus(id));
+    public ResponseEntity<BackgroundCheckResponseDTO> refresh(@PathVariable Long id) {
+        BackgroundCheck check = backgroundCheckService.refreshStatus(id);
+        return ResponseEntity.ok(BackgroundCheckResponseDTO.from(check,
+                userIdResolver.toPublicId(check.getRequestedByOfficerId())));
+    }
+
+    private List<BackgroundCheckResponseDTO> toDTOs(List<BackgroundCheck> checks) {
+        Map<Long, UUID> publicIds = userIdResolver.toPublicIds(
+                checks.stream().map(BackgroundCheck::getRequestedByOfficerId).toList());
+        return checks.stream()
+                .map(c -> BackgroundCheckResponseDTO.from(c, publicIds.get(c.getRequestedByOfficerId())))
+                .toList();
     }
 
     /** Hallazgos detallados por fuente, en vivo desde ZapSign. */

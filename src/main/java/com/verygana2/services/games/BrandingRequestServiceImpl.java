@@ -18,7 +18,6 @@ import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.branding.AddCommentDTO;
 import com.verygana2.dtos.branding.ApproveBrandingRequestDTO;
 import com.verygana2.dtos.branding.BrandingRequestCommentDTO;
-import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.BrandingGameDTO;
 import com.verygana2.dtos.branding.BrandingRequestDetailDTO;
 import com.verygana2.dtos.branding.BrandingRequestSummaryDTO;
@@ -27,6 +26,7 @@ import com.verygana2.dtos.branding.CorporateResourceDTO;
 import com.verygana2.dtos.branding.CorporateResourceUploadPermissionDTO;
 import com.verygana2.dtos.branding.CreateBrandingRequestDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
+import com.verygana2.dtos.branding.AssignDesignerDTO;
 import com.verygana2.dtos.branding.RejectBrandingRequestDTO;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
 import com.verygana2.mappers.BrandingMapper;
@@ -321,8 +321,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     public List<GameDesignerSummaryDTO> getActiveDesigners() {
         return gameDesignerDetailsRepository.findByActiveTrue().stream()
             .map(d -> new GameDesignerSummaryDTO(
-                d.getId(),
-                d.getUser().getId(),
+                d.getUser().getPublicId(),
                 d.getName(),
                 d.getLastName(),
                 d.getDesignerCode(),
@@ -336,15 +335,15 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         BrandingRequest request = brandingRequestRepository.findById(requestId)
             .orElseThrow(() -> new EntityNotFoundException("BrandingRequest not found: " + requestId));
 
-        GameDesignerDetails designer = gameDesignerDetailsRepository.findByUser_Id(dto.getDesignerUserId())
-            .orElseThrow(() -> new EntityNotFoundException("Game designer not found for user: " + dto.getDesignerUserId()));
+        GameDesignerDetails designer = gameDesignerDetailsRepository.findByPublicId(dto.getDesignerPublicId())
+            .orElseThrow(() -> new EntityNotFoundException("Game designer not found: " + dto.getDesignerPublicId()));
 
         if (!Boolean.TRUE.equals(designer.getActive())) {
             throw new ValidationException("Designer is not active");
         }
 
         request.setAssignedDesigner(designer);
-        log.info("BrandingRequest {} assigned to designer user {} by admin {}", requestId, dto.getDesignerUserId(), adminUserId);
+        log.info("BrandingRequest {} assigned to designer user {} by admin {}", requestId, designer.getId(), adminUserId);
     }
 
     @Override
@@ -359,8 +358,8 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         AdminDetails admin = adminDetailsRepository.findById(adminUserId)
             .orElseThrow(() -> new EntityNotFoundException("Admin not found: " + adminUserId));
 
-        GameDesignerDetails designer = gameDesignerDetailsRepository.findByUser_Id(dto.getDesignerUserId())
-            .orElseThrow(() -> new EntityNotFoundException("Game designer not found for user: " + dto.getDesignerUserId()));
+        GameDesignerDetails designer = gameDesignerDetailsRepository.findByPublicId(dto.getDesignerPublicId())
+            .orElseThrow(() -> new EntityNotFoundException("Game designer not found: " + dto.getDesignerPublicId()));
 
         request.setStatus(BrandingRequestStatus.APPROVED);
         request.setReviewedByAdmin(admin);
@@ -368,7 +367,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         if (dto.getAdminNotes() != null) request.setAdminNotes(dto.getAdminNotes());
 
         log.info("BrandingRequest {} approved by admin {} and assigned to designer user {}",
-            requestId, adminUserId, dto.getDesignerUserId());
+            requestId, adminUserId, designer.getId());
 
         emailService.sendBrandingDesignerAssignedEmail(
             designer.getUser().getEmail(),

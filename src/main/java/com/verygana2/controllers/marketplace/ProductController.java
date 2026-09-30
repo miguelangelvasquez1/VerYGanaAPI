@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -39,6 +40,7 @@ import com.verygana2.dtos.product.responses.ProductStockResponseDTO;
 import com.verygana2.dtos.product.responses.ProductSummaryResponseDTO;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.ProductStockService;
 
@@ -51,6 +53,7 @@ import lombok.RequiredArgsConstructor;
 public class ProductController {
 
     private final ProductService productService;
+    private final UserIdResolver userIdResolver;
 
     private final ProductStockService productStockService;
 
@@ -225,11 +228,11 @@ public class ProductController {
     /**
      * Obtener los productos de un vendedor
      */
-    @GetMapping("/commercial/{commercialId}")
+    @GetMapping("/commercial/{publicId}")
     public ResponseEntity<PagedResponse<ProductSummaryResponseDTO>> getCommercialProducts(
-            @PathVariable Long commercialId,
+            @PathVariable UUID publicId,
             @RequestParam(defaultValue = "0") Integer page) {
-        return ResponseEntity.ok(productService.getCommercialProducts(commercialId, page));
+        return ResponseEntity.ok(productService.getCommercialProducts(userIdResolver.toInternalId(publicId), page));
     }
 
     /**

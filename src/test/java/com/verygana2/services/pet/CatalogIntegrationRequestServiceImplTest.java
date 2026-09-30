@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -65,6 +67,7 @@ class CatalogIntegrationRequestServiceImplTest {
     private static final Long USER_ID = 42L;
 
     private static final Long DESIGNER_USER_ID = 6L;
+    private static final UUID DESIGNER_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-000000000006");
 
     @Mock private CatalogIntegrationRequestRepository requestRepository;
     @Mock private CommercialDetailsRepository commercialDetailsRepository;
@@ -106,6 +109,7 @@ class CatalogIntegrationRequestServiceImplTest {
 
         User designerUser = new User();
         designerUser.setId(DESIGNER_USER_ID);
+        designerUser.setPublicId(DESIGNER_PUBLIC_ID);
         designer = new GameDesignerDetails();
         designer.setId(DESIGNER_USER_ID);
         designer.setUser(designerUser);
@@ -288,13 +292,13 @@ class CatalogIntegrationRequestServiceImplTest {
         void aprobarAsignaYSiembra() {
             String key = "catalog-requests/42/abc-123";
             when(requestRepository.findById(7L)).thenReturn(Optional.of(request(CatalogRequestStatus.PENDING, key)));
-            when(designerDetailsRepository.findByUser_Id(DESIGNER_USER_ID)).thenReturn(Optional.of(designer));
+            when(designerDetailsRepository.findByPublicId(DESIGNER_PUBLIC_ID)).thenReturn(Optional.of(designer));
             savePassthrough();
 
-            var response = service.approve(7L, new ApprovePetRequestDTO(DESIGNER_USER_ID, "Va para el sprite"));
+            var response = service.approve(7L, new ApprovePetRequestDTO(DESIGNER_PUBLIC_ID, "Va para el sprite"));
 
             assertThat(response.status()).isEqualTo(CatalogRequestStatus.APPROVED);
-            assertThat(response.assignedDesignerUserId()).isEqualTo(DESIGNER_USER_ID);
+            assertThat(response.assignedDesignerPublicId()).isEqualTo(DESIGNER_PUBLIC_ID);
             assertThat(response.assignedDesignerName()).isEqualTo("Ana Diseñadora");
             assertThat(response.adminNotes()).isEqualTo("Va para el sprite");
             assertThat(response.resultCatalogItemId()).isNull();
@@ -311,9 +315,9 @@ class CatalogIntegrationRequestServiceImplTest {
         void diseñadorInactivo() {
             designer.setActive(false);
             when(requestRepository.findById(7L)).thenReturn(Optional.of(request(CatalogRequestStatus.PENDING, null)));
-            when(designerDetailsRepository.findByUser_Id(DESIGNER_USER_ID)).thenReturn(Optional.of(designer));
+            when(designerDetailsRepository.findByPublicId(DESIGNER_PUBLIC_ID)).thenReturn(Optional.of(designer));
 
-            assertThatThrownBy(() -> service.approve(7L, new ApprovePetRequestDTO(DESIGNER_USER_ID, null)))
+            assertThatThrownBy(() -> service.approve(7L, new ApprovePetRequestDTO(DESIGNER_PUBLIC_ID, null)))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining("no está activo");
 
@@ -324,12 +328,12 @@ class CatalogIntegrationRequestServiceImplTest {
         @DisplayName("reasignar cambia el diseñador sin tocar el estado")
         void reasignar() {
             when(requestRepository.findById(7L)).thenReturn(Optional.of(request(CatalogRequestStatus.APPROVED, null)));
-            when(designerDetailsRepository.findByUser_Id(DESIGNER_USER_ID)).thenReturn(Optional.of(designer));
+            when(designerDetailsRepository.findByPublicId(DESIGNER_PUBLIC_ID)).thenReturn(Optional.of(designer));
             savePassthrough();
 
-            var response = service.assignDesigner(7L, DESIGNER_USER_ID);
+            var response = service.assignDesigner(7L, DESIGNER_PUBLIC_ID);
 
-            assertThat(response.assignedDesignerUserId()).isEqualTo(DESIGNER_USER_ID);
+            assertThat(response.assignedDesignerPublicId()).isEqualTo(DESIGNER_PUBLIC_ID);
             assertThat(response.status()).isEqualTo(CatalogRequestStatus.APPROVED);
         }
     }

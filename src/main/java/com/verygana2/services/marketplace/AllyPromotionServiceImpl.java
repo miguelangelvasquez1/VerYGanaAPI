@@ -89,7 +89,7 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
                             .productId(p.getId())
                             .productName(p.getName())
                             .productImageUrl(p.getImageUrl())
-                            .allyCommercialId(p.getCommercial().getId())
+                            .allyCommercialPublicId(p.getCommercial().getUser().getPublicId())
                             .allyCommercialName(p.getCommercial().getCompanyName())
                             .priceCents(p.getPriceCents())
                             .promotedAt(promo.getCreatedAt())
@@ -118,7 +118,7 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
 
     private AllyCommercialResponseDTO toAllyCommercialResponse(CommercialDetails commercial) {
         return AllyCommercialResponseDTO.builder()
-                .commercialId(commercial.getId())
+                .commercialPublicId(commercial.getUser().getPublicId())
                 .companyName(commercial.getCompanyName())
                 .planCode(commercial.getCurrentPlan() != null ? commercial.getCurrentPlan().getCode().name() : null)
                 .build();

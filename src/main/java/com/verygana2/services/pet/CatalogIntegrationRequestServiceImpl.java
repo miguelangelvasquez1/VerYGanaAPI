@@ -197,7 +197,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     public List<GameDesignerSummaryDTO> getActiveDesigners() {
         return designerDetailsRepository.findByActiveTrue().stream()
                 .map(d -> new GameDesignerSummaryDTO(
-                        d.getId(), d.getUser().getId(), d.getName(), d.getLastName(),
+                        d.getUser().getPublicId(), d.getName(), d.getLastName(),
                         d.getDesignerCode(), d.getCampaignsDesigned()))
                 .toList();
     }
@@ -207,7 +207,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
         CatalogIntegrationRequest request = findOrThrow(requestId);
         assertNotFinal(request);
 
-        request.setAssignedDesigner(findActiveDesigner(dto.designerUserId()));
+        request.setAssignedDesigner(findActiveDesigner(dto.designerPublicId()));
         request.setAdminNotes(dto.adminNotes());
         request.setStatus(CatalogRequestStatus.APPROVED);
         // Arranca el borrador con lo que ya mandó el comercial para que el diseñador no
@@ -216,17 +216,17 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
             request.setItemDraft(seedDraftFrom(request));
         }
         log.info("Solicitud de catálogo {} aprobada y asignada al diseñador (userId={})",
-                requestId, dto.designerUserId());
+                requestId, request.getAssignedDesigner().getId());
         return toResponse(requestRepository.save(request));
     }
 
     @Override
-    public CatalogIntegrationResponseDTO assignDesigner(Long requestId, Long designerUserId) {
+    public CatalogIntegrationResponseDTO assignDesigner(Long requestId, UUID designerPublicId) {
         CatalogIntegrationRequest request = findOrThrow(requestId);
         assertNotFinal(request);
 
-        request.setAssignedDesigner(findActiveDesigner(designerUserId));
-        log.info("Solicitud de catálogo {} reasignada al diseñador (userId={})", requestId, designerUserId);
+        request.setAssignedDesigner(findActiveDesigner(designerPublicId));
+        log.info("Solicitud de catálogo {} reasignada al diseñador (userId={})", requestId, request.getAssignedDesigner().getId());
         return toResponse(requestRepository.save(request));
     }
 
@@ -431,10 +431,10 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                         "Solicitud no encontrada o no asignada a este diseñador: id=" + id));
     }
 
-    private GameDesignerDetails findActiveDesigner(Long designerUserId) {
-        GameDesignerDetails designer = designerDetailsRepository.findByUser_Id(designerUserId)
+    private GameDesignerDetails findActiveDesigner(UUID designerPublicId) {
+        GameDesignerDetails designer = designerDetailsRepository.findByPublicId(designerPublicId)
                 .orElseThrow(() -> new EntityNotFoundException(
-                        "Diseñador no encontrado para userId=" + designerUserId));
+                        "Diseñador no encontrado: " + designerPublicId));
         if (!Boolean.TRUE.equals(designer.getActive())) {
             throw new ValidationException("El diseñador no está activo");
         }
@@ -492,7 +492,7 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                 r.getDesiredEffects(),
                 r.getStatus(),
                 r.getRejectionReason(),
-                r.getAssignedDesigner() == null ? null : r.getAssignedDesigner().getUser().getId(),
+                r.getAssignedDesigner() == null ? null : r.getAssignedDesigner().getUser().getPublicId(),
                 r.getAssignedDesigner() == null ? null : designerDisplayName(r.getAssignedDesigner()),
                 r.getAdminNotes(),
                 r.getItemDraft(),

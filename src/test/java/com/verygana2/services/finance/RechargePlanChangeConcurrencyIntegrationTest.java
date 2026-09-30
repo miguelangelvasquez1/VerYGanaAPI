@@ -65,6 +65,7 @@ import jakarta.persistence.EntityManager;
  * en producción vía los proxies {@code @Transactional} de los servicios).
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:recharge-planchange-concurrency-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;"
                 + "CASE_INSENSITIVE_IDENTIFIERS=TRUE;LOCK_TIMEOUT=10000",
@@ -104,6 +105,7 @@ class RechargePlanChangeConcurrencyIntegrationTest {
     @MockitoBean private PlanChangeAssetValidator planChangeAssetValidator;
     @MockitoBean private com.verygana2.services.wompi.WompiService wompiService;
     @MockitoBean private com.verygana2.services.interfaces.finance.TreasuryService treasuryService;
+    @MockitoBean private com.verygana2.services.interfaces.finance.ProsperityService prosperityService;
     @MockitoBean private TreasuryConfig treasuryConfig;
     @MockitoBean private com.verygana2.services.interfaces.finance.WalletService walletService;
     @MockitoBean private com.verygana2.services.plans.InvestmentService investmentService;

@@ -22,6 +22,7 @@ import com.verygana2.services.interfaces.finance.PayoutService;
 
 import lombok.RequiredArgsConstructor;
 
+/*No se usa*/
 @RestController
 @RequestMapping("/admin/payouts")
 @RequiredArgsConstructor

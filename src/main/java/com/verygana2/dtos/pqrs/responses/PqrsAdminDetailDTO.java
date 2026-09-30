@@ -2,6 +2,7 @@ package com.verygana2.dtos.pqrs.responses;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.enums.pqrs.PqrsResolutionAction;
@@ -24,7 +25,7 @@ public class PqrsAdminDetailDTO {
     private ZonedDateTime createdAt;
     private ZonedDateTime resolvedAt;
 
-    private Long requesterId;
+    private UUID requesterPublicId;
     private String requesterName;
     private String requesterEmail;
     private String requesterPhone;

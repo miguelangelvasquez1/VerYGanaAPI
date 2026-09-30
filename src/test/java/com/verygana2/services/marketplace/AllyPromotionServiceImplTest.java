@@ -5,6 +5,8 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,6 +27,7 @@ import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.marketplace.AllyProductPromotion;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductImageAsset;
+import com.verygana2.models.User;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
@@ -61,9 +64,17 @@ class AllyPromotionServiceImplTest {
                 commercialDetailsRepository);
     }
 
+    private static UUID publicIdOf(Long id) {
+        return UUID.nameUUIDFromBytes(("user-" + id).getBytes());
+    }
+
     private CommercialDetails commercial(Long id, String companyName, PlanCode planCode) {
+        User user = new User();
+        user.setId(id);
+        user.setPublicId(publicIdOf(id));
         CommercialDetails commercial = new CommercialDetails();
         commercial.setId(id);
+        commercial.setUser(user);
         commercial.setCompanyName(companyName);
         if (planCode != null) {
             Plan plan = Plan.builder().code(planCode).build();
@@ -228,7 +239,7 @@ class AllyPromotionServiceImplTest {
             assertThat(dto.getProductId()).isEqualTo(10L);
             assertThat(dto.getProductName()).isEqualTo("Producto aliado");
             assertThat(dto.getProductImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/10.png");
-            assertThat(dto.getAllyCommercialId()).isEqualTo(1L);
+            assertThat(dto.getAllyCommercialPublicId()).isEqualTo(publicIdOf(1L));
             assertThat(dto.getAllyCommercialName()).isEqualTo("Aliado");
             assertThat(dto.getPriceCents()).isEqualTo(100_000L);
             assertThat(dto.getPromotedAt()).isEqualTo(createdAt);
@@ -258,7 +269,7 @@ class AllyPromotionServiceImplTest {
             List<AllyCommercialResponseDTO> result = service.getMyAllies(9L);
 
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).getCommercialId()).isEqualTo(1L);
+            assertThat(result.get(0).getCommercialPublicId()).isEqualTo(publicIdOf(1L));
             assertThat(result.get(0).getCompanyName()).isEqualTo("Aliado");
             assertThat(result.get(0).getPlanCode()).isEqualTo("STANDARD");
         }
@@ -272,7 +283,7 @@ class AllyPromotionServiceImplTest {
             List<AllyCommercialResponseDTO> result = service.getMyPromoters(1L);
 
             assertThat(result).hasSize(1);
-            assertThat(result.get(0).getCommercialId()).isEqualTo(9L);
+            assertThat(result.get(0).getCommercialPublicId()).isEqualTo(publicIdOf(9L));
             assertThat(result.get(0).getCompanyName()).isEqualTo("Premium");
             assertThat(result.get(0).getPlanCode()).isEqualTo("PREMIUM");
         }

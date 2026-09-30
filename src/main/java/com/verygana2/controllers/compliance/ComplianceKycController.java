@@ -2,6 +2,7 @@ package com.verygana2.controllers.compliance;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -17,6 +18,7 @@ import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
 import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.repositories.UserRepository;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.AccountStatusService;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -30,9 +32,10 @@ public class ComplianceKycController {
 
     private final UserRepository userRepository;
     private final AccountStatusService accountStatusService;
+    private final UserIdResolver userIdResolver;
 
     public record KycPendingDTO(
-            Long id,
+            UUID publicId,
             String email,
             String phoneNumber,
             Role role,
@@ -76,7 +79,7 @@ public class ComplianceKycController {
             }
 
             return new KycPendingDTO(
-                    u.getId(), u.getEmail(), u.getPhoneNumber(), u.getRole(), u.getRegisteredDate(),
+                    u.getPublicId(), u.getEmail(), u.getPhoneNumber(), u.getRole(), u.getRegisteredDate(),
                     name, lastName, docType, docNumber, isPep,
                     companyName, nit, ciiu, repDocType, repDocNum
             );
@@ -85,10 +88,11 @@ public class ComplianceKycController {
         return ResponseEntity.ok(dtos);
     }
 
-    @PostMapping("/{userId}/approve")
-    public ResponseEntity<Void> approveKyc(@PathVariable Long userId, Authentication authentication) {
+    @PostMapping("/{publicId}/approve")
+    public ResponseEntity<Void> approveKyc(@PathVariable UUID publicId, Authentication authentication) {
+        Long userId = userIdResolver.toInternalId(publicId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + publicId));
 
         if (user.getAccountStatus() != AccountStatus.PENDING_ACTIVATION) {
             return ResponseEntity.badRequest().build();
@@ -98,13 +102,14 @@ public class ComplianceKycController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{userId}/reject")
+    @PostMapping("/{publicId}/reject")
     public ResponseEntity<Void> rejectKyc(
-            @PathVariable Long userId,
+            @PathVariable UUID publicId,
             @RequestParam(required = false, defaultValue = "KYC rejected by compliance officer") String reason,
             Authentication authentication) {
+        Long userId = userIdResolver.toInternalId(publicId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new EntityNotFoundException("User not found: " + userId));
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + publicId));
 
         if (user.getAccountStatus() != AccountStatus.PENDING_ACTIVATION) {
             return ResponseEntity.badRequest().build();

@@ -17,10 +17,12 @@ import com.verygana2.dtos.PhoneChangeRequestDTO;
 import com.verygana2.dtos.PhoneChangeVerifyDTO;
 import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.PhoneNumberChangeService;
+import com.verygana2.services.UserIdResolver;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/users")
@@ -29,32 +31,28 @@ public class UserController {
 
     private final UserService userService;
     private final PhoneNumberChangeService phoneNumberChangeService;
+    private final UserIdResolver userIdResolver;
 
-    //Borrrar
-    @GetMapping
-    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<String> getAllUsers() {
-        return ResponseEntity.ok("Hello, Users! This endpoint is under construction.");
-    }
+    
     @GetMapping("/me")
-    @PreAuthorize("hasAuthority('ROLE_ADMIN2')")
+    @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public String me(@AuthenticationPrincipal Jwt jwt) {
         String subject = jwt.getSubject(); // el "sub"
         String scope = jwt.getClaim("scope"); // tu claim personalizado
-        Long id = jwt.getClaim("userId");
-        return "User: " + subject + ", Roles: " + scope + " Id: " + id;
+        String publicId = jwt.getClaimAsString("publicId");
+        return "User: " + subject + ", Roles: " + scope + " Id: " + publicId;
     }
 
-    // Obtener usuario por id. Devuelve la entidad completa (documento, teléfono,
-    // dirección...), por eso queda restringido a administradores.
-    @GetMapping("/id/{id}")
+    // Obtener usuario por publicId. Devuelve la entidad completa (documento, teléfono,
+    // dirección...), por eso queda restringido a administradores. (no se usa)
+    @GetMapping("/public-id/{publicId}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
-        User foundUser = userService.getUserById(id);
+    public ResponseEntity<User> getUserById(@PathVariable UUID publicId) {
+        User foundUser = userService.getUserById(userIdResolver.toInternalId(publicId));
         return ResponseEntity.ok(foundUser);
     }
 
-    // Obtener usuario por email. Misma exposición de PII que getUserById.
+    // Obtener usuario por email. Misma exposición de PII que getUserById. (no se usa)
     @GetMapping("/email/{email}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
     public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
@@ -62,13 +60,13 @@ public class UserController {
         return ResponseEntity.ok(foundUser);
     }
 
-    // Verificar si un email ya existe
+    // Verificar si un email ya existe (no se usa)
     @GetMapping("/exists/email/{email}")
     public ResponseEntity<Boolean> emailExists(@PathVariable String email) {
         return ResponseEntity.ok(userService.emailExists(email));
     }
 
-    // Verificar si un número de teléfono ya existe
+    // Verificar si un número de teléfono ya existe (no se usa)
     @GetMapping("/exists/phoneNumber/{phoneNumber}")
     public ResponseEntity<Boolean> phoneExists(@PathVariable String phoneNumber) {
         return ResponseEntity.ok(userService.phoneExists(phoneNumber));
@@ -93,10 +91,10 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "Número telefónico actualizado exitosamente."));
     }
 
-    // Borrar un usuario por id
-    @DeleteMapping("/delete/id/{id}")
+    // Borrar un usuario por publicId
+    @DeleteMapping("/delete/public-id/{publicId}")
     @PreAuthorize("hasAuthority('ROLE_ADMIN')")
-    public void deleteById(@PathVariable Long id){
-        userService.deleteById(id);
+    public void deleteById(@PathVariable UUID publicId){
+        userService.deleteById(userIdResolver.toInternalId(publicId));
     }
 }
