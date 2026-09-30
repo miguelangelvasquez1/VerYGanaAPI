@@ -76,6 +76,65 @@ class AdRepositoryConcurrencyIntegrationTest {
         assertExactlyCapWins(4, 12);
     }
 
+    /**
+     * Frontera secuencial: el anuncio NO debe cerrarse antes del último like. Regresión del bug de
+     * orden del {@code SET} en MySQL/MariaDB (cerraba con {@code maxLikes - 1}); H2 no lo reproduce,
+     * pero este test documenta el comportamiento correcto y lo ejerce si se corre contra MySQL.
+     * La guarda estructural está en {@code AdRepositoryIncrementLikeQueryTest}.
+     */
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("maxLikes = 3, likes uno a uno: sigue ACTIVE hasta el tercero, que lo cierra; el cuarto afecta 0 filas")
+    void sequentialLikes_closeExactlyOnTheLastLike() {
+        TransactionTemplate tx = new TransactionTemplate(txManager);
+
+        Long adId = tx.execute(status -> {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Ad ad = Ad.builder()
+                    .title("Anuncio frontera de likes")
+                    .description("Fixture del test de frontera del ultimo like")
+                    .rewardPerLike(100L)
+                    .maxLikes(3)
+                    .currentLikes(0)
+                    .status(AdStatus.ACTIVE)
+                    .createdAt(ZonedDateTime.now())
+                    .commercial(commercial)
+                    .build();
+            em.persist(ad);
+            em.flush();
+            return ad.getId();
+        });
+
+        for (int like = 1; like <= 2; like++) {
+            assertThat(incrementLike(tx, adId))
+                    .as("el like %d debe registrarse", like).isEqualTo(1);
+            em.clear();
+            Ad afterLike = adRepository.findById(adId).orElseThrow();
+            assertThat(afterLike.getCurrentLikes()).isEqualTo(like);
+            assertThat(afterLike.getStatus())
+                    .as("con %d de 3 likes el anuncio debe seguir ACTIVE", like)
+                    .isEqualTo(AdStatus.ACTIVE);
+            assertThat(afterLike.getEndDate()).as("aún no hay fecha de cierre").isNull();
+        }
+
+        assertThat(incrementLike(tx, adId))
+                .as("el último like debe registrarse").isEqualTo(1);
+        em.clear();
+        Ad closed = adRepository.findById(adId).orElseThrow();
+        assertThat(closed.getCurrentLikes()).isEqualTo(3);
+        assertThat(closed.getStatus()).isEqualTo(AdStatus.COMPLETED);
+        assertThat(closed.getEndDate()).as("se fija la fecha real de cierre").isNotNull();
+
+        assertThat(incrementLike(tx, adId))
+                .as("un like extra no debe registrarse").isZero();
+    }
+
+    /** Un like en su propia transacción; devuelve las filas afectadas (1 = registrado, 0 = ya no admitía más). */
+    private int incrementLike(TransactionTemplate tx, Long adId) {
+        Integer rows = tx.execute(s -> adRepository.incrementLikeIfAvailable(adId, ZonedDateTime.now()));
+        return rows == null ? 0 : rows;
+    }
+
     private void assertExactlyCapWins(int maxLikes, int concurrentRequests) throws Exception {
         TransactionTemplate tx = new TransactionTemplate(txManager);
 

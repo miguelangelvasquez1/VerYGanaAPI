@@ -259,7 +259,9 @@ public class R2Service {
             );
 
             long realSize = head.contentLength();
-            SupportedMimeType detectedMime = SupportedMimeType.fromValue(head.contentType());
+            // Un tipo fuera del enum no debe escapar como excepción antes de los delete de
+            // abajo (SupportedMimeType.fromValue lanza): el objeto quedaría en el bucket.
+            SupportedMimeType detectedMime = toSupportedMimeOrNull(head.contentType());
 
             // 1. Validar tamaño máximo absoluto (política)
             if (realSize > maxSizeBytes) {
@@ -279,19 +281,22 @@ public class R2Service {
 
             // 3. Validar content-type almacenado en R2 contra definidos (política)
             if (detectedMime == null || !allowedMimeTypes.contains(detectedMime)) {
-                log.info("realContent: " + detectedMime + ", allowedMime: " + allowedMimeTypes);
+                log.info("storedContentType: {}, allowedMime: {}", head.contentType(), allowedMimeTypes);
                 deleteObject(key);
                 throw new ValidationException(
-                    "Content-Type inválido: " + detectedMime
+                    "Content-Type inválido: " + head.contentType()
                 );
             }
 
-            // 4. Validar content-type REAL (fuente de verdad)
-            SupportedMimeType detectedRealMime = SupportedMimeType.fromValue(detectRealMimeType(key));
-            if (!allowedMimeTypes.contains(detectedRealMime)) {
+            // 4. Validar content-type REAL (fuente de verdad). Si Tika detecta algo que
+            // no está en SupportedMimeType (p. ej. un ejecutable declarado como image/png)
+            // también se borra el objeto, no solo cuando es un tipo soportado pero no permitido.
+            String realMimeRaw = detectRealMimeType(key);
+            SupportedMimeType detectedRealMime = toSupportedMimeOrNull(realMimeRaw);
+            if (detectedRealMime == null || !allowedMimeTypes.contains(detectedRealMime)) {
                 deleteObject(key);
                 throw new ValidationException(
-                    "Content-Type real inválido: " + detectedRealMime
+                    "Content-Type real inválido: " + realMimeRaw
                 );
             }
 
@@ -411,7 +416,26 @@ public class R2Service {
     }
 
     /**
-     * Elimina múltiples objetos (batch delete)
+     * Elimina en batch varios objetos del prefijo privado. Recibe las keys como se guardan en
+     * las filas (sin {@code private/}) y les añade el prefijo, para que el llamador no pueda
+     * olvidarlo.
+     *
+     * @see #deleteObjects(List)
+     */
+    public void deletePrivateObjects(List<String> objectKeys) {
+        if (objectKeys == null || objectKeys.isEmpty()) {
+            return;
+        }
+        deleteObjects(objectKeys.stream().map(key -> PRIVATE_PREFIX + key).toList());
+    }
+
+    /**
+     * Elimina múltiples objetos (batch delete). Las claves se usan tal cual, con su
+     * prefijo {@code private/} o {@code public/}: borrar una clave inexistente no falla
+     * en S3/R2, así que una clave sin prefijo "funciona" sin borrar nada.
+     *
+     * @throws StorageException si R2 reporta que algún objeto no se pudo borrar, para
+     *         que el llamador no dé por borrado (ni elimine sus filas de) lo que sigue en el bucket.
      */
     public void deleteObjects(List<String> objectKeys) {
         if (objectKeys == null || objectKeys.isEmpty()) {
@@ -440,13 +464,17 @@ public class R2Service {
                 DeleteObjectsResponse response = r2Client.deleteObjects(deleteRequest);
 
                 if (response.hasErrors()) {
-                    log.warn("Algunos objetos no se pudieron eliminar: {}", 
+                    log.warn("Algunos objetos no se pudieron eliminar: {}",
                         response.errors());
+                    throw new StorageException("No se pudieron eliminar " + response.errors().size()
+                        + " objeto(s) del batch");
                 }
 
                 log.info("Batch delete completado: {} objetos", batch.size());
             }
 
+        } catch (StorageException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error en batch delete: {}", e.getMessage());
             throw new StorageException("Error eliminando objetos", e);
@@ -631,6 +659,15 @@ public class R2Service {
 
         PresignedGetObjectRequest presignedRequest = r2Presigner.presignGetObject(presignRequest);
         return presignedRequest.url().toString();
+    }
+
+    /** Resuelve el mime a {@link SupportedMimeType}, o {@code null} si no está soportado. */
+    private static SupportedMimeType toSupportedMimeOrNull(String mime) {
+        try {
+            return SupportedMimeType.fromValue(mime);
+        } catch (ValidationException e) {
+            return null;
+        }
     }
 
     /**

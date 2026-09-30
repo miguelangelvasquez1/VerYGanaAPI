@@ -3,9 +3,6 @@ package com.verygana2.models.enums;
 import static org.assertj.core.api.Assertions.assertThat;
 import static com.verygana2.models.enums.AccountStatus.*;
 
-import java.util.EnumSet;
-import java.util.Set;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

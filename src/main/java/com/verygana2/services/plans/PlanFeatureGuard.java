@@ -216,6 +216,20 @@ public class PlanFeatureGuard {
     }
 
     /**
+     * Valida que un activo en estado final (COMPLETED) pueda volver a circulación. Los
+     * estados finales no ocupan cupo del plan (ver {@code countSlotOccupying*}), así que
+     * reabrir uno vuelve a consumir un cupo y hay que verificarlo igual que al crear:
+     * mismo orden que {@link PlanGuardAspect} — límite {@code MAX_*} primero, luego el
+     * bloqueo por cambio de plan en curso.
+     *
+     * @param limitCapability la capacidad {@code MAX_*} del tipo de activo (MAX_ADS, MAX_SURVEYS, MAX_BRANDED_GAMES)
+     */
+    public void assertCanReopen(Long commercialId, RequirePlanCapability.Capability limitCapability) {
+        assertCapability(commercialId, limitCapability);
+        assertNoOpenPlanChangeRequest(commercialId);
+    }
+
+    /**
      * Exige que el comercial tenga presupuesto disponible (STANDARD/PREMIUM con
      * wallet no agotado). BASIC nunca se suspende por presupuesto — no tiene wallet.
      */

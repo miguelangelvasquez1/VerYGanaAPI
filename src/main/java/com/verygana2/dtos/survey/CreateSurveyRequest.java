@@ -3,6 +3,7 @@ package com.verygana2.dtos.survey;
 import java.util.List;
 
 import com.verygana2.models.enums.TargetGender;
+import com.verygana2.utils.validators.MinTargetAge;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -42,7 +43,7 @@ public class CreateSurveyRequest {
  
     private List<String> municipalityCodes;
  
-    @Min(13) private Integer minAge;
+    @MinTargetAge private Integer minAge;
     @Max(100) private Integer maxAge;
  
     private TargetGender targetGender;

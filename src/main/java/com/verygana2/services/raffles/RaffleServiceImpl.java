@@ -69,6 +69,7 @@ import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -94,6 +95,7 @@ public class RaffleServiceImpl implements RaffleService {
     private final ConsumerDetailsService consumerDetailsService;
     private final ClaimCodeEncryptor claimCodeEncryptor;
     private final ObjectMapper objectMapper;
+    private final AssetOrphanedService assetOrphanedService;
 
     private static final String domain = "https://cdn.verygana.com/public/";
 
@@ -188,10 +190,10 @@ public class RaffleServiceImpl implements RaffleService {
                     .build();
 
         } catch (Exception e) {
-            // Si algo falla durante el prepare, marcar los assets ya guardados como
-            // huérfanos
-            log.error("Error during preparation, orphaning {} assets", createdAssetIds.size());
-            orphanRaffleAssets(createdAssetIds);
+            // No hay nada que orfanar: los assets de este prepare se insertaron en esta misma
+            // transacción, que se revierte al relanzar (no queda fila), y como la respuesta
+            // nunca llega al cliente tampoco se le entregó ninguna URL para subir archivos.
+            log.error("Error during preparation, rolling back {} assets", createdAssetIds.size());
             throw e;
         }
     }
@@ -328,12 +330,17 @@ public class RaffleServiceImpl implements RaffleService {
         } catch (Exception e) {
             log.error("Error confirming raffle creation, orphaning assets");
 
-            // Marcar todos los assets involucrados como huérfanos
-            List<Long> assetIdsToOrphan = new ArrayList<>();
-            if (raffleAsset != null)
-                assetIdsToOrphan.add(raffleAsset.getId());
-            prizeAssets.forEach(pa -> assetIdsToOrphan.add(pa.getId()));
-            orphanRaffleAssets(assetIdsToOrphan);
+            // Marcar como huérfanos los assets involucrados, en transacción propia: al relanzar
+            // la excepción esta transacción se revierte y marcarlos aquí mismo se perdería,
+            // dejando las imágenes en R2. AssetOrphanedService solo orfana los que siguen sin
+            // vincular, así que un doble envío del confirm no condena la imagen de una rifa ya creada.
+            if (raffleAsset != null) {
+                assetOrphanedService.markRaffleImageAssetsAsOrphanedByIds(List.of(raffleAsset.getId()));
+            }
+            if (!prizeAssets.isEmpty()) {
+                assetOrphanedService.markPrizeImageAssetsAsOrphanedByIds(
+                        prizeAssets.stream().map(PrizeImageAsset::getId).toList());
+            }
 
             throw e;
         }
@@ -362,36 +369,6 @@ public class RaffleServiceImpl implements RaffleService {
         } catch (Exception e) {
             return false;
         }
-    }
-
-    /**
-     * Marca assets de raffle/prize como huérfanos en caso de error,
-     * para que un job de limpieza los elimine de R2 posteriormente.
-     */
-    private void orphanRaffleAssets(List<Long> raffleAssetIds) {
-        // Marcar RaffleImageAssets
-        raffleAssetIds.forEach(id -> {
-            // Intentar como RaffleImageAsset
-            raffleImageAssetRepository.findById(id).ifPresent(asset -> {
-                asset.setStatus(AssetStatus.ORPHANED);
-                raffleImageAssetRepository.save(asset);
-                try {
-                    r2Service.markAsOrphan(asset.getObjectKey());
-                } catch (Exception ex) {
-                    log.warn("Could not mark R2 object as orphan: {}", asset.getObjectKey());
-                }
-            });
-            // Intentar como PrizeImageAsset
-            prizeImageAssetRepository.findById(id).ifPresent(asset -> {
-                asset.setStatus(AssetStatus.ORPHANED);
-                prizeImageAssetRepository.save(asset);
-                try {
-                    r2Service.markAsOrphan(asset.getObjectKey());
-                } catch (Exception ex) {
-                    log.warn("Could not mark R2 object as orphan: {}", asset.getObjectKey());
-                }
-            });
-        });
     }
 
     private String generateRaffleObjectKey(FileUploadRequestDTO metadata) {

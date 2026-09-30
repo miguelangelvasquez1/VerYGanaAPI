@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
-import java.util.Collections;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -29,13 +28,11 @@ import com.verygana2.services.interfaces.OutboxService;
 import com.verygana2.services.interfaces.PasswordSetupService;
 import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.services.interfaces.TwilioSmsService;
-import com.verygana2.services.interfaces.UserService;
 import com.verygana2.services.interfaces.eligibility.ConsumerEligibilityService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.utils.generators.UserHashGenerator;
-import com.verygana2.services.LocationService;
 
 @ExtendWith(MockitoExtension.class)
 class UserServiceImplDuplicateAccountTest {

@@ -11,6 +11,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.ads.AdAsset;
+import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AssetStatus;
 
 @Repository
@@ -51,4 +52,17 @@ public interface AdAssetRepository extends JpaRepository<AdAsset, Long> {
         @Param("statuses") Collection<AssetStatus> statuses,
         @Param("threshold") ZonedDateTime threshold
     );
+
+    /**
+     * Assets todavía no borrados de R2 cuyo anuncio está en el estado dado. Se usa con
+     * REJECTED: es un estado terminal (ya reembolsado, no se puede editar ni reactivar), así
+     * que su archivo ya no sirve para nada. COMPLETED, en cambio, no se barre: un anuncio
+     * completado puede reabrirse aumentando su presupuesto y necesita su archivo.
+     */
+    @Query("""
+        SELECT a FROM AdAsset a
+        WHERE a.ad.status = :adStatus
+        AND a.status <> com.verygana2.models.enums.AssetStatus.DELETED
+    """)
+    List<AdAsset> findNotDeletedByAdStatus(@Param("adStatus") AdStatus adStatus);
 }

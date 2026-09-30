@@ -5,7 +5,8 @@ Los secretos viven en Infisical, no en el repo. El `.env` local es una copia
 
 **Setup (una vez):**
 1. Pedir acceso al proyecto de Infisical (un admin te agrega en Organization -> Members).
-2. `infisical login`
+2. Instalar: Para Windows `winget install infisical`
+3. `infisical login`
 
 **Generar / actualizar el `.env`:**
 ```
@@ -59,28 +60,19 @@ docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (ca
 - infisical run -- mvn spring-boot:run
 
 
-edicion de cuenta bancaria preguntar a pablo
-- edicion de datos en el perfil con el de disponibilidad de whatsapp, cambiar representante, duplicidad de campos,
-revisar lo de los blocks motivos para los activos, notion
-edad minima a 18 por variable, logs de init, documentar procesos
-revisar sistema de recomendacion(que el compliance vea las respuestas de las preguntas) servicios con otra comision
-revisar tests de helen de surveys
-cambiar el contrato si el compliance cambia la actividad economica
+- preguntar a nestor a donde va lo de las llaves, consolidar contrato, cuando sale verygana?, rep legal revisar al cambiarlo?, que pasa con lo de antecedentes?
+- revisar lo de los blocks motivos para los activos(encuestas, branding_request?, ver error de ads y si se puede desbloquear), notion, probar lo del aumento de presupuesto y historias de impacto
+- logs de init, documentar procesos
+- revisar sistema de recomendacion
+- revisar tests de helen de surveys (pag 97)
+- cambiar el contrato si el compliance cambia la actividad economica
 
 
-- flujo juegos full
-- ver lo de antecedentes.
+- flujo juegos full(puntuaciones) keys per action, completion (formula)
 - flujo de jugar, metricas, casos de juego, etc.
 - timer de saldo para incentivar su uso? cuando saldo 0 no permitir ediciones y cambios de estado?
 
-- aumentar presupuestos de activos?
 - flujo de sesiones y recompensa bien revisar.
-
-- ver que los asstes se borren del cdn.
-- ver que se puede editar o no despues de los contratos
-
-
-- actuator (backend metrics)?
 
 
 grecaptcha.ready(() => {
@@ -90,19 +82,4 @@ grecaptcha.ready(() => {
 });
 
 
-// -------------------------------------------
-Revisé el flujo completo del lado del frontend. Lo bueno: no hay ningún bug ahí — authService.login() y authService.refresh() (en authService.ts) ya usan credentials: 'include' en ambos fetch, y no hay ningún código JS en el repo que toque document.cookie manualmente. La cookie del refresh token es 100% httpOnly y la controla el backend vía Set-Cookie — desde este repo no se "setea" nada de esa cookie.
-
-Encontré algo concreto que sí explica el síntoma:
-
-Dos cookies de sesión totalmente independientes, con vidas distintas:
-
-La sesión de NextAuth (next-auth.session-token) dura 7 días — está hardcodeado en authOptions.ts:63: session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }.
-La cookie httpOnly del refresh token la pone el backend en la respuesta de /auth/login / /auth/refresh, y su duración depende de los atributos Max-Age/Expires que el backend le ponga — algo que no vive en este repo, así que no lo puedo inspeccionar directamente.
-Esto explica exactamente tu síntoma: la app "cree" que seguís logueado por 7 días (gracias a la cookie de NextAuth, que sí sobrevive a cerrar el navegador), pero si la cookie del refresh token del backend no tiene Max-Age/Expires explícito, el navegador la trata como cookie de sesión y la borra al cerrar Chrome del todo — no al cerrar una pestaña, sino al matar el proceso. Al reabrir "en un rato", NextAuth sigue pensando que hay sesión, la app intenta refrescar, pero no hay cookie que mandar (o manda una vacía/vieja) → el backend no encuentra nada que coincida en la BD.
-
-Cómo confirmarlo en 30 segundos:
-
-Logueate, abrí DevTools → Application → Cookies → el dominio de tu backend (localhost:8080 en dev).
-Mirá la columna Expires / Max-Age de la cookie del refresh token. Si dice "Session" en vez de una fecha concreta, ahí está el bug — hay que agregarle Max-Age/Expires (y en cross-origin, también SameSite=None; Secure) del lado del backend al setear esa cookie.
-Como esto lo define el backend al hacer Set-Cookie, no es algo que pueda arreglar desde este repo (frontend). Si me pasás el código del endpoint /auth/login o /auth/refresh del backend (o el repo), reviso la config exacta de la cookie con vos.
+Fórmula: costo = min(maxRewardPerSessionCents, completionRewardCents + puntaje × scoreRewardFactor). La deduje de los nombres de campo y de los seeds de juegos (completar 5000, tope 20000, factor 1, promedio 15000); nadie de negocio la confirmó. Está aislada en calculateSessionRewardCents, por si hay que cambiarla.

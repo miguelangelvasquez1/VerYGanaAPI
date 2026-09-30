@@ -42,6 +42,7 @@ import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
 import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -74,6 +75,7 @@ class RaffleServiceImplTest {
     @Mock private PrizeMapper prizeMapper;
     @Mock private ClaimCodeEncryptor claimCodeEncryptor;
     @Mock private TargetAudienceAssembler targetAudienceAssembler;
+    @Mock private AssetOrphanedService assetOrphanedService;
     @Mock private ConsumerDetailsService consumerDetailsService;
 
     private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
@@ -85,7 +87,8 @@ class RaffleServiceImplTest {
         service = new RaffleServiceImpl(raffleRepository, prizeRepository, ticketEarningRuleRepository,
                 raffleTicketRepository, raffleImageAssetRepository,
                 prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper,
-                targetAudienceAssembler, consumerDetailsService, claimCodeEncryptor, objectMapper);
+                targetAudienceAssembler, consumerDetailsService, claimCodeEncryptor, objectMapper,
+                assetOrphanedService);
     }
 
     private Raffle raffle(Long id, RaffleStatus status) {
@@ -375,6 +378,11 @@ class RaffleServiceImplTest {
                     .isInstanceOf(InvalidRequestException.class);
 
             verify(raffleRepository, never()).save(any());
+            // El marcado va por AssetOrphanedService (REQUIRES_NEW): hecho en la transacción del
+            // confirm se revertiría junto con ella y la imagen quedaría en R2 sin que nada la barra.
+            verify(assetOrphanedService).markRaffleImageAssetsAsOrphanedByIds(List.of(1L));
+            verify(assetOrphanedService, never()).markPrizeImageAssetsAsOrphanedByIds(any());
+            verify(raffleImageAssetRepository, never()).save(any());
         }
 
         @Test

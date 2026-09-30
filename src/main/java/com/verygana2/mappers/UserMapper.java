@@ -156,6 +156,10 @@ public abstract class UserMapper {
     @Mapping(target = "occupation", ignore = true)
     @Mapping(target = "monthlyIncomeRange", ignore = true)
     @Mapping(target = "pep", ignore = true)
+    @Mapping(target = "ageDeclaredAt", ignore = true)
+    @Mapping(target = "birthDate", ignore = true)
+    @Mapping(target = "termsAcceptedAt", ignore = true)
+    @Mapping(target = "termsVersion", ignore = true)
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     public abstract void updateConsumerFromDto(ConsumerUpdateProfileRequestDTO dto, @MappingTarget ConsumerDetails entity);
 
@@ -196,6 +200,8 @@ public abstract class UserMapper {
     @Mapping(target = "annualIncomeRange", ignore = true)
     @Mapping(target = "onboarding", ignore = true)
     @Mapping(target = "commercialActivityType", ignore = true)
+    @Mapping(target = "whatsappAvailable", ignore = true)
+    @Mapping(target = "whatsappNumber", ignore = true)
     public abstract CommercialDetails toCommercialDetails(CommercialRegisterDTO dto);
 
     @Mapping(target = "email", source = "details.user.email")
@@ -226,6 +232,10 @@ public abstract class UserMapper {
     @Mapping(target = "specialNegotiationDetails", ignore = true)
     @Mapping(target = "accepted", ignore = true)
     @Mapping(target = "acceptedAt", ignore = true)
+    @Mapping(target = "grossAmountCents", ignore = true)
+    @Mapping(target = "excludedTaxesCents", ignore = true)
+    @Mapping(target = "benefits", ignore = true)
+    @Mapping(target = "prosperityThresholdCents", ignore = true)
     public abstract PlanSummaryResponseDTO toPlanSummaryResponseDTO (Plan plan);
 
     @Mapping(target = "publicId", source = "user.publicId")

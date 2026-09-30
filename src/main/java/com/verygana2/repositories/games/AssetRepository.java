@@ -1,6 +1,7 @@
 package com.verygana2.repositories.games;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
@@ -32,4 +33,21 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     List<Asset> findByBrandingRequest_Id(Long brandingRequestId);
 
     List<Asset> findByObjectKeyIn(Set<String> urls);
+
+    /**
+     * Assets de campaña en los estados dados y más viejos que el umbral. Se usa con PENDING:
+     * el diseñador pidió la URL de subida y nunca confirmó. A diferencia de otros assets no
+     * hay un padre contra el cual comprobar "sin vincular" (la relación con la solicitud de
+     * branding es opcional y no indica uso), pero el flujo siempre confirma justo después de
+     * subir, así que un PENDING vencido es una subida abandonada.
+     */
+    @Query("""
+        SELECT a FROM Asset a
+        WHERE a.status IN :statuses
+        AND a.createdAt < :threshold
+    """)
+    List<Asset> findStaleAssets(
+        @Param("statuses") Collection<AssetStatus> statuses,
+        @Param("threshold") ZonedDateTime threshold
+    );
 }

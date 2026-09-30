@@ -24,9 +24,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.survey.AvailableSurveyDTO;
 import com.verygana2.dtos.survey.CreateSurveyRequest;
+import com.verygana2.dtos.survey.IncreaseSurveyBudgetRequest;
 import com.verygana2.dtos.survey.SurveyDetailDTO;
 import com.verygana2.dtos.survey.StartSurveyResponse;
 import com.verygana2.dtos.survey.SurveyAdminDetailDTO;
@@ -96,6 +98,21 @@ public class SurveyController {
             @AuthenticationPrincipal Jwt jwt) {
 
         return ResponseEntity.ok(surveyService.publishSurvey(surveyId, jwt.getClaim("userId")));
+    }
+
+    /**
+     * Compra más cupos de respuesta (al mismo precio por pregunta) para una encuesta ACTIVE, PAUSED
+     * o COMPLETED y cobra de la wallet. Una encuesta COMPLETED se reabre. POST porque no es
+     * idempotente: cada llamada cobra.
+     */
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    @PostMapping("/{surveyId}/increase-budget")
+    public ResponseEntity<BudgetIncreaseResponseDTO> increaseSurveyBudget(
+            @PathVariable Long surveyId,
+            @Valid @RequestBody IncreaseSurveyBudgetRequest request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(surveyService.increaseSurveyBudget(surveyId, request, jwt.getClaim("userId")));
     }
 
     @PreAuthorize("hasRole('COMMERCIAL')")

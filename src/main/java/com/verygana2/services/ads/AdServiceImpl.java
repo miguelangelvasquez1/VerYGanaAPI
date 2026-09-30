@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -20,17 +21,20 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.requests.IncreaseAdBudgetRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
 import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
+import com.verygana2.exceptions.StaleBudgetException;
 import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
@@ -57,6 +61,7 @@ import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.plans.PlanFeatureGuard;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
@@ -94,6 +99,7 @@ public class AdServiceImpl implements AdService {
     private final AssetDurationService mediaMetadataService;
     private final PricingConfigService pricingConfigService;
     private final NotificationService notificationService;
+    private final PlanFeatureGuard planFeatureGuard;
 
     /**
      * Ventana de validez de una cotización de análisis. Se reutiliza el TTL del job
@@ -482,9 +488,13 @@ public class AdServiceImpl implements AdService {
             .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
 
         AdResponseDTO dto = adMapper.toDto(ad);
-        dto.setContentUrl(
-            r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
-        );
+        // Un anuncio rechazado ya no conserva su archivo (OrphanedAssetsCleanupJob#cleanupRejectedAdAssets):
+        // una URL prefirmada apuntaría a un objeto borrado.
+        if (ad.getStatus() != AdStatus.REJECTED) {
+            dto.setContentUrl(
+                r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 200)
+            );
+        }
 
         return dto;
     }
@@ -543,6 +553,115 @@ public class AdServiceImpl implements AdService {
         responseDto.setContentUrl(resolveContentUrl(savedAd));
 
         return responseDto;
+    }
+
+    // ==================== Aumento de presupuesto ====================
+
+    /**
+     * Estados en los que un anuncio admite aumento de presupuesto: los que ya están en su ciclo de
+     * vida activo. Quedan fuera los previos a publicación (PENDING/APPROVED — el monto se fijó y
+     * moderó al crearlo), REJECTED (terminal, ya reembolsado) y BLOCKED (moderación de un admin).
+     */
+    private static final Set<AdStatus> BUDGET_INCREASE_STATUSES =
+            EnumSet.of(AdStatus.ACTIVE, AdStatus.PAUSED, AdStatus.COMPLETED);
+
+    /** Tope de likes de un anuncio — el mismo de {@code CreateAdRequestDTO#maxLikes} y {@code Ad#maxLikes}. */
+    private static final int MAX_LIKES_LIMIT = 10_000_000;
+
+    /**
+     * Compra {@code additionalLikes} likes más para un anuncio, al mismo {@code rewardPerLike} con
+     * el que se creó, y descuenta el costo de la wallet. Como el presupuesto del anuncio es
+     * {@code rewardPerLike * maxLikes}, subir {@code maxLikes} es subir el presupuesto.
+     *
+     * <p>Un anuncio COMPLETED (se quedó sin likes) se reabre: vuelve a ACTIVE y se limpia su
+     * {@code endDate}, que en anuncios solo es la fecha real de cierre. Como los COMPLETED no
+     * ocupan cupo del plan, reabrirlo exige que quede cupo {@code MAX_ADS}. ACTIVE y PAUSED
+     * conservan su estado.
+     *
+     * <p>Además del estado y el cupo, exige que (1) {@code expectedMaxLikes} coincida con el
+     * {@code maxLikes} actual —anti doble cobro: 409 {@link StaleBudgetException} si otro aumento
+     * ya se aplicó— y (2) el {@code rewardPerLike} del anuncio siga siendo ≥ al mínimo vigente
+     * (costo por segundo de hoy); si no, hay que crear un anuncio nuevo.
+     *
+     * <p>Toma lock pesimista sobre el anuncio y sobre la wallet. Todas las validaciones y el
+     * cobro ocurren antes de mutar el anuncio, así que un fallo (saldo insuficiente, sin cupo)
+     * no deja nada a medias.
+     */
+    @Override
+    @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_ADVERTISE})
+    @RetryOnConcurrencyConflict
+    public BudgetIncreaseResponseDTO increaseAdBudget(Long adId, IncreaseAdBudgetRequestDTO request, Long commercialId) {
+        Ad ad = adRepository.findByIdAndCommercialIdForUpdate(adId, commercialId)
+                .orElseThrow(() -> new AdNotFoundException("Anuncio no encontrado"));
+
+        // Anti doble cobro: maxLikes solo lo cambia un aumento, así que si ya no coincide con lo que
+        // el cliente vio, otro aumento (doble clic, reintento, otra pestaña) se aplicó primero.
+        // Se compara ya con la fila bloqueada, por lo que dos envíos simultáneos no pasan ambos.
+        if (!ad.getMaxLikes().equals(request.getExpectedMaxLikes())) {
+            throw new StaleBudgetException(String.format(
+                    "El presupuesto del anuncio cambió: ahora permite %d likes y esperabas %d. Puede que el "
+                            + "aumento ya se haya aplicado; actualiza la información y vuelve a intentarlo.",
+                    ad.getMaxLikes(), request.getExpectedMaxLikes()));
+        }
+
+        if (!BUDGET_INCREASE_STATUSES.contains(ad.getStatus())) {
+            throw new InvalidAdStateException(
+                    "Solo se puede aumentar el presupuesto de anuncios activos, pausados o completados. Estado actual: "
+                            + ad.getStatus());
+        }
+
+        // El aumento compra likes al precio con el que se creó el anuncio. Si el mínimo por like subió
+        // desde entonces, ese precio ya no es válido para vender más likes: se exige un anuncio nuevo.
+        long minPricePerLike = currentMinPricePerLikeCents(ad);
+        if (ad.getRewardPerLike() < minPricePerLike) {
+            throw new ValidationException(String.format(
+                    "El precio por like de este anuncio (%d ¢) está por debajo del mínimo vigente (%d ¢), así que "
+                            + "ya no admite más likes. Crea un anuncio nuevo con el precio actual.",
+                    ad.getRewardPerLike(), minPricePerLike));
+        }
+
+        long additionalLikes = request.getAdditionalLikes();
+        long newMaxLikes = ad.getMaxLikes().longValue() + additionalLikes;
+        if (newMaxLikes > MAX_LIKES_LIMIT) {
+            throw new ValidationException(String.format(
+                    "Un anuncio no puede superar %d likes en total (actual: %d, solicitados: %d)",
+                    MAX_LIKES_LIMIT, ad.getMaxLikes(), additionalLikes));
+        }
+
+        boolean reopening = ad.getStatus() == AdStatus.COMPLETED;
+        if (reopening) {
+            planFeatureGuard.assertCanReopen(commercialId, RequirePlanCapability.Capability.MAX_ADS);
+        }
+
+        // rewardPerLike <= 100.000 y additionalLikes <= 10.000.000: cabe de sobra en un long.
+        long chargedCents = ad.getRewardPerLike() * additionalLikes;
+
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+        wallet.consume(chargedCents);
+        walletRepository.save(wallet);
+
+        ad.setMaxLikes((int) newMaxLikes);
+        if (reopening) {
+            ad.setStatus(AdStatus.ACTIVE);
+            ad.setEndDate(null);
+        }
+        ad.setUpdatedAt(ZonedDateTime.now(clock));
+        adRepository.save(ad);
+
+        log.info("Ad {} budget increased by {} likes ({} ¢) for commercial {}{}",
+                adId, additionalLikes, chargedCents, commercialId, reopening ? " — reopened from COMPLETED" : "");
+
+        return BudgetIncreaseResponseDTO.builder()
+                .assetId(ad.getId())
+                .chargedCents(chargedCents)
+                .totalBudgetCents(ad.getTotalBudget())
+                .remainingBudgetCents(ad.getRemainingBudget())
+                .status(ad.getStatus().name())
+                .reopened(reopening)
+                .walletBalanceCents(wallet.getBalanceCents())
+                .build();
     }
 
     // ==================== Gestión de Estado (Admin) ====================
@@ -898,6 +1017,22 @@ public class AdServiceImpl implements AdService {
     }
 
     /**
+     * Mínimo por like que hoy se le exigiría a este anuncio: la misma fórmula de
+     * {@link #analyzeAsset} / {@link #createAdWithAsset}, con el costo por segundo VIGENTE y los
+     * segundos facturables ya persistidos en su asset. A diferencia de la cotización congelada
+     * ({@code AdAsset#minPricePerLikeCents}), esta refleja cambios de precio posteriores a la creación.
+     */
+    private long currentMinPricePerLikeCents(Ad ad) {
+        AdAsset asset = ad.getAsset();
+        if (asset == null || asset.getDurationSeconds() == null) {
+            throw new InvalidAdStateException(
+                    "El anuncio no tiene un archivo analizado, así que no se puede validar su precio mínimo");
+        }
+        long costPerSecondCents = pricingConfigService.getCurrentValue(PricingConfig.PricingType.AD_COST_PER_SECOND_CENTS);
+        return minPricePerLikeCents(asset.getDurationSeconds(), costPerSecondCents);
+    }
+
+    /**
      * Rounds a value up to the nearest multiple of 10.
      * Examples: 0→0, 1→10, 10→10, 11→20, 35→40
      */
@@ -922,8 +1057,11 @@ public class AdServiceImpl implements AdService {
             return null;
         }
         switch (ad.getStatus()) {
-            case PENDING:
             case REJECTED:
+                // Terminal: el archivo se borra de R2 en el barrido de anuncios rechazados
+                // (OrphanedAssetsCleanupJob#cleanupRejectedAdAssets), así que no hay nada que servir.
+                return null;
+            case PENDING:
                 return r2Service.getPrivateObject(ad.getAsset().getObjectKey(), 300);
             case BLOCKED:
                 // El asset vuelve a ser privado al bloquear: se entrega una URL

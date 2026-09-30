@@ -191,6 +191,10 @@ app:
   base-url: ${APP_BASE_URL}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
+  # Orígenes permitidos para CORS y WebSocket (/ws). Lista separada por comas, sin "/" final.
+  # Sin default a propósito: si falta la variable la app no arranca, en vez de abrirse a todos.
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   product-code:

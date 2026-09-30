@@ -14,12 +14,17 @@ import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.finance.PayoutMethodCertificateAsset;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 import com.verygana2.models.marketplace.ProductImageAsset;
+import com.verygana2.models.raffles.PrizeImageAsset;
+import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.repositories.AdAssetRepository;
 import com.verygana2.repositories.StoryMediaAssetRepository;
+import com.verygana2.repositories.branding.CorporateResourceRepository;
 import com.verygana2.repositories.finance.PayoutMethodCertificateAssetRepository;
 import com.verygana2.repositories.games.AssetRepository;
 import com.verygana2.repositories.marketplace.ProductCategoryImageAssetRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
+import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
+import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -35,13 +40,84 @@ public class AssetOrphanedService {
     private final ProductImageAssetRepository productImageAssetRepository;
     private final ProductCategoryImageAssetRepository productCategoryImageAssetRepository;
     private final PayoutMethodCertificateAssetRepository payoutMethodCertificateAssetRepository;
+    private final RaffleImageAssetRepository raffleImageAssetRepository;
+    private final PrizeImageAssetRepository prizeImageAssetRepository;
+    private final CorporateResourceRepository corporateResourceRepository;
 
-    // Hacer el del foro
+    /**
+     * Para media de historias de impacto que quedó sin claim (falló la creación de la historia).
+     *
+     * <p>Solo orfana lo que sigue sin vincular ({@code impactStory == null}): si el llamador
+     * reintenta o envía dos veces la misma petición, el segundo intento falla al validar el
+     * asset ya reclamado y, sin esta guarda, condenaría al borrado la media de una historia
+     * viva. Borrar una historia (media ya vinculada) no pasa por aquí sino por
+     * {@code StoryMediaAssetService#markOrphaned}.
+     *
+     * <p>REQUIRES_NEW: se invoca desde un catch cuya transacción se revierte al relanzar la
+     * excepción; en la misma transacción el marcado se perdería y el archivo quedaría en R2.
+     */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void markAsOrphanedImpactStoryAsset(Long assetId) {
-        storyMediaAssetRepository.findById(assetId).ifPresent(asset -> {
-            asset.setStatus(StoryMediaAsset.MediaAssetStatus.DELETED);
-            storyMediaAssetRepository.save(asset);
+    public void markImpactStoryAssetsAsOrphanedByIds(Collection<Long> assetIds) {
+
+        List<StoryMediaAsset> assets = storyMediaAssetRepository.findAllById(Objects.requireNonNull(assetIds));
+        for (StoryMediaAsset asset : assets) {
+            if (asset.getImpactStory() == null
+                    && (asset.getStatus() == StoryMediaAsset.MediaAssetStatus.PENDING
+                        || asset.getStatus() == StoryMediaAsset.MediaAssetStatus.VALIDATED)) {
+
+                asset.setStatus(StoryMediaAsset.MediaAssetStatus.ORPHANED);
+            }
+        }
+    }
+
+    /**
+     * Para la imagen de portada de una rifa cuya confirmación falló. Solo orfana lo que sigue
+     * sin vincular a una rifa (ver {@link #markImpactStoryAssetsAsOrphanedByIds} para el porqué
+     * de la guarda y de REQUIRES_NEW).
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markRaffleImageAssetsAsOrphanedByIds(Collection<Long> assetIds) {
+
+        List<RaffleImageAsset> assets = raffleImageAssetRepository.findAllById(Objects.requireNonNull(assetIds));
+        for (RaffleImageAsset asset : assets) {
+            if (asset.getRaffle() == null
+                    && (asset.getStatus() == AssetStatus.PENDING || asset.getStatus() == AssetStatus.VALIDATED)) {
+
+                asset.setStatus(AssetStatus.ORPHANED);
+            }
+        }
+    }
+
+    /**
+     * Para las imágenes de premios de una rifa cuya confirmación falló. Misma guarda que
+     * {@link #markRaffleImageAssetsAsOrphanedByIds}.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markPrizeImageAssetsAsOrphanedByIds(Collection<Long> assetIds) {
+
+        List<PrizeImageAsset> assets = prizeImageAssetRepository.findAllById(Objects.requireNonNull(assetIds));
+        for (PrizeImageAsset asset : assets) {
+            if (asset.getPrize() == null
+                    && (asset.getStatus() == AssetStatus.PENDING || asset.getStatus() == AssetStatus.VALIDATED)) {
+
+                asset.setStatus(AssetStatus.ORPHANED);
+            }
+        }
+    }
+
+    /**
+     * Para recursos corporativos cuya confirmación de subida falló. A diferencia de los demás
+     * assets, un recurso nace ya vinculado a su solicitud de branding, así que la guarda es el
+     * estado: solo un PENDING (nunca confirmado) puede orfanarse; uno VALIDATED es un archivo
+     * en uso por la solicitud.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void markCorporateResourceAsOrphaned(Long resourceId) {
+
+        corporateResourceRepository.findById(Objects.requireNonNull(resourceId)).ifPresent(resource -> {
+            if (resource.getStatus() == AssetStatus.PENDING) {
+                resource.markAsOrphan();
+            }
         });
     }
 

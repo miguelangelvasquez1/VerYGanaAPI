@@ -74,6 +74,17 @@ public class CommercialDetails extends UserDetails {
     @Column(name = "annual_income_range", length = 30)
     private AnnualRevenueRange annualIncomeRange;
 
+    // ===== CONTACTO WHATSAPP =====
+    // Editables desde la edición de perfil (ver CommercialDetailsServiceImpl#updateCommercialProfile).
+    // whatsappNumber se limpia a null cuando whatsappAvailable pasa a false, para no dejar
+    // un número obsoleto mostrándose como disponible.
+
+    @Column(name = "whatsapp_available", nullable = false)
+    private boolean whatsappAvailable = false;
+
+    @Column(name = "whatsapp_number", length = 20)
+    private String whatsappNumber;
+
     // ===== LOCATION =====
 
     @ManyToOne(fetch = FetchType.LAZY)

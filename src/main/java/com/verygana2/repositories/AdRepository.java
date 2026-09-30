@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +20,8 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
+
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationExecutor<Ad> {
@@ -31,6 +34,16 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
        List<Ad> findAllByCommercialId(@Param("commercialId") Long commercialId);
 
        Optional<Ad> findByIdAndCommercialId(Long id, Long commercialId);
+
+       /**
+        * Igual que {@link #findByIdAndCommercialId} pero con {@code SELECT … FOR UPDATE}. Lo usa el
+        * aumento de presupuesto, que es un read-modify-write sobre {@code maxLikes}/{@code status}:
+        * el lock serializa contra otro aumento y hace que los UPDATE atómicos de
+        * {@link #incrementLikeIfAvailable} esperen al commit en vez de pisarse con el cambio.
+        */
+       @Lock(LockModeType.PESSIMISTIC_WRITE)
+       @Query("SELECT a FROM Ad a WHERE a.id = :id AND a.commercial.id = :commercialId")
+       Optional<Ad> findByIdAndCommercialIdForUpdate(@Param("id") Long id, @Param("commercialId") Long commercialId);
 
        List<Ad> findByStatus(AdStatus status);
 
@@ -89,13 +102,23 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
         * (aprobación, pausa, agotamiento de presupuesto) siga detectando el
         * conflicto.
         *
+        * <p><b>El orden del {@code SET} importa.</b> MySQL/MariaDB evalúan las
+        * asignaciones de izquierda a derecha usando los valores YA actualizados
+        * (PostgreSQL y H2 usan los originales). Si {@code currentLikes = currentLikes + 1}
+        * va primero, los {@code CASE} siguientes ven el contador ya incrementado y
+        * el anuncio pasaba a COMPLETED con un like de menos (con 9 de 10 likes ya
+        * quedaba cerrado y el último no se podía registrar). Por eso {@code status} y
+        * {@code endDate} van ANTES del contador: así leen el valor original en ambos
+        * motores. Verificado contra MariaDB 10.4; ver
+        * {@code AdRepositoryIncrementLikeQueryTest}. Al agregar asignaciones a esta
+        * sentencia, toda columna derivada de {@code currentLikes} debe ir antes de él.
+        *
         * @return 1 si el like se registró, 0 si el anuncio ya no admitía más likes
         */
        @Modifying(flushAutomatically = true)
        @Query("""
               UPDATE VERSIONED Ad a
-                 SET a.currentLikes = a.currentLikes + 1,
-                     a.status = CASE
+                 SET a.status = CASE
                             WHEN a.currentLikes + 1 >= a.maxLikes
                             THEN com.verygana2.models.enums.AdStatus.COMPLETED
                             ELSE a.status END,
@@ -103,7 +126,8 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                             WHEN a.currentLikes + 1 >= a.maxLikes
                             THEN :now
                             ELSE a.endDate END,
-                     a.updatedAt = :now
+                     a.updatedAt = :now,
+                     a.currentLikes = a.currentLikes + 1
                WHERE a.id = :adId
                  AND a.status = com.verygana2.models.enums.AdStatus.ACTIVE
                  AND a.currentLikes < a.maxLikes

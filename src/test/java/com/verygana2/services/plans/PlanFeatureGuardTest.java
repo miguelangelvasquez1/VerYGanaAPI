@@ -14,6 +14,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.BrandingRequestStatus;
+import com.verygana2.models.commercial.PlanChangeRequest;
 import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.finance.plans.EffectivePlanState;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
@@ -33,6 +34,7 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -262,6 +264,50 @@ class PlanFeatureGuardTest {
             mockState(baseState().budgetSuspended(false).build());
 
             assertThatCode(() -> guard.assertBudgetAvailable(COMMERCIAL_ID)).doesNotThrowAnyException();
+        }
+    }
+
+    // ─── assertCanReopen ────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("assertCanReopen (reabrir un activo COMPLETED)")
+    class AssertCanReopen {
+
+        private void mockAdCount(long count) {
+            when(adRepository.countByCommercialIdAndStatusNotIn(eq(COMMERCIAL_ID),
+                    eq(List.of(AdStatus.REJECTED, AdStatus.COMPLETED)))).thenReturn(count);
+        }
+
+        @Test
+        @DisplayName("con cupo y sin cambio de plan en curso: no lanza")
+        void withSlot_doesNotThrow() {
+            mockState(baseState().maxAds(5).build());
+            mockAdCount(4L);
+
+            assertThatCode(() -> guard.assertCanReopen(COMMERCIAL_ID, Capability.MAX_ADS)).doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("sin cupo (conteo == máximo): lanza PlanCapabilityException — reabrir vuelve a ocupar un cupo")
+        void atLimit_throws() {
+            mockState(baseState().maxAds(5).build());
+            mockAdCount(5L);
+
+            assertThatThrownBy(() -> guard.assertCanReopen(COMMERCIAL_ID, Capability.MAX_ADS))
+                    .isInstanceOf(PlanCapabilityException.class);
+        }
+
+        @Test
+        @DisplayName("con cupo pero con solicitud de cambio de plan abierta: lanza PlanCapabilityException")
+        void openPlanChangeRequest_throws() {
+            mockState(baseState().maxSurveys(5).build());
+            when(surveyRepository.countByCreatorIdAndStatusNotIn(eq(COMMERCIAL_ID),
+                    eq(List.of(SurveyStatus.REJECTED, SurveyStatus.COMPLETED)))).thenReturn(1L);
+            when(planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(eq(COMMERCIAL_ID), any()))
+                    .thenReturn(List.of(mock(PlanChangeRequest.class)));
+
+            assertThatThrownBy(() -> guard.assertCanReopen(COMMERCIAL_ID, Capability.MAX_SURVEYS))
+                    .isInstanceOf(PlanCapabilityException.class);
         }
     }
 

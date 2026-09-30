@@ -3,7 +3,6 @@ package com.verygana2.config;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.context.annotation.Bean;
@@ -32,9 +31,6 @@ import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
@@ -66,7 +62,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, UserIdResolver userIdResolver) throws Exception {
         
         return http
-                    .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                    .cors(Customizer.withDefaults()) //Usa el bean corsConfigurationSource de CorsConfig
                     .csrf(csrf -> {
                         csrf.disable();
                         csrf.ignoringRequestMatchers("/api/webhooks/**");
@@ -80,22 +76,6 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler()))
                     .httpBasic(Customizer.withDefaults())
                     .build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
-        // configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:8081", "https://games.verygana.com"));
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type", "Upgrade", "Connection"));
-        configuration.setAllowCredentials(true); // Necesario para cookies
-        configuration.setExposedHeaders(List.of("Set-Cookie"));
-        configuration.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
     }
 
     @Bean

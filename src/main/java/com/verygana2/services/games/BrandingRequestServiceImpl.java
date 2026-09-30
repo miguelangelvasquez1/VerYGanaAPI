@@ -62,6 +62,7 @@ import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.services.interfaces.NotificationService;
 import com.verygana2.services.plans.BudgetService;
+import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetingValidator;
 
@@ -98,6 +99,7 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
     private final CategoryService categoryService;
     private final TargetingValidator targetingValidator;
     private final R2Service r2Service;
+    private final AssetOrphanedService assetOrphanedService;
     private final BrandingMapper brandingMapper;
     private final GameService gameService;
     private final EmailService emailService;
@@ -225,17 +227,24 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
         }
 
         List<CorporateResource> resources = request.getCorporateResources();
+        // Los recursos se suben con isPrivate=true (generateResourceUploadUrl), o sea a
+        // "private/<key>"; deletePrivateObjects añade el prefijo. Antes se borraban las keys
+        // sin prefijo: R2 no falla al borrar una key inexistente, así que no se borraba nada y
+        // luego se eliminaban las filas, dejando los archivos huérfanos sin ninguna referencia.
+        List<String> objectKeys = resources.stream()
+            .map(CorporateResource::getObjectKey)
+            .collect(Collectors.toList());
         if (!resources.isEmpty()) {
-            List<String> objectKeys = resources.stream()
-                .map(CorporateResource::getObjectKey)
-                .collect(Collectors.toList());
-            r2Service.deleteObjects(objectKeys);
             corporateResourceRepository.deleteAll(resources);
         }
 
         refundBudget(request);
 
         request.setStatus(BrandingRequestStatus.CANCELLED);
+
+        // R2 al final: si falla (lanza StorageException) se revierte toda la cancelación y el
+        // usuario puede reintentar, en vez de perder las filas y dejar los archivos sin dueño.
+        r2Service.deletePrivateObjects(objectKeys);
 
         log.info("BrandingRequest {} cancelled by commercial user {}", requestId, userId);
     }
@@ -553,8 +562,9 @@ public class BrandingRequestServiceImpl implements BrandingRequestService {
             log.info("CorporateResource {} validated for BrandingRequest {}", resource.getId(), requestId);
 
         } catch (Exception e) {
-            resource.markAsOrphan();
-            corporateResourceRepository.save(resource);
+            // En transacción propia (REQUIRES_NEW): la de este método se revierte al relanzar
+            // la excepción, y marcarlo aquí mismo se perdería dejando el archivo en R2.
+            assetOrphanedService.markCorporateResourceAsOrphaned(resource.getId());
             log.error("CorporateResource {} orphaned: {}", resource.getId(), e.getMessage());
             throw e;
         }

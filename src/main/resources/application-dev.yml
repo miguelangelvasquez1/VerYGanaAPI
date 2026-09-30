@@ -297,6 +297,10 @@ payment:
 # ============================================
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  # Orígenes permitidos para CORS y WebSocket (/ws). Lista separada por comas, sin "/" final.
+  # Admite patrones: https://*.verygana.com
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8081,https://games.verygana.com}
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
     expiration-hours: ${GD_PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}

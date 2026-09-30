@@ -2,19 +2,23 @@ package com.verygana2.controllers;
 
 import java.util.List;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.game.campaign.CampaignDTO;
 import com.verygana2.dtos.game.campaign.CampaignSummaryDTO;
+import com.verygana2.dtos.game.campaign.IncreaseCampaignBudgetRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignStatusRequest;
 import com.verygana2.services.interfaces.CampaignService;
@@ -70,5 +74,19 @@ public class CampaignController {
         service.updateCampaign(campaignId, userId, request);
 
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Suma presupuesto a una campaña ACTIVE, PAUSED o COMPLETED (cobra de la wallet). Una
+     * campaña COMPLETED se reabre. POST porque no es idempotente: cada llamada cobra.
+     */
+    @PostMapping("/{campaignId}/increase-budget")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<BudgetIncreaseResponseDTO> increaseCampaignBudget(
+            @PathVariable Long campaignId,
+            @RequestBody @Valid IncreaseCampaignBudgetRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        return ResponseEntity.ok(service.increaseCampaignBudget(campaignId, jwt.getClaim("userId"), request));
     }
 }
