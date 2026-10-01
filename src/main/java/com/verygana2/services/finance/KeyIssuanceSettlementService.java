@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.models.records.IssuanceTotals;
 import com.verygana2.repositories.AdLikeRepository;
+import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 
@@ -23,8 +24,8 @@ import lombok.extern.slf4j.Slf4j;
  * cada liquidación toma lock pesimista sobre KEYS_RESERVE y OPERATIONS. Hacerlo
  * dentro del like serializaba TODOS los likes de la plataforma contra dos filas
  * globales, y los likes son el evento de dinero más frecuente de la app. El
- * diferencial no se pierde: AdLike y SurveyReward ya guardan lo financiado y lo
- * acreditado por fila, así que el job lo reconstruye sumando.
+ * diferencial no se pierde: AdLike, SurveyReward y GameSession ya guardan lo
+ * financiado y lo acreditado por fila, así que el job lo reconstruye sumando.
  *
  * El corte (cutoff) se toma una vez y se usa tanto para sumar como para marcar,
  * de modo que una interacción que entre mientras el job corre queda para el
@@ -37,6 +38,7 @@ public class KeyIssuanceSettlementService {
 
     private final AdLikeRepository adLikeRepository;
     private final SurveyRewardRepository surveyRewardRepository;
+    private final GameSessionRepository gameSessionRepository;
     private final TreasuryService treasuryService;
     private final Clock clock;
 
@@ -47,6 +49,7 @@ public class KeyIssuanceSettlementService {
 
         settleAdLikes(cutoff, batchId);
         settleSurveyRewards(cutoff, batchId);
+        settleGameSessions(cutoff, batchId);
     }
 
     private void settleAdLikes(ZonedDateTime cutoff, UUID batchId) {
@@ -76,6 +79,21 @@ public class KeyIssuanceSettlementService {
         int marked = surveyRewardRepository.markIssuanceSettled(cutoff);
 
         log.info("[ISSUANCE-SETTLEMENT] Encuestas: {} filas, financiado={} acreditado={} delta={} batch={}",
+                marked, totals.fundedCents(), totals.creditedCents(), totals.deltaCents(), batchId);
+    }
+
+    private void settleGameSessions(ZonedDateTime cutoff, UUID batchId) {
+        IssuanceTotals totals = gameSessionRepository.sumUnsettledIssuance(cutoff);
+        if (totals == null || totals.isEmpty()) {
+            log.debug("[ISSUANCE-SETTLEMENT] Sin sesiones de juego pendientes de liquidar.");
+            return;
+        }
+
+        treasuryService.settleKeyIssuance(
+                totals.fundedCents(), totals.creditedCents(), batchId, "GAME_SESSION_BATCH");
+        int marked = gameSessionRepository.markIssuanceSettled(cutoff);
+
+        log.info("[ISSUANCE-SETTLEMENT] Juegos: {} filas, financiado={} acreditado={} delta={} batch={}",
                 marked, totals.fundedCents(), totals.creditedCents(), totals.deltaCents(), batchId);
     }
 }

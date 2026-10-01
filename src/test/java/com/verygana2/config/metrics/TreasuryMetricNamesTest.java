@@ -21,6 +21,7 @@ import com.verygana2.models.records.IssuanceTotals;
 import com.verygana2.models.records.KeyBacking;
 import com.verygana2.models.records.TreasurySnapshot;
 import com.verygana2.repositories.AdLikeRepository;
+import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.services.finance.KeyBackingCalculator;
 import com.verygana2.services.interfaces.finance.TreasuryService;
@@ -61,9 +62,10 @@ class TreasuryMetricNamesTest {
         KeyBackingCalculator calculator = Mockito.mock(KeyBackingCalculator.class);
         AdLikeRepository adLikeRepository = Mockito.mock(AdLikeRepository.class);
         SurveyRewardRepository surveyRewardRepository = Mockito.mock(SurveyRewardRepository.class);
+        GameSessionRepository gameSessionRepository = Mockito.mock(GameSessionRepository.class);
 
         when(treasuryService.getSnapshot())
-                .thenReturn(new TreasurySnapshot(10_000L, 0L, 0L, 0L, 10_000L));
+                .thenReturn(new TreasurySnapshot(10_000L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 10_000L));
         when(calculator.compute(anyLong()))
                 .thenReturn(new KeyBacking(10_000L, 8_000L, 1_000L, 500L, 200L, 200L, 100L));
         when(adLikeRepository.sumUnsettledIssuance(any())).thenReturn(new IssuanceTotals(1_000L, 700L));
@@ -71,7 +73,7 @@ class TreasuryMetricNamesTest {
 
         TreasuryMetrics metrics = new TreasuryMetrics(
                 registry, treasuryService, calculator,
-                adLikeRepository, surveyRewardRepository,
+                adLikeRepository, surveyRewardRepository, gameSessionRepository,
                 Clock.fixed(Instant.parse("2026-09-16T10:00:00Z"), ZoneOffset.UTC));
 
         metrics.registerGauges();

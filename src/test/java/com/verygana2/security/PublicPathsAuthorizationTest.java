@@ -52,6 +52,9 @@ class PublicPathsAuthorizationTest {
     @MockitoBean
     private CustomUserDetailsService customUserDetailsService;
 
+    @MockitoBean
+    private com.verygana2.services.interfaces.PhoneNumberChangeService phoneNumberChangeService;
+
     /** Lo exige el FeatureFlagInterceptor que @WebMvcTest registra por ser WebMvcConfigurer. */
     @MockitoBean
     private FeatureFlagService featureFlagService;
@@ -110,6 +113,25 @@ class PublicPathsAuthorizationTest {
         void emailExistsStaysPublic() {
             assertThat(mvc.get().uri("/users/exists/email/alguien@test.com"))
                     .hasStatusOk();
+        }
+    }
+
+    @Nested
+    @DisplayName("rutas que llama el juego desde el iframe (sin JWT)")
+    class GameIframePaths {
+
+        /**
+         * El iframe del juego no tiene JWT. Si la cadena exigiera token, la partida nunca
+         * se cerraría: ni llaves ni XP para el jugador. GameController no está registrado
+         * en este slice, así que pasar la cadena se ve como 404, no como 401.
+         */
+        @Test
+        @DisplayName("POST /games/end-session pasa la cadena de seguridad sin token")
+        void endSessionIsReachableWithoutToken() {
+            assertThat(mvc.post().uri("/games/end-session")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                    .hasStatus(HttpStatus.NOT_FOUND);
         }
     }
 

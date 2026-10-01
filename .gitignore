@@ -52,3 +52,6 @@ monitoring/**/*.secret
 .env
 src/test/java/com/verygana2/http/
 test-security.sh
+AGENTS.md
+CLAUDE.local.md
+/docs/constitution.md

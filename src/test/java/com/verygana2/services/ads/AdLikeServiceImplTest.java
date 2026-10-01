@@ -220,7 +220,7 @@ class AdLikeServiceImplTest {
             service.processAdLike(SESSION_ID, AD_ID, CONSUMER_ID, "127.0.0.1");
 
             var captor = org.mockito.ArgumentCaptor.forClass(AdLike.class);
-            verify(adLikeRepository).save(captor.capture());
+            verify(adLikeRepository).saveAndFlush(captor.capture());
             // Con solo rewardAmount, la fila no permitía reconciliar contra la billetera.
             assertThat(captor.getValue().getRewardAmount()).isEqualTo(10000L);
             assertThat(captor.getValue().getCreditedAmountCents()).isEqualTo(7000L);

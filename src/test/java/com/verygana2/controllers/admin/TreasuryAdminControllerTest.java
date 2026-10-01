@@ -58,7 +58,7 @@ class TreasuryAdminControllerTest {
         void getBalance_delegates() {
             TreasuryBalanceResponseDTO expected = new TreasuryBalanceResponseDTO(
                     1_000_000L, 200_000L, 300_000L, 50_000L, 10_000L, 20_000L, 20_000L, 20_000L,
-                    1_620_000L, 95.0, "OK", false);
+                    1_620_000L, 95.0, 1_000_000L, 100.0, "OK", false);
             when(treasuryService.getBalanceReport()).thenReturn(expected);
 
             var response = controller.getBalance();

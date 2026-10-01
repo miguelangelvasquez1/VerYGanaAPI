@@ -69,11 +69,40 @@ public class CatalogIntegrationRequest {
     @Column(name = "result_catalog_item_id")
     private Long resultCatalogItemId;
 
+    /**
+     * Bolsa que el comercial reservó de su wallet al enviar la solicitud, en centavos.
+     * Cada compra del ítem publicado descuenta de aquí el cobro por uso. Null en las
+     * solicitudes anteriores al cobro: sus ítems no cobran.
+     */
+    @Column(name = "budget_cents")
+    private Long budgetCents;
+
+    /** Lo que ya se cobró de la bolsa, en centavos. */
+    @Column(name = "spent_cents", nullable = false)
+    private long spentCents = 0L;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public long getRemainingBudgetCents() {
+        return budgetCents == null ? 0L : Math.max(0L, budgetCents - spentCents);
+    }
+
+    /**
+     * Descuenta de la bolsa el cobro de un uso y devuelve lo que realmente se cobró:
+     * nunca más de lo que queda, así que el último uso se recorta y la bolsa no se
+     * sobregira (mismo criterio que {@code Campaign#chargeSession}).
+     *
+     * @return centavos cobrados (0 si la bolsa ya estaba agotada o no existe)
+     */
+    public long chargeUse(long costCents) {
+        long charged = Math.min(Math.max(0L, costCents), getRemainingBudgetCents());
+        spentCents += charged;
+        return charged;
+    }
 
     @PrePersist
     private void onCreate() {

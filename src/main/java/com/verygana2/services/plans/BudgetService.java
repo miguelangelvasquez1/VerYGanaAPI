@@ -81,6 +81,18 @@ public class BudgetService {
                 "Presupuesto reservado para solicitud de juego branded");
     }
 
+    /**
+     * @param commercialId ID del comercial
+     * @param amountCents  Bolsa reservada para el cobro por uso del ítem de mascotas
+     * @param referenceId  ID de la CatalogIntegrationRequest (para auditoría)
+     */
+    @Transactional
+    @RetryOnConcurrencyConflict
+    public void consumeForPetItemRequest(Long commercialId, Long amountCents, String referenceId) {
+        consume(commercialId, amountCents, TransactionType.PET_ITEM_REQUEST, referenceId,
+                "Presupuesto reservado para ítem en el juego de mascotas");
+    }
+
     // ── Implementación interna ────────────────────────────────────────────────
 
     private void consume(Long commercialId, Long amountCents, TransactionType type,

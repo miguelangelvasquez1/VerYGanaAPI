@@ -1,0 +1,60 @@
+# ============================================
+# PERFIL BETA — piloto para stakeholders (SCRUM-77)
+# ============================================
+# Se activa ENCIMA de prod:
+#
+#   SPRING_PROFILES_ACTIVE=prod,beta
+#
+# El orden importa: el último perfil gana. Beta hereda todo lo de prod (timeouts,
+# crons, límites, logs en INFO) y aquí solo se sobrescribe lo que tiene que ser
+# distinto en un piloto con datos ficticios: todo el dinero y las firmas en sandbox.
+#
+# Si una clave nueva de prod no tiene nada que ver con dinero ni con terceros, no
+# hace falta tocar este archivo: beta la hereda.
+#
+# Los secretos salen de Infisical, ambiente "beta" (ver README). Ese ambiente ya trae
+# SPRING_PROFILES_ACTIVE=prod,beta y llaves propias (RSA, AES, HMAC) que no comparte
+# con dev:
+#   infisical run --env=beta -- java -jar app.jar
+
+spring:
+  datasource:
+    hikari:
+      # La instancia de beta es chica (1 GB, ver SCRUM-79): 40 conexiones de prod
+      # son memoria de MySQL que el piloto no usa.
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: 2
+      pool-name: HikariBeta
+
+# ============================================
+# WOMPI — SANDBOX. Ningún pago ni payout del piloto mueve dinero real.
+# ============================================
+# Mismos nombres de variable que en dev (WOMPI_SANDBOX_*). Las URLs van fijas y no
+# por variable: que un error de configuración no pueda apuntar beta a producción.
+wompi:
+  public-key: ${WOMPI_SANDBOX_PUBLIC_KEY}
+  private-key: ${WOMPI_SANDBOX_PRIVATE_KEY}
+  integrity-secret: ${WOMPI_SANDBOX_INTEGRITY_SECRET}
+  events-key: ${WOMPI_SANDBOX_EVENTS_KEY}
+  api-base-url: https://sandbox.wompi.co/v1
+  payout:
+    api-key: ${WOMPI_SANDBOX_PAYOUTS_API_KEY}
+    principal-user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    events-key: ${WOMPI_SANDBOX_PAYOUTS_SECRET}
+    api-base-url: https://api.sandbox.payouts.wompi.co/v1
+
+# ============================================
+# ZAPSIGN — SANDBOX. Los contratos del piloto no tienen validez legal.
+# ============================================
+# true => https://sandbox.api.zapsign.com.br (ZapSignWebClientConfig).
+# ZAPSIGN_API_TOKEN tiene que ser el token de sandbox, y los webhooks se recrean
+# en el panel de sandbox apuntando al dominio de beta.
+zapsign:
+  sandbox: true
+
+# ============================================
+# SORTEOS — Random.org de prueba
+# ============================================
+# RANDOM_ORG_API_KEY en Infisical staging debe ser la llave de desarrollo de
+# Random.org: los resultados firmados de beta no pueden confundirse con los reales.

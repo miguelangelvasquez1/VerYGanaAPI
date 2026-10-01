@@ -19,6 +19,7 @@ public class PublicPaths {
         "/ads/assets/orphan/**",
         "/games/assets",
         "/games/metrics",
+        "/games/end-session",
         "/game-designers/password/reset",
         "/api/payments/webhook",
         "/api/raffles/**",

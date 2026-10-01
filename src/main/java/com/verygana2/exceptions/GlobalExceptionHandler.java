@@ -78,6 +78,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 @Slf4j
@@ -766,6 +767,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(NoHandlerFoundException.class)
     public ResponseEntity<ErrorResponse> handleNoHandlerFound(NoHandlerFoundException ex, WebRequest request) {
         String msg = String.format("Ruta no encontrada: [%s] %s", ex.getHttpMethod(), ex.getRequestURL());
+        log.warn(msg);
+        return buildError(HttpStatus.NOT_FOUND, msg, request);
+    }
+
+    /**
+     * Desde Spring 6.1 una ruta que no existe llega como NoResourceFoundException, no como
+     * NoHandlerFoundException. Sin este handler caía en el de Exception: 500 con stacktrace
+     * en ERROR, y cada bot que prueba /wp-login.php inflaba la tasa de 5xx de las alertas.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNoResourceFound(NoResourceFoundException ex, WebRequest request) {
+        String msg = String.format("Ruta no encontrada: [%s] /%s", ex.getHttpMethod(), ex.getResourcePath());
         log.warn(msg);
         return buildError(HttpStatus.NOT_FOUND, msg, request);
     }

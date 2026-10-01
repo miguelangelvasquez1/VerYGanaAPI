@@ -2,7 +2,9 @@ package com.verygana2.config.metrics;
 
 import java.time.Clock;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -11,6 +13,7 @@ import com.verygana2.models.records.IssuanceTotals;
 import com.verygana2.models.records.KeyBacking;
 import com.verygana2.models.records.TreasurySnapshot;
 import com.verygana2.repositories.AdLikeRepository;
+import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.services.finance.KeyBackingCalculator;
 import com.verygana2.services.interfaces.finance.TreasuryService;
@@ -65,6 +68,7 @@ public class TreasuryMetrics {
     private final KeyBackingCalculator keyBackingCalculator;
     private final AdLikeRepository adLikeRepository;
     private final SurveyRewardRepository surveyRewardRepository;
+    private final GameSessionRepository gameSessionRepository;
     private final Clock clock;
 
     /** Referencia fuerte: Micrometer guarda los gauges con referencia débil. */
@@ -123,26 +127,23 @@ public class TreasuryMetrics {
         ZonedDateTime cutoff = ZonedDateTime.now(clock);
         IssuanceTotals ads = adLikeRepository.sumUnsettledIssuance(cutoff);
         IssuanceTotals surveys = surveyRewardRepository.sumUnsettledIssuance(cutoff);
+        IssuanceTotals games = gameSessionRepository.sumUnsettledIssuance(cutoff);
         unsettledDeltaCents.set(
-                (ads == null ? 0 : ads.deltaCents()) + (surveys == null ? 0 : surveys.deltaCents()));
+                (ads == null ? 0 : ads.deltaCents()) + (surveys == null ? 0 : surveys.deltaCents())
+                        + (games == null ? 0 : games.deltaCents()));
 
         oldestUnsettledEpochMs.set(oldestUnsettledEpochMs());
     }
 
     /** Epoch ms de la interacción más vieja sin liquidar. 0 = no hay ninguna. */
     private long oldestUnsettledEpochMs() {
-        ZonedDateTime oldestLike = adLikeRepository.findOldestUnsettledAt();
-        ZonedDateTime oldestReward = surveyRewardRepository.findOldestUnsettledAt();
-
-        if (oldestLike == null && oldestReward == null) {
-            return 0;
-        }
-        if (oldestLike == null) {
-            return oldestReward.toInstant().toEpochMilli();
-        }
-        if (oldestReward == null) {
-            return oldestLike.toInstant().toEpochMilli();
-        }
-        return Math.min(oldestLike.toInstant().toEpochMilli(), oldestReward.toInstant().toEpochMilli());
+        return Stream.of(
+                        adLikeRepository.findOldestUnsettledAt(),
+                        surveyRewardRepository.findOldestUnsettledAt(),
+                        gameSessionRepository.findOldestUnsettledAt())
+                .filter(Objects::nonNull)
+                .mapToLong(t -> t.toInstant().toEpochMilli())
+                .min()
+                .orElse(0L);
     }
 }

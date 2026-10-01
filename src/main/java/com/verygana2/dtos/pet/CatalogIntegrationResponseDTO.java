@@ -22,6 +22,10 @@ public record CatalogIntegrationResponseDTO(
         /** Borrador del ítem que arma el diseñador; null hasta que se acepta la solicitud. */
         Map<String, Object> itemDraft,
         Long resultCatalogItemId,
+        /** Bolsa reservada para el cobro por uso, en centavos; null en solicitudes anteriores al cobro. */
+        Long budgetCents,
+        /** Lo que ya se cobró de la bolsa, en centavos. */
+        long spentCents,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {}

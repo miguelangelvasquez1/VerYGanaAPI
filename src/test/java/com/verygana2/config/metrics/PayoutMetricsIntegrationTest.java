@@ -13,7 +13,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 
 import com.verygana2.models.User;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.finance.PayoutStatus;
 import com.verygana2.models.finance.Payout;
 import com.verygana2.models.userDetails.CommercialDetails;
@@ -38,7 +38,9 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        // El esquema lo arma Hibernate: las migraciones son MySQL y no se prueban acá.
+        "spring.flyway.enabled=false"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DisplayName("PayoutMetrics (integración H2)")
@@ -65,7 +67,7 @@ class PayoutMetricsIntegrationTest {
         user.setPhoneNumber("310000" + String.format("%04d", n));
         user.setPassword("hash");
         user.setRole(Role.COMMERCIAL);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         user.setRegisteredDate(ZonedDateTime.now());
         em.persist(user);
 
@@ -81,7 +83,7 @@ class PayoutMetricsIntegrationTest {
         Payout payout = Payout.builder()
                 .commercial(persistCommercial())
                 .grossAmountCents(netCents + 10_000L)
-                .commissionCents(10_000L)
+                .commissionAmountCents(10_000L)
                 .netAmountCents(netCents)
                 .commissionPctApplied(10)
                 .status(status)

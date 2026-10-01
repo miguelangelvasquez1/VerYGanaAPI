@@ -135,6 +135,9 @@ pets:
   # el bloqueo por CORS al pedirlos con fetch desde el juego.
   asset-base-url: ${PETS_ASSET_BASE_URL:}
   game-path: ${PETS_GAME_PATH:index.html}
+  # Cobro al comercial por cada unidad que se compra de su ítem de mascotas, en
+  # centavos COP (15000 = $150). Sale de la bolsa que reservó al pedir la integración.
+  commercial-charge-per-use-cents: ${PETS_COMMERCIAL_CHARGE_PER_USE_CENTS:15000}
 
   # Imagen del producto que el comercial adjunta al pedir integración al catálogo.
   # Se sube al bucket de mascotas (cloudflare.r2.pets-bucket-name).

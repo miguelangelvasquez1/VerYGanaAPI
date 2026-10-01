@@ -52,6 +52,7 @@ public class BudgetTransaction {
      *  - AD_VIEW: id de la impresión / visualización del anuncio
      *  - GAME_REWARD: id de la sesión de juego
      *  - MANUAL_ADJUSTMENT: id del ajuste administrativo
+     *  - PET_ITEM_REQUEST: id de la CatalogIntegrationRequest
      */
     private String referenceId;
 
@@ -64,6 +65,7 @@ public class BudgetTransaction {
         AD_VIEW,
         GAME_REWARD,
         MANUAL_ADJUSTMENT,
-        BRANDING_REQUEST
+        BRANDING_REQUEST,
+        PET_ITEM_REQUEST
     }
 }

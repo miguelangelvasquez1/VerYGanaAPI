@@ -12,10 +12,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.context.TestPropertySource;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.verygana2.testsupport.TestRsaKeys;
 import com.verygana2.config.RsaKeyProperties;
 import com.verygana2.config.SecurityConfig;
 import com.verygana2.dtos.raffle.responses.DrawProofResponseDTO;
@@ -38,12 +40,14 @@ import com.verygana2.services.interfaces.raffles.RaffleResultService;
 @WebMvcTest(RaffleResultController.class)
 @Import(SecurityConfig.class)
 @EnableConfigurationProperties(RsaKeyProperties.class)
-@TestPropertySource(properties = {
-        "rsa.private-key=classpath:certs/private.pem",
-        "rsa.public-key=classpath:certs/public.pem"
-})
 @DisplayName("RaffleResultController — /results/** sin token (integración MockMvc + Spring Security real)")
 class RaffleResultControllerSecurityIntegrationTest {
+
+    // certs/ está en .gitignore: desde un checkout limpio (CI) classpath:certs no existe.
+    @DynamicPropertySource
+    static void rsaKeys(DynamicPropertyRegistry registry) {
+        TestRsaKeys.register(registry);
+    }
 
     @Autowired private MockMvc mockMvc;
 

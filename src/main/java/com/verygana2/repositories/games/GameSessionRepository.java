@@ -1,16 +1,19 @@
 package com.verygana2.repositories.games;
 
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.games.GameSession;
+import com.verygana2.models.records.IssuanceTotals;
 
 import jakarta.persistence.LockModeType;
 
@@ -108,4 +111,37 @@ public interface GameSessionRepository extends JpaRepository<GameSession, Long> 
             @Param("commercialId") Long commercialId,
             @Param("from") java.time.ZonedDateTime from,
             @Param("to") java.time.ZonedDateTime to);
+
+    // ── Liquidación de la emisión de llaves (ver KeyIssuanceSettlementService) ──
+    // Mismo contrato que AdLikeRepository: lo financiado es coinsEarned, lo acreditado
+    // creditedAmountCents, y solo entran las sesiones con acreditado (las que cobraron).
+    // El corte es endTime: una sesión solo cobra al cerrarse.
+
+    @Query("""
+            SELECT new com.verygana2.models.records.IssuanceTotals(
+                       COALESCE(SUM(gs.coinsEarned), 0L),
+                       COALESCE(SUM(gs.creditedAmountCents), 0L))
+            FROM GameSession gs
+            WHERE gs.issuanceSettled = false
+              AND gs.creditedAmountCents IS NOT NULL
+              AND gs.endTime <= :cutoff
+            """)
+    IssuanceTotals sumUnsettledIssuance(@Param("cutoff") ZonedDateTime cutoff);
+
+    /** Fecha de cierre de la sesión más vieja sin liquidar. null si no hay ninguna. */
+    @Query("""
+            SELECT MIN(gs.endTime) FROM GameSession gs
+            WHERE gs.issuanceSettled = false AND gs.creditedAmountCents IS NOT NULL
+            """)
+    ZonedDateTime findOldestUnsettledAt();
+
+    /** Marca liquidadas exactamente las filas que sumó sumUnsettledIssuance. */
+    @Modifying
+    @Query("""
+            UPDATE GameSession gs SET gs.issuanceSettled = true
+            WHERE gs.issuanceSettled = false
+              AND gs.creditedAmountCents IS NOT NULL
+              AND gs.endTime <= :cutoff
+            """)
+    int markIssuanceSettled(@Param("cutoff") ZonedDateTime cutoff);
 }

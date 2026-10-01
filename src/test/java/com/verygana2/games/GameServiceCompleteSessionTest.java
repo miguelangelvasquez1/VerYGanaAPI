@@ -25,6 +25,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.game.EndSessionDTO;
+import com.verygana2.dtos.game.EndSessionResponseDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.exceptions.BusinessException;
@@ -76,6 +77,7 @@ class GameServiceCompleteSessionTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(service, "sessionExpirationTime", 30);
+        ReflectionTestUtils.setField(service, "keyValueCents", 1_000L);
 
         ConsumerDetails consumer = new ConsumerDetails();
         consumer.setId(42L);
@@ -101,7 +103,7 @@ class GameServiceCompleteSessionTest {
     void completesSessionAndPublishesGamePlayedXp() {
         when(gameSessionRepository.findBySessionTokenForUpdate("token-1")).thenReturn(Optional.of(session));
 
-        service.completeSession(event, 42L);
+        service.completeSession(event);
 
         assertThat(session.isCompleted()).isTrue();
         assertThat(session.getEndTime()).isNotNull();
@@ -113,7 +115,9 @@ class GameServiceCompleteSessionTest {
         assertThat(captor.getValue().getConsumerId()).isEqualTo(42L);
         assertThat(captor.getValue().getActivityType()).isEqualTo(ActivityType.GAME_PLAYED);
 
-        // Sin campaña no hay cobro, así que tampoco debe acreditarse ninguna llave al jugador.
+        // Sin campaña no hay cobro, así que tampoco debe acreditarse ninguna llave al jugador,
+        // ni la sesión entra a la liquidación de tesorería.
+        assertThat(session.getCreditedAmountCents()).isNull();
         verify(keyWalletService, never()).getByConsumerId(any());
         verify(keyWalletRepository, never()).save(any());
         verify(keyTransactionRepository, never()).saveAll(any());
@@ -125,7 +129,7 @@ class GameServiceCompleteSessionTest {
         session.setCompleted(true);
         when(gameSessionRepository.findBySessionTokenForUpdate("token-1")).thenReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> service.completeSession(event, 42L))
+        assertThatThrownBy(() -> service.completeSession(event))
                 .isInstanceOf(BusinessException.class);
 
         verify(eventPublisher, never()).publishEvent(any(ApplicationEvent.class));
@@ -138,7 +142,7 @@ class GameServiceCompleteSessionTest {
         session.setStartTime(ZonedDateTime.now().minusMinutes(60));
         when(gameSessionRepository.findBySessionTokenForUpdate("token-1")).thenReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> service.completeSession(event, 42L))
+        assertThatThrownBy(() -> service.completeSession(event))
                 .isInstanceOf(BusinessException.class);
 
         verify(eventPublisher, never()).publishEvent(any(ApplicationEvent.class));
@@ -150,7 +154,7 @@ class GameServiceCompleteSessionTest {
         event.setUserHash("hash-de-otro");
         when(gameSessionRepository.findBySessionTokenForUpdate("token-1")).thenReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> service.completeSession(event, 42L))
+        assertThatThrownBy(() -> service.completeSession(event))
                 .isInstanceOf(RuntimeException.class);
 
         verify(eventPublisher, never()).publishEvent(any(ApplicationEvent.class));
@@ -204,7 +208,7 @@ class GameServiceCompleteSessionTest {
         givenSessionOf(campaign);
         KeyWallet keyWallet = givenKeyWalletAndMultiplier(1.0);
 
-        service.completeSession(event, 42L);   // finalScore 1.500 → 5.000 + 1.500 = 6.500 ¢
+        service.completeSession(event);   // finalScore 1.500 → 5.000 + 1.500 = 6.500 ¢
 
         assertThat(campaign.getSpentCents()).isEqualTo(16_500L);
         assertThat(campaign.getStatus()).isEqualTo(CampaignStatus.ACTIVE);
@@ -227,11 +231,47 @@ class GameServiceCompleteSessionTest {
         givenSessionOf(campaign);
         KeyWallet keyWallet = givenKeyWalletAndMultiplier(2.0);
 
-        service.completeSession(event, 42L);   // cobrado 6.500 ¢ × 2.0 = 13.000 ¢ ajustados
+        EndSessionResponseDTO response = service.completeSession(event);   // cobrado 6.500 ¢ × 2.0 = 13.000 ¢ ajustados
 
         // 13.000 ¢ → split 75/25 = 9.750 / 3.250
         assertThat(keyWallet.getPurchaseKeysCents()).isEqualTo(9_750L);
         assertThat(keyWallet.getConnectivityKeysCents()).isEqualTo(3_250L);
+
+        // El juego ve las llaves ya multiplicadas: 13.000 ¢ / 1.000 ¢ por llave.
+        assertThat(response.rewardGranted()).isTrue();
+        assertThat(response.keysEarned()).isEqualTo(13L);
+    }
+
+    @Test
+    @DisplayName("deja en la sesión lo financiado y lo acreditado, sin liquidar: el diferencial lo cuadra el job de tesorería")
+    void recordsFundedAndCreditedForSettlement() {
+        Campaign campaign = campaignWith(CampaignStatus.ACTIVE, 10_000L);
+        givenSessionOf(campaign);
+        givenKeyWalletAndMultiplier(2.0);
+
+        service.completeSession(event);
+
+        // Sin creditedAmountCents, KeyIssuanceSettlementService no ve la sesión y los 6.500 ¢
+        // de exceso que emitió el multiplicador quedan sin respaldo en KEYS_RESERVE.
+        assertThat(session.getCoinsEarned()).isEqualTo(6_500L);
+        assertThat(session.getCreditedAmountCents()).isEqualTo(13_000L);
+        assertThat(session.isIssuanceSettled()).isFalse();
+    }
+
+    @Test
+    @DisplayName("sin payload la partida cierra igual y cobra solo la recompensa por completar")
+    void missingPayloadClosesWithCompletionRewardOnly() {
+        event.setPayload(null);
+        Campaign campaign = campaignWith(CampaignStatus.ACTIVE, 10_000L);
+        givenSessionOf(campaign);
+        givenKeyWalletAndMultiplier(1.0);
+
+        EndSessionResponseDTO response = service.completeSession(event);
+
+        assertThat(session.isCompleted()).isTrue();
+        assertThat(session.getScore()).isNull();
+        assertThat(session.getCoinsEarned()).isEqualTo(5_000L);
+        assertThat(response.keysEarned()).isEqualTo(5L);
     }
 
     @Test
@@ -241,7 +281,7 @@ class GameServiceCompleteSessionTest {
         givenSessionOf(campaign);
         KeyWallet keyWallet = givenKeyWalletAndMultiplier(1.0);
 
-        service.completeSession(event, 42L);
+        service.completeSession(event);
 
         assertThat(campaign.getSpentCents()).isEqualTo(100_000L);
         assertThat(campaign.getStatus()).isEqualTo(CampaignStatus.COMPLETED);
@@ -259,7 +299,7 @@ class GameServiceCompleteSessionTest {
         Campaign campaign = campaignWith(CampaignStatus.COMPLETED, 100_000L);
         givenSessionOf(campaign);
 
-        service.completeSession(event, 42L);
+        service.completeSession(event);
 
         assertThat(session.isCompleted()).isTrue();
         assertThat(session.getCoinsEarned()).isZero();
@@ -283,7 +323,7 @@ class GameServiceCompleteSessionTest {
         session.setCampaign(campaign);
         when(gameSessionRepository.findBySessionTokenForUpdate("token-1")).thenReturn(Optional.of(session));
 
-        assertThatThrownBy(() -> service.completeSession(event, 42L)).isInstanceOf(BusinessException.class);
+        assertThatThrownBy(() -> service.completeSession(event)).isInstanceOf(BusinessException.class);
 
         assertThat(campaign.getSpentCents()).isEqualTo(10_000L);
         verify(campaignRepository, never()).findByIdForUpdate(any());

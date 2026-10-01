@@ -22,6 +22,7 @@ import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.pet.PetItemChargeService;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private final ConsumerDetailsService consumerDetailsService;
     private final PetCatalogItemRepository petCatalogItemRepository;
     private final TreasuryService treasuryService;
+    private final PetItemChargeService petItemChargeService;
 
     @Override
     public void createFor(Long consumerId) {
@@ -143,6 +145,11 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         // Va a OPERATIONS y no a PAYOUTS_PENDING: PayoutItem solo se construye desde
         // Copayment, así que esas ventas nunca generan un pago al comercial.
         treasuryService.registerPetGameSpend(amountCents, spend.getId());
+
+        // Cobro por uso al comercial dueño del ítem, de la bolsa que reservó al pedir la
+        // integración. Va aparte del gasto del consumidor: aquel es plata del jugador,
+        // este es del comercial, y los dos terminan en OPERATIONS.
+        petItemChargeService.chargeForPurchase(item, request.quantityOrOne(), spend.getId());
 
         // Mismo criterio que getBalance, para que el saldo que devuelve la compra
         // coincida con el que el juego consulta después.

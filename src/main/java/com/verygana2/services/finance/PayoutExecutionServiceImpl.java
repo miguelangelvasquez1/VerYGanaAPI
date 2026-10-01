@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.config.metrics.PayoutMetrics;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiPayoutRequestDTO.WompiPayoutTransactionDTO;
@@ -39,6 +40,7 @@ public class PayoutExecutionServiceImpl implements PayoutExecutionService {
     private final WompiPayoutClient wompiPayoutClient;
     private final WompiTransactionRepository wompiTransactionRepository;
     private final WompiPayoutConfig wompiPayoutConfig;
+    private final PayoutMetrics payoutMetrics;
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
@@ -70,6 +72,7 @@ public class PayoutExecutionServiceImpl implements PayoutExecutionService {
         }
 
         payout.setRetryCount(payout.getRetryCount() + 1);
+        payoutMetrics.payoutRetried();
         payout.setStatus(PayoutStatus.SCHEDULED);
         payout.setFailureReason(null);
         payoutRepository.save(payout);
@@ -104,15 +107,22 @@ public class PayoutExecutionServiceImpl implements PayoutExecutionService {
             // un bug — se registra sin stacktrace para no ensuciar los logs con
             // ruido que parece un error del sistema cuando no lo es.
             log.warn("[{}] Payout {} no procesado: {}", logPrefix, payout.getId(), e.getMessage());
+            payoutMetrics.payoutProcessingFailed(metricPhase(logPrefix), e);
             payout.setStatus(PayoutStatus.FAILED);
             payout.setFailureReason(e.getMessage());
             payoutRepository.save(payout);
         } catch (Exception e) {
             log.error("[{}] Error procesando payout {}: {}", logPrefix, payout.getId(), e.getMessage(), e);
+            payoutMetrics.payoutProcessingFailed(metricPhase(logPrefix), e);
             payout.setStatus(PayoutStatus.FAILED);
             payout.setFailureReason(e.getMessage());
             payoutRepository.save(payout);
         }
+    }
+
+    /** La etiqueta {@code phase} de payout_processing_errors_total: PROCESS o RETRY. */
+    private static String metricPhase(String logPrefix) {
+        return "PAYOUT-RETRY".equals(logPrefix) ? "RETRY" : "PROCESS";
     }
 
     private void sendToWompi(Payout payout) {
@@ -141,6 +151,7 @@ public class PayoutExecutionServiceImpl implements PayoutExecutionService {
         tx = wompiTransactionRepository.save(tx);
 
         payout.setWompiTransaction(tx);
+        payoutMetrics.payoutSent(response.isAccepted());
         payout.setStatus(response.isAccepted() ? PayoutStatus.PROCESSING : PayoutStatus.FAILED);
         if (!response.isAccepted()) payout.setFailureReason(response.getCode() + ": " + response.getMessage());
         payoutRepository.save(payout);

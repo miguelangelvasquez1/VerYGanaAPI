@@ -10,13 +10,14 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import org.springframework.context.annotation.AnnotationConfigApplicationContext;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
+
+import com.verygana2.config.TargetingProperties;
 import com.verygana2.dtos.branding.UpdateBrandingRequestConfigDTO;
 import com.verygana2.dtos.game.campaign.UpdateCampaignRequestDTO;
 
 import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validation;
-import jakarta.validation.Validator;
-import jakarta.validation.ValidatorFactory;
 
 /**
  * La segmentación por edad de los juegos va de 18 a 100: la plataforma ya no admite
@@ -25,18 +26,26 @@ import jakarta.validation.ValidatorFactory;
  */
 class GameTargetingAgeTest {
 
-    private static ValidatorFactory factory;
-    private static Validator validator;
+    private static AnnotationConfigApplicationContext context;
+    private static LocalValidatorFactoryBean validator;
 
+    // @MinTargetAge lee el mínimo de TargetingProperties: el validador tiene que salir de
+    // la misma fábrica que usa Spring, que lo instancia como bean. La fábrica por defecto
+    // de Jakarta no sabe inyectarlo y falla antes de validar nada.
     @BeforeAll
     static void setUp() {
-        factory = Validation.buildDefaultValidatorFactory();
-        validator = factory.getValidator();
+        context = new AnnotationConfigApplicationContext();
+        context.registerBean(TargetingProperties.class);
+        context.refresh();
+        validator = new LocalValidatorFactoryBean();
+        validator.setApplicationContext(context);
+        validator.afterPropertiesSet();
     }
 
     @AfterAll
     static void tearDown() {
-        factory.close();
+        validator.close();
+        context.close();
     }
 
     private static Set<String> invalidFields(Set<? extends ConstraintViolation<?>> violations) {

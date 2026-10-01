@@ -11,6 +11,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.verygana2.config.metrics.PayoutMetrics;
 import com.verygana2.config.wompi.WompiPayoutConfig;
 import com.verygana2.dtos.wompi.WompiPayoutResponseDTO;
 import com.verygana2.models.User;
@@ -24,6 +25,8 @@ import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.repositories.finance.PayoutRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.services.wompi.WompiPayoutClient;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -48,10 +51,22 @@ class PayoutExecutionServiceImplTest {
 
     private PayoutExecutionServiceImpl service;
 
+    /** PayoutMetrics real, como en PayoutServiceImplTest: prueba que el contador existe, no un doble. */
+    private SimpleMeterRegistry meterRegistry;
+
     @BeforeEach
     void setUp() {
+        meterRegistry = new SimpleMeterRegistry();
+        PayoutMetrics payoutMetrics = new PayoutMetrics(meterRegistry, payoutRepository);
+
         service = new PayoutExecutionServiceImpl(payoutRepository, payoutMethodRepository,
-                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig);
+                wompiPayoutClient, wompiTransactionRepository, wompiPayoutConfig, payoutMetrics);
+    }
+
+    /** Valor actual de un contador, o 0 si nunca se incrementó. */
+    private double counter(String name, String... tags) {
+        var found = meterRegistry.find(name).tags(tags).counter();
+        return found == null ? 0d : found.count();
     }
 
     private CommercialDetails commercial(Long id, String name) {
@@ -104,6 +119,7 @@ class PayoutExecutionServiceImplTest {
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.PROCESSING);
             assertThat(payout.getWompiTransaction()).isNotNull();
             assertThat(payout.getWompiTransaction().getStatus()).isEqualTo(WompiTransactionStatus.PENDING);
+            assertThat(counter("payout.sent", "outcome", "ACCEPTED")).isEqualTo(1d);
         }
 
         @Test
@@ -121,6 +137,10 @@ class PayoutExecutionServiceImplTest {
 
             assertThat(payout.getStatus()).isEqualTo(PayoutStatus.FAILED);
             assertThat(payout.getFailureReason()).isNotBlank();
+            // La excepción que el método se traga no puede quedar solo en el log.
+            assertThat(counter("payout.processing.errors", "phase", "PROCESS", "exception", "IllegalStateException"))
+                    .isEqualTo(1d);
+            assertThat(counter("payout.sent", "outcome", "ACCEPTED")).isZero();
         }
 
         @Test

@@ -24,6 +24,7 @@ import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.pet.PetItemChargeService;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 
@@ -53,12 +54,13 @@ class KeyWalletServiceImplTest {
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private PetCatalogItemRepository petCatalogItemRepository;
     @Mock private TreasuryService treasuryService;
+    @Mock private PetItemChargeService petItemChargeService;
 
     private KeyWalletServiceImpl service;
 
     private void setUpWithClock(Clock clock) {
         service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository,
-                consumerDetailsService, petCatalogItemRepository, treasuryService);
+                consumerDetailsService, petCatalogItemRepository, treasuryService, petItemChargeService);
         // spendKeysForPetGame usa el id de la transacción persistida como referencia
         // del movimiento de tesorería.
         lenient().when(keyTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
@@ -370,6 +372,33 @@ class KeyWalletServiceImplTest {
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(75L * KEY_VALUE_CENTS);
             verify(petCatalogItemRepository, org.mockito.Mockito.never())
                     .findByNameIgnoreCase(org.mockito.ArgumentMatchers.anyString());
+        }
+
+        @Test
+        @DisplayName("cada compra le cobra al comercial dueño del ítem, por unidad comprada")
+        void purchaseChargesTheCommercialPerUnit() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            PetCatalogItem pizza = pizza();
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 2L, 0, "1005"));
+
+            verify(petItemChargeService).chargeForPurchase(
+                    org.mockito.ArgumentMatchers.eq(pizza), org.mockito.ArgumentMatchers.eq(2L), any());
+        }
+
+        @Test
+        @DisplayName("sin saldo no hay compra, así que tampoco cobro al comercial")
+        void failedPurchaseDoesNotChargeTheCommercial() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
+
+            verify(petItemChargeService, org.mockito.Mockito.never())
+                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong(), any());
         }
     }
 

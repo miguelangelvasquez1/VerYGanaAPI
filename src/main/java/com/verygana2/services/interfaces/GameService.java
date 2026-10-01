@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
+import com.verygana2.dtos.game.EndSessionResponseDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
@@ -25,6 +26,6 @@ public interface GameService {
     String initGameNotSponsored(InitGameRequestDTO request, Long userId);
     Map<String,Object> getGameAssets(GameEventDTO<Void> req);
     void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event);
-    void completeSession(GameEventDTO<EndSessionDTO> event, Long userId);
+    EndSessionResponseDTO completeSession(GameEventDTO<EndSessionDTO> event);
     PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable);
 }

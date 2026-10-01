@@ -61,8 +61,22 @@ public class GameSession {
     @Column(name = "end_time", nullable = true)
     private ZonedDateTime endTime;
 
+    /** Lo que se le cobró a la campaña por esta sesión (lo financiado), en centavos. */
     @Column(name = "coins_earned")
     private Long coinsEarned;
+
+    /**
+     * Lo que se le acreditó al jugador: {@link #coinsEarned} × multiplicador de nivel. La
+     * diferencia con lo financiado la liquida KeyIssuanceSettlementService por lotes, igual
+     * que en AdLike. Null en las sesiones anteriores a la columna y en las que no cobraron.
+     */
+    @Column(name = "credited_amount")
+    private Long creditedAmountCents;
+
+    /** Si el diferencial (financiado − acreditado) ya se liquidó en tesorería. */
+    @Column(name = "issuance_settled", nullable = false)
+    @Builder.Default
+    private boolean issuanceSettled = false;
 
     @Column(name = "play_time_seconds", nullable = true)
     private Long playTimeSeconds;

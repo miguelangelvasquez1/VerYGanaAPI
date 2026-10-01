@@ -124,3 +124,8 @@ games:
   # Imagen de los productos de ejemplo del popup, solo en la vista previa: un
   # comercial sin productos cargados no puede revisar cómo queda ese bloque.
   preview-sample-product-image-url: ${GAMES_PREVIEW_SAMPLE_PRODUCT_IMAGE_URL:https://cdn.verygana.com/public/logos/moneda-llave.png}
+
+pets:
+  # Cobro al comercial por cada unidad que se compra de su ítem de mascotas, en
+  # centavos COP (15000 = $150). Sale de la bolsa que reservó al pedir la integración.
+  commercial-charge-per-use-cents: ${PETS_COMMERCIAL_CHARGE_PER_USE_CENTS:15000}

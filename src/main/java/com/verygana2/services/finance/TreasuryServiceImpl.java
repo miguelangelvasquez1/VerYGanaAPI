@@ -431,6 +431,24 @@ public class TreasuryServiceImpl implements TreasuryService {
         @Transactional
         @Override
         public void registerPetGameSpend(long amountCents, UUID referenceId) {
+                moveReserveToOperations(amountCents, referenceId,
+                                MovementConcept.PET_GAME_KEYS_TO_OPERATIONS, "PET_GAME", "gasto en mascotas");
+        }
+
+        /**
+         * Cobro por uso de un ítem de mascotas: KEYS_RESERVE → OPERATIONS. Mismo criterio de
+         * umbrales que {@link #registerPetGameSpend}.
+         */
+        @Transactional
+        @Override
+        public void registerPetItemCharge(long amountCents, UUID referenceId) {
+                moveReserveToOperations(amountCents, referenceId,
+                                MovementConcept.PET_ITEM_CHARGE_TO_OPERATIONS, "PET_ITEM_CHARGE",
+                                "cobro por uso de ítem de mascotas");
+        }
+
+        private void moveReserveToOperations(long amountCents, UUID referenceId, MovementConcept concept,
+                        String referenceType, String label) {
                 if (amountCents <= 0) {
                         return;
                 }
@@ -439,11 +457,11 @@ public class TreasuryServiceImpl implements TreasuryService {
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
 
                 if (keysReserve.getBalanceCents() < amountCents) {
-                        log.error("[TREASURY] KEYS_RESERVE={} no cubre el gasto en mascotas={}. "
+                        log.error("[TREASURY] KEYS_RESERVE={} no cubre el {}={}. "
                                         + "El fondo ya estaba descuadrado antes de esta compra. reference={}",
-                                        keysReserve.getBalanceCents(), amountCents, referenceId);
+                                        keysReserve.getBalanceCents(), label, amountCents, referenceId);
                         throw new IllegalStateException(
-                                        "[TREASURY] Saldo insuficiente en KEYS_RESERVE para registrar el gasto en el juego de mascotas.");
+                                        "[TREASURY] Saldo insuficiente en KEYS_RESERVE para registrar el " + label + ".");
                 }
 
                 keysReserve.setBalanceCents(keysReserve.getBalanceCents() - amountCents);
@@ -452,17 +470,16 @@ public class TreasuryServiceImpl implements TreasuryService {
                 treasuryAccountRepository.save(keysReserve);
                 treasuryAccountRepository.save(operations);
 
-                recordMovement(keysReserve, operations, amountCents,
-                                MovementConcept.PET_GAME_KEYS_TO_OPERATIONS, referenceId, "PET_GAME");
+                recordMovement(keysReserve, operations, amountCents, concept, referenceId, referenceType);
 
                 if (keysReserve.getBalanceCents() < treasuryConfig.getKeysReserveWarnThresholdCents()) {
-                        log.warn("[TREASURY] KEYS_RESERVE bajo tras gasto en mascotas: saldo={} < umbral_warn={}. reference={}",
-                                        keysReserve.getBalanceCents(),
+                        log.warn("[TREASURY] KEYS_RESERVE bajo tras {}: saldo={} < umbral_warn={}. reference={}",
+                                        label, keysReserve.getBalanceCents(),
                                         treasuryConfig.getKeysReserveWarnThresholdCents(), referenceId);
                 }
 
-                log.debug("[TREASURY] Gasto en mascotas: {} centavos KEYS_RESERVE → OPERATIONS. reference={}",
-                                amountCents, referenceId);
+                log.debug("[TREASURY] {}: {} centavos KEYS_RESERVE → OPERATIONS. reference={}",
+                                label, amountCents, referenceId);
         }
 
         /**

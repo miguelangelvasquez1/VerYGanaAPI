@@ -25,7 +25,11 @@ import com.verygana2.dtos.pet.PetImageUploadRequestDTO;
 import com.verygana2.models.enums.CatalogRequestStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.pets.CatalogIntegrationRequest;
+import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.models.User;
+import com.verygana2.models.finance.Wallet;
+import com.verygana2.repositories.WalletRepository;
+import com.verygana2.services.plans.BudgetService;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.GameDesignerDetails;
 import com.verygana2.repositories.details.CommercialDetailsRepository;
@@ -46,6 +50,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -66,6 +71,10 @@ class CatalogIntegrationRequestServiceImplTest {
 
     private static final Long DESIGNER_USER_ID = 6L;
 
+    /** $150 por uso y una bolsa de diez usos. */
+    private static final long CHARGE_PER_USE = 15_000L;
+    private static final long BUDGET = 10 * CHARGE_PER_USE;
+
     @Mock private CatalogIntegrationRequestRepository requestRepository;
     @Mock private CommercialDetailsRepository commercialDetailsRepository;
     @Mock private GameDesignerDetailsRepository designerDetailsRepository;
@@ -73,6 +82,9 @@ class CatalogIntegrationRequestServiceImplTest {
     @Mock private R2Service r2Service;
     @Mock private CatalogRequestCommentRepository commentRepository;
     @Mock private com.verygana2.repositories.finance.KeyTransactionRepository keyTransactionRepository;
+    @Mock private BudgetService budgetService;
+    @Mock private WalletRepository walletRepository;
+    @Mock private PetItemChargeService petItemChargeService;
 
     private CatalogIntegrationRequestServiceImpl service;
     private CommercialDetails commercial;
@@ -94,7 +106,8 @@ class CatalogIntegrationRequestServiceImplTest {
         service = new CatalogIntegrationRequestServiceImpl(
                 requestRepository, commercialDetailsRepository, designerDetailsRepository,
                 catalogService, r2Service, mapper, commentRepository, draftValidator,
-                keyTransactionRepository);
+                keyTransactionRepository, budgetService, walletRepository, petItemChargeService);
+        lenient().when(petItemChargeService.getChargePerUseCents()).thenReturn(CHARGE_PER_USE);
         ReflectionTestUtils.setField(service, "petsBucketName", PETS_BUCKET);
         ReflectionTestUtils.setField(service, "petsCdnDomain", "");
         ReflectionTestUtils.setField(service, "maxImageSizeBytes", MAX_SIZE);
@@ -120,7 +133,7 @@ class CatalogIntegrationRequestServiceImplTest {
 
     private CatalogIntegrationRequestDTO requestWithImage(String imageObjectKey) {
         return new CatalogIntegrationRequestDTO(
-                "Galletas Acme", "Snack para mascotas", imageObjectKey, "Sube la energía");
+                "Galletas Acme", "Snack para mascotas", imageObjectKey, "Sube la energía", BUDGET);
     }
 
     @Nested
@@ -474,5 +487,94 @@ class CatalogIntegrationRequestServiceImplTest {
                     .hasMessageContaining("ya fue finalizada");
         }
     }
-}
 
+    @Nested
+    @DisplayName("bolsa del cobro por uso")
+    class BudgetReservation {
+
+        private final String key = "catalog-requests/" + USER_ID + "/abc-123";
+
+        private void validSubmission() {
+            commercialExists();
+            when(r2Service.validateUploadedObjectInBucket(eq(PETS_BUCKET), eq(key), eq(MAX_SIZE), anySet()))
+                    .thenReturn(SupportedMimeType.IMAGE_PNG);
+        }
+
+        @Test
+        @DisplayName("al enviar reserva la bolsa de la wallet del comercial, con el id de la solicitud como referencia")
+        void submitReservaLaBolsa() {
+            validSubmission();
+            when(requestRepository.save(any(CatalogIntegrationRequest.class))).thenAnswer(inv -> {
+                CatalogIntegrationRequest r = inv.getArgument(0);
+                r.setId(7L);
+                return r;
+            });
+
+            service.submit(USER_ID, requestWithImage(key));
+
+            verify(budgetService).consumeForPetItemRequest(USER_ID, BUDGET, "7");
+            ArgumentCaptor<CatalogIntegrationRequest> saved =
+                    ArgumentCaptor.forClass(CatalogIntegrationRequest.class);
+            verify(requestRepository).save(saved.capture());
+            assertThat(saved.getValue().getBudgetCents()).isEqualTo(BUDGET);
+            assertThat(saved.getValue().getSpentCents()).isZero();
+        }
+
+        @Test
+        @DisplayName("una bolsa que no cubre ni un uso se rechaza antes de tocar la wallet")
+        void bolsaMenorAUnUso() {
+            validSubmission();
+            CatalogIntegrationRequestDTO dto = new CatalogIntegrationRequestDTO(
+                    "Galletas Acme", "Snack", key, "Sube la energía", CHARGE_PER_USE - 1);
+
+            assertThatThrownBy(() -> service.submit(USER_ID, dto))
+                    .isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("al menos un uso");
+
+            verify(requestRepository, never()).save(any());
+            verify(budgetService, never()).consumeForPetItemRequest(any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("sin saldo la excepción sube: la transacción revierte también la solicitud")
+        void sinSaldo() {
+            validSubmission();
+            when(requestRepository.save(any(CatalogIntegrationRequest.class))).thenAnswer(inv -> inv.getArgument(0));
+            org.mockito.Mockito.doThrow(new InsufficientFundsException("Saldo insuficiente"))
+                    .when(budgetService).consumeForPetItemRequest(any(), any(), any());
+
+            assertThatThrownBy(() -> service.submit(USER_ID, requestWithImage(key)))
+                    .isInstanceOf(InsufficientFundsException.class);
+        }
+
+        @Test
+        @DisplayName("rechazar devuelve la bolsa entera a la wallet del comercial")
+        void rechazoReembolsa() {
+            CatalogIntegrationRequest r = request(CatalogRequestStatus.IN_REVIEW, null);
+            r.setBudgetCents(BUDGET);
+            when(requestRepository.findById(7L)).thenReturn(Optional.of(r));
+            savePassthrough();
+            Wallet wallet = new Wallet();
+            wallet.setBalanceCents(0L);
+            when(walletRepository.findByCommercialIdForUpdate(USER_ID)).thenReturn(Optional.of(wallet));
+
+            service.reject(7L, "No encaja con el juego");
+
+            assertThat(r.getStatus()).isEqualTo(CatalogRequestStatus.REJECTED);
+            assertThat(wallet.getBalanceCents()).isEqualTo(BUDGET);
+            verify(walletRepository).save(wallet);
+        }
+
+        @Test
+        @DisplayName("rechazar una solicitud anterior al cobro (sin bolsa) no toca la wallet")
+        void rechazoSinBolsa() {
+            CatalogIntegrationRequest r = request(CatalogRequestStatus.PENDING, null);
+            when(requestRepository.findById(7L)).thenReturn(Optional.of(r));
+            savePassthrough();
+
+            service.reject(7L, "No encaja con el juego");
+
+            verify(walletRepository, never()).findByCommercialIdForUpdate(anyLong());
+        }
+    }
+}

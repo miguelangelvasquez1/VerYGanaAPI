@@ -1,6 +1,9 @@
 package com.verygana2.services.pet;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.verygana2.models.finance.Wallet;
+import com.verygana2.repositories.WalletRepository;
+import com.verygana2.services.plans.BudgetService;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.branding.GameDesignerSummaryDTO;
 import com.verygana2.dtos.pet.PetProductMetricsDTO;
@@ -88,6 +91,9 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
     private final CatalogRequestCommentRepository commentRepository;
     private final PetSchemaValidator schemaValidator;
     private final KeyTransactionRepository keyTransactionRepository;
+    private final BudgetService budgetService;
+    private final WalletRepository walletRepository;
+    private final PetItemChargeService petItemChargeService;
 
     @Override
     @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_USE_PETS, commercialIdParam = "userId")
@@ -143,6 +149,12 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
         r2Service.validateUploadedObjectInBucket(
                 petsBucketName, imageObjectKey, maxImageSizeBytes, ALLOWED_IMAGE_TYPES);
 
+        long chargePerUseCents = petItemChargeService.getChargePerUseCents();
+        if (dto.budgetCents() == null || dto.budgetCents() < chargePerUseCents) {
+            throw new ValidationException(
+                    "El presupuesto debe cubrir al menos un uso (" + chargePerUseCents + " centavos)");
+        }
+
         CatalogIntegrationRequest request = new CatalogIntegrationRequest();
         request.setCommercial(commercial);
         request.setProductName(dto.productName());
@@ -150,8 +162,16 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
         request.setImageObjectKey(imageObjectKey);
         request.setDesiredEffects(dto.desiredEffects());
         request.setStatus(CatalogRequestStatus.PENDING);
+        request.setBudgetCents(dto.budgetCents());
+        CatalogIntegrationRequest saved = requestRepository.save(request);
 
-        return toResponse(requestRepository.save(request));
+        // La bolsa sale de la wallet antes de la revisión, igual que el presupuesto de una
+        // solicitud de branding. Sin saldo lanza InsufficientFundsException y la
+        // transacción revierte también la solicitud: no queda ninguna sin su reserva.
+        budgetService.consumeForPetItemRequest(
+                commercial.getId(), dto.budgetCents(), String.valueOf(saved.getId()));
+
+        return toResponse(saved);
     }
 
     @Override
@@ -310,10 +330,32 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
 
         request.setStatus(CatalogRequestStatus.REJECTED);
         request.setRejectionReason(reason);
+        refundBudget(request);
         return toResponse(requestRepository.save(request));
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
+
+    /**
+     * Devuelve a la wallet del comercial lo que quede de la bolsa. Un rechazo siempre
+     * llega antes de publicar (assertNotFinal), así que en la práctica es la bolsa entera.
+     * REJECTED es final, así que no hay segundo rechazo que la devuelva dos veces.
+     */
+    private void refundBudget(CatalogIntegrationRequest request) {
+        long remainingCents = request.getRemainingBudgetCents();
+        if (remainingCents <= 0) {
+            return;
+        }
+
+        Long commercialId = request.getCommercial().getId();
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del comercial no encontrado"));
+
+        wallet.deposit(remainingCents);
+        walletRepository.save(wallet);
+        log.info("Reembolsados {} ¢ al comercial {} por la solicitud de mascotas {}",
+                remainingCents, commercialId, request.getId());
+    }
 
     /** La imagen es opcional: normaliza "" / espacios a null para no guardar claves vacías. */
     private String normalizeImageKey(String rawKey) {
@@ -497,6 +539,8 @@ public class CatalogIntegrationRequestServiceImpl implements CatalogIntegrationR
                 r.getAdminNotes(),
                 r.getItemDraft(),
                 r.getResultCatalogItemId(),
+                r.getBudgetCents(),
+                r.getSpentCents(),
                 r.getCreatedAt(),
                 r.getUpdatedAt()
         );

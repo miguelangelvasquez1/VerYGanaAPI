@@ -7,6 +7,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 API en Spring Boot 3.5.3 / Java 21 / MySQL. Build con `./mvnw`. Paquete raíz
 `com.verygana2`, clase principal `RifacelApplication`.
 
+## Constitución
+
+Principios innegociables del proyecto. Tienen prioridad sobre el resto de este
+archivo, y en la revisión de un PR toda violación se marca.
+
+@docs/constitution.md
+
 ## Build y tests
 
 ```bash
@@ -26,23 +33,42 @@ PMD (`pmd-ruleset.xml`, solo reglas de código muerto) es puerta bloqueante en C
 Si se corre como `./mvnw compile pmd:check` en una sola invocación, reporta falsos
 positivos porque el auxclasspath se resuelve antes de compilar.
 
-Los tests son unitarios con Mockito, sin base de datos ni `@SpringBootTest`. Los
-tests de controller usan `MockMvcBuilders.standaloneSetup`: hay que fijar
-`MappingJackson2HttpMessageConverter` con un `ObjectMapper` de
-`Jackson2ObjectMapperBuilder`, o gana el converter de XML y el cuerpo del error se
-pierde (ver `GameControllerPreviewAssetsTest`). Fixtures compartidos en
-`src/test/java/com/verygana2/testsupport`.
+Ningún test toca base de datos ni usa `@SpringBootTest`. Hay dos estilos:
 
-Las credenciales de BD para correr la app viven en `.env`, nunca en el repo.
+- Unitarios con Mockito. Los de controller usan `MockMvcBuilders.standaloneSetup`:
+  hay que fijar `MappingJackson2HttpMessageConverter` con un `ObjectMapper` de
+  `Jackson2ObjectMapperBuilder`, o gana el converter de XML y el cuerpo del error
+  se pierde (ver `GameControllerPreviewAssetsTest`).
+- `*SecurityIntegrationTest` / `*AuthorizationMatrixIntegrationTest`: `@WebMvcTest`
+  con la cadena de seguridad real y JWT firmados en el test, para probar los
+  `@PreAuthorize` rol por rol. Un endpoint nuevo con restricción de rol va aquí.
+  Pese al nombre, corren con surefire (`-Dtest` funciona igual).
+
+Fixtures compartidos en `src/test/java/com/verygana2/testsupport`.
+
+## Secretos y perfiles
+
+Los secretos viven en Infisical. El `.env` local es una copia generada con
+`scripts/sync-env.ps1` (o se inyectan con `infisical run -- ./mvnw spring-boot:run`);
+no se edita a mano ni se commitea. Ver README.
+
+Perfiles: `dev` (activo por defecto), `prod`, y `beta`, que se monta **encima** de
+prod (`SPRING_PROFILES_ACTIVE=prod,beta`) y solo sobrescribe dinero y terceros
+para dejarlos en sandbox.
 
 ## Base de datos
 
-- No hay Flyway. El esquema lo mantiene Hibernate con `ddl-auto: update` en dev y
-  prod: agrega columnas y tablas, nunca borra ni renombra.
-- Lo que `update` no puede hacer va en `src/main/resources/db/migration/` y se
-  aplica a mano. Esos scripts deben ser idempotentes (MySQL no tiene
-  `ADD COLUMN IF NOT EXISTS`; ver el patrón con `information_schema` en los
-  existentes), porque las bases de dev ya pueden tener el cambio.
+- El esquema lo maneja Flyway (`src/main/resources/db/migration/`, `V<n>__*.sql`).
+  Hibernate solo valida (`ddl-auto: validate`): una entidad con una columna que
+  no tiene migración tumba el arranque. Todo cambio de entidad trae su migración.
+- `V1__baseline.sql` es el dump del esquema; con `baseline-on-migrate` una base
+  existente se marca en V1 y corre de V2 en adelante. Como las bases viejas de
+  dev pueden tener ya cambios que hizo `ddl-auto: update`, las migraciones deben
+  ser idempotentes (MySQL no tiene `ADD COLUMN IF NOT EXISTS`; ver el patrón con
+  `information_schema` en V10).
+- Nunca editar ni renumerar una migración ya aplicada: `validate-on-migrate`
+  compara checksums y la app no arranca. Si dos ramas crean el mismo número, la
+  que llega después toma el siguiente libre.
 - Seeds: `DataSeeder` (`@Profile("dev")`) ejecuta los `.sql` de `db/seed/`.
   Otros initializers en `config/` cargan datos propios (p. ej. el cuestionario
   diagnóstico desde JSON).
@@ -53,7 +79,9 @@ Capas clásicas por paquete: `controllers` → `services` (interfaz en
 `services/interfaces`, implementación `*ServiceImpl`) → `repositories` (Spring
 Data JPA, filtros con `utils/specifications`) → `models`. DTOs en `dtos`,
 mapeo con MapStruct en `mappers` (con DTOs `@Builder`, un `@AfterMapping` debe
-recibir el builder como `@MappingTarget` o no se ejecuta). Cada capa se subdivide
+recibir el builder como `@MappingTarget` o no se ejecuta, sin error ni warning;
+se comprueba buscando el método en el `*MapperImpl` generado en
+`target/generated-sources/annotations`). Cada capa se subdivide
 por dominio: juegos/brandeo, mascotas, marketplace, rifas, finanzas, PQRS,
 compliance, planes, encuestas, niveles/referidos.
 
@@ -77,8 +105,12 @@ Piezas transversales que no se ven desde un solo archivo:
   segunda mitad en un scheduler o listener.
 - **Observabilidad**: Actuator + Prometheus; configs de Prometheus, Grafana y
   Alloy en `monitoring/`, validadas en CI.
-
-Documentos de dominio en la raíz: `PAYOUT_SYSTEM.md`, `PQRS_SYSTEM.md`.
+- **Brandeo de juegos**: el anunciante nunca publica archivos directo en la
+  configuración del juego. Sus recursos corporativos quedan privados
+  (`branding/{id}/resources/`, URL temporal) y el diseñador, que es el auditor de
+  contenido y calidad, los publica como assets. Lo que el anunciante *escribe*
+  (preguntas, palabras, pistas) sí va a la configuración. No es un hueco: no
+  agregar endpoints para que el comercial suba assets públicos.
 
 ## Qué revisar en cada PR
 
@@ -90,7 +122,8 @@ Una clave nueva debe existir en los tres archivos: `application.yml`,
 `application-dev.yml` y `application-prod.yml`. Un `@Value` sin default que
 falte en un perfil tumba el arranque de ese perfil, y no se nota hasta el
 despliegue. Si un PR mueve un bloque de configuración entre archivos, verificar
-que ningún perfil se quede sin la clave.
+que ningún perfil se quede sin la clave. `application-beta.yml` hereda de prod y
+solo hay que tocarlo si la clave tiene que ver con dinero o con terceros.
 
 ### Puertas de seguridad y efectos colaterales
 
@@ -121,7 +154,14 @@ Marcar siempre los cambios en anotaciones `@PreAuthorize` / `hasRole`, aunque el
 diff sea de una línea. Marcar también cualquier log o mensaje de error que
 incluya cédula, correo, teléfono o datos de la solicitud.
 
+`hasRole('ROLE_X')` con el prefijo **no es un bug** en este repo: Security 6.5
+no duplica el prefijo en `@PreAuthorize`. Solo hay que revisarlo si se sube a
+Spring Boot 4 / Security 7.
+
 ### Tests
 
 Un PR que arregla un bug debería traer el test que lo habría atrapado. Si el
 test pasa igual con el bug reintroducido, no sirve.
+
+## Documentacion
+Una vez finalizado la feature revisar notion si ya existe documentacion hacerca de el feature actualizala, si no existe creela con casos de uso y diagramas de secuencia 

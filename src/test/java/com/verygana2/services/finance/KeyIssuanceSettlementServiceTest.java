@@ -15,6 +15,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.models.records.IssuanceTotals;
 import com.verygana2.repositories.AdLikeRepository;
+import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 
@@ -38,13 +39,14 @@ class KeyIssuanceSettlementServiceTest {
 
     @Mock AdLikeRepository adLikeRepository;
     @Mock SurveyRewardRepository surveyRewardRepository;
+    @Mock GameSessionRepository gameSessionRepository;
     @Mock TreasuryService treasuryService;
 
     private final Clock clock = Clock.fixed(Instant.parse("2026-09-16T10:00:00Z"), ZoneOffset.UTC);
 
     private KeyIssuanceSettlementService service() {
         return new KeyIssuanceSettlementService(
-                adLikeRepository, surveyRewardRepository, treasuryService, clock);
+                adLikeRepository, surveyRewardRepository, gameSessionRepository, treasuryService, clock);
     }
 
     @Test
@@ -108,6 +110,26 @@ class KeyIssuanceSettlementServiceTest {
 
         verify(treasuryService).settleKeyIssuance(eq(1_000L), eq(700L), any(), eq("AD_LIKE_BATCH"));
         verify(treasuryService).settleKeyIssuance(eq(2_000L), eq(1_400L), any(), eq("SURVEY_REWARD_BATCH"));
+    }
+
+    @Test
+    @DisplayName("las sesiones de juego también liquidan su diferencial, con referenceType propio")
+    void gameSessionsSettleTheirMultiplierDelta() {
+        // Sesiones que le cobraron 6.500 a la campaña y le acreditaron 13.000 a un jugador
+        // con multiplicador 2.0: OPERATIONS tiene que financiar los 6.500 de exceso.
+        when(adLikeRepository.sumUnsettledIssuance(any())).thenReturn(new IssuanceTotals(0L, 0L));
+        when(surveyRewardRepository.sumUnsettledIssuance(any())).thenReturn(new IssuanceTotals(0L, 0L));
+        when(gameSessionRepository.sumUnsettledIssuance(any()))
+                .thenReturn(new IssuanceTotals(6_500L, 13_000L));
+
+        service().settlePendingIssuance();
+
+        verify(treasuryService).settleKeyIssuance(eq(6_500L), eq(13_000L), any(), eq("GAME_SESSION_BATCH"));
+        ArgumentCaptor<ZonedDateTime> sumCutoff = ArgumentCaptor.forClass(ZonedDateTime.class);
+        ArgumentCaptor<ZonedDateTime> markCutoff = ArgumentCaptor.forClass(ZonedDateTime.class);
+        verify(gameSessionRepository).sumUnsettledIssuance(sumCutoff.capture());
+        verify(gameSessionRepository).markIssuanceSettled(markCutoff.capture());
+        assertThat(markCutoff.getValue()).isEqualTo(sumCutoff.getValue());
     }
 
     @Test

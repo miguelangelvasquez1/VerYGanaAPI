@@ -107,6 +107,18 @@ public interface TreasuryService {
      */
     void registerPetGameSpend(long amountCents, UUID referenceId);
 
+    /**
+     * Cobro por uso de un ítem de mascotas: KEYS_RESERVE → OPERATIONS.
+     *
+     * El cobro sale de la bolsa que el comercial reservó de su wallet, y ese dinero
+     * tiene su respaldo en KEYS_RESERVE. Como el cobro no emite llaves, el respaldo
+     * pasa a ser ingreso de la plataforma.
+     *
+     * @param amountCents lo cobrado a la bolsa
+     * @param referenceId id de la KeyTransaction de la compra que originó el cobro
+     */
+    void registerPetItemCharge(long amountCents, UUID referenceId);
+
     TreasurySnapshot getSnapshot();
 
     /** Balance enriquecido con estado de umbrales para el endpoint de auditoría. */
