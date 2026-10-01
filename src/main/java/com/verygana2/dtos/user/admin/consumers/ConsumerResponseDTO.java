@@ -40,7 +40,7 @@ public class ConsumerResponseDTO {
     private Integer age;
     private Gender gender;
     private ZonedDateTime lastDailyLoginDate;
-    private Long referredBy;
+    private UUID referredByPublicId;
     private DocumentType documentType;
     private String documentNumber;
     private String occupation;

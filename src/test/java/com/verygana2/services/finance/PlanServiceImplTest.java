@@ -60,6 +60,7 @@ class PlanServiceImplTest {
     @Mock private WompiTransactionRepository wompiTransactionRepository;
     @Mock private CommercialDetailsRepository commercialDetailsRepository;
     @Mock private TreasuryService treasuryService;
+    @Mock private com.verygana2.services.interfaces.finance.ProsperityService prosperityService;
     @Mock private TreasuryConfig treasuryConfig;
     @Mock private SubscriptionRepository subscriptionRepository;
     @Mock private InvestmentRepository investmentRepository;
@@ -81,7 +82,7 @@ class PlanServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PlanServiceImpl(wompiService, wompiTransactionRepository, commercialDetailsRepository,
-                treasuryService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
+                treasuryService, prosperityService, treasuryConfig, subscriptionRepository, investmentRepository, planRepository,
                 walletRepository, walletService, onboardingRepository, investmentService, effectivePlanResolver,
                 emailService, commercialContractService, commercialContractRepository, planChangeRequestRepository,
                 planChangeRequestService, commercialOnboardingMapper);
@@ -276,6 +277,7 @@ class PlanServiceImplTest {
             assertThat(commercial.getCurrentPlan()).isSameAs(standard); // la recarga no cambia el plan
             verify(treasuryService).distributeDeposit(11_000_000L, 0L, commercial, tx.getId());
             verify(planRepository, never()).findByCodeAndActiveTrue(PlanCode.PREMIUM);
+            verify(prosperityService).generateThreshold(investment);
         }
 
         @Test
@@ -428,6 +430,7 @@ class PlanServiceImplTest {
             assertThat(wallet.getBalanceCents()).isEqualTo(6_600_000L); // sin cambios
             verify(treasuryService, never()).distributeDeposit(any(), any(), any(), any());
             verify(walletRepository, never()).save(any());
+            verify(prosperityService, never()).generateThreshold(any());
         }
 
         @Test

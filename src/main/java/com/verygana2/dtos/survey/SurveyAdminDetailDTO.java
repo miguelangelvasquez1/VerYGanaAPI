@@ -3,6 +3,7 @@ package com.verygana2.dtos.survey;
 import java.time.LocalDateTime;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.surveys.Survey;
@@ -44,7 +45,7 @@ public class SurveyAdminDetailDTO {
     private List<QuestionResponse> questions;
 
     // ─── Creator ──────────────────────────────────────────────────────────────
-    private Long creatorId;
+    private UUID creatorPublicId;
     private String companyName;
     private String creatorEmail;
 

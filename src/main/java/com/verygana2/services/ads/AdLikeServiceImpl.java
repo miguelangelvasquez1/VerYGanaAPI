@@ -342,7 +342,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         Page<AdLikeResponseDTO> adLikes = adLikeRepository
                 .findByAdIdOrderByCreatedAtDesc(adId, pageable)
                 .map(like -> AdLikeResponseDTO.builder()
-                        .userId(like.getConsumer().getId())
+                        .userPublicId(like.getConsumer().getUser().getPublicId())
                         .userName(like.getConsumer().getName() + " " + like.getConsumer().getLastName())
                         .likedAt(like.getCreatedAt())
                         .build()

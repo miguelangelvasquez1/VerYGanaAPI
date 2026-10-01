@@ -10,6 +10,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.verygana2.exceptions.InsufficientFundsException;
+import com.verygana2.models.enums.finance.WalletBudgetAlertStage;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.BudgetTransaction;
 import com.verygana2.models.finance.plans.BudgetTransaction.TransactionType;
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -204,7 +206,7 @@ class BudgetServiceTest {
     class SuccessfulConsume {
 
         @Test
-        @DisplayName("el consumo agota el wallet: notifica a InvestmentService.handleWalletExhausted")
+        @DisplayName("el consumo agota el wallet: sella la alerta EXHAUSTED y notifica a InvestmentService.handleWalletExhausted")
         void exhaustsWallet_notifiesInvestmentService() {
             Wallet wallet = walletWithBalance(100L);
             when(walletRepository.findByCommercialIdForUpdate(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
@@ -212,7 +214,10 @@ class BudgetServiceTest {
             service.consumeForAdView(COMMERCIAL_ID, 100L, "ref");
 
             assertThat(wallet.getBalanceCents()).isEqualTo(0L);
-            verify(walletRepository).save(wallet);
+            // Segundo save: sella la etapa EXHAUSTED para que BudgetAlertScheduler no reenvíe el aviso.
+            assertThat(wallet.getLastBudgetAlertStage()).isEqualTo(WalletBudgetAlertStage.EXHAUSTED);
+            assertThat(wallet.getLastBudgetAlertAt()).isNotNull();
+            verify(walletRepository, times(2)).save(wallet);
             verify(investmentService).handleWalletExhausted(COMMERCIAL_ID);
         }
 

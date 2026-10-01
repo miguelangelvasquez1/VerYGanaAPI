@@ -39,7 +39,7 @@ public class CompliancePlanChangeController {
     private PlanChangeReviewListItemDTO toResponse(PlanChangeRequest r) {
         return new PlanChangeReviewListItemDTO(
                 r.getId(),
-                r.getCommercial().getId(),
+                r.getCommercial().getUser().getPublicId(),
                 r.getCommercial().getCompanyName(),
                 r.getCommercial().getUser().getEmail(),
                 r.getFromPlan() != null ? r.getFromPlan().getCode() : null,

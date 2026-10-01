@@ -1,6 +1,7 @@
 package com.verygana2.dtos.finance.plans.responses;
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.finance.plans.PlanChangeRequestStatus;
@@ -16,7 +17,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PlanChangeReviewListItemDTO {
     private Long id;
-    private Long commercialId;
+    private UUID commercialPublicId;
     private String companyName;
     private String email;
     private PlanCode fromPlanCode;

@@ -1,6 +1,7 @@
 package com.verygana2.security;
 
 import java.util.Collection;
+import java.util.UUID;
 
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -11,6 +12,7 @@ import com.verygana2.models.enums.AccountStatus;
 public class CustomUserDetails implements UserDetails {
 
     private final Long id;
+    private final UUID publicId;
     private final String email;
     private final String password;
     private final boolean passwordConfigured;
@@ -19,6 +21,7 @@ public class CustomUserDetails implements UserDetails {
 
     public CustomUserDetails(User user, Collection<? extends GrantedAuthority> authorities) {
         this.id = user.getId();
+        this.publicId = user.getPublicId();
         this.email = user.getEmail();
         this.password = user.getPassword();
         this.passwordConfigured = user.isPasswordConfigured();
@@ -28,6 +31,10 @@ public class CustomUserDetails implements UserDetails {
 
     public Long getId() {
         return id;
+    }
+
+    public UUID getPublicId() {
+        return publicId;
     }
 
     public AccountStatus getAccountStatus() {

@@ -36,6 +36,7 @@ import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
@@ -61,6 +62,7 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final ProductStockRepository productStockRepository;
     private final ProductRepository productRepository;
     private final TreasuryService treasuryService;
+    private final ProsperityService prosperityService;
     private final EmailService emailService;
     private final ApplicationEventPublisher eventPublisher;
     private final WompiService wompiService;
@@ -155,7 +157,12 @@ public class CopaymentServiceImpl implements CopaymentService {
         // 2. Tesorería: efectivo (ya en Bancolombia vía Wompi) → PAYOUTS_PENDING
         treasuryService.moveCashToPayoutPending(cashAmountCents, copayment.getId());
 
-        // 3. Retener comisión inmediatamente: PAYOUTS_PENDING → OPERATIONS
+        // 3a. Imputar la venta contra el Saldo de Prosperidad de cada comercial STANDARD
+        // y fijar la comisión definitiva solo sobre la porción no absorbida (MP-05).
+        // Recalcula commissionCents/commissionVatCents/netToCommercials de la compra.
+        prosperityService.absorbPurchase(purchase);
+
+        // 3b. Retener comisión inmediatamente: PAYOUTS_PENDING → OPERATIONS
         // La venta está confirmada — el ingreso está ganado en este momento.
         // PAYOUTS_PENDING queda con el neto real del empresario (precio - comisión).
         long commissionCents = purchase.getCommissionCents();

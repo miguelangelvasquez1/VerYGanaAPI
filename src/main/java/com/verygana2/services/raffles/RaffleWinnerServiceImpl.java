@@ -56,7 +56,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
             Prize prize = w.getPrize();
             return PrizeWonResponseDTO.builder()
                     .prizeId(prize.getId())
-                    .winnerId(w.getWinner().getId())
+                    .winnerPublicId(w.getWinner().getUser().getPublicId())
                     .title(prize.getTitle())
                     .description(prize.getDescription())
                     .brand(prize.getBrand())

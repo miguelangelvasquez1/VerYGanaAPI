@@ -43,6 +43,7 @@ import jakarta.persistence.EntityManager;
  * consultas JPQL de admin/scheduler/usuario del dominio raffles.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         // NON_KEYWORDS=VALUE: Prize.value se mapea a una columna "value", que
         // H2 2.x reserva como palabra clave por defecto y rompe el CREATE TABLE

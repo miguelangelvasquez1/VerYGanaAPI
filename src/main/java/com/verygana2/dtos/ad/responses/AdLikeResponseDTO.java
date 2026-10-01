@@ -1,6 +1,7 @@
 package com.verygana2.dtos.ad.responses;
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -13,7 +14,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdLikeResponseDTO {
-    private Long userId;
+    private UUID userPublicId;
     private String userName;     // nombre completo del usuario
     private ZonedDateTime likedAt;
 }

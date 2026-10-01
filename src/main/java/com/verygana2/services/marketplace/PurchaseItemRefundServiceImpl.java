@@ -19,6 +19,7 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.PurchaseItemCashRefundRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
 
@@ -33,6 +34,7 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     private final PurchaseItemRepository purchaseItemRepository;
     private final ProductStockRepository productStockRepository;
     private final TreasuryService treasuryService;
+    private final ProsperityService prosperityService;
     private final CopaymentRepository copaymentRepository;
     private final KeyWalletRepository keyWalletRepository;
     private final KeyTransactionRepository keyTransactionRepository;
@@ -113,6 +115,10 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         treasuryService.reversePurchaseItemForRefund(
                 item.getCommissionCents(), item.getCommissionVatCents(),
                 keysPortionCents, cashPortionCents, copayment.getId());
+
+        // La venta no se perfeccionó: lo que absorbió el Saldo de Prosperidad vuelve a él.
+        // La comisión revertida arriba ya es solo la de la porción no absorbida.
+        prosperityService.reintegrateRefund(item);
 
         if (keysPortionCents > 0) {
             creditBackKeys(item, copayment, keysPortionCents);

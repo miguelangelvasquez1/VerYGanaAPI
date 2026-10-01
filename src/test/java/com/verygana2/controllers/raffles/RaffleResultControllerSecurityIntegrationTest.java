@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import com.verygana2.services.UserIdResolver;
 import java.util.List;
 
 import org.junit.jupiter.api.DisplayName;
@@ -54,6 +55,7 @@ class RaffleResultControllerSecurityIntegrationTest {
     @MockitoBean private RaffleResultService raffleResultService;
     // Requerido por SecurityConfig.authenticationProvider(), no se invoca en este flujo.
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private UserIdResolver userIdResolver;
     // Requerido por el FeatureFlagInterceptor global (WebMvcConfigurer), no relevante aquí.
     @MockitoBean private FeatureFlagService featureFlagService;
 

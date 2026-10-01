@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -23,12 +25,14 @@ import org.springframework.data.domain.Pageable;
 
 import com.verygana2.dtos.audit.AuditLogDTO;
 import com.verygana2.dtos.audit.AuditLogSearchResponseDTO;
+import com.verygana2.services.UserIdResolver;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("AuditLogService")
 class AuditLogServiceTest {
 
     @Mock AuditLogRepository auditLogRepository;
+    @Mock UserIdResolver userIdResolver;
 
     @InjectMocks AuditLogService service;
 
@@ -51,9 +55,11 @@ class AuditLogServiceTest {
     class Search {
 
         @Test
-        @DisplayName("delega en searchNonSecurityAuditLogs y mapea a DTO")
+        @DisplayName("delega en searchNonSecurityAuditLogs y mapea a DTO exponiendo publicId, no el id interno")
         void delegatesAndMaps() {
             Pageable pageable = PageRequest.of(0, 50);
+            UUID publicId = UUID.fromString("00000000-0000-0000-0000-000000000009");
+            when(userIdResolver.toPublicIds(any())).thenReturn(Map.of(9L, publicId));
             when(auditLogRepository.searchNonSecurityAuditLogs(
                     isNull(), isNull(), isNull(), any(), any(), eq(pageable)))
                     .thenReturn(new PageImpl<>(List.of(pqrsLog())));
@@ -64,6 +70,7 @@ class AuditLogServiceTest {
 
             assertThat(response.getEvents().getData()).hasSize(1);
             AuditLogDTO dto = response.getEvents().getData().get(0);
+            assertThat(dto.getUserPublicId()).isEqualTo(publicId);
             assertThat(dto.getAction()).isEqualTo("PQRS_SUBMIT");
             assertThat(dto.getCategory()).isEqualTo("PQRS");
             assertThat(dto.getLevel()).isEqualTo(AuditLevel.WARNING);

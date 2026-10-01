@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -27,6 +29,8 @@ import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.userDetails.CommercialDetails;
 
+import com.verygana2.models.User;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -37,6 +41,8 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 @DisplayName("ProductMapper")
 class ProductMapperTest {
+
+    private static final UUID COMMERCIAL_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-000000000009");
 
     private final ProductMapperImpl mapper = newMapper();
 
@@ -174,8 +180,12 @@ class ProductMapperTest {
         category.setName("Categoría A");
         product.setProductCategory(category);
 
+        User commercialUser = new User();
+        commercialUser.setId(9L);
+        commercialUser.setPublicId(COMMERCIAL_PUBLIC_ID);
         CommercialDetails commercial = new CommercialDetails();
         commercial.setId(9L);
+        commercial.setUser(commercialUser);
         commercial.setCompanyName("Empresa A");
         product.setCommercial(commercial);
 
@@ -267,7 +277,7 @@ class ProductMapperTest {
             assertThat(dto.getStock()).isEqualTo(1);
             assertThat(dto.getCategoryName()).isEqualTo("Categoría A");
             assertThat(dto.getCompanyName()).isEqualTo("Empresa A");
-            assertThat(dto.getCommercialId()).isEqualTo(9L);
+            assertThat(dto.getCommercialPublicId()).isEqualTo(COMMERCIAL_PUBLIC_ID);
         }
     }
 

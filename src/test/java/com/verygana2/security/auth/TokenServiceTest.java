@@ -78,6 +78,8 @@ import jakarta.servlet.http.Cookie;
 @DisplayName("TokenService — ciclo de vida del refresh token (seguridad)")
 class TokenServiceTest {
 
+    private static final UUID PUBLIC_ID = UUID.fromString("11111111-2222-3333-4444-555555555555");
+
     private static final String ISSUER = "VerYGanaAPI";
     private static final String USERNAME = "user@test.com";
     private static final long ACCESS_TTL = 900;
@@ -121,7 +123,7 @@ class TokenServiceTest {
     class Issuing {
 
         @Test
-        @DisplayName("emite un access token con type=access, scope y userId, y un refresh con type=refresh")
+        @DisplayName("emite un access token con type=access, scope y publicId (nunca el id interno), y un refresh con type=refresh")
         void issuesAccessAndRefreshWithDistinctTypes() {
             TokenPairDTO pair = tokenService.generateTokenPair(authentication());
 
@@ -129,7 +131,8 @@ class TokenServiceTest {
             assertThat(access.getClaimAsString("type")).isEqualTo("access");
             assertThat(access.getSubject()).isEqualTo(USERNAME);
             assertThat(access.getClaimAsString("scope")).isEqualTo("ROLE_CONSUMER");
-            assertThat(access.getClaims()).containsEntry("userId", 42L);
+            assertThat(access.getClaimAsString("publicId")).isEqualTo(PUBLIC_ID.toString());
+            assertThat(access.getClaims()).doesNotContainKey("userId");
             assertThat(access.getId()).isNotBlank(); // jti para trazabilidad
 
             Jwt refresh = decoder.decode(pair.getRefreshToken());
@@ -394,6 +397,7 @@ class TokenServiceTest {
     private CustomUserDetails userDetails() {
         User user = new User();
         user.setId(42L);
+        user.setPublicId(PUBLIC_ID);
         user.setEmail(USERNAME);
         user.setPassword("{bcrypt}irrelevante");
         user.setPasswordConfigured(true);

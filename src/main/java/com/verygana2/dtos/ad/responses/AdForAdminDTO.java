@@ -3,6 +3,7 @@ package com.verygana2.dtos.ad.responses;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 import com.verygana2.dtos.MunicipalityResponseDTO;
 import com.verygana2.models.Category;
@@ -46,6 +47,6 @@ public class AdForAdminDTO {
     private String rejectionReason;
     private List<MunicipalityResponseDTO> targetMunicipalities;
 
-    private Long commercialId;
+    private UUID commercialPublicId;
     private String commercialName;
 }

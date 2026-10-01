@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -262,11 +263,12 @@ class BrandingRequestBriefTest {
             designer.setLastName("Díaz");
             designer.setActive(true);
 
-            when(gameDesignerDetailsRepository.findByUser_Id(9L)).thenReturn(Optional.of(designer));
+            UUID designerPublicId = UUID.fromString("00000000-0000-0000-0000-000000000009");
+            when(gameDesignerDetailsRepository.findByPublicId(designerPublicId)).thenReturn(Optional.of(designer));
             when(adminDetailsRepository.findById(1L)).thenReturn(Optional.of(new AdminDetails()));
 
             ApproveBrandingRequestDTO dto = new ApproveBrandingRequestDTO();
-            dto.setDesignerUserId(9L);
+            dto.setDesignerPublicId(designerPublicId);
             return dto;
         }
 

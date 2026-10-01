@@ -112,7 +112,7 @@ class InvestmentServiceTest {
         void noExistingWallet_createsWalletOnTheFly() {
             CommercialDetails commercial = commercialWithPlan(plan(PlanCode.STANDARD));
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));
-            when(walletRepository.findByCommercialId(COMMERCIAL_ID)).thenReturn(Optional.empty());
+            when(walletRepository.findByCommercialIdForUpdate(COMMERCIAL_ID)).thenReturn(Optional.empty());
             when(walletRepository.save(any(Wallet.class))).thenAnswer(inv -> inv.getArgument(0));
 
             service.createInvestment(COMMERCIAL_ID, BigDecimal.valueOf(2_000_000));
@@ -129,7 +129,7 @@ class InvestmentServiceTest {
             CommercialDetails commercial = commercialWithPlan(plan(PlanCode.STANDARD));
             Wallet wallet = walletWithBalance(0L);
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));
-            when(walletRepository.findByCommercialId(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
+            when(walletRepository.findByCommercialIdForUpdate(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
 
             assertThatThrownBy(() -> service.createInvestment(COMMERCIAL_ID, BigDecimal.valueOf(500_000)))
                     .isInstanceOf(ValidationException.class)
@@ -144,7 +144,7 @@ class InvestmentServiceTest {
             CommercialDetails commercial = commercialWithPlan(plan(PlanCode.STANDARD));
             Wallet wallet = walletWithBalance(0L);
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));
-            when(walletRepository.findByCommercialId(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
+            when(walletRepository.findByCommercialIdForUpdate(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
 
             assertThatThrownBy(() -> service.createInvestment(COMMERCIAL_ID, new BigDecimal("1000000.505")))
                     .isInstanceOf(ValidationException.class);
@@ -159,7 +159,7 @@ class InvestmentServiceTest {
             CommercialDetails commercial = commercialWithPlan(currentPlan);
             Wallet wallet = walletWithBalance(0L);
             when(commercialDetailsRepository.findById(COMMERCIAL_ID)).thenReturn(Optional.of(commercial));
-            when(walletRepository.findByCommercialId(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
+            when(walletRepository.findByCommercialIdForUpdate(COMMERCIAL_ID)).thenReturn(Optional.of(wallet));
 
             InvestmentResponseDTO response = service.createInvestment(COMMERCIAL_ID, BigDecimal.valueOf(1_000_000));
 

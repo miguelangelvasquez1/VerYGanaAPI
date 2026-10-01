@@ -1,6 +1,7 @@
 package com.verygana2.dtos.user.commercial.onboarding;
 
 import java.time.ZonedDateTime;
+import java.util.UUID;
 
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.OnboardingStep;
@@ -25,7 +26,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AdvisorNegotiationListItemDTO {
     private Long onboardingId;
-    private Long userId;
+    private UUID userPublicId;
 
     private String companyName;
     private String email;

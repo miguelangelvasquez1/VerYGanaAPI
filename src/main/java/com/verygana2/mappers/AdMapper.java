@@ -60,7 +60,7 @@ public interface AdMapper {
 
     // 🔹 Mapear entidad a DTO para consumidor
     @Mapping(target = "commercialName", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getCompanyName() : null)")
-    @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
+    @Mapping(target = "commercialPublicId", expression = "java(ad.getCommercial() != null && ad.getCommercial().getUser() != null ? ad.getCommercial().getUser().getPublicId() : null)")
     @Mapping(target = "sessionUUID", ignore = true)
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", expression = "java(ad.getAsset() != null ? ad.getAsset().getMediaType() : null)")
@@ -69,7 +69,7 @@ public interface AdMapper {
 
     // 🔹 Mapear entidad a DTO para administrador
     @Mapping(target = "commercialName", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getCompanyName() : null)")
-    @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
+    @Mapping(target = "commercialPublicId", expression = "java(ad.getCommercial() != null && ad.getCommercial().getUser() != null ? ad.getCommercial().getUser().getPublicId() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true)
     @Mapping(target = "remainingBudget", source = "remainingBudget", conditionExpression = "java(true)")

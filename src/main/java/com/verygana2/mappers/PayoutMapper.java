@@ -9,7 +9,7 @@ import com.verygana2.models.finance.Payout;
 @Mapper(componentModel = "spring")
 public interface PayoutMapper {
     
-    @Mapping(target = "commercialId", source = "commercial.id")
+    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
     @Mapping(target = "companyName", source = "commercial.companyName")
     PayoutResponseDTO toPayoutResponseDTO (Payout payout);
 }

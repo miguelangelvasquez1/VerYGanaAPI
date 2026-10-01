@@ -4,6 +4,7 @@ import com.verygana2.models.enums.CatalogRequestStatus;
 
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.UUID;
 
 public record CatalogIntegrationResponseDTO(
         Long id,
@@ -14,8 +15,8 @@ public record CatalogIntegrationResponseDTO(
         String desiredEffects,
         CatalogRequestStatus status,
         String rejectionReason,
-        /** userId del diseñador asignado por el admin; null mientras nadie la tenga. */
-        Long assignedDesignerUserId,
+        /** publicId del diseñador asignado por el admin; null mientras nadie la tenga. */
+        UUID assignedDesignerPublicId,
         /** Nombre del diseñador asignado, para pintarlo sin otra llamada. */
         String assignedDesignerName,
         String adminNotes,

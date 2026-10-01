@@ -51,6 +51,7 @@ import com.verygana2.repositories.finance.plans.PlanRepository;
 import com.verygana2.repositories.finance.plans.SubscriptionRepository;
 import com.verygana2.services.interfaces.commercial.CommercialContractService;
 import com.verygana2.services.interfaces.finance.PlanService;
+import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.finance.WalletService;
 import com.verygana2.services.wompi.WompiService;
@@ -67,6 +68,7 @@ public class PlanServiceImpl implements PlanService {
         private final WompiTransactionRepository wompiTransactionRepository;
         private final CommercialDetailsRepository commercialDetailsRepository;
         private final TreasuryService treasuryService;
+        private final ProsperityService prosperityService;
         private final TreasuryConfig treasuryConfig;
         private final SubscriptionRepository subscriptionRepository;
         private final InvestmentRepository investmentRepository;
@@ -612,6 +614,10 @@ public class PlanServiceImpl implements PlanService {
                 // 2. Confirmar el depósito (marca confirmed=true, guarda wompiTx)
                 investment.confirm(wompiTx);
                 investmentRepository.save(investment);
+
+                // 2b. Umbral de Prosperidad (MP-05): solo si el plan del depósito tiene
+                // multiplicador (STANDARD). Neto × 4, sin IVA, acumulativo sobre el Saldo.
+                prosperityService.generateThreshold(investment);
 
                 Wallet wallet = investment.getWallet();
                 boolean wasExhausted = wallet.isExhausted();

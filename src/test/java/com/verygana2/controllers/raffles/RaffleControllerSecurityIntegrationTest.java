@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
+import com.verygana2.services.UserIdResolver;
 import org.hibernate.ObjectNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,7 @@ class RaffleControllerSecurityIntegrationTest {
     @MockitoBean private WaitingRoomService waitingRoomService;
     // Requerido por SecurityConfig.authenticationProvider(), no se invoca en este flujo.
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
+    @MockitoBean private UserIdResolver userIdResolver;
     // Requerido por el FeatureFlagInterceptor global (WebMvcConfigurer), no relevante aquí.
     @MockitoBean private FeatureFlagService featureFlagService;
 

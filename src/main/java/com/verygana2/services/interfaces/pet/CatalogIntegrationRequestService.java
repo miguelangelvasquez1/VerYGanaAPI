@@ -12,6 +12,7 @@ import com.verygana2.models.enums.CatalogRequestStatus;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Solicitudes de integración al catálogo de mascotas.
@@ -38,7 +39,7 @@ public interface CatalogIntegrationRequestService {
     CatalogIntegrationResponseDTO approve(Long requestId, ApprovePetRequestDTO dto);
 
     /** Reasigna el diseñador de una solicitud ya aprobada. */
-    CatalogIntegrationResponseDTO assignDesigner(Long requestId, Long designerUserId);
+    CatalogIntegrationResponseDTO assignDesigner(Long requestId, UUID designerPublicId);
 
     CatalogIntegrationResponseDTO reject(Long requestId, String reason);
 

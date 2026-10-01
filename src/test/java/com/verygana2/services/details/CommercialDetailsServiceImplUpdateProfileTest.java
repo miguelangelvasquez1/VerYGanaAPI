@@ -24,6 +24,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.verygana2.dtos.user.commercial.requests.CommercialUpdateProfileRequestDTO;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.mappers.UserMapper;
+import com.verygana2.services.UserIdResolver;
 import com.verygana2.models.User;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.DocumentType;
@@ -56,6 +57,7 @@ class CommercialDetailsServiceImplUpdateProfileTest {
     @Mock private ProductCategoryService productCategoryService;
     @Mock private PayoutService payoutService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private UserIdResolver userIdResolver;
     @Mock private ProductService productService;
 
     private CommercialDetailsServiceImpl service;
@@ -69,7 +71,7 @@ class CommercialDetailsServiceImplUpdateProfileTest {
         service = new CommercialDetailsServiceImpl(
                 commercialDetailsRepository, contractRepository, userRepository, userMapper,
                 purchaseItemService, productReviewService, productCategoryService, payoutService,
-                eventPublisher, productService);
+                eventPublisher, userIdResolver, productService);
 
         User user = new User();
         user.setId(COMMERCIAL_ID);
