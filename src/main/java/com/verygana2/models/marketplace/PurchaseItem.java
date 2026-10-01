@@ -2,6 +2,7 @@ package com.verygana2.models.marketplace;
 
 import java.time.ZonedDateTime;
 
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 
 import jakarta.persistence.CascadeType;
@@ -18,6 +19,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 
@@ -116,19 +118,32 @@ public class PurchaseItem {
 
     /**
      * Porcentaje de comisión aplicado sobre este ítem específico.
-     * Snapshot calculado en PurchaseService al momento de crear el ítem:
+     * Snapshot calculado en PurchaseService.calculateCommissionPct al momento
+     * de crear el ítem:
      *
-     *   - Si commercial.investment.roiReached = false → 0 (aún no alcanzó 6× inversión)
-     *   - Si plan = BASIC                             → ~30 (comisión alta desde el inicio)
-     *   - Si plan = STANDARD/PREMIUM y roiReached     → 10
+     *   - BASIC/PREMIUM       → plan.saleCommissionPct (plano)
+     *   - STANDARD + PRODUCTS → plan.saleCommissionPct
+     *   - STANDARD + SERVICES → plan.servicesCommissionPct
      *
      * Se persiste aquí porque cada ítem puede pertenecer a un comercial distinto
-     * con su propio plan. Guardar el porcentaje por ítem hace que
-     * el historial sea autocontenido y auditable individualmente.
+     * con su propio plan y vocación. Guardar el porcentaje por ítem hace que
+     * el historial sea autocontenido, auditable individualmente, y que una
+     * reclasificación de vocación posterior nunca lo altere retroactivamente.
      */
     @Column(name = "commission_pct_applied", nullable = false)
     @Builder.Default
     private Integer commissionPctApplied = 0;
+
+    /**
+     * Vocación Empresarial del comercial (CommercialDetails.commercialActivityType)
+     * en el momento de esta compra. Snapshot inmutable: si el comercial se
+     * reclasifica después (PRODUCTS <-> SERVICES), este ítem histórico no
+     * cambia — la reclasificación es siempre prospectiva, nunca retroactiva.
+     * Null si el comercial no tenía vocación asignada al momento de la compra.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commercial_activity_type_at_purchase", length = 20)
+    private CommercialActivityType commercialActivityTypeAtPurchase;
 
     /**
      * Comisión en centavos retenida por VeryGana sobre este ítem.
@@ -143,6 +158,17 @@ public class PurchaseItem {
     @Column(name = "commission_cents", nullable = false)
     @Builder.Default
     private Long commissionCents = 0L;
+
+    /**
+     * Porción de commissionCents correspondiente a IVA (la comisión ya lo
+     * incluye — no se suma aparte, se extrae). Snapshot inmutable, calculado
+     * con TreasuryConfig.vatPct al momento de la compra — se usa para dividir
+     * la retención entre OPERATIONS/TAX_RESERVE (TreasuryServiceImpl.retainCommission)
+     * y para revertir exactamente lo mismo en un reembolso.
+     */
+    @Column(name = "commission_vat_cents", nullable = false)
+    @Builder.Default
+    private Long commissionVatCents = 0L;
 
     /**
      * Lo que le corresponde al empresario después de comisión.
@@ -170,7 +196,36 @@ public class PurchaseItem {
     private String deliveredCode;
 
     @Column(name = "delivered_at")
-    private ZonedDateTime deliveredAt; // Cuándo se entregó
+    private ZonedDateTime deliveredAt; // Cuándo se generó/envió el código (no cuándo se reclamó)
+
+    /**
+     * Hash (BCrypt, mismo PasswordEncoder que EmailVerificationServiceImpl)
+     * del PIN de reclamación física. Solo se genera cuando
+     * product.productType == PHYSICAL; el comprador lo recibe por correo
+     * y el comerciante lo ingresa al momento de la entrega física para que el
+     * ítem pase a CLAIMED. Null para productos digitales.
+     */
+    @Column(name = "claim_pin_hash", length = 100)
+    private String claimPinHash;
+
+    @Column(name = "claim_attempts", nullable = false)
+    @Builder.Default
+    private Integer claimAttempts = 0;
+
+    @Column(name = "claimed_at")
+    private ZonedDateTime claimedAt; // Cuándo se validó el PIN (o, en digital, igual a deliveredAt)
+
+    @Column(name = "claim_expires_at")
+    private ZonedDateTime claimExpiresAt; // Solo físico: plazo para reclamar antes de EXPIRED_UNCLAIMED
+
+    /**
+     * PIN en texto plano, solo en memoria dentro de la misma request que lo
+     * generó (ver CopaymentServiceImpl.deliverProducts). Nunca se persiste
+     * —solo claimPinHash va a la base de datos—; existe únicamente para que
+     * el correo de confirmación de compra pueda mostrarlo una sola vez.
+     */
+    @Transient
+    private String plainClaimPinForEmail;
 
      @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -180,11 +235,41 @@ public class PurchaseItem {
     @Builder.Default
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
-    public boolean isDelivered() {
-        return status == PurchaseItemStatus.DELIVERED;
+    /**
+     * Status (PENDING o CLAIMED) que tenía el ítem justo antes de entrar en
+     * IN_REVIEW — ver enterReview(). Permite restaurarlo exactamente si el
+     * admin descarta el reclamo (exitReviewDismissed()), en vez de asumir
+     * siempre CLAIMED. Null salvo mientras el ítem está IN_REVIEW.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status_before_review", length = 20)
+    private PurchaseItemStatus statusBeforeReview;
+
+    public boolean isClaimed() {
+        return status == PurchaseItemStatus.CLAIMED;
     }
 
     public boolean canBeReviewed() {
-        return this.isDelivered();
+        return this.isClaimed();
+    }
+
+    /**
+     * El comprador reportó un problema con este ítem (PQRS recién creado):
+     * guarda el status actual para poder restaurarlo si el reclamo se
+     * descarta — ver PqrsServiceImpl.createPqrsForPurchaseItem.
+     */
+    public void enterReview() {
+        this.statusBeforeReview = this.status;
+        this.status = PurchaseItemStatus.IN_REVIEW;
+    }
+
+    /**
+     * El admin resolvió el PQRS con DISMISS: el reclamo no procedía, así que
+     * el ítem retoma exactamente el status que tenía antes de la revisión —
+     * ver PqrsServiceImpl.respondToPqrs.
+     */
+    public void exitReviewDismissed() {
+        this.status = statusBeforeReview != null ? statusBeforeReview : PurchaseItemStatus.CLAIMED;
+        this.statusBeforeReview = null;
     }
 }

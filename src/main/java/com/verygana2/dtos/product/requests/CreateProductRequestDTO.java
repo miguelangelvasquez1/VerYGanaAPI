@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 
 import com.verygana2.dtos.targeting.OptionalTargetAudienceDTO;
+import com.verygana2.models.enums.marketplace.ProductType;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
@@ -40,6 +41,16 @@ public class CreateProductRequestDTO {
     // Para cargar stock digital
     @NotEmpty(message = "Product must have at least one stock item")
     private List<ProductStockRequestDTO> stockItems;
+
+    /**
+     * Determina si el producto se reclama automáticamente al entregar el
+     * código (DIGITAL) o requiere que el comprador entregue un PIN al
+     * comerciante al recoger el producto en persona (PHYSICAL). Inmutable
+     * tras la creación: cambiarlo después dejaría en ambigüedad los ítems ya
+     * vendidos bajo el tipo anterior.
+     */
+    @NotNull(message = "product type is required")
+    private ProductType productType;
 
     /**
      * Localidades/edad/género de interés para este producto. No es una

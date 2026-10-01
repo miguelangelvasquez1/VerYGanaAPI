@@ -14,7 +14,7 @@ import com.verygana2.dtos.user.consumer.responses.ConsumerInitialDataResponseDTO
 import com.verygana2.dtos.user.consumer.responses.ConsumerProfileResponseDTO;
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.UserLevel;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
 public interface ConsumerDetailsService {
@@ -24,7 +24,7 @@ public interface ConsumerDetailsService {
     EntityUpdatedResponseDTO updateConsumerProfile(Long consumerId, ConsumerUpdateProfileRequestDTO request);
     ConsumerDetails getConsumerById (Long consumerId);
     boolean existsConsumerById(Long consumerId);
-    PagedResponse<ConsumerSummaryResponseDTO> getConsumers (UserLevel level, String search, UserState userState,
+    PagedResponse<ConsumerSummaryResponseDTO> getConsumers (UserLevel level, String search, AccountStatus accountStatus,
     Integer maxAge, Integer minAge, Gender gender, String departmentCode, String municipalityCode, ZonedDateTime startDate, ZonedDateTime endDate, Pageable pageable);
     ConsumerResponseDTO getConsumer (UUID publicId);
 }

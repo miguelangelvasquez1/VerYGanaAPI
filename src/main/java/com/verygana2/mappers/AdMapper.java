@@ -40,10 +40,13 @@ public interface AdMapper {
     Ad toEntity(CreateAdRequestDTO request, CommercialDetails commercial);
 
     // 🔹 Mapear entidad a DTO de respuesta
-    @Mapping(target = "remainingBudget", source = "remainingBudget")
+    // Ad.hasRemainingBudget() ("alcanza para otro like") MapStruct lo toma como presence checker
+    // y dejaría remainingBudget en null al agotarse; se fuerza a mapear siempre para devolver 0.
+    @Mapping(target = "remainingBudget", source = "remainingBudget", conditionExpression = "java(true)")
     @Mapping(target = "remainingLikes", source = "remainingLikes")
     @Mapping(target = "completionPercentage", source = "completionPercentage")
     @Mapping(target = "mediaType", expression = "java(entity.getAsset() != null ? entity.getAsset().getMediaType() : null)")
+    @Mapping(target = "durationSeconds", expression = "java(entity.getAsset() != null ? entity.getAsset().getDurationSeconds() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "categories", source = "targetAudience.categories")
     @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
@@ -69,6 +72,8 @@ public interface AdMapper {
     @Mapping(target = "commercialId", expression = "java(ad.getCommercial() != null ? ad.getCommercial().getId() : null)")
     @Mapping(target = "contentUrl", ignore = true)
     @Mapping(target = "mediaType", ignore = true)
+    @Mapping(target = "remainingBudget", source = "remainingBudget", conditionExpression = "java(true)")
+    @Mapping(target = "durationSeconds", expression = "java(ad.getAsset() != null ? ad.getAsset().getDurationSeconds() : null)")
     @Mapping(target = "categories", source = "targetAudience.categories")
     @Mapping(target = "targetMunicipalities", source = "targetAudience.targetMunicipalities")
     @Mapping(target = "minAge", source = "targetAudience.minAge")

@@ -1,5 +1,6 @@
 package com.verygana2.repositories.legal;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,4 +18,7 @@ public interface LegalDocumentRepository extends JpaRepository<LegalDocument, Lo
 
     /** Última fila creada para ese tipo, sin importar el estado — usada para calcular la siguiente versión. */
     Optional<LegalDocument> findFirstByTypeOrderByCreatedAtDesc(LegalDocumentType type);
+
+    /** Documentos en el estado dado creados antes del umbral (p. ej. PENDING nunca confirmados). */
+    List<LegalDocument> findByStatusAndCreatedAtBefore(LegalDocumentStatus status, ZonedDateTime threshold);
 }

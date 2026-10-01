@@ -6,6 +6,7 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,11 +17,11 @@ import java.util.stream.Collectors;
 
 import org.hibernate.ObjectNotFoundException;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.FileUploadPermissionDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
@@ -42,7 +43,9 @@ import com.verygana2.mappers.raffles.PrizeMapper;
 import com.verygana2.mappers.raffles.RaffleMapper;
 import com.verygana2.exceptions.rafflesExceptions.InvalidOperationException;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.raffles.RaffleImagePolicy;
 import com.verygana2.models.enums.raffles.RaffleStatus;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
@@ -50,21 +53,23 @@ import com.verygana2.models.enums.raffles.RaffleType;
 import com.verygana2.models.enums.raffles.TicketEarningRuleType;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.TargetAudience;
+import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.PrizeImageAsset;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleImageAsset;
 import com.verygana2.models.raffles.RaffleRule;
 import com.verygana2.models.raffles.TicketEarningRule;
-import com.verygana2.repositories.MunicipalityRepository;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
 import com.verygana2.repositories.raffles.RaffleRepository;
 import com.verygana2.repositories.raffles.RaffleTicketRepository;
 import com.verygana2.repositories.raffles.TicketEarningRuleRepository;
+import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.security.ClaimCodeEncryptor;
+import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -86,17 +91,26 @@ public class RaffleServiceImpl implements RaffleService {
     private final R2Service r2Service;
     private final RaffleMapper raffleMapper;
     private final PrizeMapper prizeMapper;
-    private final MunicipalityRepository municipalityRepository;
     private final TargetAudienceAssembler targetAudienceAssembler;
+    private final ConsumerDetailsService consumerDetailsService;
     private final ClaimCodeEncryptor claimCodeEncryptor;
+    private final ObjectMapper objectMapper;
+    private final AssetOrphanedService assetOrphanedService;
 
     private static final String domain = "https://cdn.verygana.com/public/";
+
+    /**
+     * Estados visibles para consumers no-admin en consultas públicas de rifas.
+     * DRAFT, CLOSED, CANCELLED y MISSED_DRAW son de uso administrativo.
+     */
+    private static final Set<RaffleStatus> PUBLIC_RAFFLE_STATUSES = EnumSet.of(
+            RaffleStatus.ACTIVE, RaffleStatus.LIVE, RaffleStatus.DRAWING, RaffleStatus.COMPLETED);
 
     @Override
     public RaffleAssetsUploadPermissionDTO prepareRaffleCreation(Long adminId, CreateRaffleRequestDTO raffleData,
             FileUploadRequestDTO raffleImageMetadata, List<FileUploadRequestDTO> prizeImageMetadataList) {
 
-        log.info("📋 Preparing raffle creation for admin: {}", adminId);
+        log.info("Preparing raffle creation for admin: {}", adminId);
 
         // Validaciones de negocio antes de tocar storage
         validateDates(raffleData);
@@ -117,10 +131,13 @@ public class RaffleServiceImpl implements RaffleService {
             // --- Raffle image asset ---
             String raffleObjectKey = generateRaffleObjectKey(raffleImageMetadata);
 
+            String raffleDataSnapshot = serializeRaffleData(raffleData);
+
             RaffleImageAsset raffleAsset = RaffleImageAsset.builder()
                     .objectKey(raffleObjectKey)
                     .sizeBytes(raffleImageMetadata.getSizeBytes())
                     .status(AssetStatus.PENDING)
+                    .raffleDataSnapshot(raffleDataSnapshot)
                     .build();
 
             RaffleImageAsset savedRaffleAsset = raffleImageAssetRepository.save(raffleAsset);
@@ -162,7 +179,7 @@ public class RaffleServiceImpl implements RaffleService {
                         .build());
             }
 
-            log.info("✅ Preparation complete. Raffle asset: {}, Prize assets: {}",
+            log.info("Preparation complete. Raffle asset: {}, Prize assets: {}",
                     savedRaffleAsset.getId(),
                     prizeSlots.stream().map(s -> s.getPrizeAssetId()).toList());
 
@@ -173,10 +190,10 @@ public class RaffleServiceImpl implements RaffleService {
                     .build();
 
         } catch (Exception e) {
-            // Si algo falla durante el prepare, marcar los assets ya guardados como
-            // huérfanos
-            log.error("❌ Error during preparation, orphaning {} assets", createdAssetIds.size());
-            orphanRaffleAssets(createdAssetIds);
+            // No hay nada que orfanar: los assets de este prepare se insertaron en esta misma
+            // transacción, que se revierte al relanzar (no queda fila), y como la respuesta
+            // nunca llega al cliente tampoco se le entregó ninguna URL para subir archivos.
+            log.error("Error during preparation, rolling back {} assets", createdAssetIds.size());
             throw e;
         }
     }
@@ -184,7 +201,7 @@ public class RaffleServiceImpl implements RaffleService {
     @Override
     public EntityCreatedResponseDTO confirmRaffleCreation(Long adminId, ConfirmRaffleCreationRequestDTO request) {
 
-        log.info("🎫 Confirming raffle creation. Admin: {}", adminId);
+        log.info("Confirming raffle creation. Admin: {}", adminId);
 
         CreateRaffleRequestDTO raffleData = request.getRaffleData();
 
@@ -218,6 +235,11 @@ public class RaffleServiceImpl implements RaffleService {
             if (raffleAsset.getRaffle() != null) {
                 throw new InvalidRequestException(
                         "Raffle image asset is already associated to a raffle");
+            }
+
+            if (!matchesSnapshot(raffleAsset.getRaffleDataSnapshot(), raffleData)) {
+                throw new InvalidRequestException(
+                        "Raffle data provided in confirm does not match the data used during prepare");
             }
 
             log.info("Validating raffle image in R2: {}", raffleAsset.getObjectKey());
@@ -298,7 +320,7 @@ public class RaffleServiceImpl implements RaffleService {
                 prizeImageAssetRepository.save(prizeAsset);
             }
 
-            log.info("✅ Raffle created successfully. ID: {}", savedRaffle.getId());
+            log.info("Raffle created successfully. ID: {}", savedRaffle.getId());
 
             return new EntityCreatedResponseDTO(
                     savedRaffle.getId(),
@@ -306,47 +328,47 @@ public class RaffleServiceImpl implements RaffleService {
                     Instant.now());
 
         } catch (Exception e) {
-            log.error("❌ Error confirming raffle creation, orphaning assets");
+            log.error("Error confirming raffle creation, orphaning assets");
 
-            // Marcar todos los assets involucrados como huérfanos
-            List<Long> assetIdsToOrphan = new ArrayList<>();
-            if (raffleAsset != null)
-                assetIdsToOrphan.add(raffleAsset.getId());
-            prizeAssets.forEach(pa -> assetIdsToOrphan.add(pa.getId()));
-            orphanRaffleAssets(assetIdsToOrphan);
+            // Marcar como huérfanos los assets involucrados, en transacción propia: al relanzar
+            // la excepción esta transacción se revierte y marcarlos aquí mismo se perdería,
+            // dejando las imágenes en R2. AssetOrphanedService solo orfana los que siguen sin
+            // vincular, así que un doble envío del confirm no condena la imagen de una rifa ya creada.
+            if (raffleAsset != null) {
+                assetOrphanedService.markRaffleImageAssetsAsOrphanedByIds(List.of(raffleAsset.getId()));
+            }
+            if (!prizeAssets.isEmpty()) {
+                assetOrphanedService.markPrizeImageAssetsAsOrphanedByIds(
+                        prizeAssets.stream().map(PrizeImageAsset::getId).toList());
+            }
 
             throw e;
         }
     }
 
+    private String serializeRaffleData(CreateRaffleRequestDTO raffleData) {
+        try {
+            return objectMapper.writeValueAsString(raffleData);
+        } catch (Exception e) {
+            throw new InvalidRequestException("Could not serialize raffle data during prepare");
+        }
+    }
+
     /**
-     * Marca assets de raffle/prize como huérfanos en caso de error,
-     * para que un job de limpieza los elimine de R2 posteriormente.
+     * Compara los datos enviados en confirm contra el snapshot persistido durante
+     * prepare, para detectar si el cliente alteró la información entre ambas
+     * llamadas.
      */
-    private void orphanRaffleAssets(List<Long> raffleAssetIds) {
-        // Marcar RaffleImageAssets
-        raffleAssetIds.forEach(id -> {
-            // Intentar como RaffleImageAsset
-            raffleImageAssetRepository.findById(id).ifPresent(asset -> {
-                asset.setStatus(AssetStatus.ORPHANED);
-                raffleImageAssetRepository.save(asset);
-                try {
-                    r2Service.markAsOrphan(asset.getObjectKey());
-                } catch (Exception ex) {
-                    log.warn("Could not mark R2 object as orphan: {}", asset.getObjectKey());
-                }
-            });
-            // Intentar como PrizeImageAsset
-            prizeImageAssetRepository.findById(id).ifPresent(asset -> {
-                asset.setStatus(AssetStatus.ORPHANED);
-                prizeImageAssetRepository.save(asset);
-                try {
-                    r2Service.markAsOrphan(asset.getObjectKey());
-                } catch (Exception ex) {
-                    log.warn("Could not mark R2 object as orphan: {}", asset.getObjectKey());
-                }
-            });
-        });
+    private boolean matchesSnapshot(String raffleDataSnapshot, CreateRaffleRequestDTO raffleData) {
+        if (raffleDataSnapshot == null) {
+            return false;
+        }
+        try {
+            CreateRaffleRequestDTO snapshot = objectMapper.readValue(raffleDataSnapshot, CreateRaffleRequestDTO.class);
+            return snapshot.equals(raffleData);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String generateRaffleObjectKey(FileUploadRequestDTO metadata) {
@@ -480,11 +502,14 @@ public class RaffleServiceImpl implements RaffleService {
 
         Raffle raffleUpdated = getRaffleById(raffleId);
 
+        if (raffleUpdated.getRaffleStatus() != RaffleStatus.DRAFT && raffleUpdated.getRaffleStatus() != RaffleStatus.ACTIVE && raffleUpdated.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
+            throw new InvalidOperationException("Only 'DRAFT', 'ACTIVE' or 'MISSED_DRAW' raffles may be updated");
+        }
+
         raffleUpdated.setModifiedBy(adminId);
         raffleUpdated.setTitle(request.getTitle());
         raffleUpdated.setDescription(request.getDescription());
         raffleUpdated.setRaffleType(request.getRaffleType());
-        raffleUpdated.setRequiresPet(request.getRequiresPet());
         raffleUpdated.setStartDate(request.getStartDate());
         raffleUpdated.setEndDate(request.getEndDate());
         raffleUpdated.setDrawDate(request.getDrawDate());
@@ -550,8 +575,8 @@ public class RaffleServiceImpl implements RaffleService {
     public void deleteRaffle(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
-        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT && raffle.getRaffleStatus() != RaffleStatus.MISSED_DRAW) {
-            throw new InvalidOperationException("Only 'DRAFT' or 'MISSED_DRAW' raffles may be deleted");
+        if (raffle.getRaffleStatus() != RaffleStatus.DRAFT) {
+            throw new InvalidOperationException("Only 'DRAFT' raffles may be deleted");
         }
 
         raffleRepository.delete(raffle);
@@ -581,7 +606,7 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public RaffleResponseDTO getRaffleResponseDTOById(Long raffleId) {
+    public RaffleResponseDTO getRaffleResponseDTOById(Long raffleId, boolean isAdmin) {
 
         if (raffleId == null || raffleId <= 0) {
             throw new IllegalArgumentException("Raffle id must be positive");
@@ -589,6 +614,10 @@ public class RaffleServiceImpl implements RaffleService {
 
         Raffle raffle = raffleRepository.findById(raffleId).orElseThrow(
                 () -> new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ", Raffle.class));
+
+        if (!isAdmin && !PUBLIC_RAFFLE_STATUSES.contains(raffle.getRaffleStatus())) {
+            throw new ObjectNotFoundException("Raffle with id: " + raffleId + " not found ", Raffle.class);
+        }
 
         RaffleImageAsset asset = raffleImageAssetRepository.findByRaffleId(raffleId).orElseThrow(
                 () -> new ObjectNotFoundException("Raffle asset with raffle id: " + raffleId + " not found ",
@@ -623,6 +652,11 @@ public class RaffleServiceImpl implements RaffleService {
     public RaffleStatsResponseDTO getRaffleStats(Long raffleId) {
 
         Raffle raffle = getRaffleById(raffleId);
+
+        if (raffle.getRaffleStatus() != RaffleStatus.COMPLETED) {
+            throw new InvalidOperationException("Only 'COMPLETED' raffles have stats available");
+        }
+
         RaffleStatsResponseDTO response = raffleMapper.toRaffleStatsResponseDTO(raffle);
 
         List<Object[]> stats = raffleTicketRepository.countTicketsBySource(raffleId);
@@ -696,32 +730,51 @@ public class RaffleServiceImpl implements RaffleService {
     }
 
     @Override
-    public List<RaffleSummaryResponseDTO> getLiveRaffles(String municipalityCode) {
-        Municipality municipality = resolveMunicipality(municipalityCode);
-        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality);
+    public List<RaffleSummaryResponseDTO> getLiveRaffles(Long consumerId) {
+        // El municipio/edad/género del consumidor solo priorizan el orden de
+        // resultados, nunca excluyen rifas (ver TargetAudienceAssembler/plan de
+        // sectorización). Sin consumer autenticado no hay perfil del que sacarlos
+        // (no se pueden aceptar como query param, son datos sensibles/spoofeables),
+        // así que quedan null y el orden es genérico.
+        Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
+        if (consumerId != null) {
+            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
+        }
+
+        List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality, consumerAge,
+                consumerGender);
         lives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return lives;
     }
 
     @Override
-    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(RaffleType type, String municipalityCode,
-            int pageNumber) {
-        Municipality municipality = resolveMunicipality(municipalityCode);
-        Pageable pageable = PageRequest.of(pageNumber, 10);
-        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, pageable);
+    public PagedResponse<RaffleSummaryResponseDTO> getActiveRaffles(Long consumerId, RaffleType type, Pageable pageable) {
+        Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
+        if (consumerId != null) {
+            ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
+            municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
+        }
+
+        Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, consumerAge,
+                consumerGender, pageable);
         actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
         return PagedResponse.from(actives);
     }
 
-    /**
-     * municipalityCode es un filtro opcional de UX en endpoints públicos sin JWT
-     * garantizado: si el código no existe, se ignora en vez de fallar.
-     */
-    private Municipality resolveMunicipality(String municipalityCode) {
-        if (municipalityCode == null || municipalityCode.isBlank()) {
-            return null;
-        }
-        return municipalityRepository.findById(municipalityCode).orElse(null);
+    /** OTHER/PREFER_NOT_TO_SAY no tienen equivalente en TargetGender: se tratan como género desconocido. */
+    private TargetGender toTargetGender(Gender gender) {
+        if (gender == Gender.MALE) return TargetGender.MALE;
+        if (gender == Gender.FEMALE) return TargetGender.FEMALE;
+        return null;
     }
 
     @Override

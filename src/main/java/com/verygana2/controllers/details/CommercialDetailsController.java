@@ -12,18 +12,24 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.generic.EntityUpdatedResponseDTO;
 import com.verygana2.dtos.product.responses.CommercialProfileResponseDTO;
 import com.verygana2.dtos.user.commercial.CommercialInitialDataResponseDTO;
+import com.verygana2.dtos.user.commercial.requests.CommercialUpdateProfileRequestDTO;
+import com.verygana2.dtos.user.commercial.responses.CommercialOwnProfileResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.PayoutReportResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.SalesReportResponseDTO;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -103,5 +109,21 @@ public class CommercialDetailsController {
     @GetMapping("/{commercialId}/profile")
     public ResponseEntity<CommercialProfileResponseDTO> getCommercialProfile(@PathVariable Long commercialId) {
         return ResponseEntity.ok(commercialDetailsService.getCommercialProfile(commercialId));
+    }
+
+    /** Perfil propio del comercial autenticado, con los campos editables vía PUT /profile/edit. */
+    @GetMapping("/profile")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<CommercialOwnProfileResponseDTO> getCommercialOwnProfile(@AuthenticationPrincipal Jwt jwt) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(commercialDetailsService.getCommercialOwnProfile(commercialId));
+    }
+
+    @PutMapping("/profile/edit")
+    @PreAuthorize("hasRole('COMMERCIAL')")
+    public ResponseEntity<EntityUpdatedResponseDTO> updateCommercialProfile(
+            @AuthenticationPrincipal Jwt jwt, @Valid @RequestBody CommercialUpdateProfileRequestDTO request) {
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(commercialDetailsService.updateCommercialProfile(commercialId, request));
     }
 }

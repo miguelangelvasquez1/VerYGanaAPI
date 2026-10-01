@@ -61,10 +61,11 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .name("Básico")
                 .description("Suscripción mensual fija. Ideal para empezar a vender " +
                              "productos digitales sin inversión publicitaria.")
-                .monthlyPriceCents(20_000_000L)  // $200.000 COP
+                .monthlyPriceCents(30_000_000L)  // $300.000 COP
                 .minInvestmentCents(null)
                 .maxInvestmentCents(null)
                 .saleCommissionPct(20)            // 20% por venta
+                .servicesCommissionPct(0)         // no aplica: vocación aún sin efecto tarifario en BASIC
                 .maxKeysPct(20) // 20% del precio de cada producto se puede pagar con llaves
                 .build());
 
@@ -78,7 +79,8 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .monthlyPriceCents(null)
                 .minInvestmentCents(100_000_000L)   // $1.000.000 COP
                 .maxInvestmentCents(999_999_900L)   // $9.999.999 COP
-                .saleCommissionPct(10)              // 10% por venta
+                .saleCommissionPct(10)              // 10% por venta — comerciales con Vocación PRODUCTS
+                .servicesCommissionPct(15)          // 15% por venta — comerciales con Vocación SERVICES
                 .maxKeysPct(50) // 50% del precio de cada producto se puede pagar con llaves
                 .build());
 
@@ -94,11 +96,13 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .minInvestmentCents(1_000_000_000L) // $10.000.000 COP
                 .maxInvestmentCents(null)            // sin techo
                 .saleCommissionPct(0)              // no aplica: Premium no vende
+                .servicesCommissionPct(0)          // no aplica: Premium no vende
                 .maxKeysPct(0) // no aplica: Premium no vende
                 .build());
 
         // ── 2. Crear catálogo de features ─────────────────────────────────────
-        // SALES_COMMISSION NO está aquí — vive en Plan.saleCommissionPct
+        // SALES_COMMISSION NO está aquí — vive en Plan.saleCommissionPct /
+        // Plan.servicesCommissionPct (bifurcación por Vocación Empresarial en STANDARD)
         Feature canAdvertise = featureRepository.save(Feature.builder()
                 .code("CAN_ADVERTISE")
                 .name("Puede publicar anuncios")
@@ -125,13 +129,13 @@ public class PlanDataInitializer implements ApplicationRunner {
 
         Feature maxProducts = featureRepository.save(Feature.builder()
                 .code("MAX_PRODUCTS")
-                .name("Máximo de productos activos")
+                .name("Máximo de productos simultáneos")
                 .type(FeatureType.LIMIT)
                 .build());
 
         Feature maxAds = featureRepository.save(Feature.builder()
                 .code("MAX_ADS")
-                .name("Máximo de anuncios activos")
+                .name("Máximo de anuncios simultáneos")
                 .type(FeatureType.LIMIT)
                 .build());
 
@@ -153,9 +157,9 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.PERCENTAGE)
                 .build());
 
-        Feature canHavePets = featureRepository.save(Feature.builder()
-                .code("CAN_HAVE_PETS")
-                .name("Puede tener mascotas")
+        Feature canUsePets = featureRepository.save(Feature.builder()
+                .code("CAN_USE_PETS")
+                .name("Puede usar mascotas")
                 .type(FeatureType.BOOLEAN)
                 .build());
 
@@ -168,6 +172,18 @@ public class PlanDataInitializer implements ApplicationRunner {
         Feature canExportReport = featureRepository.save(Feature.builder()
                 .code("CAN_EXPORT_REPORT")
                 .name("Puede exportar el reporte ejecutivo en PDF")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
+        Feature canViewPerformanceMetrics = featureRepository.save(Feature.builder()
+                .code("CAN_VIEW_PERFORMANCE_METRICS")
+                .name("Puede ver métricas de rendimiento de anuncios, encuestas y campañas")
+                .type(FeatureType.BOOLEAN)
+                .build());
+
+        Feature canViewPageVisitMetrics = featureRepository.save(Feature.builder()
+                .code("CAN_VIEW_PAGE_VISIT_METRICS")
+                .name("Puede ver la métrica de visitas a su página oficial (Remisión)")
                 .type(FeatureType.BOOLEAN)
                 .build());
 
@@ -210,9 +226,11 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(basic, maxBrandedGames, 0,    null,  null),
             pf(basic, maxSurveys,      0,    null,  null),
             pf(basic, visibilityBoost, null, null,  BigDecimal.ZERO),
-            pf(basic, canHavePets,     null, false, null),
+            pf(basic, canUsePets,     null, false, null),
             pf(basic, canPromoteAllyProducts, null, false, null),
             pf(basic, canExportReport, null, false, null),
+            pf(basic, canViewPerformanceMetrics, null, false, null),
+            pf(basic, canViewPageVisitMetrics,   null, false, null),
 
             // ── STANDARD ──────────────────────────────────────────────────────
             pf(standard, canAdvertise,    null, true,  null),
@@ -224,9 +242,11 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, maxBrandedGames, 5,    null,  null),
             pf(standard, maxSurveys,      10,   null,  null),
             pf(standard, visibilityBoost, null, null,  new BigDecimal("30.00")),
-            pf(standard, canHavePets,     null, false, null),
+            pf(standard, canUsePets,     null, false, null),
             pf(standard, canPromoteAllyProducts, null, false, null),
             pf(standard, canExportReport, null, false, null),
+            pf(standard, canViewPerformanceMetrics, null, true,  null),
+            pf(standard, canViewPageVisitMetrics,   null, false, null),
             pf(standard, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
             pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
             pf(standard, budgetGracePeriodDays, 15,   null, null),
@@ -241,9 +261,11 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(premium, maxBrandedGames, 20,   null,  null),
             pf(premium, maxSurveys,      50,   null,  null),
             pf(premium, visibilityBoost, null, null,  new BigDecimal("70.00")),
-            pf(premium, canHavePets,     null, true,  null),
+            pf(premium, canUsePets,     null, true,  null),
             pf(premium, canPromoteAllyProducts, null, true, null),
             pf(premium, canExportReport, null, true, null),
+            pf(premium, canViewPerformanceMetrics, null, true, null),
+            pf(premium, canViewPageVisitMetrics,   null, true, null),
             pf(premium, lowBalanceWarningPct,  null, null, new BigDecimal("20.00")),
             pf(premium, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
             pf(premium, budgetGracePeriodDays, 30,   null, null)

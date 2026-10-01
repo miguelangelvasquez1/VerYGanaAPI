@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.treasury.TreasuryBalanceResponseDTO;
 import com.verygana2.dtos.treasury.TreasuryMovementResponseDTO;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
@@ -63,27 +64,37 @@ public class TreasuryServiceImpl implements TreasuryService {
          *
          * El redondeo siempre favorece a OPERATIONS para que los centavos perdidos
          * por división entera no desaparezcan — la suma de los 3 montos siempre
-         * es exactamente igual a amountCents.
+         * es exactamente igual a baseAmountCents.
          *
-         * @param amountCents monto total del depósito en centavos de COP
-         * @param commercial  empresario que realizó el depósito
-         * @param referenceId ID del Investment o WompiTransaction que originó este
-         *                    depósito
+         * El IVA (si lo hay) NO participa de esta distribución — va completo y
+         * aparte a TAX_RESERVE (ver MP-02 Frente 2: el empresario paga
+         * baseAmountCents + IVA, pero solo baseAmountCents es la inversión real).
+         *
+         * Los bolsillos CONNECTIVITY/INFRASTRUCTURE/PAYROLL (MP-04) existen como
+         * cuentas de tesorería pero NO se alimentan desde este reparto — se nutrirán
+         * de otras operaciones (fuera del alcance de este cambio).
+         *
+         * @param baseAmountCents monto de inversión sin IVA, en centavos de COP
+         * @param vatAmountCents  IVA cobrado sobre el depósito, en centavos (puede ser 0)
+         * @param commercial      empresario que realizó el depósito
+         * @param referenceId     ID del Investment o WompiTransaction que originó este
+         *                        depósito
          */
         @Transactional
         @Override
-        public void distributeDeposit(Long amountCents, CommercialDetails commercial, UUID referenceId) {
-                log.info("[TREASURY] Distribuyendo depósito: amount={}, commercial={}, reference={}",
-                                amountCents, commercial.getId(), referenceId);
+        public void distributeDeposit(Long baseAmountCents, Long vatAmountCents, CommercialDetails commercial,
+                        UUID referenceId) {
+                log.info("[TREASURY] Distribuyendo depósito: base={}, vat={}, commercial={}, reference={}",
+                                baseAmountCents, vatAmountCents, commercial.getId(), referenceId);
 
-                validateAmount(amountCents);
+                validateAmount(baseAmountCents);
 
                 // 1. Calcular montos de cada parte
-                long keysAmount = amountCents * treasuryConfig.getKeysReservePct() / 100;
-                long fortificationAmount = amountCents * treasuryConfig.getFortificationPct() / 100;
+                long keysAmount = baseAmountCents * treasuryConfig.getKeysReservePct() / 100;
+                long fortificationAmount = baseAmountCents * treasuryConfig.getFortificationPct() / 100;
                 // OPERATIONS absorbe el residuo del redondeo para que los 3 sumen exactamente
-                // amountCents
-                long operationsAmount = amountCents - keysAmount - fortificationAmount;
+                // baseAmountCents
+                long operationsAmount = baseAmountCents - keysAmount - fortificationAmount;
 
                 log.debug("[TREASURY] Distribución: KEYS_RESERVE={}, FORTIFICATION={}, OPERATIONS={}",
                                 keysAmount, fortificationAmount, operationsAmount);
@@ -116,6 +127,16 @@ public class TreasuryServiceImpl implements TreasuryService {
                 recordMovement(external, operations, operationsAmount,
                                 MovementConcept.BUSINESS_DEPOSIT_OPERATIONS, referenceId, "INVESTMENT");
 
+                // 5. IVA del depósito, aparte, completo a TAX_RESERVE
+                if (vatAmountCents != null && vatAmountCents > 0) {
+                        TreasuryAccount taxReserve = getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE);
+                        taxReserve.setBalanceCents(taxReserve.getBalanceCents() + vatAmountCents);
+                        treasuryAccountRepository.save(taxReserve);
+
+                        recordMovement(external, taxReserve, vatAmountCents,
+                                        MovementConcept.BUSINESS_DEPOSIT_VAT, referenceId, "INVESTMENT");
+                }
+
                 log.info("[TREASURY] Depósito distribuido exitosamente: reference={}", referenceId);
         }
 
@@ -123,28 +144,40 @@ public class TreasuryServiceImpl implements TreasuryService {
          * Registra el ingreso de un pago de plan BÁSICO mensual.
          *
          * El plan básico NO distribuye llaves porque es una suscripción de servicio,
-         * no un depósito publicitario. Todo va a OPERATIONS como ingreso directo.
+         * no un depósito publicitario. La base va a OPERATIONS como ingreso directo;
+         * el IVA (si lo hay) va aparte a TAX_RESERVE.
          *
-         * @param amountCents monto de la suscripción en centavos
-         * @param commercial  empresario que pagó
-         * @param referenceId ID de la WompiTransaction que confirmó el pago
+         * @param baseAmountCents monto de la suscripción sin IVA, en centavos
+         * @param vatAmountCents  IVA cobrado sobre la suscripción, en centavos (puede ser 0)
+         * @param commercial      empresario que pagó
+         * @param referenceId     ID de la WompiTransaction que confirmó el pago
          */
         @Transactional
         @Override
-        public void distributeSubscription(Long amountCents, CommercialDetails commercial, UUID referenceId) {
-                log.info("[TREASURY] Registrando suscripción plan básico: amount={}, commercial={}, reference={}",
-                                amountCents, commercial.getId(), referenceId);
+        public void distributeSubscription(Long baseAmountCents, Long vatAmountCents, CommercialDetails commercial,
+                        UUID referenceId) {
+                log.info("[TREASURY] Registrando suscripción plan básico: base={}, vat={}, commercial={}, reference={}",
+                                baseAmountCents, vatAmountCents, commercial.getId(), referenceId);
 
-                validateAmount(amountCents);
+                validateAmount(baseAmountCents);
 
                 TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
 
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
-                operations.setBalanceCents(operations.getBalanceCents() + amountCents);
+                operations.setBalanceCents(operations.getBalanceCents() + baseAmountCents);
                 treasuryAccountRepository.save(operations);
 
-                recordMovement(external, operations, amountCents,
+                recordMovement(external, operations, baseAmountCents,
                                 MovementConcept.BASIC_PLAN_SUBSCRIPTION, referenceId, "WOMPI_TRANSACTION");
+
+                if (vatAmountCents != null && vatAmountCents > 0) {
+                        TreasuryAccount taxReserve = getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE);
+                        taxReserve.setBalanceCents(taxReserve.getBalanceCents() + vatAmountCents);
+                        treasuryAccountRepository.save(taxReserve);
+
+                        recordMovement(external, taxReserve, vatAmountCents,
+                                        MovementConcept.BASIC_PLAN_SUBSCRIPTION_VAT, referenceId, "WOMPI_TRANSACTION");
+                }
 
                 log.info("[TREASURY] Suscripción registrada en OPERATIONS: reference={}", referenceId);
         }
@@ -242,22 +275,28 @@ public class TreasuryServiceImpl implements TreasuryService {
         }
 
         /**
-         * Retiene la comisión de una venta: mueve de PAYOUTS_PENDING a OPERATIONS.
-         * Llamado por el PayoutScheduler antes de transferirle al empresario.
+         * Retiene la comisión de una venta: mueve de PAYOUTS_PENDING a OPERATIONS,
+         * salvo la porción de IVA (la comisión ya la incluye) que se extrae y va
+         * a TAX_RESERVE en vez de a OPERATIONS. Llamado desde CopaymentServiceImpl
+         * cuando la venta se confirma.
          *
-         * @param amountCents comisión en centavos
-         * @param referenceId ID del Payout
+         * @param amountCents comisión total en centavos (incluye IVA)
+         * @param vatCents    porción de esa comisión correspondiente a IVA (puede ser 0)
+         * @param referenceId ID del Copayment
          */
         @Transactional
         @Override
-        public void retainCommission(Long amountCents, UUID referenceId, String referenceType) {
-                log.info("[TREASURY] Reteniendo comisión: amount={}, reference={}", amountCents, referenceId);
+        public void retainCommission(Long amountCents, Long vatCents, UUID referenceId, String referenceType) {
+                log.info("[TREASURY] Reteniendo comisión: amount={}, vat={}, reference={}",
+                                amountCents, vatCents, referenceId);
 
                 if (amountCents <= 0)
                         return;
 
+                long vat = vatCents == null ? 0L : vatCents;
+                long netAmount = amountCents - vat;
+
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
-                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
 
                 if (payoutsPending.getBalanceCents() < amountCents) {
                         throw new IllegalStateException(
@@ -265,15 +304,28 @@ public class TreasuryServiceImpl implements TreasuryService {
                 }
 
                 payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - amountCents);
-                operations.setBalanceCents(operations.getBalanceCents() + amountCents);
-
                 treasuryAccountRepository.save(payoutsPending);
-                treasuryAccountRepository.save(operations);
 
-                recordMovement(payoutsPending, operations, amountCents,
-                                MovementConcept.COMMISSION_RETENTION, referenceId, referenceType);
+                if (netAmount > 0) {
+                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+                        operations.setBalanceCents(operations.getBalanceCents() + netAmount);
+                        treasuryAccountRepository.save(operations);
 
-                log.info("[TREASURY] Comisión retenida: PAYOUTS_PENDING → OPERATIONS, reference={}", referenceId);
+                        recordMovement(payoutsPending, operations, netAmount,
+                                        MovementConcept.COMMISSION_RETENTION, referenceId, referenceType);
+                }
+
+                if (vat > 0) {
+                        TreasuryAccount taxReserve = getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE);
+                        taxReserve.setBalanceCents(taxReserve.getBalanceCents() + vat);
+                        treasuryAccountRepository.save(taxReserve);
+
+                        recordMovement(payoutsPending, taxReserve, vat,
+                                        MovementConcept.COMMISSION_VAT_RETENTION, referenceId, referenceType);
+                }
+
+                log.info("[TREASURY] Comisión retenida: PAYOUTS_PENDING → OPERATIONS/TAX_RESERVE, reference={}",
+                                referenceId);
         }
 
         /**
@@ -449,7 +501,138 @@ public class TreasuryServiceImpl implements TreasuryService {
         }
 
         /**
-         * Retorna los saldos actuales de las 4 cuentas de tesorería.
+         * Reversa internamente un PurchaseItem reembolsado. Ver Javadoc de la
+         * interfaz para el alcance exacto (no reversa el cobro en Wompi).
+         */
+        @Transactional
+        @Override
+        public void reversePurchaseItemForRefund(Long commissionCents, Long commissionVatCents,
+                        Long keysPortionCents, Long cashPortionCents, UUID referenceId) {
+                log.info("[TREASURY] Reversando ítem reembolsado: commission={}, vat={}, keys={}, cash={}, reference={}",
+                                commissionCents, commissionVatCents, keysPortionCents, cashPortionCents, referenceId);
+
+                long commission = commissionCents == null ? 0 : commissionCents;
+                long commissionVat = commissionVatCents == null ? 0 : commissionVatCents;
+                long keysPortion = keysPortionCents == null ? 0 : keysPortionCents;
+                long cashPortion = cashPortionCents == null ? 0 : cashPortionCents;
+
+                if (commission < 0 || commissionVat < 0 || keysPortion < 0 || cashPortion < 0) {
+                        throw new InvalidAmountException("Los montos a reversar no pueden ser negativos");
+                }
+
+                // La comisión retenida originalmente se dividió en (commission - vat) →
+                // OPERATIONS y vat → TAX_RESERVE (ver retainCommission). Cada porción se
+                // reversa desde la cuenta a la que realmente fue a parar.
+                long commissionNet = commission - commissionVat;
+
+                TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+
+                if (commissionNet > 0) {
+                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                        if (operations.getBalanceCents() < commissionNet) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en OPERATIONS para revertir la comisión.");
+                        }
+
+                        operations.setBalanceCents(operations.getBalanceCents() - commissionNet);
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + commissionNet);
+
+                        treasuryAccountRepository.save(operations);
+                        treasuryAccountRepository.save(payoutsPending);
+
+                        recordMovement(operations, payoutsPending, commissionNet,
+                                        MovementConcept.COMMISSION_REVERSAL, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                if (commissionVat > 0) {
+                        TreasuryAccount taxReserve = getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE);
+
+                        if (taxReserve.getBalanceCents() < commissionVat) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en TAX_RESERVE para revertir el IVA de la comisión.");
+                        }
+
+                        taxReserve.setBalanceCents(taxReserve.getBalanceCents() - commissionVat);
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + commissionVat);
+
+                        treasuryAccountRepository.save(taxReserve);
+                        treasuryAccountRepository.save(payoutsPending);
+
+                        recordMovement(taxReserve, payoutsPending, commissionVat,
+                                        MovementConcept.COMMISSION_VAT_REVERSAL, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                if (keysPortion > 0) {
+                        TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+
+                        if (payoutsPending.getBalanceCents() < keysPortion) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para reponer KEYS_RESERVE.");
+                        }
+
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - keysPortion);
+                        keysReserve.setBalanceCents(keysReserve.getBalanceCents() + keysPortion);
+
+                        treasuryAccountRepository.save(payoutsPending);
+                        treasuryAccountRepository.save(keysReserve);
+
+                        recordMovement(payoutsPending, keysReserve, keysPortion,
+                                        MovementConcept.REFUND_KEYS_TO_RESERVE, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                if (cashPortion > 0) {
+                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                        if (payoutsPending.getBalanceCents() < cashPortion) {
+                                throw new IllegalStateException(
+                                                "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para el reembolso en efectivo.");
+                        }
+
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - cashPortion);
+                        operations.setBalanceCents(operations.getBalanceCents() + cashPortion);
+
+                        treasuryAccountRepository.save(payoutsPending);
+                        treasuryAccountRepository.save(operations);
+
+                        recordMovement(payoutsPending, operations, cashPortion,
+                                        MovementConcept.REFUND_CASH_TO_OPERATIONS, referenceId, "PURCHASE_ITEM_REFUND");
+                }
+
+                log.info("[TREASURY] Reversión completada: reference={}", referenceId);
+        }
+
+        /**
+         * Registra el pago manual de un reembolso en efectivo: sale de
+         * OPERATIONS hacia afuera del sistema (mismo patrón que registerPayoutSent).
+         */
+        @Transactional
+        @Override
+        public void registerManualCashRefundPaid(Long amountCents, UUID referenceId) {
+                log.info("[TREASURY] Registrando reembolso en efectivo pagado manualmente: amount={}, reference={}",
+                                amountCents, referenceId);
+
+                validateAmount(amountCents);
+
+                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+
+                if (operations.getBalanceCents() < amountCents) {
+                        throw new IllegalStateException(
+                                        "[TREASURY] Saldo insuficiente en OPERATIONS para el reembolso manual.");
+                }
+
+                operations.setBalanceCents(operations.getBalanceCents() - amountCents);
+                treasuryAccountRepository.save(operations);
+
+                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                recordMovement(operations, external, amountCents,
+                                MovementConcept.REFUND_TO_BUYER, referenceId, "CASH_REFUND");
+
+                log.info("[TREASURY] Reembolso manual registrado: OPERATIONS → [externo], reference={}", referenceId);
+        }
+
+        /**
+         * Retorna los saldos actuales de las cuentas de tesorería.
          * Usado por el endpoint de auditoría del administrador.
          */
         @Transactional(readOnly = true)
@@ -459,9 +642,15 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long fortification = getBalance(TreasuryAccountCode.FORTIFICATION);
                 long operations = getBalance(TreasuryAccountCode.OPERATIONS);
                 long payouts = getBalance(TreasuryAccountCode.PAYOUTS_PENDING);
-                long total = keysReserve + fortification + operations + payouts;
+                long taxReserve = getBalance(TreasuryAccountCode.TAX_RESERVE);
+                long connectivity = getBalance(TreasuryAccountCode.CONNECTIVITY);
+                long infrastructure = getBalance(TreasuryAccountCode.INFRASTRUCTURE);
+                long payroll = getBalance(TreasuryAccountCode.PAYROLL);
+                long total = keysReserve + fortification + operations + payouts + taxReserve
+                                + connectivity + infrastructure + payroll;
 
-                return new TreasurySnapshot(keysReserve, fortification, operations, payouts, total);
+                return new TreasurySnapshot(keysReserve, fortification, operations, payouts, taxReserve,
+                                connectivity, infrastructure, payroll, total);
         }
 
         // ─── Privados ─────────────────────────────────────────────────────────────
@@ -575,6 +764,10 @@ public class TreasuryServiceImpl implements TreasuryService {
                                 snap.fortificationCents(),
                                 snap.operationsCents(),
                                 snap.payoutsPendingCents(),
+                                snap.taxReserveCents(),
+                                snap.connectivityCents(),
+                                snap.infrastructureCents(),
+                                snap.payrollCents(),
                                 snap.totalCents(),
                                 snap.keysReserveHealthPct(),
                                 keyLiabilityCents,
@@ -610,6 +803,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 log.info("[RECONCILIATION] FORTIFICATION   → {} centavos", snap.fortificationCents());
                 log.info("[RECONCILIATION] OPERATIONS      → {} centavos", snap.operationsCents());
                 log.info("[RECONCILIATION] PAYOUTS_PENDING → {} centavos", snap.payoutsPendingCents());
+                log.info("[RECONCILIATION] TAX_RESERVE     → {} centavos", snap.taxReserveCents());
                 log.info("[RECONCILIATION] TOTAL           → {} centavos", snap.totalCents());
                 log.info("[RECONCILIATION] KEYS_RESERVE salud: {}% — estado: {}",
                                 String.format("%.2f", snap.keysReserveHealthPct()),
@@ -686,8 +880,8 @@ public class TreasuryServiceImpl implements TreasuryService {
 
         private void validateAmount(Long amountCents) {
                 if (amountCents == null || amountCents <= 0) {
-                        throw new IllegalArgumentException(
-                                        "El monto debe ser positivo. Recibido: " + amountCents);
+                        throw new InvalidAmountException(
+                                        "el monto debe ser positivo. Recibido: " + amountCents);
                 }
         }
 }

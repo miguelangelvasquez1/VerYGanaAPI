@@ -12,9 +12,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.verygana2.dtos.pqrs.responses.PqrsAdminDetailDTO;
 import com.verygana2.dtos.pqrs.responses.PqrsResponseDTO;
 import com.verygana2.models.User;
+import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.enums.pqrs.PqrsStatus;
 import com.verygana2.models.enums.pqrs.PqrsType;
+import com.verygana2.models.finance.plans.Plan;
+import com.verygana2.models.marketplace.Product;
+import com.verygana2.models.marketplace.ProductCategory;
+import com.verygana2.models.marketplace.Purchase;
+import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
+import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.utils.pqrs.RequesterNameResolver;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -97,5 +105,80 @@ class PqrsMapperTest {
         // Este campo no viene de una propiedad plana de Pqrs: lo llena el
         // @AfterMapping invocando a RequesterNameResolver.
         assertThat(dto.getRequesterName()).isEqualTo("Ana Gómez");
+    }
+
+    @Test
+    @DisplayName("toAdminDetailDTO: PQRS genérico (sin purchaseItem) — product/commercial quedan null, sin NPE")
+    void toAdminDetailDTO_withoutPurchaseItem_productAndCommercialAreNull() {
+        Pqrs pqrs = samplePqrs();
+        when(requesterNameResolver.resolve(pqrs.getRequester())).thenReturn("Ana Gómez");
+
+        PqrsAdminDetailDTO dto = mapper.toAdminDetailDTO(pqrs);
+
+        assertThat(dto.getPurchaseItemId()).isNull();
+        assertThat(dto.getProduct()).isNull();
+        assertThat(dto.getCommercial()).isNull();
+    }
+
+    @Test
+    @DisplayName("toAdminDetailDTO: PQRS de marketplace — mapea el contexto completo de producto y comercial")
+    void toAdminDetailDTO_withPurchaseItem_mapsProductAndCommercialContext() {
+        User commercialUser = new User();
+        commercialUser.setId(50L);
+        commercialUser.setEmail("tienda@test.com");
+        commercialUser.setPhoneNumber("3009876543");
+
+        CommercialOnboarding onboarding = new CommercialOnboarding();
+        onboarding.setCurrentStep(OnboardingStep.COMPLETED);
+
+        Plan plan = Plan.builder().name("Premium").build();
+
+        CommercialDetails commercial = new CommercialDetails();
+        commercial.setUser(commercialUser);
+        commercial.setCompanyName("Tienda XYZ");
+        commercial.setNit("900123456");
+        commercial.setMunicipalityName("Medellín");
+        commercial.setDepartmentName("Antioquia");
+        commercial.setOnboarding(onboarding);
+        commercial.setCurrentPlan(plan);
+
+        ProductCategory category = new ProductCategory();
+        category.setName("Tecnología");
+
+        Product product = new Product();
+        product.setId(7L);
+        product.setName("Audífonos");
+        product.setDescription("Audífonos inalámbricos");
+        product.setProductCategory(category);
+        product.setPriceCents(50000L);
+        product.setCommercial(commercial);
+
+        Purchase purchase = Purchase.builder().id(200L).build();
+        PurchaseItem item = new PurchaseItem();
+        item.setId(15L);
+        item.setPurchase(purchase);
+        item.setProduct(product);
+
+        Pqrs pqrs = samplePqrs();
+        pqrs.setPurchaseItem(item);
+        when(requesterNameResolver.resolve(pqrs.getRequester())).thenReturn("Ana Gómez");
+
+        PqrsAdminDetailDTO dto = mapper.toAdminDetailDTO(pqrs);
+
+        assertThat(dto.getPurchaseItemId()).isEqualTo(15L);
+        assertThat(dto.getProduct()).isNotNull();
+        assertThat(dto.getProduct().getId()).isEqualTo(7L);
+        assertThat(dto.getProduct().getName()).isEqualTo("Audífonos");
+        assertThat(dto.getProduct().getDescription()).isEqualTo("Audífonos inalámbricos");
+        assertThat(dto.getProduct().getCategoryName()).isEqualTo("Tecnología");
+        assertThat(dto.getProduct().getPriceCents()).isEqualTo(50000L);
+
+        assertThat(dto.getCommercial()).isNotNull();
+        assertThat(dto.getCommercial().getCommercialUserId()).isEqualTo(50L);
+        assertThat(dto.getCommercial().getCompanyName()).isEqualTo("Tienda XYZ");
+        assertThat(dto.getCommercial().getNit()).isEqualTo("900123456");
+        assertThat(dto.getCommercial().getContactEmail()).isEqualTo("tienda@test.com");
+        assertThat(dto.getCommercial().getContactPhone()).isEqualTo("3009876543");
+        assertThat(dto.getCommercial().getCurrentPlanName()).isEqualTo("Premium");
     }
 }

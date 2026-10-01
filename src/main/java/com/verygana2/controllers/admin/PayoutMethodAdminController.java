@@ -1,5 +1,7 @@
 package com.verygana2.controllers.admin;
 
+import java.io.IOException;
+
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -18,11 +20,12 @@ import com.verygana2.dtos.finance.responses.PayoutMethodResponseDTO;
 import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.services.interfaces.finance.PayoutMethodService;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/admin/payout-methods")
+@RequestMapping("/admin/payout-methods")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class PayoutMethodAdminController {
@@ -69,5 +72,17 @@ public class PayoutMethodAdminController {
 
         payoutMethodService.adminRejectMethod(id, request.getReason());
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Proxy de streaming de la certificación bancaria (PDF/foto) subida por el
+     * commercial, para que el admin la vea directamente en el panel antes de
+     * aprobar o rechazar el método.
+     *
+     * GET /api/admin/payout-methods/{id}/certificate
+     */
+    @GetMapping("/{id}/certificate")
+    public void getCertificate(@PathVariable Long id, HttpServletResponse response) throws IOException {
+        payoutMethodService.streamCertificate(id, response);
     }
 }

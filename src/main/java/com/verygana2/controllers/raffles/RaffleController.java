@@ -14,6 +14,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -43,7 +44,11 @@ public class RaffleController {
     private final RaffleDrawStateCache drawStateCache;
     private final WaitingRoomService waitingRoomService;
 
-    // Para admin
+    // Para admin. /api/raffles/** es público (PublicPaths), pero este filtro
+    // permite consultar rifas en cualquier estado (incluido DRAFT) sin
+    // restricción, así que se protege a nivel de método: @PreAuthorize se
+    // sigue aplicando aunque la ruta esté en permitAll() (ver /me más abajo).
+    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getSummaryRafflesByFilters(
             @RequestParam(required = false) RaffleStatus status,
@@ -56,22 +61,38 @@ public class RaffleController {
 
     @GetMapping("/{raffleId}")
     public ResponseEntity<RaffleResponseDTO> getRaffleById(@PathVariable Long raffleId) {
-        return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId));
+        boolean isAdmin = SecurityContextHolder.getContext()
+                .getAuthentication()
+                .getAuthorities()
+                .stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        return ResponseEntity.ok(raffleService.getRaffleResponseDTOById(raffleId, isAdmin));
     }
 
-    // Para usuarios
+    // Para usuarios. Endpoints públicos: el JWT es opcional. Si viene de un
+    // consumer autenticado, su municipio/edad/género de perfil priorizan el
+    // orden de resultados (ver RaffleServiceImpl.getActiveRaffles/getLiveRaffles);
+    // sin sesión, el orden es genérico.
     @GetMapping("/lives")
-    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(
-            @RequestParam(required = false) String municipalityCode) {
-        return ResponseEntity.ok(raffleService.getLiveRaffles(municipalityCode));
+    public ResponseEntity<List<RaffleSummaryResponseDTO>> getLiveRaffles(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(raffleService.getLiveRaffles(consumerIdFrom(jwt)));
     }
 
     @GetMapping("/actives")
     public ResponseEntity<PagedResponse<RaffleSummaryResponseDTO>> getActiveRaffles(
+            @AuthenticationPrincipal Jwt jwt,
             @RequestParam(name = "type", required = false) RaffleType type,
-            @RequestParam(required = false) String municipalityCode,
-            @RequestParam("pageNumber") int pageNumber) {
-        return ResponseEntity.ok(raffleService.getActiveRaffles(type, municipalityCode, pageNumber));
+            Pageable pageable) {
+        return ResponseEntity.ok(raffleService.getActiveRaffles(consumerIdFrom(jwt), type, pageable));
+    }
+
+    private Long consumerIdFrom(Jwt jwt) {
+        if (jwt == null) {
+            return null;
+        }
+        boolean isConsumer = SecurityContextHolder.getContext().getAuthentication().getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CONSUMER"));
+        return isConsumer ? jwt.getClaim("userId") : null;
     }
 
     @GetMapping("/{raffleId}/draw-status")

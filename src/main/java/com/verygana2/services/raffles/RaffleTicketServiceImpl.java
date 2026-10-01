@@ -100,8 +100,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
 
         log.debug("Validating and fetching consumer...");
         ConsumerDetails consumer = validateAndGetConsumer(consumerId);
-        log.info("Consumer validated: ID={}, HasPet={}",
-                consumer.getId(), consumer.isHasPet());
+        log.info("Consumer validated: ID={}", consumer.getId());
 
         log.debug("Validating user eligibility...");
         validateUserEligibility(consumer, raffle);
@@ -186,21 +185,11 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
      * Valida que el usuario pueda participar en el tipo de rifa
      */
     private void validateUserEligibility(ConsumerDetails consumer, Raffle raffle) {
-        RaffleType raffleType = raffle.getRaffleType();
-        log.debug("Checking eligibility: RaffleType={}, UserHasPet={}",
-                raffleType, consumer.isHasPet());
-
-        if (raffleType == RaffleType.PREMIUM && !consumer.isHasPet()) {
-            log.error("User {} cannot participate in PREMIUM raffle (no pet registered)",
-                    consumer.getId());
-
-            throw new InvalidRequestException(
-                    "Premium raffles require the user to have a registered pet");
-        }
+        log.debug("Checking eligibility for raffle {}", raffle.getId());
 
         targetAudienceAssembler.validateEligibility(consumer, raffle.getTargetAudience(), "Esta rifa");
 
-        log.debug("User is eligible for {} raffle", raffleType);
+        log.debug("User is eligible for {} raffle", raffle.getRaffleType());
     }
 
     /**
@@ -394,10 +383,7 @@ public class RaffleTicketServiceImpl implements RaffleTicketService {
             throw new IllegalArgumentException("Consumer id must be positive");
         }
 
-        if (raffleType == RaffleType.STANDARD) {
-            return true;
-        }
-        return consumerDetailsService.getConsumerById(consumerId).isHasPet();
+        return true;
     }
 
     @Override

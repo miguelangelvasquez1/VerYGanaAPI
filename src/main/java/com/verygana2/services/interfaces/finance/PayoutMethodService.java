@@ -1,13 +1,16 @@
 package com.verygana2.services.interfaces.finance;
 
+import java.io.IOException;
 import java.util.List;
 
 import org.springframework.data.domain.Pageable;
 
+import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.finance.requests.CreatePayoutMethodRequestDTO;
 import com.verygana2.dtos.finance.responses.PayoutBankResponseDTO;
 import com.verygana2.dtos.finance.responses.PayoutMethodResponseDTO;
+import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 
 public interface PayoutMethodService {
@@ -30,6 +33,20 @@ public interface PayoutMethodService {
     /** Desactiva un método de pago (no lo elimina para mantener historial). */
     void deactivatePayoutMethod(Long commercialId, Long payoutMethodId);
 
+    /** Marca un método de pago como el predeterminado para recibir payouts. Debe estar VERIFIED y activo. */
+    void setDefaultPayoutMethod(Long commercialId, Long payoutMethodId);
+
+    /**
+     * Paso 1: prepara la subida de la certificación bancaria (PDF/foto) que el admin
+     * usará para verificar titularidad. Solo aplica a BANK_ACCOUNT.
+     */
+    AssetUploadPermissionDTO prepareCertificateUpload(Long commercialId, Long payoutMethodId,
+            FileUploadRequestDTO metadata);
+
+    /** Paso 2: confirma la certificación ya subida a R2 y la asocia al método de pago. */
+    EntityCreatedResponseDTO confirmCertificateUpload(Long commercialId, Long payoutMethodId,
+            Long certificateAssetId);
+
     // ===== OPERACIONES DE ADMIN (BANK_TRANSFER) =====
 
     /** Admin aprueba un método BANK_TRANSFER pendiente de revisión. */
@@ -41,4 +58,8 @@ public interface PayoutMethodService {
     /** Lista todos los métodos en un estado específico (para panel admin). */
     PagedResponse<PayoutMethodResponseDTO> getByStatus(
             com.verygana2.models.finance.PayoutMethod.VerificationStatus status, Pageable pageable);
+
+    /** Proxy de streaming de la certificación bancaria privada, para el panel admin. */
+    void streamCertificate(Long payoutMethodId, jakarta.servlet.http.HttpServletResponse response)
+            throws IOException;
 }

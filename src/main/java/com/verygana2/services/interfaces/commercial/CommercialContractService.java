@@ -6,6 +6,7 @@ import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemD
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.models.commercial.CommercialContract;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.commercial.ContractPurpose;
 import com.verygana2.models.enums.commercial.ContractStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
@@ -80,7 +81,12 @@ public interface CommercialContractService {
 
     ContractSummaryResponseDTO getForReview(Long contractId);
 
-    ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId);
+    /**
+     * commercialActivityType, si viene informado, corrige el valor autocompletado desde
+     * el diagnóstico (ver businessProfile en getForReview) antes de aprobar — es la única
+     * instancia en la que compliance puede editar ese campo.
+     */
+    ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId, CommercialActivityType commercialActivityType);
 
     /**
      * documentsIssue=true habilita autoservicio (el onboarding vuelve a DOCUMENTS_PENDING

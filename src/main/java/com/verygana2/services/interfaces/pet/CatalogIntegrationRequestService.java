@@ -61,7 +61,7 @@ public interface CatalogIntegrationRequestService {
 
     /**
      * Métricas de venta de los productos que el comercial publicó en el juego.
-     * Requiere plan con CAN_HAVE_PETS, igual que crear la solicitud.
+     * Requiere plan con CAN_USE_PETS, igual que crear la solicitud.
      *
      * @param userId id del usuario comercial autenticado
      */

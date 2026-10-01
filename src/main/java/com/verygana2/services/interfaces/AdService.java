@@ -3,15 +3,16 @@ package com.verygana2.services.interfaces;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.ad.requests.AdFilterDTO;
 import com.verygana2.dtos.ad.requests.AdUpdateDTO;
 import com.verygana2.dtos.ad.requests.CreateAdRequestDTO;
+import com.verygana2.dtos.ad.requests.IncreaseAdBudgetRequestDTO;
 import com.verygana2.dtos.ad.responses.AdAssetUploadPermissionDTO;
 import com.verygana2.dtos.ad.responses.AdForAdminDTO;
 import com.verygana2.dtos.ad.responses.AdResponseDTO;
-import com.verygana2.dtos.ad.responses.AdStatsDTO;
 import com.verygana2.dtos.ad.responses.AssetAnalysisResultDTO;
 import com.verygana2.dtos.ad.responses.AssetOrphanedResponseDTO;
 import com.verygana2.models.ads.Ad;
@@ -39,7 +40,9 @@ public interface AdService {
     AdResponseDTO activateAdAsCommercial(Long adId, Long commercialId);
         
     AdResponseDTO pauseAdAsCommercial(Long adId, Long commercialId);
-    
+
+    BudgetIncreaseResponseDTO increaseAdBudget(Long adId, IncreaseAdBudgetRequestDTO request, Long commercialId);
+
     // Gestión de estado (Admin)
     AdResponseDTO activateAdAsAdmin(Long adId);
         
@@ -52,25 +55,11 @@ public interface AdService {
     AdResponseDTO rejectAd(Long adId, String reason, Long adminId);
 
     Page<AdForAdminDTO> getAdsByStatus(AdStatus status, Pageable pageable);
-    
-    // Estadísticas
-    AdStatsDTO getAdStats(Long adId, Long commercialId);
-    
-    AdStatsDTO getCommercialStats(Long commercialId);
-    
+
     Page<AdResponseDTO> getTopAdsByLikes(Pageable pageable);
-    
+
     // Validaciones
     void validateAdBudget(Long adId);
-    
+
     boolean canAdReceiveLike(Long adId);
-    
-    // Utilidades
-    Long countAdsByCommercial(Long commercialId);
-    
-    Long countAdsByCommercialAndStatus(Long commercialId, AdStatus status);
-    
-    // BigDecimal getTotalSpentByCommercial(Long commercialId);
-    
-    Long getTotalLikesByCommercial(Long commercialId);
 }

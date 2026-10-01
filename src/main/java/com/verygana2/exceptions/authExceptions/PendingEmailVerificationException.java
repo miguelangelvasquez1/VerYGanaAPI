@@ -4,7 +4,7 @@ import org.springframework.security.authentication.DisabledException;
 
 /**
  * Login rechazado porque el usuario aún no ha verificado su correo
- * (UserState.PENDING_EMAIL). Subtipo de DisabledException para que
+ * (AccountStatus.PENDING_VERIFICATION). Subtipo de DisabledException para que
  * GlobalExceptionHandler pueda dar un mensaje específico en vez del
  * genérico de cuenta deshabilitada.
  */

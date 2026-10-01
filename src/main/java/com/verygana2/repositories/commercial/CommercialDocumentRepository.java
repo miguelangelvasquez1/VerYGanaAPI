@@ -1,5 +1,6 @@
 package com.verygana2.repositories.commercial;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,4 +13,7 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
     List<CommercialDocument> findByOnboarding_IdAndStatus(Long onboardingId, CommercialDocumentStatus status);
     List<CommercialDocument> findByOnboarding_IdAndStatusNot(Long onboardingId, CommercialDocumentStatus status);
     Optional<CommercialDocument> findByIdAndOnboarding_Id(Long id, Long onboardingId);
+
+    /** Documentos en el estado dado subidos antes del umbral (p. ej. PENDING nunca confirmados). */
+    List<CommercialDocument> findByStatusAndUploadedAtBefore(CommercialDocumentStatus status, ZonedDateTime threshold);
 }

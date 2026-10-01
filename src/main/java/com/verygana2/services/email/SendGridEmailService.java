@@ -19,6 +19,7 @@ import com.sendgrid.helpers.mail.Mail;
 import com.sendgrid.helpers.mail.objects.Content;
 import com.sendgrid.helpers.mail.objects.Email;
 import com.verygana2.mappers.finance.MoneyMapper;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.pqrs.PqrsType;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
@@ -113,6 +114,51 @@ public class SendGridEmailService implements EmailService {
                         log.error("Error sending commercial notification to commercial ID: {}", commercial.getId(), e);
                     }
                 });
+    }
+
+    @Override
+    @Async
+    public void sendPhysicalItemExpiredToConsumer(PurchaseItem item, String consumerEmail) {
+        log.info("Sending physical item expired notice to consumer for purchaseItemId: {}", item.getId());
+        try {
+            String recipientEmail = (consumerEmail != null && !consumerEmail.isBlank())
+                    ? consumerEmail
+                    : item.getPurchase().getConsumer().getUser().getEmail();
+
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                log.error("No recipient email found for purchaseItemId: {}", item.getId());
+                return;
+            }
+
+            String html = templateLoader.render("physical-item-expired-consumer.html", Map.of(
+                    "orderId", String.valueOf(item.getPurchase().getId()),
+                    "productName", escapeHtml(item.getProductNameSnapshot()),
+                    "commercialName", escapeHtml(item.getProduct().getCommercial().getCompanyName()),
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_CONSUMER));
+
+            sendEmail(recipientEmail, "⏰ Plazo vencido - Orden #" + item.getPurchase().getId(), html);
+        } catch (Exception e) {
+            log.error("Error sending physical item expired notice to consumer for purchaseItemId: {}", item.getId(), e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendPhysicalItemExpiredToCommercial(PurchaseItem item) {
+        log.info("Sending physical item expired notice to commercial for purchaseItemId: {}", item.getId());
+        try {
+            String html = templateLoader.render("physical-item-expired-commercial.html", Map.of(
+                    "orderId", String.valueOf(item.getPurchase().getId()),
+                    "productName", escapeHtml(item.getProductNameSnapshot()),
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_COMMERCIAL));
+
+            sendEmail(item.getProduct().getCommercial().getUser().getEmail(),
+                    "⏰ Producto no reclamado - Orden #" + item.getPurchase().getId(), html);
+        } catch (Exception e) {
+            log.error("Error sending physical item expired notice to commercial for purchaseItemId: {}", item.getId(), e);
+        }
     }
 
     @Override
@@ -289,18 +335,33 @@ public class SendGridEmailService implements EmailService {
 
     @Override
     @Async
-    public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version) {
+    public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version,
+            CommercialActivityType correctedActivityType) {
         log.info("Sending commercial contract approved email to: {}", toEmail);
         try {
+            String activityTypeChangeSection = correctedActivityType != null
+                    ? "<div class='notes-box'><strong>Actividad comercial actualizada</strong>"
+                            + "Al revisar tu Contrato Marco, actualizamos la actividad comercial registrada "
+                            + "para tu empresa a: <strong>" + activityTypeLabel(correctedActivityType) + "</strong>.</div>"
+                    : "";
+
             String html = templateLoader.render("commercial-contract-approved.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
                     "version", String.valueOf(version),
+                    "activityTypeChangeSection", activityTypeChangeSection,
                     "sloganSection", SLOGAN_COMMERCIAL));
 
             sendEmail(toEmail, "Tu Contrato Marco fue aprobado — VerYGana", html);
         } catch (Exception e) {
             log.error("Error sending commercial contract approved email to: {}", toEmail, e);
         }
+    }
+
+    private String activityTypeLabel(CommercialActivityType type) {
+        return switch (type) {
+            case PRODUCTS -> "Venta de productos";
+            case SERVICES -> "Prestación de servicios";
+        };
     }
 
     @Override
@@ -600,6 +661,14 @@ public class SendGridEmailService implements EmailService {
                 sb.append("<div class='code-value'>")
                         .append(escapeHtml(productCodeEncryptor.decrypt(item.getDeliveredCode())))
                         .append("</div>");
+                sb.append("</div>");
+                sb.append("</div>");
+            }
+            if (item.getPlainClaimPinForEmail() != null) {
+                sb.append("<div class='code-row'>");
+                sb.append("<div class='code-section'>");
+                sb.append("<div class='code-label'>PIN de reclamación (entrégalo al comercio al recoger tu producto)</div>");
+                sb.append("<div class='code-value'>").append(escapeHtml(item.getPlainClaimPinForEmail())).append("</div>");
                 sb.append("</div>");
                 sb.append("</div>");
             }

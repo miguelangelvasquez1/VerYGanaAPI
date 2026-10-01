@@ -37,7 +37,7 @@ public class PayoutScheduler {
     private final WompiPayoutConfig wompiPayoutConfig;
     private final PayoutMetrics payoutMetrics;
 
-    @Scheduled(cron = "${wompi.payout.cron}")
+    @Scheduled(cron = "${wompi.payout.cron}", zone = "America/Bogota")
     public void runDailyPayouts() {
         ZonedDateTime now = ZonedDateTime.now(COLOMBIA_TZ);
         ZonedDateTime periodEnd = now.toLocalDate().atStartOfDay(COLOMBIA_TZ);   // medianoche actual
@@ -57,16 +57,10 @@ public class PayoutScheduler {
         log.info("[PAYOUT-SCHEDULER] Ciclo diario completado.");
     }
 
-    @Scheduled(cron = "${wompi.payout.retry-cron}")
+    @Scheduled(cron = "${wompi.payout.retry-cron}", zone = "America/Bogota")
     public void retryFailedPayouts() {
-        ZonedDateTime now = ZonedDateTime.now(COLOMBIA_TZ);
-        ZonedDateTime periodEnd = now.toLocalDate().atStartOfDay(COLOMBIA_TZ);
-        ZonedDateTime periodStart = periodEnd.minusDays(1);
-
-        log.info("[PAYOUT-RETRY] Reintentando payouts FAILED del período: {} → {}",
-                periodStart, periodEnd);
-
-        payoutService.retryFailedPayouts(periodStart, periodEnd);
+        log.info("[PAYOUT-RETRY] Reintentando payouts FAILED.");
+        payoutService.retryFailedPayouts();
     }
 
     private void checkWompiBalance() {

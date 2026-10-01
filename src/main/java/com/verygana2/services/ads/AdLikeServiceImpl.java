@@ -32,6 +32,7 @@ import com.verygana2.exceptions.adsExceptions.AdNotFoundException;
 import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.adsExceptions.WatchSessionResumeLimitException;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.Category;
 import com.verygana2.models.User;
@@ -56,8 +57,8 @@ import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 
-import jakarta.persistence.OptimisticLockException;
 import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -101,6 +102,7 @@ public class AdLikeServiceImpl implements AdLikeService {
 
     @Override
     @Transactional(noRollbackFor = {ValidationException.class, LimitReachedException.class})
+    @RetryOnConcurrencyConflict
     public AdLikedResponse processAdLike(UUID sessionId, Long adId, Long consumerId, String ipAddress) {
 
         log.info("Processing like for ad {} from consumer {} at IP {}", adId, consumerId, ipAddress);
@@ -160,24 +162,23 @@ public class AdLikeServiceImpl implements AdLikeService {
                 .build();
 
         try {
-            adLikeRepository.save(Objects.requireNonNull(adLike));
+            // saveAndFlush (no save): el INSERT debe ejecutarse ya para que un
+            // like duplicado choque contra la PK compuesta aquí y no en el commit,
+            // donde este catch ya no lo vería.
+            adLikeRepository.saveAndFlush(Objects.requireNonNull(adLike));
         } catch (DataIntegrityViolationException ex) {
             throw new DuplicateLikeException("Like ya procesado previamente");
         }
 
-        // Actualizar el anuncio
-
-        try {
-            ad.incrementLike();
-
-            if (!ad.canReceiveLike()) {
-                ad.setEndDate(ZonedDateTime.now(clock));
-                ad.setStatus(AdStatus.COMPLETED);
-            }
-
-            adRepository.save(ad);
-        } catch (OptimisticLockException e) {
-            throw new ValidationException("El anuncio fue actualizado, intente nuevamente");
+        // Actualizar el contador del anuncio de forma atómica en BD.
+        // El UPDATE ... WHERE currentLikes < maxLikes cierra la ventana de
+        // lost-update entre dos likes concurrentes sobre el mismo anuncio:
+        // exactamente uno gana el último cupo y el resto sale por aquí con un
+        // 400 de dominio, en vez de corromper el contador o disparar un 500 por
+        // un fallo de @Version sin traducir. Ver AdRepository.incrementLikeIfAvailable.
+        int likeRegistered = adRepository.incrementLikeIfAvailable(adId, ZonedDateTime.now(clock));
+        if (likeRegistered == 0) {
+            throw new InvalidAdStateException("Este anuncio ya no está disponible para recibir likes");
         }
 
         KeyWallet keyWallet = consumer.getKeyWallet();
@@ -230,7 +231,7 @@ public class AdLikeServiceImpl implements AdLikeService {
     }
 
     @Override
-    @Transactional(noRollbackFor = ValidationException.class)
+    @Transactional(noRollbackFor = {ValidationException.class, WatchSessionResumeLimitException.class})
     public Optional<AdForConsumerDTO> getNextAdForConsumer(Long consumerId) {
 
         log.debug("Buscando siguiente anuncio disponible para usuario: {}", consumerId);
@@ -266,7 +267,7 @@ public class AdLikeServiceImpl implements AdLikeService {
             session.setExpiresAt(now);
             adWatchSessionRepository.save(session);
             log.info("AdWatchSession {} invalidated due to too many resumes", session.getId());
-            throw new ValidationException("No se pudo reanudar la sesión de visualización. Has alcanzado el límite de reanudaciones permitidas para este anuncio.");
+            throw new WatchSessionResumeLimitException("No se pudo reanudar la sesión de visualización. Has alcanzado el límite de reanudaciones permitidas para este anuncio.");
         }
 
         session.setResumeCount(Optional.ofNullable(session.getResumeCount()).orElse(0) + 1);
@@ -328,8 +329,7 @@ public class AdLikeServiceImpl implements AdLikeService {
         return dto;
     }
 
-    @Override
-    public boolean hasConsumerLikedAd(Long adId, Long consumerId) {
+    private boolean hasConsumerLikedAd(Long adId, Long consumerId) {
         return adLikeRepository.hasUserSeenAd(consumerId, adId);
     }
 

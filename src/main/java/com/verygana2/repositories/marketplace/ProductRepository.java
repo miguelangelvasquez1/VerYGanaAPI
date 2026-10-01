@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.verygana2.models.Municipality;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.marketplace.Product;
 
@@ -42,6 +43,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         JOIN FETCH p.productCategory pc
                         JOIN FETCH p.commercial c
                         LEFT JOIN FETCH p.imageAsset ia
+                        LEFT JOIN p.targetAudience ta
                         WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                         AND (:searchQuery IS NULL OR :searchQuery = '' OR
                                 LOWER(p.name) LIKE LOWER(CONCAT('%', :searchQuery, '%')) OR
@@ -51,11 +53,24 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND (:productCategoryId IS NULL OR pc.id = :productCategoryId)
                         AND (:minRating IS NULL OR p.averageRate >= :minRating)
                         AND (:maxPriceCents IS NULL OR p.priceCents <= :maxPriceCents)
-                        ORDER BY CASE WHEN (:municipality IS NULL
-                                        OR p.targetAudience IS NULL
-                                        OR p.targetAudience.targetMunicipalities IS EMPTY
-                                        OR :municipality MEMBER OF p.targetAudience.targetMunicipalities)
-                                THEN 0 ELSE 1 END ASC
+                        ORDER BY
+                                (CASE WHEN (:municipality IS NULL
+                                        OR ta IS NULL
+                                        OR ta.targetMunicipalities IS EMPTY
+                                        OR :municipality MEMBER OF ta.targetMunicipalities)
+                                THEN 0 ELSE 1 END) +
+                                (CASE WHEN (:consumerAge IS NULL
+                                        OR ta IS NULL
+                                        OR ((ta.minAge IS NULL OR ta.minAge <= :consumerAge)
+                                            AND (ta.maxAge IS NULL OR ta.maxAge >= :consumerAge)))
+                                THEN 0 ELSE 1 END) +
+                                (CASE WHEN (:consumerGender IS NULL
+                                        OR ta IS NULL
+                                        OR ta.targetGender IS NULL
+                                        OR ta.targetGender = com.verygana2.models.enums.TargetGender.ALL
+                                        OR ta.targetGender = :consumerGender)
+                                THEN 0 ELSE 1 END)
+                                ASC
                                 """)
         Page<Product> searchProductsInternal(
                         @Param("searchQuery") String searchQuery,
@@ -63,12 +78,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         @Param("minRating") Double minRating,
                         @Param("maxPriceCents") Long maxPriceCents,
                         @Param("municipality") Municipality municipality,
+                        @Param("consumerAge") Integer consumerAge,
+                        @Param("consumerGender") TargetGender consumerGender,
                         Pageable pageable);
 
         /**
-         * El municipio solo prioriza (ordena primero) los productos afines a la
-         * localidad del consumidor; nunca excluye resultados, a diferencia del
-         * filtrado de rifas. Ver TargetAudienceAssembler / plan de sectorización.
+         * El municipio/edad/género del consumidor solo priorizan (ordenan primero)
+         * los productos afines; nunca excluyen resultados. Mismo criterio que
+         * RaffleRepository.findActiveRaffles/findLiveRaffles. Ver
+         * TargetAudienceAssembler / plan de sectorización.
          */
         default Page<Product> searchProducts(
                         String searchQuery,
@@ -76,9 +94,11 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         Double minRating,
                         Long maxPriceCents,
                         Municipality municipality,
+                        Integer consumerAge,
+                        TargetGender consumerGender,
                         Pageable pageable) {
                 return searchProductsInternal(searchQuery, productCategoryId, minRating, maxPriceCents, municipality,
-                                pageable);
+                                consumerAge, consumerGender, pageable);
         }
 
         @Query("""
@@ -144,5 +164,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                         AND p.updatedAt < :threshold
                                 """)
         List<Product> findPurgeableProducts(@Param("threshold") ZonedDateTime threshold);
+
+        /**
+         * Productos que aún ocupan un cupo del plan: todos menos los terminales
+         * (REJECTED / INACTIVE, los mismos que purga el job semanal). Incluye
+         * PENDING y ACTIVE — alineado con encuestas y juegos branded. Ver PlanFeatureGuard.
+         */
+        @Query("""
+                        SELECT COUNT(p) FROM Product p
+                        WHERE p.commercial.id = :commercialId
+                        AND p.status NOT IN (
+                                com.verygana2.models.enums.marketplace.ProductStatus.REJECTED,
+                                com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
+                                """)
+        long countSlotOccupyingByCommercialId(@Param("commercialId") Long commercialId);
 
 }

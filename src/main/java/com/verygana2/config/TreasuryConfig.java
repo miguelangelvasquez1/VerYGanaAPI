@@ -36,6 +36,21 @@ public class TreasuryConfig {
     private int operationsPct;
 
     /**
+     * Porcentaje de IVA que VerYGana recauda (no declara/paga venta a venta,
+     * se acumula en TAX_RESERVE hasta el ciclo de declaración DIAN):
+     *   - Depósitos de inversión STANDARD/PREMIUM y suscripción BASIC: se cobra
+     *     ADICIONAL al monto base (ej. depositar $1.000.000 implica pagar
+     *     $1.190.000 con vatPct=19).
+     *   - Comisión de venta: se EXTRAE del monto de la comisión, que ya lo
+     *     incluye (ej. comisión de $100.000 con vatPct=19 → $19.000 a
+     *     TAX_RESERVE, $81.000 a OPERATIONS).
+     * Configurable (no hardcodeado) para poder ajustarse sin tocar código si
+     * la tarifa de IVA cambia. Default 19 si no se configura explícitamente.
+     */
+    @Min(0) @Max(100)
+    private int vatPct = 19;
+
+    /**
      * Saldo mínimo en centavos para emitir un WARNING en los logs.
      * Default: 10.000.000 centavos = $100.000 COP.
      * No bloquea operaciones — es solo una alerta temprana.

@@ -23,10 +23,13 @@ import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.exceptions.GameRewardException;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.InvalidStatusException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.models.finance.PayoutMethod;
+import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.finance.plans.Plan;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
@@ -214,11 +217,12 @@ class ProductServiceImplTest {
             mappedProduct.setPriceCents(1_500_000L); // simula lo que el mapper real produciría para $15.000 COP
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
             when(assetDurationService.getImageDimensions(anyString()))
-                    .thenReturn(new AssetDurationService.ImageDimensions(512, 512));
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
             when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
             when(productMapper.toProduct(any())).thenReturn(mappedProduct);
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
@@ -241,11 +245,12 @@ class ProductServiceImplTest {
             ProductImageAsset asset = pendingAsset();
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
             when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
                     .thenReturn(SupportedMimeType.IMAGE_PNG);
             when(assetDurationService.getImageDimensions(anyString()))
-                    .thenReturn(new AssetDurationService.ImageDimensions(512, 512));
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
             when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
             Product cheapMappedProduct = new Product();
             cheapMappedProduct.setPriceCents(50_000L); // simula el mapper real para $500 COP
@@ -267,12 +272,59 @@ class ProductServiceImplTest {
             asset.setProduct(new Product()); // ya vinculado
 
             when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(1L);
             when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
 
             assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000))))
                     .isInstanceOf(ValidationException.class);
 
             verify(assetOrphanedService).markProductImageAssetsAsOrphanedByIds(List.of(500L));
+        }
+
+        @Test
+        @DisplayName("primer producto sin método de pago verificado: lanza PayoutMethodRequiredException")
+        void firstProductWithoutVerifiedPayoutMethod_throwsPayoutMethodRequiredException() {
+            CommercialDetails commercial = commercial(1L);
+
+            when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(0L);
+
+            assertThatThrownBy(() -> service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000))))
+                    .isInstanceOf(PayoutMethodRequiredException.class);
+
+            verify(productRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("primer producto con método de pago verificado: sigue el flujo normal")
+        void firstProductWithVerifiedPayoutMethod_succeeds() {
+            CommercialDetails commercial = commercial(1L);
+            commercial.setDefaultPayoutMethod(
+                    PayoutMethod.builder().verificationStatus(VerificationStatus.VERIFIED).active(true).build());
+            ProductImageAsset asset = pendingAsset();
+            Product mappedProduct = new Product();
+            mappedProduct.setStockItems(List.of());
+            mappedProduct.setPriceCents(1_500_000L);
+
+            when(commercialDetailsRepository.findByUser_Id(1L)).thenReturn(Optional.of(commercial));
+            when(productRepository.countByCommercialIdAndIsActive(1L)).thenReturn(0L);
+            when(productImageAssetRepository.findById(500L)).thenReturn(Optional.of(asset));
+            when(r2Service.validateUploadedObject(eq(true), anyString(), anyLong(), anyLong(), anySet()))
+                    .thenReturn(SupportedMimeType.IMAGE_PNG);
+            when(assetDurationService.getImageDimensions(anyString()))
+                    .thenReturn(new AssetDurationService.ImageDimensions(500, 500));
+            when(productCategoryService.getById(3L)).thenReturn(new ProductCategory());
+            when(productMapper.toProduct(any())).thenReturn(mappedProduct);
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> {
+                Product p = inv.getArgument(0);
+                p.setId(77L);
+                return p;
+            });
+
+            var response = service.confirmProductCreation(1L, requestWithPrice(BigDecimal.valueOf(15_000)));
+
+            assertThat(response.getId()).isEqualTo(77L);
+            verify(productRepository).save(any(Product.class));
         }
     }
 
@@ -370,7 +422,7 @@ class ProductServiceImplTest {
     class ApproveProduct {
 
         @Test
-        @DisplayName("producto PENDING: mueve la imagen a pública y lo activa")
+        @DisplayName("producto PENDING: mueve la imagen a pública, lo activa y devuelve la imageUrl pública ya resuelta")
         void pendingProduct_movesImageAndActivates() {
             Product pending = product(1L, ProductStatus.PENDING);
             CommercialDetails commercial = commercial(1L);
@@ -378,6 +430,7 @@ class ProductServiceImplTest {
             pending.setCommercial(commercial); // approve notifica al comercial dueño
             AdminDetails admin = new AdminDetails();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
+            pending.setImageAsset(asset);
 
             when(productRepository.findById(1L)).thenReturn(Optional.of(pending));
             when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(asset));
@@ -385,11 +438,13 @@ class ProductServiceImplTest {
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
             when(productMapper.toProductResponseDTO(any())).thenReturn(new ProductResponseDTO());
 
-            service.approveProductForAdmin(5L, 1L);
+            ProductResponseDTO response = service.approveProductForAdmin(5L, 1L);
 
             assertThat(pending.getStatus()).isEqualTo(ProductStatus.ACTIVE);
             assertThat(pending.getApprovedBy()).isSameAs(admin);
             verify(r2Service).copyObject("private/products/1/img.jpg", "public/products/1/img.jpg");
+            // El mapper deja imageUrl en null; el servicio la resuelve tras el mapeo (status ya ACTIVE -> URL pública).
+            assertThat(response.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1/img.jpg");
         }
 
         @Test
@@ -408,24 +463,31 @@ class ProductServiceImplTest {
     class RejectProduct {
 
         @Test
-        @DisplayName("producto PENDING: lo rechaza con motivo y notifica al comercial")
+        @DisplayName("producto PENDING: lo rechaza con motivo, notifica al comercial y borra la imagen (imageUrl null en la respuesta)")
         void pendingProduct_rejectsAndNotifies() {
             Product pending = product(1L, ProductStatus.PENDING);
             CommercialDetails commercial = commercial(1L);
             commercial.setId(1L);
             pending.setCommercial(commercial);
+            ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
+            pending.setImageAsset(asset);
 
             when(productRepository.findById(1L)).thenReturn(Optional.of(pending));
+            when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(asset));
             when(adminDetailsService.getById(5L)).thenReturn(new AdminDetails());
             when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
             when(productMapper.toProductResponseDTO(any())).thenReturn(new ProductResponseDTO());
 
-            service.rejectProductForAdmin(5L, 1L, "Imagen borrosa");
+            ProductResponseDTO response = service.rejectProductForAdmin(5L, 1L, "Imagen borrosa");
 
             assertThat(pending.getStatus()).isEqualTo(ProductStatus.REJECTED);
             assertThat(pending.getRejectionReason()).isEqualTo("Imagen borrosa");
             verify(notificationService).createInternalNotification(
                     eq(1L), eq("Producto rechazado"), eq("Razón: Imagen borrosa"), any());
+            verify(productImageAssetRepository).delete(asset);
+            // La imagen fue borrada: el asset en memoria queda null y la respuesta no expone una URL rota.
+            assertThat(pending.getImageAsset()).isNull();
+            assertThat(response.getImageUrl()).isNull();
         }
 
         @Test

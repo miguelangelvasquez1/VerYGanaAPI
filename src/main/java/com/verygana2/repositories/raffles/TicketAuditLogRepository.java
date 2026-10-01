@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import com.verygana2.models.enums.raffles.AuditAction;
 import com.verygana2.models.enums.raffles.RaffleTicketSource;
 import com.verygana2.models.raffles.TicketAuditLog;
 
@@ -22,9 +23,12 @@ public interface TicketAuditLogRepository extends JpaRepository<TicketAuditLog, 
     List<TicketAuditLog> findByTicketIdOrderByCreatedAtDesc(Long ticketId);
     
     /**
-     * Logs por acción
+     * Logs por acción. El parámetro es el enum (no String): el campo
+     * TicketAuditLog.action es @Enumerated(STRING) y el binding de Hibernate
+     * valida el tipo del parámetro, no su valor — un String falla el bind
+     * antes de ejecutar SQL.
      */
-    Page<TicketAuditLog> findByAction(String action, Pageable pageable);
+    Page<TicketAuditLog> findByAction(AuditAction action, Pageable pageable);
     
     /**
      * Logs por fuente

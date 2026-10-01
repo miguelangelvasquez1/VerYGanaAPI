@@ -119,7 +119,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -127,7 +127,7 @@ SELECT
     'Rifa STANDARD en estado DRAFT para pruebas de catalogo.',
     'STANDARD', 'DRAFT',
     DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 40 DAY), DATE_ADD(NOW(), INTERVAL 41 DAY),
-    20, 1000, 0, 0, 0, 'SYSTEM_RANDOM',
+    20, 1000, 0, 0, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 910);
 
@@ -153,7 +153,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -161,7 +161,7 @@ SELECT
     'Rifa PREMIUM en estado DRAFT para pruebas de catalogo.',
     'PREMIUM', 'DRAFT',
     DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 40 DAY), DATE_ADD(NOW(), INTERVAL 41 DAY),
-    12, 500, 0, 0, 1, 'SYSTEM_RANDOM',
+    12, 500, 0, 0, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 911);
 
@@ -187,7 +187,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -195,7 +195,7 @@ SELECT
     'Rifa STANDARD en estado ACTIVE para pruebas de catalogo.',
     'STANDARD', 'ACTIVE',
     DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_ADD(NOW(), INTERVAL 30 DAY), DATE_ADD(NOW(), INTERVAL 31 DAY),
-    20, 1000, 15, 6, 0, 'SYSTEM_RANDOM',
+    20, 1000, 15, 6, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 912);
 
@@ -221,7 +221,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -229,7 +229,7 @@ SELECT
     'Rifa PREMIUM en estado ACTIVE para pruebas de catalogo.',
     'PREMIUM', 'ACTIVE',
     DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), DATE_ADD(NOW(), INTERVAL 15 DAY),
-    12, 500, 8, 4, 1, 'SYSTEM_RANDOM',
+    12, 500, 8, 4, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 913);
 
@@ -257,7 +257,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -265,7 +265,7 @@ SELECT
     'Rifa STANDARD en estado CLOSED para pruebas de catalogo.',
     'STANDARD', 'CLOSED',
     DATE_SUB(NOW(), INTERVAL 10 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY),
-    20, 500, 500, 120, 0, 'SYSTEM_RANDOM',
+    20, 500, 500, 120, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 914);
 
@@ -291,7 +291,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -299,7 +299,7 @@ SELECT
     'Rifa PREMIUM en estado CLOSED para pruebas de catalogo.',
     'PREMIUM', 'CLOSED',
     DATE_SUB(NOW(), INTERVAL 20 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY),
-    12, 300, 300, 90, 1, 'SYSTEM_RANDOM',
+    12, 300, 300, 90, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 915);
 
@@ -327,7 +327,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -335,7 +335,7 @@ SELECT
     'Rifa STANDARD en estado LIVE para pruebas de sala de espera/draw-status.',
     'STANDARD', 'LIVE',
     DATE_SUB(NOW(), INTERVAL 32 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY),
-    20, 800, 800, 200, 0, 'SYSTEM_RANDOM',
+    20, 800, 800, 200, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 916);
 
@@ -361,7 +361,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -369,7 +369,7 @@ SELECT
     'Rifa PREMIUM en estado LIVE para pruebas de sala de espera/draw-status.',
     'PREMIUM', 'LIVE',
     DATE_SUB(NOW(), INTERVAL 18 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_ADD(NOW(), INTERVAL 90 DAY),
-    12, 400, 400, 150, 1, 'SYSTEM_RANDOM',
+    12, 400, 400, 150, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 917);
 
@@ -397,7 +397,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -405,7 +405,7 @@ SELECT
     'Rifa STANDARD en estado DRAWING para pruebas de catalogo.',
     'STANDARD', 'DRAWING',
     DATE_SUB(NOW(), INTERVAL 32 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 MINUTE),
-    20, 600, 600, 180, 0, 'SYSTEM_RANDOM',
+    20, 600, 600, 180, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 918);
 
@@ -431,7 +431,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -439,7 +439,7 @@ SELECT
     'Rifa PREMIUM en estado DRAWING para pruebas de catalogo.',
     'PREMIUM', 'DRAWING',
     DATE_SUB(NOW(), INTERVAL 18 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 MINUTE),
-    12, 350, 350, 130, 1, 'SYSTEM_RANDOM',
+    12, 350, 350, 130, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 919);
 
@@ -465,7 +465,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -473,7 +473,7 @@ SELECT
     'Rifa STANDARD en estado COMPLETED para pruebas de catalogo.',
     'STANDARD', 'COMPLETED',
     DATE_SUB(NOW(), INTERVAL 36 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY), DATE_SUB(NOW(), INTERVAL 5 DAY),
-    20, 500, 500, 140, 0, 'SYSTEM_RANDOM',
+    20, 500, 500, 140, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 920);
 
@@ -499,7 +499,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -507,7 +507,7 @@ SELECT
     'Rifa PREMIUM en estado COMPLETED para pruebas de catalogo.',
     'PREMIUM', 'COMPLETED',
     DATE_SUB(NOW(), INTERVAL 25 DAY), DATE_SUB(NOW(), INTERVAL 7 DAY), DATE_SUB(NOW(), INTERVAL 6 DAY),
-    12, 300, 300, 100, 1, 'SYSTEM_RANDOM',
+    12, 300, 300, 100, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 921);
 
@@ -533,7 +533,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -541,7 +541,7 @@ SELECT
     'Rifa STANDARD en estado CANCELLED para pruebas de catalogo.',
     'STANDARD', 'CANCELLED',
     DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_ADD(NOW(), INTERVAL 10 DAY), DATE_ADD(NOW(), INTERVAL 11 DAY),
-    20, 1000, 40, 15, 0, 'SYSTEM_RANDOM',
+    20, 1000, 40, 15, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 922);
 
@@ -567,7 +567,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -575,7 +575,7 @@ SELECT
     'Rifa PREMIUM en estado CANCELLED para pruebas de catalogo.',
     'PREMIUM', 'CANCELLED',
     DATE_SUB(NOW(), INTERVAL 5 DAY), DATE_ADD(NOW(), INTERVAL 14 DAY), DATE_ADD(NOW(), INTERVAL 15 DAY),
-    12, 500, 20, 10, 1, 'SYSTEM_RANDOM',
+    12, 500, 20, 10, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 923);
 
@@ -601,7 +601,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -609,7 +609,7 @@ SELECT
     'Rifa STANDARD en estado MISSED_DRAW para pruebas de catalogo (revision manual del admin).',
     'STANDARD', 'MISSED_DRAW',
     DATE_SUB(NOW(), INTERVAL 33 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY),
-    20, 400, 380, 110, 0, 'SYSTEM_RANDOM',
+    20, 400, 380, 110, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 924);
 
@@ -635,7 +635,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by, terms_and_conditions
 )
 SELECT
@@ -643,7 +643,7 @@ SELECT
     'Rifa PREMIUM en estado MISSED_DRAW para pruebas de catalogo (revision manual del admin).',
     'PREMIUM', 'MISSED_DRAW',
     DATE_SUB(NOW(), INTERVAL 20 DAY), DATE_SUB(NOW(), INTERVAL 3 DAY), DATE_SUB(NOW(), INTERVAL 2 DAY),
-    12, 250, 240, 85, 1, 'SYSTEM_RANDOM',
+    12, 250, 240, 85, 'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id, 'Rifa de prueba - solo entorno de desarrollo.'
 WHERE NOT EXISTS (SELECT 1 FROM raffles WHERE id = 925);
 

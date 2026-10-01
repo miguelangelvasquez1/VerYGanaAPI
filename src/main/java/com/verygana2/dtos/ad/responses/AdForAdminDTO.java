@@ -37,6 +37,7 @@ public class AdForAdminDTO {
     private Double completionPercentage;
     private String contentUrl;
     private MediaType mediaType;
+    private Integer durationSeconds;
     private String targetUrl;
     private List<Category> categories;
     private Integer minAge;

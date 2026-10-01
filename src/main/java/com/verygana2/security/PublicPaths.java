@@ -22,6 +22,8 @@ public class PublicPaths {
         "/game-designers/password/reset",
         "/api/payments/webhook",
         "/api/raffles/**",
+        "/results/**",
+        "/winners/last",
         "/ws/**",
         "/ws/info/**",
             "/pet/catalog",
@@ -29,6 +31,11 @@ public class PublicPaths {
             "/pet/scenes-objects",
             "/pet/notifications",
             "/pet/notifications/*/read",
-            "/api/levels/config"
+            "/api/levels/config",
+            // Documentación OpenAPI / Swagger UI
+            "/v3/api-docs",
+            "/v3/api-docs/**",
+            "/swagger-ui/**",
+            "/swagger-ui.html"
         };
 }

@@ -24,11 +24,15 @@ import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.PayoutMethod.PayoutMethodType;
 import com.verygana2.models.finance.PayoutMethod.VerificationStatus;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.repositories.details.CommercialDetailsRepository;
+import com.verygana2.repositories.finance.PayoutMethodCertificateAssetRepository;
 import com.verygana2.repositories.finance.PayoutMethodRepository;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.compliance.ScreeningService;
 import com.verygana2.services.interfaces.details.CommercialDetailsService;
 import com.verygana2.services.wompi.WompiPayoutClient;
+import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.R2Service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -50,18 +54,23 @@ import static org.mockito.Mockito.when;
 class PayoutMethodServiceImplTest {
 
     @Mock private CommercialDetailsService commercialDetailsService;
+    @Mock private CommercialDetailsRepository commercialDetailsRepository;
     @Mock private PayoutMethodRepository payoutMethodRepository;
+    @Mock private PayoutMethodCertificateAssetRepository payoutMethodCertificateAssetRepository;
     @Mock private PayoutMethodMapper payoutMethodMapper;
     @Mock private TwilioSmsService twilioSmsService;
     @Mock private ScreeningService screeningService;
     @Mock private WompiPayoutClient wompiPayoutClient;
+    @Mock private R2Service r2Service;
+    @Mock private AssetOrphanedService assetOrphanedService;
 
     private PayoutMethodServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new PayoutMethodServiceImpl(commercialDetailsService, payoutMethodRepository, payoutMethodMapper,
-                twilioSmsService, screeningService, wompiPayoutClient);
+        service = new PayoutMethodServiceImpl(commercialDetailsService, commercialDetailsRepository,
+                payoutMethodRepository, payoutMethodCertificateAssetRepository, payoutMethodMapper,
+                twilioSmsService, screeningService, wompiPayoutClient, r2Service, assetOrphanedService);
     }
 
     private static CommercialDetails commercialWithUser(long userId) {
@@ -116,7 +125,7 @@ class PayoutMethodServiceImplTest {
         @DisplayName("BANK_TRANSFER válido: queda directo en UNDER_REVIEW, sin disparar OTP")
         void validBankTransfer_goesUnderReviewWithoutOtp() {
             CreatePayoutMethodRequestDTO request = new CreatePayoutMethodRequestDTO();
-            request.setType(PayoutMethodType.BANK_TRANSFER);
+            request.setType(PayoutMethodType.BANK_ACCOUNT);
             request.setAlias("Cuenta Bancolombia");
             request.setBankCode("1007");
             request.setAccountNumber("123456789");
@@ -141,7 +150,7 @@ class PayoutMethodServiceImplTest {
         @DisplayName("BANK_TRANSFER con bankCode fuera del catálogo de Wompi: lanza IllegalArgumentException")
         void bankTransferWithUnknownBankCode_throwsIllegalArgumentException() {
             CreatePayoutMethodRequestDTO request = new CreatePayoutMethodRequestDTO();
-            request.setType(PayoutMethodType.BANK_TRANSFER);
+            request.setType(PayoutMethodType.BANK_ACCOUNT);
             request.setAlias("Cuenta inventada");
             request.setBankCode("no-existe");
             request.setAccountNumber("123456789");
@@ -195,7 +204,7 @@ class PayoutMethodServiceImplTest {
         void bankTransferWithoutBankCode_throwsIllegalArgumentException() {
             when(commercialDetailsService.getCommercialById(1L)).thenReturn(new CommercialDetails());
             CreatePayoutMethodRequestDTO request = new CreatePayoutMethodRequestDTO();
-            request.setType(PayoutMethodType.BANK_TRANSFER);
+            request.setType(PayoutMethodType.BANK_ACCOUNT);
             request.setAccountNumber("123");
             request.setBankAccountType(PayoutMethod.BankAccountType.SAVINGS);
             request.setAccountHolderDocType(PayoutMethod.DocType.NIT);

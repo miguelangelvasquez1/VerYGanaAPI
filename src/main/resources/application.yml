@@ -2,6 +2,28 @@ spring:
   application:
     name: VerYGanaAPI
 
+  datasource:
+    url: ${DB_URL}
+    hikari:
+      # READ_COMMITTED en vez del REPEATABLE READ por defecto de MySQL/InnoDB. Bajo
+      # REPEATABLE READ, InnoDB toma gap / next-key locks en los INSERT, y ahí nacen
+      # la mayoría de los deadlocks concurrentes (ad_likes, budget_transactions,
+      # key_transactions, ad_watch_sessions). READ_COMMITTED no toma esos gap locks.
+      # Es además el nivel por defecto de PostgreSQL, así que la migración futura
+      # no cambia el comportamiento. Se fija en el pool (Hikari) para que aplique
+      # igual a cualquier driver y a los tests con H2.
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    clean-disabled: true
+    validate-on-migrate: true
+    baseline-on-migrate: true
+    baseline-version: 1
   mvc:
     async:
       request-timeout: 330000  # 5.5 min — mayor que el SseEmitter timeout (5 min)
@@ -86,6 +108,14 @@ pqrs:
     QUEJA: 15
     RECLAMO: 15
     SUGERENCIA: 10
+
+# ============================================
+# SEGMENTACIÓN DE AUDIENCIA
+# ============================================
+app:
+  targeting:
+    # Edad mínima permitida en minAge/maxAge de ads, surveys, campañas y branding.
+    min-age: 18
 
 games:
   # Icono de moneda/llave de los juegos de cali. Lo pone el backend: es el mismo

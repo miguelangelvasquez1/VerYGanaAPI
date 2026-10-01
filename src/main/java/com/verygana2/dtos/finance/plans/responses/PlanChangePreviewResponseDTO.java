@@ -34,6 +34,17 @@ public class PlanChangePreviewResponseDTO {
 
     /** Todos los montos van en pesos colombianos (no en centavos). */
     private Long requiredTopUpAmountPesos;
+
+    /** IVA sobre requiredTopUpAmountPesos (ver TreasuryConfig.vatPct). Null si requiredTopUpAmountPesos es null. */
+    private Long requiredTopUpVatPesos;
+
+    /**
+     * requiredTopUpAmountPesos + requiredTopUpVatPesos — el monto real que Wompi va a
+     * cobrar en el checkout (ver PlanServiceImpl#generatePlanChangeTopUpCheckout), sea
+     * el destino BASIC o STANDARD/PREMIUM. Null si requiredTopUpAmountPesos es null.
+     */
+    private Long requiredTopUpTotalPesos;
+
     private Long currentWalletBalancePesos;
 
     /** Solo poblado cuando el destino es BASIC. En pesos. */

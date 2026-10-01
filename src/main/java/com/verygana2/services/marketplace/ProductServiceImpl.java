@@ -34,10 +34,13 @@ import com.verygana2.exceptions.FavoriteProductException;
 import com.verygana2.exceptions.GameRewardException;
 import com.verygana2.exceptions.InvalidRequestException;
 import com.verygana2.exceptions.InvalidStatusException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
 import com.verygana2.mappers.marketplace.ProductMapper;
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.MediaType;
 import com.verygana2.models.enums.SupportedMimeType;
+import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.Municipality;
@@ -176,6 +179,8 @@ public class ProductServiceImpl implements ProductService {
             CommercialDetails commercial = commercialDetailsRepository.findByUser_Id(commercialId)
                     .orElseThrow(() -> new EntityNotFoundException("Commercial not found: " + commercialId));
 
+            validateFirstProductPayoutMethod(commercialId, commercial);
+
             asset = productImageAssetRepository
                     .findById(Objects.requireNonNull(request.getProductAssetId()))
                     .orElseThrow(() -> new ValidationException("Asset not found: " + request.getProductAssetId()));
@@ -244,6 +249,19 @@ public class ProductServiceImpl implements ProductService {
             throw e;
         }
 
+    }
+
+    /**
+     * El primer producto activo de un commercial exige tener ya un método de
+     * pago verificado y activo — evita ventas sin destino de payout. A partir
+     * del segundo producto ya no se vuelve a pedir.
+     */
+    private void validateFirstProductPayoutMethod(Long commercialId, CommercialDetails commercial) {
+        boolean isFirstProduct = productRepository.countByCommercialIdAndIsActive(commercialId) == 0;
+        if (isFirstProduct && !commercial.canReceivePayouts()) {
+            throw new PayoutMethodRequiredException(
+                "Debes registrar y verificar un método de pago antes de crear tu primer producto.");
+        }
     }
 
     private void validateProductPrice(long priceCents) {
@@ -471,17 +489,22 @@ public class ProductServiceImpl implements ProductService {
 
         Long maxPriceCents = maxPrice != null ? maxPrice.multiply(BigDecimal.valueOf(100)).longValue() : null;
 
-        // El municipio del consumidor solo prioriza el orden de resultados, nunca
-        // excluye productos (ver TargetAudienceAssembler/plan de sectorización).
+        // El municipio/edad/género del consumidor solo priorizan el orden de
+        // resultados, nunca excluyen productos (ver TargetAudienceAssembler/plan de
+        // sectorización).
         Municipality municipality = null;
+        Integer consumerAge = null;
+        TargetGender consumerGender = null;
         if (personalized) {
             ConsumerDetails consumer = consumerDetailsService.getConsumerById(consumerId);
             municipality = consumer.getMunicipality();
+            consumerAge = consumer.getAge();
+            consumerGender = toTargetGender(consumer.getGender());
         }
 
         PagedResponse<Product> productPage = PagedResponse
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
-                        municipality, pageable));
+                        municipality, consumerAge, consumerGender, pageable));
 
         return productPage.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
@@ -503,6 +526,13 @@ public class ProductServiceImpl implements ProductService {
         }
 
         return "createdAt";
+    }
+
+    /** OTHER/PREFER_NOT_TO_SAY no tienen equivalente en TargetGender: se tratan como género desconocido. */
+    private TargetGender toTargetGender(Gender gender) {
+        if (gender == Gender.MALE) return TargetGender.MALE;
+        if (gender == Gender.FEMALE) return TargetGender.FEMALE;
+        return null;
     }
 
     @Override
@@ -662,7 +692,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(), "Producto aprobado", "Tu producto (" + product.getName() + ") ha sido aprobado por uno de nuestros administradores", Instant.now());
 
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override
@@ -675,6 +707,20 @@ public class ProductServiceImpl implements ProductService {
             throw new InvalidStatusException("Only pending products can be rejected");
         }
 
+        productImageAssetRepository.findByProductId(productId).ifPresent(imageAsset -> {
+            String privateKey = "private/" + imageAsset.getObjectKey();
+            try {
+                r2Service.deleteObject(privateKey);
+            } catch (Exception e) {
+                log.warn("No se pudo eliminar de R2 la imagen del producto rechazado {} ({}): {}",
+                        productId, privateKey, e.getMessage());
+            }
+            productImageAssetRepository.delete(imageAsset);
+            // El asset ya no existe: reflejarlo en memoria para que resolveImageUrl no
+            // devuelva una URL que apunta a un objeto borrado.
+            product.setImageAsset(null);
+        });
+
         AdminDetails admin = adminDetailsService.getById(adminId);
         product.setRejectedBy(admin);
         product.setRejectedAt(ZonedDateTime.now(ZoneOffset.UTC));
@@ -686,7 +732,9 @@ public class ProductServiceImpl implements ProductService {
 
         notificationService.createInternalNotification(product.getCommercial().getId(),
                 "Producto rechazado", "Razón: " + reason, Instant.now());
-        return productMapper.toProductResponseDTO(product);
+        ProductResponseDTO response = productMapper.toProductResponseDTO(product);
+        response.setImageUrl(resolveImageUrl(product));
+        return response;
     }
 
     @Override

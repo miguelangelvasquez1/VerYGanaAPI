@@ -56,7 +56,7 @@ public class InvestmentService {
                     "El comercial no tiene un plan activo — solicite un cambio de plan antes de invertir.");
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(commercialId)
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                 .orElseGet(() -> walletRepository.save(Wallet.createFor(commercial)));
 
         long depositCents = toCents(depositAmountCOP);
@@ -68,7 +68,7 @@ public class InvestmentService {
                     "Saldo total resultante: " + newTotalCOP);
         }
 
-        wallet.deposit(depositCents);
+        wallet.registerDeposit(depositCents);
         walletRepository.save(wallet);
 
         Investment deposit = Investment.builder()
@@ -122,7 +122,15 @@ public class InvestmentService {
     // ── Helpers de conversión ─────────────────────────────────────────────────
 
     private long toCents(BigDecimal cop) {
-        return cop.multiply(BigDecimal.valueOf(CENTS_PER_COP)).longValueExact();
+        try {
+            // longValueExact() falla si el monto tiene fracción de centavo (>2 decimales)
+            // o si desborda un long — ambos son entrada inválida, no un error del servidor.
+            return cop.multiply(BigDecimal.valueOf(CENTS_PER_COP)).longValueExact();
+        } catch (ArithmeticException ex) {
+            throw new ValidationException(
+                    "El monto a invertir no es válido: use máximo 2 decimales y un valor dentro de rango. "
+                            + "Recibido: " + cop.toPlainString());
+        }
     }
 
     private BigDecimal toCOP(long cents) {

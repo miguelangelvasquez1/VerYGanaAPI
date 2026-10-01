@@ -1,5 +1,8 @@
 package com.verygana2.models.userDetails;
 
+import java.time.LocalDate;
+import java.time.Period;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +21,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -74,10 +78,27 @@ public class ConsumerDetails extends UserDetails {
     @lombok.ToString.Exclude
     private Municipality municipality;
 
-    private Integer age;
+    @NotNull(message = "Birth date is required")
+    @Past(message = "Birth date must be in the past")
+    @Column(name = "birth_date", nullable = false)
+    private LocalDate birthDate;
 
     @Enumerated(EnumType.STRING)
     private Gender gender;
+
+    // ==================== ELIGIBILITY ENGINE (mayoría de edad) ====================
+
+    @NotBlank(message = "Terms version is required")
+    @Column(name = "terms_version", nullable = false, length = 20)
+    private String termsVersion;
+
+    @NotNull(message = "Terms accepted at is required")
+    @Column(name = "terms_accepted_at", nullable = false)
+    private ZonedDateTime termsAcceptedAt;
+
+    @NotNull(message = "Age declared at is required")
+    @Column(name = "age_declared_at", nullable = false)
+    private ZonedDateTime ageDeclaredAt;
 
     private boolean hasPet = false;
 
@@ -129,5 +150,10 @@ public class ConsumerDetails extends UserDetails {
 
     @Column(name = "is_pep", nullable = false)
     private boolean pep = false;
+
+    public Integer getAge() {
+        return birthDate == null ? null
+                : Period.between(birthDate, LocalDate.now(ZoneId.of("America/Bogota"))).getYears();
+    }
 
 }

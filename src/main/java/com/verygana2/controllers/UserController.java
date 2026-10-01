@@ -7,13 +7,20 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.verygana2.models.User;
+import com.verygana2.dtos.PhoneChangeRequestDTO;
+import com.verygana2.dtos.PhoneChangeVerifyDTO;
 import com.verygana2.services.interfaces.UserService;
+import com.verygana2.services.interfaces.PhoneNumberChangeService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/users")
@@ -21,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 public class UserController {
 
     private final UserService userService;
+    private final PhoneNumberChangeService phoneNumberChangeService;
 
     //Borrrar
     @GetMapping
@@ -64,6 +72,25 @@ public class UserController {
     @GetMapping("/exists/phoneNumber/{phoneNumber}")
     public ResponseEntity<Boolean> phoneExists(@PathVariable String phoneNumber) {
         return ResponseEntity.ok(userService.phoneExists(phoneNumber));
+    }
+
+    @PostMapping("/me/phone/request-change")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> requestPhoneChange(
+            @Valid @RequestBody PhoneChangeRequestDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        phoneNumberChangeService.requestPhoneChange(jwt.getClaim("userId"), request.getNewPhoneNumber());
+        return ResponseEntity.accepted().body(Map.of("message", "Código OTP enviado al nuevo número."));
+    }
+
+    @PostMapping("/me/phone/verify-change")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Map<String, String>> verifyPhoneChange(
+            @Valid @RequestBody PhoneChangeVerifyDTO request,
+            @AuthenticationPrincipal Jwt jwt) {
+        phoneNumberChangeService.verifyAndChangePhone(
+                jwt.getClaim("userId"), request.getNewPhoneNumber(), request.getOtpCode());
+        return ResponseEntity.ok(Map.of("message", "Número telefónico actualizado exitosamente."));
     }
 
     // Borrar un usuario por id

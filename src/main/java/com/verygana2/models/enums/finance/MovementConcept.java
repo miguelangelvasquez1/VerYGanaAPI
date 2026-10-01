@@ -60,5 +60,45 @@ public enum MovementConcept {
      * ventas nunca generan un pago. Mandar la plata a la sala de espera de payouts
      * crearía una obligación que nada liquida.
      */
-    PET_GAME_KEYS_TO_OPERATIONS
-} 
+    PET_GAME_KEYS_TO_OPERATIONS,
+
+    /**
+     * Cobro por uso de un ítem de mascotas: cada compra del ítem descuenta el cobro de
+     * la bolsa que el comercial reservó al pedir la integración. Esa bolsa salió de su
+     * wallet, cuyo respaldo está en KEYS_RESERVE; como no se emite ninguna llave por
+     * ella, el respaldo pasa a OPERATIONS como ingreso de la plataforma.
+     */
+    PET_ITEM_CHARGE_TO_OPERATIONS,
+
+    /** Reembolso de un PurchaseItem: revierte la comisión retenida (OPERATIONS → PAYOUTS_PENDING) */
+    COMMISSION_REVERSAL,
+
+    /**
+     * Reembolso de un PurchaseItem: la porción en llaves vuelve a KEYS_RESERVE
+     * (PAYOUTS_PENDING → KEYS_RESERVE) — repone el fondo que respalda las
+     * llaves que se le acreditan de vuelta al comprador (ver KeyTransaction.CREDIT_COPAYMENT_REFUND).
+     */
+    REFUND_KEYS_TO_RESERVE,
+
+    /**
+     * Reembolso de un PurchaseItem: la porción en efectivo sale de
+     * PAYOUTS_PENDING hacia OPERATIONS — queda ahí como pasivo pendiente de
+     * que el admin haga la transferencia manual (ver PurchaseItemCashRefund).
+     */
+    REFUND_CASH_TO_OPERATIONS,
+
+    /** Reembolso en efectivo pagado manualmente por el admin: sale de OPERATIONS hacia afuera del sistema */
+    REFUND_TO_BUYER,
+
+    /** IVA (19%) sobre un depósito de inversión STANDARD/PREMIUM → TAX_RESERVE */
+    BUSINESS_DEPOSIT_VAT,
+
+    /** IVA (19%) sobre una suscripción mensual BASIC → TAX_RESERVE */
+    BASIC_PLAN_SUBSCRIPTION_VAT,
+
+    /** Porción de IVA (19%) de una comisión de venta retenida → TAX_RESERVE (la comisión ya incluye IVA) */
+    COMMISSION_VAT_RETENTION,
+
+    /** Reembolso de un PurchaseItem: revierte la porción de IVA de la comisión (TAX_RESERVE → PAYOUTS_PENDING) */
+    COMMISSION_VAT_REVERSAL
+}

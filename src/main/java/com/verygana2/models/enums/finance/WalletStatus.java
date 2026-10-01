@@ -16,17 +16,12 @@ public enum WalletStatus {
     INACTIVE,
 
     /**
-     * Saldo disponible y suficiente para operar.
-     * Las interacciones activas están corriendo normalmente.
+     * Saldo disponible ( > 0 ). Las interacciones activas corren normalmente.
+     * El aviso de "saldo bajo" (WARNING / CRITICAL) NO es un estado: se deriva en
+     * tiempo real de los umbrales por plan en {@code BudgetAlertScheduler} y en el
+     * dashboard del comercial.
      */
     ACTIVE,
-
-    /**
-     * Saldo por debajo del umbral de seguridad (10% del último depósito).
-     * Las interacciones siguen activas pero se notifica al empresario
-     * que debe recargar pronto para evitar una pausa.
-     */
-    LOW_BALANCE,
 
     /**
      * Saldo agotado (balance = 0).

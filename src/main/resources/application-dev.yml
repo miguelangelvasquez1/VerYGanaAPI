@@ -24,8 +24,6 @@ spring:
   # JPA/HIBERNATE CONFIGURATION
   # ============================================
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -194,11 +192,18 @@ treasury:
   # el anunciante financió y lo que se acreditó al consumidor.
   issuance-settlement:
     cron: "0 0/10 * * * *"   # cada 10 minutos
+    vat-pct: 19 # IVA Colombia — depósitos/suscripción: se suma; comisión: se extrae (ya la incluye)
 
 financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
   connectivity-keys-percentage: ${CONNECTIVITY_KEYS_PERCENTAGE:25}
   key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
+
+# ============================================
+# TAXES
+# ============================================
+taxes:
+  iva: ${IVA}
 
 # ============================================
 # MARKETPLACE LIMITS
@@ -210,6 +215,10 @@ marketplace:
     cleanup:
       cron: "0 30 3 * * SUN"   # domingos 3:30 AM
       grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
+  claim:
+    expiration-days: 15                    # plazo para reclamar un producto fisico (PIN)
+    expiration-scheduler:
+      cron: "0 0 5 * * *"                  # todos los dias 5 AM UTC
 
 # ============================================
 # PURCHASE EXPIRY
@@ -267,15 +276,20 @@ wompi:
   payout:
     api-key: ${WOMPI_SANDBOX_PAYOUTS_API_KEY}
     principal-user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
+    user-id: ${WOMPI_SANDBOX_PAYOUTS_USER_ID}
     events-key: ${WOMPI_SANDBOX_PAYOUTS_SECRET}
     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
     api-base-url: https://api.sandbox.payouts.wompi.co/v1  # sandbox
     # api-base-url: https://api.payouts.wompi.co/v1        # producción
-    cron: "0 0 4 * * *"          # 11 PM Colombia = 04:00 UTC
-    retry-cron: "0 30 4 * * *"   # reintentos 30 min después
+    cron: "0 0 23 * * *"          # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
+    retry-cron: "0 30 23 * * *"   # reintentos 30 min después
     min-balance-alert-cents: 5000000  # alerta si el balance de Wompi Payouts < $50.000 COP
+    connect-timeout-ms: 5000      # timeout de conexión TCP
+    response-timeout-ms: 20000    # timeout esperando la respuesta completa
+    max-retries: 5                # tope de reintentos antes de marcar EXHAUSTED
+    rate-limit-delay-ms: 300       # pausa entre llamadas consecutivas a POST /payouts
 
 payment:
   min-deposit: 5000      # $5.000 COP
@@ -287,6 +301,10 @@ payment:
 # ============================================
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  # Orígenes permitidos para CORS y WebSocket (/ws). Lista separada por comas, sin "/" final.
+  # Admite patrones: https://*.verygana.com
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:8081,https://games.verygana.com}
   admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
   password-setup-token:
     expiration-hours: ${GD_PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
@@ -387,10 +405,30 @@ commercial:
   onboarding:
     documents:
       max-size-bytes: 10485760 # 10 MB
+  page-visit:
+    # Ventana de deduplicación por (anuncio, consumer) al registrar visitas a la
+    # página oficial del empresario ("Remisión"): un clic repetido dentro de este
+    # lapso no genera una fila nueva. Evita inflar la métrica por doble clic / reintentos.
+    dedup-window-minutes: 30
+  contract:
+    # Límite de generación de contratos de RECHARGE/PLAN_CHANGE por comercial: cada
+    # generación puede disparar un envío real a firma electrónica (con costo con el
+    # proveedor), así que se acota cuántos se pueden generar por ventana.
+    rate-limit:
+      max-per-window: 1
+      window-hours: 24
 
 legal:
   documents:
     max-size-bytes: 10485760 # 10 MB
+
+# ============================================
+# PQRS — evidencia adjunta (foto/video, opcional)
+# ============================================
+pqrs:
+  assets:
+    max-size-bytes: 26214400 # 25 MB (imagen o video)
+    max-count: 5
 
 # ============================================
 # OBSERVABILIDAD (dev)
@@ -431,4 +469,19 @@ zapsign:
   webhook-header-name: X-VERyGANA-Secret
   api-token: ${ZAPSIGN_API_TOKEN:}
   webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
+
+
+# ============================================
+# AVISOS DE SALDO BAJO / DORMANT WALLETS
+# ============================================
+budget:
+    # % del último depósito por debajo del cual se avisa "saldo bajo" (WARNING) y se muestra la alerta en el dashboard.
+    low-balance-warning-pct: 20
+    # % del último depósito por debajo del cual el aviso escala a "crítico" (CRITICAL). 0 = sin escalón crítico.
+    low-balance-critical-pct: 5
+    # Días que un wallet puede permanecer en saldo 0 antes de pasar a DORMANT (bloqueo de edición).
+    grace-period-days: 15
+    # Barrido periódico de wallets financiados (ACTIVE / EXHAUSTED). Cron de 6 campos, zona UTC.
+    alert-cron: "0 0 * * * *"
+
 

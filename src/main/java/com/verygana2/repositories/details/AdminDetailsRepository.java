@@ -12,7 +12,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.AdminDetails;
 
 import jakarta.persistence.LockModeType;
@@ -28,7 +28,7 @@ public interface AdminDetailsRepository extends JpaRepository<AdminDetails, Long
        @Lock(LockModeType.PESSIMISTIC_WRITE)
        @Query("SELECT a FROM AdminDetails a JOIN a.user u " +
                      "WHERE u.role = com.verygana2.models.enums.Role.ADMIN " +
-                     "AND u.userState = com.verygana2.models.enums.UserState.ACTIVE " +
+                     "AND u.accountStatus = com.verygana2.models.enums.AccountStatus.ACTIVE " +
                      "ORDER BY a.lastPqrsAssignedAt ASC, a.id ASC")
        List<AdminDetails> findActiveAdminsForPqrsAssignmentForUpdate(Pageable pageable);
 
@@ -36,18 +36,18 @@ public interface AdminDetailsRepository extends JpaRepository<AdminDetails, Long
        // asignación de turno de por medio).
        @Query("SELECT a FROM AdminDetails a JOIN a.user u " +
                      "WHERE u.role = com.verygana2.models.enums.Role.ADMIN " +
-                     "AND u.userState = com.verygana2.models.enums.UserState.ACTIVE")
+                     "AND u.accountStatus = com.verygana2.models.enums.AccountStatus.ACTIVE")
        List<AdminDetails> findActiveAdmins();
 
        @Query("""
                      SELECT a FROM AdminDetails a
-                     WHERE (:userState IS NULL OR a.user.userState = :userState)
+                     WHERE (:accountStatus IS NULL OR a.user.accountStatus = :accountStatus)
                      AND (:search IS NULL OR :search = ''
                      OR LOWER(a.user.email) LIKE LOWER(CONCAT('%', :search, '%'))
                      OR LOWER(a.user.phoneNumber) LIKE LOWER(CONCAT('%', :search, '%'))
                      OR LOWER(a.adminCode) LIKE LOWER(CONCAT('%', :search, '%')))
                          """)
-       Page<AdminDetails> findAdmins(@Param("search") String search, @Param("userState") UserState userState,
+       Page<AdminDetails> findAdmins(@Param("search") String search, @Param("accountStatus") AccountStatus accountStatus,
                      Pageable pageable);
 
        @Query("""

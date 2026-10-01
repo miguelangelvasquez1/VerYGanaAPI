@@ -13,8 +13,10 @@ import org.mapstruct.ReportingPolicy;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDiagnosticRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentsStatusResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialOnboardingSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticAnswersSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
+import com.verygana2.dtos.user.commercial.onboarding.PlanBenefitsDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.RouteClassificationResponseDTO;
@@ -101,6 +103,16 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "legalRepPepDeclaration", source = "details.pep")
     LegalIdentificationSummaryDTO toLegalIdentificationSummary(CommercialOnboarding onboarding, CommercialDetails details);
 
+    /**
+     * Todas las respuestas del diagnóstico comercial, de solo lectura — para que
+     * compliance las vea al revisar el Contrato Marco (ver
+     * ComplianceContractController). answers viaja aparte porque es un @Embeddable:
+     * MapStruct empareja por nombre contra ambas fuentes (mismo patrón que
+     * toLegalIdentificationSummary con onboarding/details).
+     */
+    @BeanMapping(unmappedTargetPolicy = ReportingPolicy.IGNORE)
+    DiagnosticAnswersSummaryDTO toDiagnosticAnswersSummary(CommercialOnboarding onboarding, CommercialDiagnosticAnswers answers);
+
     @Mapping(target = "explanation", source = "routeExplanation")
     @Mapping(target = "confirmed", source = "routeConfirmed")
     @Mapping(target = "preliminary", source = "routePreliminary")
@@ -131,7 +143,7 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "canAdvertise", expression = "java(plan.getBoolFeature(\"CAN_ADVERTISE\", false))")
     @Mapping(target = "canUseGames", expression = "java(plan.getBoolFeature(\"CAN_USE_GAMES\", false))")
     @Mapping(target = "canUseSurveys", expression = "java(plan.getBoolFeature(\"CAN_USE_SURVEYS\", false))")
-    @Mapping(target = "canHavePets", expression = "java(plan.getBoolFeature(\"CAN_HAVE_PETS\", false))")
+    @Mapping(target = "canUsePets", expression = "java(plan.getBoolFeature(\"CAN_USE_PETS\", false))")
     @Mapping(target = "maxProducts", expression = "java(plan.getIntFeature(\"MAX_PRODUCTS\", 0))")
     @Mapping(target = "maxAds", expression = "java(plan.getIntFeature(\"MAX_ADS\", 0))")
     @Mapping(target = "maxBrandedGames", expression = "java(plan.getIntFeature(\"MAX_BRANDED_GAMES\", 0))")
@@ -139,6 +151,25 @@ public interface CommercialOnboardingMapper {
     @Mapping(target = "visibilityBoostPct",
             expression = "java(plan.getFeatureValue(\"VISIBILITY_BOOST\").map(PlanFeature::getDecimalValue).orElse(BigDecimal.ZERO))")
     PlanOptionDTO toPlanOptionDTO(Plan plan, boolean recommended, boolean currentPlan);
+
+    /**
+     * Solo las funcionalidades/límites de un plan, sin identidad ni precio
+     * (esos ya están en el nivel raíz de PlanSummaryResponseDTO — ver
+     * benefits). Mismas expresiones que toPlanOptionDTO, sin los campos
+     * de comparación (recommended/currentPlan) que no aplican fuera de una
+     * tabla comparativa.
+     */
+    @Mapping(target = "canAdvertise", expression = "java(plan.getBoolFeature(\"CAN_ADVERTISE\", false))")
+    @Mapping(target = "canUseGames", expression = "java(plan.getBoolFeature(\"CAN_USE_GAMES\", false))")
+    @Mapping(target = "canUseSurveys", expression = "java(plan.getBoolFeature(\"CAN_USE_SURVEYS\", false))")
+    @Mapping(target = "canUsePets", expression = "java(plan.getBoolFeature(\"CAN_USE_PETS\", false))")
+    @Mapping(target = "maxProducts", expression = "java(plan.getIntFeature(\"MAX_PRODUCTS\", 0))")
+    @Mapping(target = "maxAds", expression = "java(plan.getIntFeature(\"MAX_ADS\", 0))")
+    @Mapping(target = "maxBrandedGames", expression = "java(plan.getIntFeature(\"MAX_BRANDED_GAMES\", 0))")
+    @Mapping(target = "maxSurveys", expression = "java(plan.getIntFeature(\"MAX_SURVEYS\", 0))")
+    @Mapping(target = "visibilityBoostPct",
+            expression = "java(plan.getFeatureValue(\"VISIBILITY_BOOST\").map(PlanFeature::getDecimalValue).orElse(BigDecimal.ZERO))")
+    PlanBenefitsDTO toPlanBenefitsDTO(Plan plan);
 
     @Mapping(target = "termsVersion", source = "onboarding.termsVersion")
     @Mapping(target = "termsAcceptedAt", source = "onboarding.termsAcceptedAt")

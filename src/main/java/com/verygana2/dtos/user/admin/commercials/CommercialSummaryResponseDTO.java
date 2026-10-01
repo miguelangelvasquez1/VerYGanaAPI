@@ -4,7 +4,7 @@ import java.util.UUID;
 
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 import lombok.Builder;
 import lombok.Data;
@@ -16,7 +16,7 @@ public class CommercialSummaryResponseDTO {
     private UUID publicId;
     private Role role;
     private String email;
-    private UserState userState;
+    private AccountStatus accountStatus;
 
     private String companyName;
     private String nit;

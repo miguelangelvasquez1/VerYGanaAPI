@@ -56,7 +56,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by,
     terms_and_conditions
 )
@@ -72,7 +72,6 @@ SELECT
     20,         -- max_tickets_per_user
     1000,       -- max_total_tickets
     0, 0,
-    0,          -- requires_pet
     'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id,
     'Rifa de prueba - solo entorno de desarrollo.'
@@ -113,7 +112,7 @@ INSERT INTO raffles (
     start_date, end_date, draw_date,
     max_tickets_per_user, max_total_tickets,
     total_tickets_issued, total_participants,
-    requires_pet, draw_method,
+    draw_method,
     created_at, updated_at, created_by,
     terms_and_conditions
 )
@@ -129,7 +128,6 @@ SELECT
     12,         -- max_tickets_per_user: 2 referidos de un DIAMANTE
     500,        -- max_total_tickets: premio mayor, cupo menor
     0, 0,
-    0,          -- requires_pet
     'SYSTEM_RANDOM',
     NOW(), NOW(), @admin_id,
     'Rifa premium de prueba - solo entorno de desarrollo.'

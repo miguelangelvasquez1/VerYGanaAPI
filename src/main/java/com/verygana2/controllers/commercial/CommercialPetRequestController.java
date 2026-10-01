@@ -93,7 +93,7 @@ public class CommercialPetRequestController {
      * Mide ventas, no exposición: el juego no reporta cuántas veces se mostró el
      * producto en la tienda, así que no hay impresiones ni tasa de conversión.
      *
-     * Exige plan con CAN_HAVE_PETS (se valida en el servicio, igual que al crear la
+     * Exige plan con CAN_USE_PETS (se valida en el servicio, igual que al crear la
      * solicitud): sin ese plan el comercial no tiene productos en el juego.
      */
     @GetMapping("/metrics")

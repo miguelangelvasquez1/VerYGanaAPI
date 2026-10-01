@@ -9,6 +9,7 @@ import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.PlanChangeBlockerDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanChangePreviewResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
@@ -56,11 +57,16 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
     private final CommercialContractRepository commercialContractRepository;
     private final NotificationService notificationService;
     private final PlanChangeAssetValidator planChangeAssetValidator;
+    private final TreasuryConfig treasuryConfig;
 
     @Override
     @Transactional
     public PlanChangeRequest requestPlanChange(Long commercialId, PlanCode targetPlanCode, Long intendedInvestmentAmountCents) {
-        CommercialDetails commercial = commercialDetailsRepository.findById(commercialId)
+        // Lock pesimista sobre la fila del comercial: serializa esta solicitud con
+        // requestRecharge (que toma el mismo lock) para que dos requests concurrentes no
+        // puedan crear un cambio de plan y una recarga a la vez — los chequeos de abajo
+        // son read-then-write y sin esto tienen una ventana de carrera.
+        CommercialDetails commercial = commercialDetailsRepository.findByIdForUpdate(commercialId)
                 .orElseThrow(() -> new EntityNotFoundException("Comercial no encontrado: " + commercialId));
 
         Plan targetPlan = planRepository.findByCodeAndActiveTrue(targetPlanCode)
@@ -136,7 +142,17 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
 
         Plan fromPlan = commercial.getCurrentPlan();
         long balance = walletBalanceCents(commercial);
-        long requiredTopUp = computeRequiredTopUp(targetPlan, intendedInvestmentAmountCents);
+
+        // El preview es orientativo: si el monto indicado está fuera de rango (o el
+        // plan está mal configurado) no revienta — lo reporta como no elegible con el
+        // motivo, igual que hace previewRecharge.
+        Long requiredTopUp = null;
+        String amountError = null;
+        try {
+            requiredTopUp = computeRequiredTopUp(targetPlan, intendedInvestmentAmountCents);
+        } catch (ValidationException ex) {
+            amountError = ex.getMessage();
+        }
 
         boolean downgradeToBasic = targetPlanCode == PlanCode.BASIC && fromPlan != null && fromPlan.getCode() != PlanCode.BASIC;
         boolean balanceBlocksBasic = downgradeToBasic && balance != 0L;
@@ -144,9 +160,18 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
         // Activos activos que no cabrían en el plan destino — deben finalizar antes de solicitar.
         List<PlanChangeBlockerDTO> blockers = planChangeAssetValidator.findBlockers(commercialId, targetPlan);
 
-        boolean eligible = !balanceBlocksBasic && blockers.isEmpty();
+        boolean eligible = amountError == null && !balanceBlocksBasic && blockers.isEmpty();
 
-        String message = buildPreviewMessage(targetPlanCode, downgradeToBasic, balanceBlocksBasic, balance, blockers);
+        String message = amountError != null
+                ? amountError
+                : buildPreviewMessage(targetPlanCode, downgradeToBasic, balanceBlocksBasic, balance, blockers);
+
+        // IVA sobre el abono requerido — es lo que realmente se cobra en Wompi al generar
+        // el checkout (ver PlanServiceImpl#generatePlanChangeTopUpCheckout), tanto si el
+        // destino es BASIC como STANDARD/PREMIUM.
+        Long requiredTopUpVat = requiredTopUp != null ? vatFor(requiredTopUp) : null;
+        Long requiredTopUpTotal = requiredTopUp != null && requiredTopUpVat != null
+                ? requiredTopUp + requiredTopUpVat : null;
 
         return new PlanChangePreviewResponseDTO(
                 fromPlan != null ? fromPlan.getCode() : null,
@@ -154,12 +179,19 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
                 eligible,
                 message,
                 centsToPesos(requiredTopUp),
+                centsToPesos(requiredTopUpVat),
+                centsToPesos(requiredTopUpTotal),
                 centsToPesos(balance),
                 targetPlan.getCode() == PlanCode.BASIC ? centsToPesos(targetPlan.getMonthlyPriceCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMinInvestmentCents()) : null,
                 targetPlan.getCode() != PlanCode.BASIC ? centsToPesos(targetPlan.getMaxInvestmentCents()) : null,
                 targetPlan.getSaleCommissionPct(),
                 blockers);
+    }
+
+    /** IVA sobre un monto base, en centavos (ver TreasuryConfig.vatPct). Mismo cálculo que PlanServiceImpl#vatFor. */
+    private long vatFor(long baseAmountCents) {
+        return baseAmountCents * treasuryConfig.getVatPct() / 100;
     }
 
     /**
@@ -353,13 +385,21 @@ public class PlanChangeRequestServiceImpl implements PlanChangeRequestService {
      */
     private long computeRequiredTopUp(Plan targetPlan, Long intendedInvestmentAmountCents) {
         if (targetPlan.getCode() == PlanCode.BASIC) {
-            return targetPlan.getMonthlyPriceCents() != null ? targetPlan.getMonthlyPriceCents() : 0L;
+            Long monthlyPrice = targetPlan.getMonthlyPriceCents();
+            if (monthlyPrice == null || monthlyPrice <= 0) {
+                throw new ValidationException(
+                        "El plan BASIC no tiene tarifa mensual configurada — contacte al soporte de VerYGana.");
+            }
+            return monthlyPrice;
         }
         long minInvestment = targetPlan.getMinInvestmentCents() != null ? targetPlan.getMinInvestmentCents() : 0L;
         long maxInvestment = targetPlan.getMaxInvestmentCents() != null ? targetPlan.getMaxInvestmentCents() : Long.MAX_VALUE;
 
         if (intendedInvestmentAmountCents == null) {
             return minInvestment;
+        }
+        if (intendedInvestmentAmountCents <= 0) {
+            throw new ValidationException("El monto a invertir debe ser positivo.");
         }
         if (intendedInvestmentAmountCents < minInvestment || intendedInvestmentAmountCents > maxInvestment) {
             throw new ValidationException(

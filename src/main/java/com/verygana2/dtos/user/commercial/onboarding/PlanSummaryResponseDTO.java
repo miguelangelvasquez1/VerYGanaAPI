@@ -58,4 +58,23 @@ public class PlanSummaryResponseDTO {
 
     private boolean accepted;
     private ZonedDateTime acceptedAt;
+
+    /** Valor bruto = neto (investmentAmountCents/monthlyFeeCents) + IVA. Null hasta que se acepte el plan. */
+    private Long grossAmountCents;
+
+    /**
+     * Tributos que el empresario debe asumir por fuera de lo recaudado por
+     * VerYGana. Placeholder: siempre 0L — no hay ningún tributo excluido
+     * modelado todavía.
+     */
+    private Long excludedTaxesCents;
+
+    /** Funcionalidades/límites incluidos en el plan (sin repetir identidad/precio, ya están arriba). */
+    private PlanBenefitsDTO benefits;
+
+    /**
+     * Placeholder — el concepto "Umbral de Prosperidad" no está definido en
+     * ningún macroproceso todavía. Siempre null.
+     */
+    private Long prosperityThresholdCents;
 }

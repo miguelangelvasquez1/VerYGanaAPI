@@ -9,6 +9,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,13 +21,29 @@ import com.verygana2.models.ads.Ad;
 import com.verygana2.models.enums.AdStatus;
 import com.verygana2.models.enums.AdWatchSessionStatus;
 
+import jakarta.persistence.LockModeType;
+
 @Repository
 public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationExecutor<Ad> {
 
        // Consultas para el anunciante
        Page<Ad> findByCommercialId(Long commercialId, Pageable pageable);
 
+       // Todos los anuncios de un comercial (acotado por MAX_ADS del plan) — para reportes.
+       @Query("SELECT a FROM Ad a WHERE a.commercial.id = :commercialId")
+       List<Ad> findAllByCommercialId(@Param("commercialId") Long commercialId);
+
        Optional<Ad> findByIdAndCommercialId(Long id, Long commercialId);
+
+       /**
+        * Igual que {@link #findByIdAndCommercialId} pero con {@code SELECT … FOR UPDATE}. Lo usa el
+        * aumento de presupuesto, que es un read-modify-write sobre {@code maxLikes}/{@code status}:
+        * el lock serializa contra otro aumento y hace que los UPDATE atómicos de
+        * {@link #incrementLikeIfAvailable} esperen al commit en vez de pisarse con el cambio.
+        */
+       @Lock(LockModeType.PESSIMISTIC_WRITE)
+       @Query("SELECT a FROM Ad a WHERE a.id = :id AND a.commercial.id = :commercialId")
+       Optional<Ad> findByIdAndCommercialIdForUpdate(@Param("id") Long id, @Param("commercialId") Long commercialId);
 
        List<Ad> findByStatus(AdStatus status);
 
@@ -46,20 +63,12 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      @Param("now") ZonedDateTime now,
                      Pageable pageable);
 
-       // Consultas de estadísticas
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId")
-       Long countByCommercialId(@Param("commercialId") Long commercialId);
-
-       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status = :status")
-       long countByCommercialIdAndStatus(
+       // Anuncios que aún ocupan un cupo del plan: se le pasan los estados terminales
+       // (REJECTED/COMPLETED) para excluirlos. Ver PlanFeatureGuard.
+       @Query("SELECT COUNT(a) FROM Ad a WHERE a.commercial.id = :commercialId AND a.status NOT IN :statuses")
+       long countByCommercialIdAndStatusNotIn(
                      @Param("commercialId") Long commercialId,
-                     @Param("status") AdStatus status);
-
-       // @Query("SELECT SUM(a.spentBudget) FROM Ad a WHERE a.commercial.id = :commercialId")
-       // BigDecimal sumSpentBudgetByCommercialId(@Param("commercialId") Long commercialId);
-
-       @Query("SELECT SUM(a.currentLikes) FROM Ad a WHERE a.commercial.id = :commercialId")
-       Long sumLikesByCommercialId(@Param("commercialId") Long commercialId);
+                     @Param("statuses") List<AdStatus> statuses);
 
        // Anuncios pendientes de aprobación
        @Query("SELECT a FROM Ad a WHERE a.status = 'PENDING' ORDER BY a.createdAt ASC")
@@ -74,11 +83,56 @@ public interface AdRepository extends JpaRepository<Ad, Long>, JpaSpecificationE
                      @Param("searchTerm") String searchTerm,
                      Pageable pageable);
 
-       // Actualización masiva de estado
-       @Modifying
-       @Query("UPDATE Ad a SET a.status = 'COMPLETED', a.updatedAt = :now " +
-                     "WHERE a.id IN :ids")
-       int deactivateAds(@Param("ids") List<Long> ids, @Param("now") ZonedDateTime now);
+       /**
+        * Incremento atómico y condicionado del contador de likes.
+        *
+        * <p>El {@code WHERE a.currentLikes < a.maxLikes} cierra la ventana de
+        * lost-update entre dos likes concurrentes sobre el mismo anuncio: la BD
+        * serializa los UPDATE sobre la misma fila, así que exactamente una
+        * solicitud gana el último cupo y el resto afecta 0 filas. El llamador
+        * traduce ese 0 a un error de dominio 4xx, en vez de corromper el
+        * contador o depender de que un fallo de {@code @Version} se reintente y
+        * se traduzca (cuando no se traducía, el perdedor recibía un 500).
+        *
+        * <p>Cuando el incremento alcanza el tope cierra el anuncio en la misma
+        * sentencia ({@code status = COMPLETED}, {@code endDate = :now}) para no
+        * dejar una segunda escritura read-modify-write con su propia carrera.
+        * {@code UPDATE VERSIONED} incrementa la columna {@code @Version} para
+        * que cualquier escritura de entidad concurrente sobre el mismo anuncio
+        * (aprobación, pausa, agotamiento de presupuesto) siga detectando el
+        * conflicto.
+        *
+        * <p><b>El orden del {@code SET} importa.</b> MySQL/MariaDB evalúan las
+        * asignaciones de izquierda a derecha usando los valores YA actualizados
+        * (PostgreSQL y H2 usan los originales). Si {@code currentLikes = currentLikes + 1}
+        * va primero, los {@code CASE} siguientes ven el contador ya incrementado y
+        * el anuncio pasaba a COMPLETED con un like de menos (con 9 de 10 likes ya
+        * quedaba cerrado y el último no se podía registrar). Por eso {@code status} y
+        * {@code endDate} van ANTES del contador: así leen el valor original en ambos
+        * motores. Verificado contra MariaDB 10.4; ver
+        * {@code AdRepositoryIncrementLikeQueryTest}. Al agregar asignaciones a esta
+        * sentencia, toda columna derivada de {@code currentLikes} debe ir antes de él.
+        *
+        * @return 1 si el like se registró, 0 si el anuncio ya no admitía más likes
+        */
+       @Modifying(flushAutomatically = true)
+       @Query("""
+              UPDATE VERSIONED Ad a
+                 SET a.status = CASE
+                            WHEN a.currentLikes + 1 >= a.maxLikes
+                            THEN com.verygana2.models.enums.AdStatus.COMPLETED
+                            ELSE a.status END,
+                     a.endDate = CASE
+                            WHEN a.currentLikes + 1 >= a.maxLikes
+                            THEN :now
+                            ELSE a.endDate END,
+                     a.updatedAt = :now,
+                     a.currentLikes = a.currentLikes + 1
+               WHERE a.id = :adId
+                 AND a.status = com.verygana2.models.enums.AdStatus.ACTIVE
+                 AND a.currentLikes < a.maxLikes
+              """)
+       int incrementLikeIfAvailable(@Param("adId") Long adId, @Param("now") ZonedDateTime now);
 
        // Top anuncios por engagement
        @Query("SELECT a FROM Ad a WHERE a.status = 'APPROVED' " +

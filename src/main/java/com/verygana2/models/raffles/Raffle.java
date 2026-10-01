@@ -92,9 +92,6 @@ public class Raffle {
     @OneToMany(mappedBy = "raffle", cascade = CascadeType.ALL)
     private List<Prize> prizes;
 
-    @Column(name = "requires_pet", nullable = false)
-    private boolean requiresPet;
-
     @Enumerated(EnumType.STRING)
     @Column(name = "draw_method", nullable = false)
     private DrawMethod drawMethod;

@@ -47,9 +47,6 @@ public class CreateRaffleRequestDTO {
     @PositiveOrZero(message = "Max tickets per user cannot be negative")
     private Long maxTicketsPerUser;
 
-    @NotNull(message = "Requires pet? is required")
-    private boolean requiresPet;
-
     @NotNull(message = "Draw method is required")
     private DrawMethod drawMethod;
 

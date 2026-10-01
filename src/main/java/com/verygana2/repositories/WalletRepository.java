@@ -17,9 +17,18 @@ import jakarta.persistence.LockModeType;
 @Repository
 public interface WalletRepository extends JpaRepository<Wallet, Long> {
 
+    // Solo para lectura. Toda ruta que MODIFIQUE el saldo (consume/deposit + save)
+    // debe usar findByCommercialIdForUpdate para serializar los read-modify-write
+    // concurrentes sobre la misma fila.
     Optional<Wallet> findByCommercialId(Long commercialId);
 
-    // Lock pesimista para operaciones de consumo concurrente (BudgetService)
+    /**
+     * SELECT ... FOR UPDATE sobre el wallet. Úsese en TODA operación que cambie el
+     * saldo (BudgetService, creación de anuncios/encuestas, reembolsos, recargas):
+     * serializa por comercial los ajustes concurrentes y evita mezclar bloqueo
+     * pesimista con el optimista de {@code @Version}, que era la principal fuente
+     * de deadlocks. {@code FOR UPDATE} se comporta igual en MySQL y en PostgreSQL.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT w FROM Wallet w WHERE w.commercial.id = :commercialId")
     Optional<Wallet> findByCommercialIdForUpdate(@Param("commercialId") Long commercialId);

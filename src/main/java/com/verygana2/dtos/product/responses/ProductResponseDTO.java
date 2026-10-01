@@ -3,6 +3,8 @@ package com.verygana2.dtos.product.responses;
 import java.math.BigDecimal;
 import java.util.List;
 
+import com.verygana2.models.enums.marketplace.ProductType;
+
 import lombok.Data;
 
 @Data
@@ -21,4 +23,5 @@ public class ProductResponseDTO {
     private Integer reviewCount;
     private List<ProductReviewResponseDTO> reviews;
     private Boolean isGameReward;
+    private ProductType productType;
 }

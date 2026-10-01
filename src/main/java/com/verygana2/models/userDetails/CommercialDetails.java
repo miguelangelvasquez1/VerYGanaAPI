@@ -6,6 +6,7 @@ import java.util.List;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.AnnualRevenueRange;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.finance.PayoutMethod;
 import com.verygana2.models.finance.Wallet;
@@ -44,6 +45,10 @@ public class CommercialDetails extends UserDetails {
     @Column(unique = true, length = 20)
     private String nit;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "commercial_activity_type", length = 20)
+    private CommercialActivityType commercialActivityType;
+
     // ==================== KYC / SAGRILAFT ====================
 
     @OneToOne(mappedBy = "commercialDetails", fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
@@ -68,6 +73,17 @@ public class CommercialDetails extends UserDetails {
     @Enumerated(EnumType.STRING)
     @Column(name = "annual_income_range", length = 30)
     private AnnualRevenueRange annualIncomeRange;
+
+    // ===== CONTACTO WHATSAPP =====
+    // Editables desde la edición de perfil (ver CommercialDetailsServiceImpl#updateCommercialProfile).
+    // whatsappNumber se limpia a null cuando whatsappAvailable pasa a false, para no dejar
+    // un número obsoleto mostrándose como disponible.
+
+    @Column(name = "whatsapp_available", nullable = false)
+    private boolean whatsappAvailable = false;
+
+    @Column(name = "whatsapp_number", length = 20)
+    private String whatsappNumber;
 
     // ===== LOCATION =====
 
@@ -117,7 +133,7 @@ public class CommercialDetails extends UserDetails {
      * Checks whether the business user has active access to the platform.
      *
      * BASIC    → requires an active Subscription
-     * STANDARD/PREMIUM → requires an operational Wallet (ACTIVE or LOW_BALANCE)
+     * STANDARD/PREMIUM → requires an operational Wallet (ACTIVE)
      */
     public boolean hasActiveAccess() {
         if (currentPlan == null) return false;

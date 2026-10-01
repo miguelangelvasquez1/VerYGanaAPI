@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
+import com.verygana2.dtos.game.EndSessionResponseDTO;
 import com.verygana2.dtos.game.GameDTO;
 import com.verygana2.dtos.game.GameEventDTO;
 import com.verygana2.dtos.game.GameMetricDTO;
@@ -92,12 +93,14 @@ public class GameController {
         return ResponseEntity.ok().build();
     }
 
+    // Público (ver PublicPaths): lo llama el juego desde el iframe, que no tiene JWT. La
+    // credencial es session_token + user_hash, como en /games/assets.
     @PostMapping("/end-session")
-    public ResponseEntity<Void> endSession(@RequestBody GameEventDTO<EndSessionDTO> event,
-            @AuthenticationPrincipal Jwt jwt) {
-        Long userId = jwt.getClaim("userId");
-        gameService.completeSession(event, userId);
-        return ResponseEntity.ok().build();
+    public ResponseEntity<EndSessionResponseDTO> endSession(@RequestBody GameEventDTO<EndSessionDTO> event) {
+        if (event.getSessionToken() == null || event.getUserHash() == null) {
+            throw new ValidationException("session_token y user_hash son requeridos");
+        }
+        return ResponseEntity.ok(gameService.completeSession(event));
     }
 
     @GetMapping

@@ -3,6 +3,7 @@ package com.verygana2.dtos.game.campaign;
 import java.util.List;
 
 import com.verygana2.models.enums.TargetGender;
+import com.verygana2.utils.validators.MinTargetAge;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -30,12 +31,12 @@ public class UpdateCampaignRequestDTO {
     @AllArgsConstructor
     public class TargetAudienceDTO {
 
-        @Min(value = 18, message = "La edad mínima debe ser al menos 18")
-        @Max(value = 100, message = "La edad mínima no puede superar 100")
+        @MinTargetAge(message = "Minimum age must be at least {minAge}")
+        @Max(value = 100, message = "Minimum age cannot exceed 100")
         private Integer minAge;
 
-        @Min(value = 18, message = "La edad máxima debe ser al menos 18")
-        @Max(value = 100, message = "La edad máxima no puede superar 100")
+        @MinTargetAge(message = "Maximum age must be at least {minAge}")
+        @Max(value = 100, message = "Maximum age cannot exceed 100")
         private Integer maxAge;
 
         private TargetGender gender;

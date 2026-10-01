@@ -7,16 +7,25 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.OptimisticLockException;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.IncorrectResultSizeDataAccessException;
+import org.springframework.dao.OptimisticLockingFailureException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.hibernate.ObjectNotFoundException;
+import org.hibernate.StaleStateException;
 import org.hibernate.exception.JDBCConnectionException;
+import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.DisabledException;
 import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authorization.AuthorizationDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.transaction.TransactionSystemException;
 import org.springframework.validation.FieldError;
@@ -32,16 +41,21 @@ import com.verygana2.exceptions.adsExceptions.DuplicateLikeException;
 import com.verygana2.exceptions.adsExceptions.InsufficientBudgetException;
 import com.verygana2.exceptions.adsExceptions.InvalidAdStateException;
 import com.verygana2.exceptions.adsExceptions.LimitReachedException;
+import com.verygana2.exceptions.adsExceptions.WatchSessionResumeLimitException;
 import com.verygana2.exceptions.authExceptions.AccountLockedException;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.PasswordNotConfiguredException;
 import com.verygana2.exceptions.authExceptions.PendingEmailVerificationException;
 import com.verygana2.exceptions.authExceptions.PendingKycReviewException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
+import com.verygana2.models.enums.RegistrationRejectionReason;
+import com.verygana2.exceptions.financeExceptions.InvalidCashRefundStateException;
 import com.verygana2.exceptions.financeExceptions.WalletAlreadyExistsException;
 import com.verygana2.exceptions.payoutExceptions.InvalidPayoutMethodStateException;
 import com.verygana2.exceptions.payoutExceptions.OtpVerificationException;
 import com.verygana2.exceptions.payoutExceptions.PayoutMethodNotFoundException;
+import com.verygana2.exceptions.payoutExceptions.PayoutMethodRequiredException;
+import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
 import com.verygana2.exceptions.pqrsExceptions.PqrsAccessDeniedException;
 import com.verygana2.exceptions.rafflesExceptions.ClaimPrizeException;
 import com.verygana2.exceptions.esignature.ESignatureApiException;
@@ -61,6 +75,7 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.NoHandlerFoundException;
 
@@ -124,6 +139,29 @@ public class GlobalExceptionHandler {
             AuthorizationDeniedException ex, WebRequest request) {
         log.warn("Authorization denied: {}", ex.getMessage());
         return buildError(HttpStatus.FORBIDDEN, "Access denied", request);
+    }
+
+    /**
+     * 403 con mensaje genérico al front; el detalle (usuario, roles, ruta y
+     * causa real) queda solo en el log.
+     *
+     * Cubre los {@code AccessDeniedException} "crudos" que llegan hasta el
+     * @RestControllerAdvice: checks manuales, {@code @PreAuthorize} sobre
+     * servicios, expresiones SpEL que no elevan la
+     * {@link AuthorizationDeniedException} más específica (esa tiene su propio
+     * handler y no pasa por aquí). Antes caían en el catch-all y salían como
+     * 500 "Unexpected error".
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ErrorResponse> handleAccessDenied(
+            AccessDeniedException ex, WebRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String user = (auth != null) ? auth.getName() : "anónimo";
+        Object authorities = (auth != null) ? auth.getAuthorities() : "[]";
+        log.warn("Access denied for user '{}' (authorities={}) on {} -> {}",
+                user, authorities, getPath(request), ex.getMessage(), ex);
+        return buildError(HttpStatus.FORBIDDEN,
+                "No tienes permisos para realizar esta acción", request);
     }
 
     @ExceptionHandler(InvalidTokenException.class)
@@ -243,6 +281,13 @@ public class GlobalExceptionHandler {
 
     // ==================== CONFLICTOS (409) ====================
 
+    @ExceptionHandler(StaleBudgetException.class)
+    public ResponseEntity<ErrorResponse> handleStaleBudgetException(
+            StaleBudgetException ex, WebRequest request) {
+        log.warn("Stale budget increase: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(DuplicateLikeException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateLikeException(
             DuplicateLikeException ex, WebRequest request) {
@@ -255,6 +300,19 @@ public class GlobalExceptionHandler {
             LimitReachedException ex, WebRequest request) {
         log.warn("Limit reached: {}", ex.getMessage());
         return buildError(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage(), request);
+    }
+
+    /**
+     * 410 (Gone), no 400: la sesión de visualización se agotó por reanudarla
+     * demasiadas veces y quedó invalidada. El status code le dice al front que
+     * descarte el anuncio actual y pida el siguiente ({@code GET /adLike/next})
+     * sin tener que parsear el "message".
+     */
+    @ExceptionHandler(WatchSessionResumeLimitException.class)
+    public ResponseEntity<ErrorResponse> handleWatchSessionResumeLimitException(
+            WatchSessionResumeLimitException ex, WebRequest request) {
+        log.warn("Watch session resume limit reached: {}", ex.getMessage());
+        return buildError(HttpStatus.GONE, ex.getMessage(), request);
     }
 
     @ExceptionHandler(EmailAlreadyExistsException.class)
@@ -292,6 +350,33 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InvalidStatusException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidStatusException(
+            InvalidStatusException ex, WebRequest request) {
+        log.warn("Invalid status error: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(RegistrationRejectedException.class)
+    public ResponseEntity<ErrorResponse> handleRegistrationRejectedException(
+            RegistrationRejectedException ex, WebRequest request) {
+        log.warn("Registration rejected ({}): {}", ex.getReason(), ex.getMessage());
+
+        HttpStatus status = ex.getReason() == RegistrationRejectionReason.MINOR_AGE
+                ? HttpStatus.FORBIDDEN
+                : HttpStatus.UNPROCESSABLE_ENTITY;
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(Instant.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(getPath(request))
+                .details(Map.of("reason", ex.getReason().name()))
+                .build();
+
+        return new ResponseEntity<>(errorResponse, status);
+    }
+
     // ==================== ERRORES DE VALIDACIÓN (400) ====================
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -304,6 +389,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleClaimPrizeException(ClaimPrizeException ex, WebRequest request) {
         log.warn("Claim prize error: {}", ex.getMessage());
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidClaimException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidClaimException(InvalidClaimException ex, WebRequest request) {
+        log.warn("Invalid physical claim: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
     @ExceptionHandler(CodeEncryptionException.class)
@@ -373,6 +464,13 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(InsufficientFundsException.class)
+    public ResponseEntity<ErrorResponse> handleInsufficientFundsException(
+            InsufficientFundsException ex, WebRequest request) {
+        log.warn("Insufficient funds: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(StorageException.class)
     public ResponseEntity<ErrorResponse> handleStorageException(
             StorageException ex, WebRequest request) {
@@ -428,6 +526,61 @@ public class GlobalExceptionHandler {
             JDBCConnectionException ex, WebRequest request) {
         log.error("JDBC connection error: {}", ex.getMessage());
         return buildError(HttpStatus.SERVICE_UNAVAILABLE, "Database connection error", request);
+    }
+
+    /**
+     * 409, no 500: deadlock de InnoDB (SQLState 40001 / error 1213) o lock-wait
+     * timeout (1205). {@code ConcurrencyRetryAspect} ya reintenta las rutas
+     * calientes anotadas con {@code @RetryOnConcurrencyConflict}; si aun así el
+     * conflicto persiste (o la ruta no está anotada), el cliente recibe un
+     * mensaje claro y accionable en vez de "Unexpected error". El detalle queda
+     * en el log.
+     */
+    @ExceptionHandler({CannotAcquireLockException.class, PessimisticLockingFailureException.class})
+    public ResponseEntity<ErrorResponse> handleLockConflict(Exception ex, WebRequest request) {
+        log.warn("Conflicto de bloqueo en BD (deadlock / lock wait timeout): {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "No pudimos completar la operación por alta concurrencia sobre los mismos datos. "
+                        + "Vuelve a intentarlo en unos segundos.",
+                request);
+    }
+
+    /**
+     * 409: otra transacción modificó las mismas filas primero y la escritura no
+     * pudo completarse. Agrupa todas las formas en que aflora un conflicto de
+     * bloqueo optimista según en qué capa se traduzca la excepción:
+     *
+     * <ul>
+     *   <li>{@link OptimisticLockingFailureException} — la forma Spring ya
+     *       traducida ({@code ObjectOptimisticLockingFailureException} y
+     *       subclases); la emite {@code JpaTransactionManager} al hacer commit
+     *       y también algún servicio a mano.</li>
+     *   <li>{@link jakarta.persistence.OptimisticLockException} /
+     *       {@link org.hibernate.StaleStateException} — la forma cruda cuando el
+     *       fallo de {@code @Version} aflora en un flush que no pasa por la
+     *       traducción de excepciones de Spring; antes caía al catch-all como
+     *       500 "Unexpected error".</li>
+     *   <li>{@link UnexpectedRollbackException} — una transacción anidada quedó
+     *       marcada rollback-only por el conflicto y la externa intentó commit
+     *       igual (p. ej. por {@code @Transactional(noRollbackFor = ...)}).</li>
+     * </ul>
+     *
+     * {@code ConcurrencyRetryAspect} ya reintenta las rutas anotadas con
+     * {@code @RetryOnConcurrencyConflict}; este handler cubre los casos en que
+     * el reintento se agotó o la excepción no llegó como
+     * {@code TransientDataAccessException}.
+     */
+    @ExceptionHandler({
+            OptimisticLockingFailureException.class,
+            OptimisticLockException.class,
+            StaleStateException.class,
+            UnexpectedRollbackException.class
+    })
+    public ResponseEntity<ErrorResponse> handleConcurrencyConflict(Exception ex, WebRequest request) {
+        log.warn("Conflicto de concurrencia ({}): {}", ex.getClass().getSimpleName(), ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "Los datos cambiaron mientras procesábamos tu solicitud. Vuelve a intentarlo.",
+                request);
     }
 
     @ExceptionHandler(InvalidRequestException.class)
@@ -488,6 +641,20 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(PayoutMethodRequiredException.class)
+    public ResponseEntity<ErrorResponse> handlePayoutMethodRequiredException(
+            PayoutMethodRequiredException ex, WebRequest request) {
+        log.warn("Payout method required: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidCashRefundStateException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCashRefundStateException(
+            InvalidCashRefundStateException ex, WebRequest request) {
+        log.warn("Invalid cash refund state: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
     @ExceptionHandler(WompiApiException.class)
     public ResponseEntity<ErrorResponse> handleWompiApiException(
             WompiApiException ex, WebRequest request) {
@@ -499,7 +666,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleESignatureApiException(
             ESignatureApiException ex, WebRequest request) {
         log.error("E-signature provider error: {}", ex.getMessage(), ex);
-        return buildError(HttpStatus.BAD_GATEWAY, "E-signature provider error", request);
+        return buildError(HttpStatus.BAD_GATEWAY, "Error con el proveedor de firma electrónica", request);
     }
 
     @ExceptionHandler(ZapSignApiException.class)
@@ -609,6 +776,18 @@ public class GlobalExceptionHandler {
                 ex.getMethod(), ex.getSupportedHttpMethods());
         log.warn(msg);
         return buildError(HttpStatus.METHOD_NOT_ALLOWED, msg, request);
+    }
+
+    /**
+     * 415: el Content-Type de la petición no es soportado. No se expone
+     * ex.getMessage() (lista los media types soportados por el endpoint) al
+     * front, solo un mensaje genérico; el detalle queda en el log.
+     */
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleHttpMediaTypeNotSupported(
+            HttpMediaTypeNotSupportedException ex, WebRequest request) {
+        log.warn("Unsupported media type: {}", ex.getMessage());
+        return buildError(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Tipo de contenido no soportado", request);
     }
 
     // ==================== MÉTODOS AUXILIARES ====================

@@ -162,14 +162,19 @@ class ProductControllerTest {
         @DisplayName("searchProducts: pasa el consumerId del JWT y todos los filtros de búsqueda al service")
         void searchProducts_passesAllFilters() {
             authenticateWithRole("ROLE_CONSUMER"); // el controller solo manda consumerId si el rol lo es
-            var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
-            when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
-                    .thenReturn(expected);
 
-            var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
-                    "price", "ASC");
+            try {
+                var expected = PagedResponse.<ProductSummaryResponseDTO>builder().build();
+                when(productService.filterProducts(9L, "netflix", 3L, 4.0, BigDecimal.TEN, 0, "price", "ASC"))
+                        .thenReturn(expected);
 
-            assertThat(response.getBody()).isSameAs(expected);
+                var response = controller.searchProducts(jwtWithUserId(9L), "netflix", 3L, 4.0, BigDecimal.TEN, 0,
+                        "price", "ASC");
+
+                assertThat(response.getBody()).isSameAs(expected);
+            } finally {
+                SecurityContextHolder.clearContext();
+            }
         }
 
         @Test

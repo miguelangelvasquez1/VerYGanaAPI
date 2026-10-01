@@ -32,7 +32,6 @@ public class RaffleResponseDTO {
     private Integer totalParticipants;
     private List<PrizeResponseDTO> prizes;
     private List<RaffleRuleResponseDTO> rules;
-    private boolean requiresPet;
     private DrawMethod drawMethod;
     private String termsAndConditions;
     private TargetAudienceResponseDTO targeting;

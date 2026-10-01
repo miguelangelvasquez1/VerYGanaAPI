@@ -6,14 +6,19 @@ import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBr
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableWebSocketMessageBroker
+@RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final CorsProperties corsProperties;
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*") // En prod reemplaza con tu dominio frontend
+                .setAllowedOriginPatterns(corsProperties.getAllowedOrigins().toArray(String[]::new)) // Mismos orígenes que CORS (app.cors.allowed-origins)
                 .withSockJS(); // Fallback para navegadores sin WS nativo
     }
 

@@ -44,6 +44,10 @@ public class PlanFeatureGuard {
     private static final List<PlanChangeRequestStatus> PLAN_CHANGE_TERMINAL_STATUSES = List.of(
             PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
 
+    /** Estados terminales de un anuncio: ya no ocupa un cupo del plan (análogo a REJECTED/COMPLETED de una encuesta). */
+    private static final List<AdStatus> AD_TERMINAL_STATUSES = List.of(
+            AdStatus.REJECTED, AdStatus.COMPLETED);
+
     private final EffectivePlanResolver planResolver;
     private final ProductRepository productRepository;
     private final AdRepository adRepository;
@@ -80,8 +84,8 @@ public class PlanFeatureGuard {
                         "El plan " + state.getEffectivePlan().name() + " no permite vender productos propios en el marketplace");
                 }
             }
-            case CAN_HAVE_PETS -> {
-                if (!state.isCanHavePets()) {
+            case CAN_USE_PETS -> {
+                if (!state.isCanUsePets()) {
                     throw new PlanCapabilityException(
                         "El módulo de mascotas no está disponible en el plan: " + state.getEffectivePlan().name());
                 }
@@ -96,6 +100,18 @@ public class PlanFeatureGuard {
                 if (!state.isCanExportReport()) {
                     throw new PlanCapabilityException(
                         "El plan " + state.getEffectivePlan().name() + " no permite exportar el reporte ejecutivo en PDF");
+                }
+            }
+            case CAN_VIEW_PERFORMANCE_METRICS -> {
+                if (!state.isCanViewPerformanceMetrics()) {
+                    throw new PlanCapabilityException(
+                        "Las métricas de rendimiento de anuncios, encuestas y campañas están disponibles solo en los planes Estándar y Premium.");
+                }
+            }
+            case CAN_VIEW_PAGE_VISIT_METRICS -> {
+                if (!state.isCanViewPageVisitMetrics()) {
+                    throw new PlanCapabilityException(
+                        "La métrica de visitas a tu página oficial es exclusiva del plan Premium.");
                 }
             }
             case MAX_PRODUCTS -> {
@@ -139,14 +155,19 @@ public class PlanFeatureGuard {
     // guardia de creación (assertCapability) como la validación de bajada de plan
     // (PlanChangeAssetValidator), para que ambos midan exactamente lo mismo.
 
-    /** Productos activos (status ACTIVE) del comercial. */
+    /** Productos que siguen consumiendo un cupo del plan (todo menos estados finales: REJECTED y INACTIVE). */
     public long countSlotOccupyingProducts(Long commercialId) {
-        return productRepository.countByCommercialIdAndIsActive(commercialId);
+        return productRepository.countSlotOccupyingByCommercialId(commercialId);
     }
 
-    /** Anuncios en circulación (status ACTIVE) del comercial. */
+    /**
+     * Anuncios que siguen consumiendo un cupo del plan (todo menos estados finales:
+     * REJECTED y COMPLETED). Cuenta PENDING, APPROVED, ACTIVE, PAUSED y BLOCKED
+     * — igual criterio que encuestas y juegos branded: un activo no terminal ocupa cupo
+     * aunque todavía no esté en circulación.
+     */
     public long countSlotOccupyingAds(Long commercialId) {
-        return adRepository.countByCommercialIdAndStatus(commercialId, AdStatus.ACTIVE);
+        return adRepository.countByCommercialIdAndStatusNotIn(commercialId, AD_TERMINAL_STATUSES);
     }
 
     /**
@@ -192,6 +213,20 @@ public class PlanFeatureGuard {
                 "Tiene una solicitud de cambio de plan en curso. No puede crear ni activar " +
                 "nuevos activos hasta que se resuelva o cancele la solicitud.");
         }
+    }
+
+    /**
+     * Valida que un activo en estado final (COMPLETED) pueda volver a circulación. Los
+     * estados finales no ocupan cupo del plan (ver {@code countSlotOccupying*}), así que
+     * reabrir uno vuelve a consumir un cupo y hay que verificarlo igual que al crear:
+     * mismo orden que {@link PlanGuardAspect} — límite {@code MAX_*} primero, luego el
+     * bloqueo por cambio de plan en curso.
+     *
+     * @param limitCapability la capacidad {@code MAX_*} del tipo de activo (MAX_ADS, MAX_SURVEYS, MAX_BRANDED_GAMES)
+     */
+    public void assertCanReopen(Long commercialId, RequirePlanCapability.Capability limitCapability) {
+        assertCapability(commercialId, limitCapability);
+        assertNoOpenPlanChangeRequest(commercialId);
     }
 
     /**

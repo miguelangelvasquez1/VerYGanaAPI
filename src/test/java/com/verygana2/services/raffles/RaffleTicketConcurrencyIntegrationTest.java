@@ -141,7 +141,6 @@ class RaffleTicketConcurrencyIntegrationTest {
             raffle.setEndDate(ZonedDateTime.now().plusDays(5));
             raffle.setDrawDate(ZonedDateTime.now().plusDays(6));
             raffle.setMaxTotalTickets(maxTickets);
-            raffle.setRequiresPet(false);
             raffle.setDrawMethod(DrawMethod.SYSTEM_RANDOM);
             raffle.setCreatedBy(1L);
             em.persist(raffle);

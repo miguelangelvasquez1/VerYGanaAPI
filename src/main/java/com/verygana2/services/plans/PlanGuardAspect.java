@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import com.verygana2.models.finance.plans.RequirePlanCapability;
 
+import jakarta.validation.ValidationException;
 import lombok.RequiredArgsConstructor;
 
 @Aspect
@@ -25,7 +26,7 @@ public class PlanGuardAspect {
         Long commercialId = extractCommercialId(joinPoint, paramName);
 
         if (commercialId == null) {
-            throw new IllegalArgumentException("No se encontró el parámetro '" + paramName + "' en el método.");
+            throw new ValidationException("No se encontró el parámetro '" + paramName + "' en el método.");
         }
 
         // Validar todas las capacidades requeridas

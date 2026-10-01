@@ -49,6 +49,13 @@ public class RaffleImageAsset {
     @Column(nullable = false, length = 20)
     private AssetStatus status;
 
+    /**
+     * Snapshot en JSON del CreateRaffleRequestDTO usado durante prepare, para
+     * validar en confirm que la información no fue alterada entre ambas llamadas.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String raffleDataSnapshot;
+
     @OneToOne
     @JoinColumn(name = "raffle_id")
     private Raffle raffle;

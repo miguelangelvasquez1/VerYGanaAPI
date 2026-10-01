@@ -12,7 +12,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.user.admin.AdminResponseDTO;
 import com.verygana2.dtos.user.admin.AdminSummaryResponseDTO;
 import com.verygana2.mappers.UserMapper;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.userDetails.AdminDetails;
 import com.verygana2.models.userDetails.UserDetails;
 import com.verygana2.repositories.details.AdminDetailsRepository;
@@ -43,8 +43,8 @@ public class AdminDetailsServiceImpl implements AdminDetailsService{
     }
 
     @Override
-    public PagedResponse<AdminSummaryResponseDTO> getAdmins(String search, UserState userState, Pageable pageable) {
-        return PagedResponse.from(adminDetailsRepository.findAdmins(search, userState, pageable)).map(userMapper::toAdminSummaryResponseDTO);
+    public PagedResponse<AdminSummaryResponseDTO> getAdmins(String search, AccountStatus accountStatus, Pageable pageable) {
+        return PagedResponse.from(adminDetailsRepository.findAdmins(search, accountStatus, pageable)).map(userMapper::toAdminSummaryResponseDTO);
     }
 
     @Override

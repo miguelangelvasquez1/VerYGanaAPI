@@ -96,7 +96,7 @@ class ProductTest {
     class KeysAndCash {
 
         @Test
-        @DisplayName("40% de maxKeysPct sobre un precio de $15.000 COP = 60.000 llaves máximas")
+        @DisplayName("40% de maxKeysPct sobre un precio de $15.000 COP = 600 llaves máximas")
         void computesMaxKeysAllowedFromPct() {
             Product product = new Product();
             product.setPriceCents(1_500_000L); // $15.000 COP

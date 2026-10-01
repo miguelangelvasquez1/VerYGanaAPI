@@ -37,6 +37,8 @@ import com.verygana2.models.enums.commercial.diagnostic.MarketReachStructure;
 import com.verygana2.models.enums.commercial.diagnostic.MetricsNeeded;
 import com.verygana2.models.enums.commercial.diagnostic.Understanding;
 import com.verygana2.models.enums.commercial.diagnostic.YesPartialNo;
+import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.config.TreasuryConfig;
 import com.verygana2.repositories.commercial.CommercialContractRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
 import com.verygana2.repositories.commercial.DiagnosticQuestionnaireRepository;
@@ -68,6 +70,7 @@ class CommercialOnboardingDiagnosticSubmitTest {
     @Mock private CommercialDocumentService documentService;
     @Mock private PlanService planService;
     @Mock private DiagnosticQuestionnaireRepository diagnosticQuestionnaireRepository;
+    @Mock private TreasuryConfig treasuryConfig;
 
     private final CommercialOnboardingMapper mapper = new CommercialOnboardingMapperImpl();
     private final CommercialDiagnosticClassifier classifier = new CommercialDiagnosticClassifier();
@@ -83,9 +86,10 @@ class CommercialOnboardingDiagnosticSubmitTest {
                 onboardingRepository, commercialDetailsRepository, commercialContractRepository,
                 planRepository, screeningService, legalDocumentRepository, locationService,
                 eventPublisher, documentService, mapper, planService, classifier,
-                diagnosticQuestionnaireRepository);
+                diagnosticQuestionnaireRepository, treasuryConfig);
 
         onboarding = new CommercialOnboarding();
+        onboarding.setCommercialDetails(new CommercialDetails());
         onboarding.setLegalIdentificationCompletedAt(ZonedDateTime.now());
         onboarding.setCurrentStep(OnboardingStep.DIAGNOSTIC_PENDING);
 

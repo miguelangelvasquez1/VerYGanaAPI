@@ -13,7 +13,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import com.verygana2.models.User;
 import com.verygana2.models.commercial.CommercialOnboarding;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.userDetails.CommercialDetails;
 
@@ -50,7 +50,7 @@ class CommercialOnboardingCascadeTest {
         user.setPhoneNumber("3000000000");
         user.setPassword("hash");
         user.setRole(Role.COMMERCIAL);
-        user.setUserState(UserState.PENDING_EMAIL);
+        user.setAccountStatus(AccountStatus.PENDING_VERIFICATION);
         user.setRegisteredDate(ZonedDateTime.now());
 
         CommercialDetails details = new CommercialDetails();

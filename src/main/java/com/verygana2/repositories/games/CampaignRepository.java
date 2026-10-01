@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Repository;
 import com.verygana2.models.Municipality;
 import com.verygana2.models.branding.Campaign;
 import com.verygana2.models.enums.CampaignStatus;
+
+import jakarta.persistence.LockModeType;
 
 @Repository
 public interface CampaignRepository extends JpaRepository<Campaign, Long> {
@@ -24,6 +27,20 @@ public interface CampaignRepository extends JpaRepository<Campaign, Long> {
     List<Campaign> findByCommercialId(Long commercialId);
 
     Optional<Campaign> findByIdAndCommercialId(Long id, Long commercialId);
+
+    /**
+     * Carga la campaña con {@code SELECT … FOR UPDATE}. Lo usa el cobro de una sesión terminada
+     * ({@code GameServiceImpl#completeSession}): serializa las sesiones concurrentes sobre el
+     * mismo presupuesto y evita sobregirarlo.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Campaign c WHERE c.id = :id")
+    Optional<Campaign> findByIdForUpdate(@Param("id") Long id);
+
+    /** Igual que {@link #findByIdAndCommercialId} pero con {@code SELECT … FOR UPDATE} — lo usa el aumento de presupuesto. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Campaign c WHERE c.id = :id AND c.commercial.id = :commercialId")
+    Optional<Campaign> findByIdAndCommercialIdForUpdate(@Param("id") Long id, @Param("commercialId") Long commercialId);
 
     boolean existsByCommercialIdAndGameId(Long commercialId, Long gameId);
 

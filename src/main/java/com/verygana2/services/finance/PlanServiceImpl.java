@@ -23,6 +23,7 @@ import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.PlanChangeRequest;
@@ -120,7 +121,9 @@ public class PlanServiceImpl implements PlanService {
 
                 requireLegacyPaymentAllowed(commercial, planCode);
 
-                long finalAmount = resolveAmount(commercial, plan, amountCents);
+                long baseAmount = resolveAmount(commercial, plan, amountCents);
+                long vatAmount = vatFor(baseAmount);
+                long totalAmount = baseAmount + vatAmount;
 
                 // Construir referencia única para este checkout
                 String prefix = planCode == PlanCode.BASIC ? "VG-SUB" : "VG-DEP";
@@ -131,9 +134,9 @@ public class PlanServiceImpl implements PlanService {
                 // Crear registro pendiente ANTES de generar el checkout
                 // Si el servidor cae entre el checkout y el webhook, el registro existe
                 if (planCode == PlanCode.BASIC) {
-                        createPendingSubscription(commercial, plan, finalAmount, reference);
+                        createPendingSubscription(commercial, plan, baseAmount, vatAmount, reference);
                 } else {
-                        createPendingInvestment(commercial, plan, finalAmount, reference);
+                        createPendingInvestment(commercial, plan, baseAmount, vatAmount, reference);
                 }
 
                 // Determinar tipo de transacción Wompi
@@ -141,17 +144,20 @@ public class PlanServiceImpl implements PlanService {
                                 ? WompiTransactionType.CHARGE_PLAN_SUBSCRIPTION
                                 : WompiTransactionType.CHARGE_BUSINESS_DEPOSIT;
 
+                // Wompi cobra base + IVA; el desglose queda snapshoteado en el
+                // Investment/Subscription pendiente para que activateInvestment/
+                // activateSubscription distribuyan cada parte a su cuenta de tesorería.
                 WompiCheckoutRequestDTO request = WompiCheckoutRequestDTO.builder()
                                 .reference(reference)
-                                .amountInCents(finalAmount)
+                                .amountInCents(totalAmount)
                                 .customerEmail(commercial.getUser().getEmail())
                                 .redirectUrl("http://verygana.com/empresario/plan/resultado")
                                 .build();
 
                 WompiCheckoutResponseDTO response = wompiService.createCheckoutUrl(request, type);
 
-                log.info("[PLAN] Checkout generado: reference={}, type={}, amount={}",
-                                reference, type, finalAmount);
+                log.info("[PLAN] Checkout generado: reference={}, type={}, base={}, vat={}, total={}",
+                                reference, type, baseAmount, vatAmount, totalAmount);
 
                 return response;
         }
@@ -273,7 +279,7 @@ public class PlanServiceImpl implements PlanService {
 
         private Subscription createPendingSubscription(
                         CommercialDetails commercial, Plan plan,
-                        long amountCents, String reference) {
+                        long amountCents, long vatAmountCents, String reference) {
 
                 // Marcar la activa anterior como RENEWED si existe
                 subscriptionRepository
@@ -288,21 +294,34 @@ public class PlanServiceImpl implements PlanService {
                                 .plan(plan)
                                 .wompiReference(reference)
                                 .amountPaidCents(amountCents)
+                                .vatAmountCents(vatAmountCents)
                                 .status(SubscriptionStatus.PENDING_PAYMENT)
                                 .build();
 
                 Subscription saved = subscriptionRepository.save(Objects.requireNonNull(pending));
-                log.info("[PLAN] Subscription PENDING_PAYMENT creada: reference={}", reference);
+                log.info("[PLAN] Subscription PENDING_PAYMENT creada: reference={}, amount={}, vat={}",
+                                reference, amountCents, vatAmountCents);
                 return saved;
         }
 
         private void activateSubscription(WompiTransaction wompiTx) {
-                // Lookup por referencia — sin necesitar commercial en WompiTransaction
+                // Lookup con lock pesimista — bloquea la fila hasta que esta transacción
+                // haga commit, para que una segunda entrega concurrente del mismo webhook
+                // espere aquí y no lea status=PENDING_PAYMENT dos veces.
                 Subscription subscription = subscriptionRepository
-                                .findByWompiReference(wompiTx.getReference())
+                                .findByWompiReferenceForUpdate(wompiTx.getReference())
                                 .orElseThrow(() -> new IllegalStateException(
                                                 "Subscription no encontrada para reference: " +
                                                                 wompiTx.getReference()));
+
+                // Idempotencia: si ya fue activada (por esta misma llamada en una entrega
+                // anterior, o por una transacción concurrente que ya liberó el lock), no
+                // repetir activate()/distributeSubscription().
+                if (subscription.getStatus() == SubscriptionStatus.ACTIVE) {
+                        log.info("[PLAN] Subscription ya activa — entrega duplicada del webhook ignorada: reference={}",
+                                        wompiTx.getReference());
+                        return;
+                }
 
                 subscription.activate(wompiTx);
                 subscriptionRepository.save(subscription);
@@ -316,9 +335,10 @@ public class PlanServiceImpl implements PlanService {
                 log.info("[PLAN] Suscripción activada: commercialId={}, endDate={}",
                                 subscription.getCommercial().getId(), subscription.getEndDate());
 
-                // Registrar en tesorería — todo a OPERATIONS
+                // Registrar en tesorería — base a OPERATIONS, IVA (si lo hubo) a TAX_RESERVE
                 treasuryService.distributeSubscription(
-                                wompiTx.getAmountInCents(),
+                                subscription.getAmountPaidCents(),
+                                subscription.getVatAmountCents(),
                                 subscription.getCommercial(),
                                 wompiTx.getId());
 
@@ -332,7 +352,7 @@ public class PlanServiceImpl implements PlanService {
 
         private Investment createPendingInvestment(
                         CommercialDetails commercial, Plan plan,
-                        long amountCents, String reference) {
+                        long amountCents, long vatAmountCents, String reference) {
 
                 // Obtener el Wallet del empresario
                 Wallet wallet = walletRepository.findByCommercialId(commercial.getId())
@@ -343,12 +363,13 @@ public class PlanServiceImpl implements PlanService {
                                 .planAtDeposit(plan)
                                 .wompiReference(reference)
                                 .depositAmountCents(amountCents)
+                                .vatAmountCents(vatAmountCents)
                                 .confirmed(false)
                                 .build();
 
                 Investment saved = investmentRepository.save(Objects.requireNonNull(pending));
-                log.info("[PLAN] Investment pendiente creado: reference={}, amount={}",
-                                reference, amountCents);
+                log.info("[PLAN] Investment pendiente creado: reference={}, amount={}, vat={}",
+                                reference, amountCents, vatAmountCents);
                 return saved;
         }
 
@@ -398,11 +419,19 @@ public class PlanServiceImpl implements PlanService {
                                                 .divide(BigDecimal.valueOf(100)).longValue()
                                 : 0L;
 
+                // IVA sobre el monto base — es lo que realmente se cobra en Wompi al generar
+                // el checkout (ver generateRechargeCheckout), así el preview no muestra un
+                // número menor al que se le va a cobrar.
+                Long vatAmountCents = amountCents != null ? vatFor(amountCents) : null;
+                Long totalToPayCents = amountCents != null && vatAmountCents != null ? amountCents + vatAmountCents : null;
+
                 return new RechargePreviewResponseDTO(
                                 plan != null ? plan.getCode() : null,
                                 eligible,
                                 message,
                                 centsToPesos(amountCents),
+                                centsToPesos(vatAmountCents),
+                                centsToPesos(totalToPayCents),
                                 plan != null ? centsToPesos(plan.getMinInvestmentCents()) : null,
                                 plan != null ? centsToPesos(plan.getMaxInvestmentCents()) : null,
                                 centsToPesos(currentBalance),
@@ -417,7 +446,14 @@ public class PlanServiceImpl implements PlanService {
 
         @Override
         @Transactional
-        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercial, Long amountCents) {
+        public ContractSummaryResponseDTO requestRecharge(CommercialDetails commercialArg, Long amountCents) {
+                // Lock pesimista sobre la fila del comercial: serializa esta solicitud con
+                // requestPlanChange (que toma el mismo lock) para que dos requests concurrentes
+                // no puedan crear una recarga y un cambio de plan a la vez — los chequeos de
+                // abajo son read-then-write y sin esto tienen una ventana de carrera.
+                CommercialDetails commercial = commercialDetailsRepository.findByIdForUpdate(commercialArg.getId())
+                                .orElseThrow(() -> new IllegalStateException(
+                                                "Comercial no encontrado: " + commercialArg.getId()));
                 Plan plan = commercial.getCurrentPlan();
                 if (plan == null || plan.getCode() == PlanCode.BASIC) {
                         throw new IllegalStateException("Solo los planes STANDARD/PREMIUM pueden recargar presupuesto.");
@@ -460,17 +496,19 @@ public class PlanServiceImpl implements PlanService {
 
                 Plan plan = commercial.getCurrentPlan();
                 long amountCents = contract.getAmountCentsSnapshot();
+                long vatAmountCents = vatFor(amountCents);
+                long totalAmountCents = amountCents + vatAmountCents;
                 String reference = "VG-DEP-" +
                                 commercial.getUser().getPublicId().toString().replace("-", "").substring(0, 12) + "-" +
                                 System.currentTimeMillis();
 
-                Investment pending = createPendingInvestment(commercial, plan, amountCents, reference);
+                Investment pending = createPendingInvestment(commercial, plan, amountCents, vatAmountCents, reference);
                 contract.setInvestment(pending);
                 commercialContractRepository.save(contract);
 
                 WompiCheckoutRequestDTO request = WompiCheckoutRequestDTO.builder()
                                 .reference(reference)
-                                .amountInCents(amountCents)
+                                .amountInCents(totalAmountCents)
                                 .customerEmail(commercial.getUser().getEmail())
                                 .redirectUrl("http://verygana.com/empresario/plan/resultado")
                                 .build();
@@ -478,8 +516,8 @@ public class PlanServiceImpl implements PlanService {
                 WompiCheckoutResponseDTO response = wompiService.createCheckoutUrl(
                                 request, WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
 
-                log.info("[PLAN] Checkout de recarga generado: contractId={}, reference={}, amount={}",
-                                contractId, reference, amountCents);
+                log.info("[PLAN] Checkout de recarga generado: contractId={}, reference={}, base={}, vat={}, total={}",
+                                contractId, reference, amountCents, vatAmountCents, totalAmountCents);
 
                 return response;
         }
@@ -514,17 +552,20 @@ public class PlanServiceImpl implements PlanService {
 
                 Plan targetPlan = request.getToPlan();
                 long amountCents = request.getRequiredTopUpAmountCents();
+                long vatAmountCents = vatFor(amountCents);
+                long totalAmountCents = amountCents + vatAmountCents;
                 String idPart = commercial.getUser().getPublicId().toString().replace("-", "").substring(0, 12);
 
                 WompiCheckoutRequestDTO.WompiCheckoutRequestDTOBuilder wompiRequestBuilder = WompiCheckoutRequestDTO.builder()
-                                .amountInCents(amountCents)
+                                .amountInCents(totalAmountCents)
                                 .customerEmail(commercial.getUser().getEmail())
                                 .redirectUrl("http://verygana.com/empresario/plan/resultado");
 
                 WompiCheckoutResponseDTO response;
                 if (targetPlan.getCode() == PlanCode.BASIC) {
                         String reference = "VG-SUB-" + idPart + "-" + System.currentTimeMillis();
-                        Subscription pending = createPendingSubscription(commercial, targetPlan, amountCents, reference);
+                        Subscription pending = createPendingSubscription(
+                                        commercial, targetPlan, amountCents, vatAmountCents, reference);
                         contract.setSubscription(pending);
                         commercialContractRepository.save(contract);
 
@@ -533,7 +574,8 @@ public class PlanServiceImpl implements PlanService {
                                         WompiTransactionType.CHARGE_PLAN_SUBSCRIPTION);
                 } else {
                         String reference = "VG-DEP-" + idPart + "-" + System.currentTimeMillis();
-                        Investment pending = createPendingInvestment(commercial, targetPlan, amountCents, reference);
+                        Investment pending = createPendingInvestment(
+                                        commercial, targetPlan, amountCents, vatAmountCents, reference);
                         contract.setInvestment(pending);
                         commercialContractRepository.save(contract);
 
@@ -542,19 +584,30 @@ public class PlanServiceImpl implements PlanService {
                                         WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
                 }
 
-                log.info("[PLAN CHANGE] Checkout de abono generado: requestId={}, targetPlan={}, amount={}",
-                                requestId, targetPlan.getCode(), amountCents);
+                log.info("[PLAN CHANGE] Checkout de abono generado: requestId={}, targetPlan={}, base={}, vat={}, total={}",
+                                requestId, targetPlan.getCode(), amountCents, vatAmountCents, totalAmountCents);
 
                 return response;
         }
 
         private void activateInvestment(WompiTransaction wompiTx) {
-                // 1. Lookup por referencia Wompi
+                // 1. Lookup con lock pesimista — bloquea la fila hasta que esta transacción
+                // haga commit, para que una segunda entrega concurrente del mismo webhook
+                // espere aquí y no lea confirmed=false dos veces.
                 Investment investment = investmentRepository
-                                .findByWompiReference(wompiTx.getReference())
+                                .findByWompiReferenceForUpdate(wompiTx.getReference())
                                 .orElseThrow(() -> new IllegalStateException(
                                                 "Investment no encontrado para reference: " +
                                                                 wompiTx.getReference()));
+
+                // Idempotencia: si ya fue confirmado (por esta misma llamada en una entrega
+                // anterior, o por una transacción concurrente que ya liberó el lock), no
+                // repetir confirm()/registerDeposit()/distributeDeposit().
+                if (Boolean.TRUE.equals(investment.getConfirmed())) {
+                        log.info("[PLAN] Investment ya confirmado — entrega duplicada del webhook ignorada: reference={}",
+                                        wompiTx.getReference());
+                        return;
+                }
 
                 // 2. Confirmar el depósito (marca confirmed=true, guarda wompiTx)
                 investment.confirm(wompiTx);
@@ -563,13 +616,17 @@ public class PlanServiceImpl implements PlanService {
                 Wallet wallet = investment.getWallet();
                 boolean wasExhausted = wallet.isExhausted();
                 
-                // 3. Calculo de deposito a la wallet (descontando comision para operaciones verygana y fondo de fortalecimiento)
-                BigDecimal amount = BigDecimal.valueOf(wompiTx.getAmountInCents()) // long exacto
+                // 3. Calculo de deposito a la wallet (descontando comision para operaciones verygana y
+                // fondo de fortalecimiento). Se usa depositAmountCents (sin IVA), NO
+                // wompiTx.getAmountInCents() — ese último incluye el IVA adicional que el
+                // empresario pagó y que no es presupuesto publicitario.
+                BigDecimal amount = BigDecimal.valueOf(investment.getDepositAmountCents()) // long exacto
                                 .multiply(BigDecimal.valueOf(treasuryConfig.getKeysReservePct())) // int exacto
                                 .divide(BigDecimal.valueOf(100));
 
-                // 4. Acreditar saldo — deposit() recalcula el status automáticamente
-                wallet.deposit(amount.longValue());
+                // 4. Acreditar saldo — registerDeposit() recalcula el status y guarda el
+                // monto como referencia para el umbral de aviso de saldo bajo.
+                wallet.registerDeposit(amount.longValue());
 
                 walletRepository.save(wallet);
 
@@ -602,9 +659,10 @@ public class PlanServiceImpl implements PlanService {
                 }
 
                 // 7. Distribuir en tesorería — 60% KEYS_RESERVE / 10% FORTIFICATION / 30%
-                // OPERATIONS
+                // OPERATIONS sobre la base; el IVA (si lo hubo) va aparte a TAX_RESERVE
                 treasuryService.distributeDeposit(
-                                wompiTx.getAmountInCents(),
+                                investment.getDepositAmountCents(),
+                                investment.getVatAmountCents(),
                                 commercial,
                                 wompiTx.getId());
 
@@ -732,6 +790,16 @@ public class PlanServiceImpl implements PlanService {
         // PRIVADOS — utilidades
         // =========================================================================
 
+        /**
+         * IVA (configurable, ver TreasuryConfig.vatPct) que el empresario paga
+         * ADICIONAL sobre un depósito de inversión o una suscripción BASIC — a
+         * diferencia de la comisión de venta, aquí el IVA se suma, no se extrae
+         * (ej. base=$1.000.000, vatPct=19 → vat=$190.000, total=$1.190.000).
+         */
+        private long vatFor(long baseAmountCents) {
+                return baseAmountCents * treasuryConfig.getVatPct() / 100;
+        }
+
         private long resolveAmount(CommercialDetails commercial, Plan plan, Long amountCents) {
                 // Un comercial con plan asignado solo puede renovar/recargar ese mismo plan por
                 // esta vía — cambiar de plan siempre requiere una solicitud explícita (con
@@ -785,17 +853,17 @@ public class PlanServiceImpl implements PlanService {
 
         private void validateInvestmentAmount(Long amountCents, Plan plan) {
                 if (amountCents == null || amountCents <= 0) {
-                        throw new IllegalArgumentException("El monto debe ser positivo.");
+                        throw new InvalidAmountException("El monto debe ser positivo.");
                 }
                 if (plan.getMinInvestmentCents() != null
                                 && amountCents < plan.getMinInvestmentCents()) {
-                        throw new IllegalArgumentException(
+                        throw new InvalidAmountException(
                                         "Monto mínimo para " + plan.getCode() + ": $" +
                                                         centsToPesos(plan.getMinInvestmentCents()) + ".");
                 }
                 if (plan.getMaxInvestmentCents() != null
                                 && amountCents > plan.getMaxInvestmentCents()) {
-                        throw new IllegalArgumentException(
+                        throw new InvalidAmountException(
                                         "Monto máximo para " + plan.getCode() + ": $" +
                                                         centsToPesos(plan.getMaxInvestmentCents()) + ".");
                 }
@@ -842,6 +910,8 @@ public class PlanServiceImpl implements PlanService {
                                         .canAdvertise(false)
                                         .canUseGames(false)
                                         .canUseSurveys(false)
+                                        .canViewPerformanceMetrics(false)
+                                        .canViewPageVisitMetrics(false)
                                         .maxProducts(0)
                                         .maxAds(0)
                                         .maxBrandedGames(0)
@@ -870,6 +940,8 @@ public class PlanServiceImpl implements PlanService {
                                         .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                         .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                         .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                        .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                        .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                         .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 10))
                                         .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                         .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))
@@ -902,6 +974,8 @@ public class PlanServiceImpl implements PlanService {
                                 .canAdvertise(currentPlan.getBoolFeature("CAN_ADVERTISE", false))
                                 .canUseGames(currentPlan.getBoolFeature("CAN_USE_GAMES", false))
                                 .canUseSurveys(currentPlan.getBoolFeature("CAN_USE_SURVEYS", false))
+                                .canViewPerformanceMetrics(currentPlan.getBoolFeature("CAN_VIEW_PERFORMANCE_METRICS", false))
+                                .canViewPageVisitMetrics(currentPlan.getBoolFeature("CAN_VIEW_PAGE_VISIT_METRICS", false))
                                 .maxProducts(currentPlan.getIntFeature("MAX_PRODUCTS", 100))
                                 .maxAds(currentPlan.getIntFeature("MAX_ADS", 0))
                                 .maxBrandedGames(currentPlan.getIntFeature("MAX_BRANDED_GAMES", 0))

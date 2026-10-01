@@ -1,5 +1,7 @@
 package com.verygana2.dtos.pqrs.requests;
 
+import java.util.List;
+
 import com.verygana2.models.enums.pqrs.PqrsType;
 
 import jakarta.validation.constraints.NotBlank;
@@ -20,4 +22,10 @@ public class CreatePqrsRequestDTO {
     @NotBlank(message = "La descripción es obligatoria")
     @Size(max = 4000, message = "La descripción no debe superar los 4000 caracteres")
     private String description;
+
+    /**
+     * Opcional — ids de PqrsAsset ya subidos y confirmados (VALIDATED) que el
+     * usuario quiere adjuntar como evidencia. Ver POST /pqrs/assets/prepare-upload.
+     */
+    private List<Long> assetIds;
 }

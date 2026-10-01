@@ -18,10 +18,12 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.dtos.BudgetIncreaseResponseDTO;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.survey.AvailableSurveyDTO;
 import com.verygana2.dtos.survey.CreateQuestionRequest;
 import com.verygana2.dtos.survey.CreateSurveyRequest;
+import com.verygana2.dtos.survey.IncreaseSurveyBudgetRequest;
 import com.verygana2.dtos.survey.StartSurveyResponse;
 import com.verygana2.dtos.survey.SurveyDetailDTO;
 import com.verygana2.dtos.survey.SurveyAdminDetailDTO;
@@ -33,6 +35,7 @@ import com.verygana2.dtos.survey.submission.AnswerRequest;
 import com.verygana2.dtos.survey.submission.SubmissionResult;
 import com.verygana2.dtos.survey.submission.SubmitSurveyRequest;
 import com.verygana2.dtos.survey.submission.UserRewardsSummary;
+import com.verygana2.exceptions.StaleBudgetException;
 import com.verygana2.exceptions.surveys.SurveyAlreadyCompletedException;
 import com.verygana2.exceptions.surveys.SurveyNotActiveException;
 import com.verygana2.exceptions.surveys.SurveyNotFoundException;
@@ -59,6 +62,8 @@ import com.verygana2.repositories.surveys.SurveySessionRepository;
 import com.verygana2.services.PricingConfigService;
 import com.verygana2.services.interfaces.CategoryService;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.plans.PlanFeatureGuard;
+import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 import com.verygana2.utils.validators.TargetingValidator;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -87,6 +92,7 @@ public class SurveyService {
     private final TargetingValidator targetingValidator;
     private final SurveyScoringConfig scoringConfig;
     private final NotificationService notificationService;
+    private final PlanFeatureGuard planFeatureGuard;
 
     @Transactional
     @RequirePlanCapability(value = {RequirePlanCapability.Capability.CAN_USE_SURVEYS, RequirePlanCapability.Capability.MAX_SURVEYS}, requiresBudget = true)
@@ -114,7 +120,7 @@ public class SurveyService {
         int questionCount = request.getQuestions().size();
         long totalBudgetCents = pricePerQuestionCents * questionCount * request.getMaxResponses().longValue();
 
-        Wallet wallet = walletRepository.findByCommercialId(commercialId)
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
                 .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.consume(totalBudgetCents);
@@ -405,7 +411,7 @@ public class SurveyService {
             return;
         }
 
-        Wallet wallet = walletRepository.findByCommercialId(survey.getCreator().getId())
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(survey.getCreator().getId())
                 .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
 
         wallet.deposit(remaining);
@@ -447,6 +453,121 @@ public class SurveyService {
         survey.setStatus(status);
         activateIfFirstTime(survey);
         return mapper.toResponse(surveyRepository.save(survey));
+    }
+
+    /**
+     * Estados en los que una encuesta admite aumento de presupuesto: los que ya están en su ciclo
+     * de vida activo. Quedan fuera los previos a publicación (DRAFT/PENDING_REVIEW/APPROVED — el
+     * monto se fijó y moderó al crearla), REJECTED (terminal, ya reembolsada) y SUSPENDED
+     * (congelada por un admin).
+     */
+    private static final Set<Survey.SurveyStatus> BUDGET_INCREASE_STATUSES =
+            EnumSet.of(Survey.SurveyStatus.ACTIVE, Survey.SurveyStatus.PAUSED, Survey.SurveyStatus.COMPLETED);
+
+    /**
+     * Compra {@code additionalResponses} cupos de respuesta más para una encuesta, al mismo precio
+     * por pregunta con el que se creó, y descuenta el costo de la wallet. Como el presupuesto de la
+     * encuesta es {@code preguntas * maxResponses * precioPorPregunta}, subir {@code maxResponses}
+     * es subir el presupuesto.
+     *
+     * <p>Una encuesta COMPLETED (llenó su cupo) se reabre: vuelve a ACTIVE. Como los COMPLETED no
+     * ocupan cupo del plan, reabrirla exige que quede cupo {@code MAX_SURVEYS}. ACTIVE y PAUSED
+     * conservan su estado.
+     *
+     * <p>Además del estado y el cupo, exige que (1) {@code expectedMaxResponses} coincida con el
+     * {@code maxResponses} actual —anti doble cobro: 409 {@link StaleBudgetException} si otro
+     * aumento ya se aplicó— y (2) el precio por pregunta de la encuesta siga siendo ≥ al mínimo
+     * vigente; si no, hay que crear una encuesta nueva.
+     *
+     * <p>Toma el mismo lock pesimista que {@link #startSurvey} (así el aumento no se cruza con el
+     * chequeo de cupo de una sesión nueva) y luego el de la wallet. Todas las validaciones y el
+     * cobro ocurren antes de mutar la encuesta, así que un fallo no deja nada a medias.
+     */
+    @Transactional
+    @RequirePlanCapability({RequirePlanCapability.Capability.CAN_USE_SURVEYS})
+    @RetryOnConcurrencyConflict
+    public BudgetIncreaseResponseDTO increaseSurveyBudget(Long surveyId, IncreaseSurveyBudgetRequest request, Long commercialId) {
+        Survey survey = surveyRepository.findByIdForUpdate(surveyId)
+                .orElseThrow(() -> new SurveyNotFoundException(surveyId));
+
+        if (survey.getCreator() == null || !survey.getCreator().getId().equals(commercialId)) {
+            throw new AccessDeniedException("No tienes permiso para aumentar el presupuesto de esta encuesta");
+        }
+        if (survey.getStatus() == Survey.SurveyStatus.SUSPENDED) {
+            throw new SurveySuspendedException(surveyId);
+        }
+        if (!BUDGET_INCREASE_STATUSES.contains(survey.getStatus())) {
+            throw new ValidationException(
+                    "Solo se puede aumentar el presupuesto de encuestas activas, pausadas o completadas. Estado actual: "
+                            + survey.getStatus());
+        }
+        if (survey.getMaxResponses() == null) {
+            throw new ValidationException("La encuesta no tiene un cupo de respuestas definido");
+        }
+        // Anti doble cobro: maxResponses solo lo cambia un aumento, así que si ya no coincide con lo
+        // que el cliente vio, otro aumento (doble clic, reintento, otra pestaña) se aplicó primero.
+        // Se compara ya con la fila bloqueada, por lo que dos envíos simultáneos no pasan ambos.
+        if (!survey.getMaxResponses().equals(request.getExpectedMaxResponses())) {
+            throw new StaleBudgetException(String.format(
+                    "El cupo de la encuesta cambió: ahora permite %d respuestas y esperabas %d. Puede que el "
+                            + "aumento ya se haya aplicado; actualiza la información y vuelve a intentarlo.",
+                    survey.getMaxResponses(), request.getExpectedMaxResponses()));
+        }
+        // Reabrir/financiar una encuesta cuya ventana ya cerró sería cobrar por algo que
+        // startSurvey igual rechaza ("La encuesta ya ha finalizado").
+        if (survey.getEndsAt() != null && ZonedDateTime.now().isAfter(survey.getEndsAt())) {
+            throw new ValidationException("La encuesta ya finalizó y no admite más presupuesto");
+        }
+        // El aumento compra respuestas al precio por pregunta con el que se creó la encuesta. Si el
+        // mínimo subió desde entonces, ese precio ya no es válido para vender más cupos: se exige una
+        // encuesta nueva (mismo criterio que createSurvey).
+        long minPricePerQuestion = pricingConfigService.getCurrentValue(PricingConfig.PricingType.SURVEY_REWARD_PER_QUESTION_CENTS);
+        if (survey.getRewardAmountPerQuestionCents() < minPricePerQuestion) {
+            throw new ValidationException(String.format(
+                    "El precio por pregunta de esta encuesta (%d ¢) está por debajo del mínimo vigente (%d ¢), así "
+                            + "que ya no admite más respuestas. Crea una encuesta nueva con el precio actual.",
+                    survey.getRewardAmountPerQuestionCents(), minPricePerQuestion));
+        }
+
+        long additionalResponses = request.getAdditionalResponses();
+        long newMaxResponses = survey.getMaxResponses().longValue() + additionalResponses;
+        if (newMaxResponses > Integer.MAX_VALUE) {
+            throw new ValidationException("El cupo total de respuestas de la encuesta es demasiado grande");
+        }
+
+        boolean reopening = survey.getStatus() == Survey.SurveyStatus.COMPLETED;
+        if (reopening) {
+            planFeatureGuard.assertCanReopen(commercialId, RequirePlanCapability.Capability.MAX_SURVEYS);
+        }
+
+        long costPerResponseCents = (long) survey.getQuestions().size() * survey.getRewardAmountPerQuestionCents();
+        long chargedCents = costPerResponseCents * additionalResponses;
+
+        Wallet wallet = walletRepository.findByCommercialIdForUpdate(commercialId)
+                .orElseThrow(() -> new EntityNotFoundException("Wallet del anunciante no encontrado"));
+        wallet.consume(chargedCents);
+        walletRepository.save(wallet);
+
+        survey.setMaxResponses((int) newMaxResponses);
+        if (reopening) {
+            survey.setStatus(Survey.SurveyStatus.ACTIVE);
+        }
+        surveyRepository.save(survey);
+
+        log.info("Survey {} budget increased by {} responses ({} ¢) for commercial {}{}",
+                surveyId, additionalResponses, chargedCents, commercialId, reopening ? " — reopened from COMPLETED" : "");
+
+        long totalBudgetCents = costPerResponseCents * newMaxResponses;
+        long spentCents = costPerResponseCents * survey.getResponseCount();
+        return BudgetIncreaseResponseDTO.builder()
+                .assetId(survey.getId())
+                .chargedCents(chargedCents)
+                .totalBudgetCents(totalBudgetCents)
+                .remainingBudgetCents(totalBudgetCents - spentCents)
+                .status(survey.getStatus().name())
+                .reopened(reopening)
+                .walletBalanceCents(wallet.getBalanceCents())
+                .build();
     }
 
     /** Sets startsAt the first time a survey becomes ACTIVE; never overwritten on later re-activations. */

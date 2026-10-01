@@ -49,7 +49,7 @@ import com.verygana2.dtos.auth.TokenPairDTO;
 import com.verygana2.exceptions.authExceptions.InvalidTokenException;
 import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.models.User;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.security.CustomUserDetails;
 import com.verygana2.security.CustomUserDetailsService;
 import com.verygana2.security.auth.refreshToken.RefreshToken;
@@ -397,7 +397,7 @@ class TokenServiceTest {
         user.setEmail(USERNAME);
         user.setPassword("{bcrypt}irrelevante");
         user.setPasswordConfigured(true);
-        user.setUserState(UserState.ACTIVE);
+        user.setAccountStatus(AccountStatus.ACTIVE);
         return new CustomUserDetails(user, AuthorityUtils.createAuthorityList("ROLE_CONSUMER"));
     }
 

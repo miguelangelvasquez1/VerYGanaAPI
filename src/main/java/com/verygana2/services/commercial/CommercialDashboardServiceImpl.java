@@ -393,10 +393,19 @@ public class CommercialDashboardServiceImpl implements CommercialDashboardServic
             alerts.add(new Alert("BUDGET_SUSPENDED", "CRITICAL",
                     "Tu saldo publicitario está agotado y tus anuncios, juegos y encuestas quedaron pausados. Recárgalo para reactivarlos.",
                     "Recargar saldo"));
-        } else if (wallet != null && wallet.getStatus() == WalletStatus.LOW_BALANCE) {
-            alerts.add(new Alert("LOW_BALANCE", "WARNING",
-                    "Tu saldo publicitario está bajo. Recarga pronto para evitar que se pausen tus activos.",
-                    "Recargar saldo"));
+        } else if (wallet != null && wallet.getStatus() == WalletStatus.ACTIVE) {
+            // "Saldo bajo" se deriva de los umbrales por plan, no de un estado del wallet.
+            EffectivePlanResolver.BudgetThresholds t = planResolver.resolveBudgetThresholds(wallet);
+            long balance = wallet.getBalanceCents();
+            if (t.criticalCents() > 0 && balance < t.criticalCents()) {
+                alerts.add(new Alert("LOW_BALANCE", "CRITICAL",
+                        "Tu saldo publicitario está por agotarse. Recarga ahora para no interrumpir la creación de nuevos activos.",
+                        "Recargar saldo"));
+            } else if (t.warningCents() > 0 && balance < t.warningCents()) {
+                alerts.add(new Alert("LOW_BALANCE", "WARNING",
+                        "Tu saldo publicitario está bajo. Recarga pronto para evitar interrupciones.",
+                        "Recargar saldo"));
+            }
         }
 
         return alerts;

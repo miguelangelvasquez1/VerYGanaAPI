@@ -69,7 +69,7 @@ class RaffleAdminControllerTest {
     private CreateRaffleRequestDTO sampleRaffleData() {
         return new CreateRaffleRequestDTO("Rifa", "Descripcion", RaffleType.STANDARD,
                 ZonedDateTime.now(), ZonedDateTime.now().plusDays(5), ZonedDateTime.now().plusDays(6),
-                100L, 5L, false, null, List.of(), List.of(), "Terminos", null);
+                100L, 5L, null, List.of(), List.of(), "Terminos", null);
     }
 
     @Test
@@ -104,7 +104,7 @@ class RaffleAdminControllerTest {
     @Test
     @DisplayName("updateRaffle: extrae el adminId del JWT y delega con el raffleId del path")
     void updateRaffle_delegates() {
-        var request = new UpdateRaffleRequestDTO("Titulo", "Descripcion", RaffleType.STANDARD, false,
+        var request = new UpdateRaffleRequestDTO("Titulo", "Descripcion", RaffleType.STANDARD,
                 ZonedDateTime.now(), ZonedDateTime.now().plusDays(5), ZonedDateTime.now().plusDays(6), null);
         var expected = EntityUpdatedResponseDTO.builder().id(1L).message("Raffle updated successfully").build();
         when(raffleService.updateRaffle(9L, 1L, request)).thenReturn(expected);

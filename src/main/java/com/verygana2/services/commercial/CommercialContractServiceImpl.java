@@ -8,6 +8,7 @@ import java.util.Locale;
 import java.util.Map;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +17,8 @@ import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemD
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.dtos.user.commercial.onboarding.DiagnosticAnswersSummaryDTO;
+import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
 import com.verygana2.event.ContractRejectedEvent;
 import com.verygana2.exceptions.BusinessException;
@@ -24,6 +27,7 @@ import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.CommercialDocument;
 import com.verygana2.models.commercial.CommercialOnboarding;
+import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.commercial.CommercialDocumentStatus;
 import com.verygana2.models.enums.commercial.CommercialRoute;
 import com.verygana2.models.enums.commercial.ContractPurpose;
@@ -64,8 +68,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     // comercial podría generar y cancelar contratos indefinidamente.
     private static final List<ContractPurpose> RATE_LIMITED_PURPOSES = List.of(
             ContractPurpose.RECHARGE, ContractPurpose.PLAN_CHANGE);
-    private static final int MAX_CONTRACTS_PER_WINDOW = 10;
-    private static final long RATE_LIMIT_WINDOW_HOURS = 24;
+
+    @Value("${commercial.contract.rate-limit.max-per-window:10}")
+    private int maxContractsPerWindow;
+    @Value("${commercial.contract.rate-limit.window-hours:24}")
+    private long rateLimitWindowHours;
 
     private final CommercialOnboardingRepository onboardingRepository;
     private final CommercialContractRepository contractRepository;
@@ -78,6 +85,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     private final ApplicationEventPublisher eventPublisher;
     private final ESignatureService esignatureService;
     private final EmailService emailService;
+    private final com.verygana2.config.TreasuryConfig treasuryConfig;
 
     // ==================== LADO COMERCIAL (PASOS 7-10) ====================
 
@@ -334,12 +342,12 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     private void requireUnderContractGenerationRateLimit(CommercialDetails commercial) {
-        ZonedDateTime since = ZonedDateTime.now().minusHours(RATE_LIMIT_WINDOW_HOURS);
+        ZonedDateTime since = ZonedDateTime.now().minusHours(rateLimitWindowHours);
         long recentCount = contractRepository.countGeneratedSince(commercial.getId(), RATE_LIMITED_PURPOSES, since);
-        if (recentCount >= MAX_CONTRACTS_PER_WINDOW) {
+        if (recentCount >= maxContractsPerWindow) {
             throw new BusinessException(
-                    "Solo puede generar " + MAX_CONTRACTS_PER_WINDOW
-                            + " solicitud de recarga/cambio de plan cada " + RATE_LIMIT_WINDOW_HOURS
+                    "Solo puede generar " + maxContractsPerWindow
+                            + " solicitud de recarga/cambio de plan cada " + rateLimitWindowHours
                             + " horas. Intente más tarde o contacte a soporte.");
         }
     }
@@ -375,6 +383,9 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("legalRepDocNumber", nullSafe(details.getLegalRepDocNumber()));
         vars.put("planName", plan.getName());
         vars.put("amountFormatted", formatMoney(amountCents));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("vatAmountFormatted", formatMoney(vatOf(amountCents)));
+        vars.put("totalAmountFormatted", formatMoney(plusVat(amountCents)));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(plan.getMinInvestmentCents(), plan.getMaxInvestmentCents()));
         return templateLoader.render("contrato-recarga.html", vars);
@@ -393,6 +404,9 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("fromPlanName", fromPlan != null ? fromPlan.getName() : "Sin plan");
         vars.put("toPlanName", targetPlan.getName());
         vars.put("monthlyFeeFormatted", formatMoney(targetPlan.getMonthlyPriceCents()));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("monthlyFeeVatFormatted", formatMoney(vatOf(targetPlan.getMonthlyPriceCents())));
+        vars.put("monthlyFeeTotalFormatted", formatMoney(plusVat(targetPlan.getMonthlyPriceCents())));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(targetPlan.getMinInvestmentCents(), targetPlan.getMaxInvestmentCents()));
         vars.put("saleCommissionPct", String.valueOf(targetPlan.getSaleCommissionPct()));
@@ -448,9 +462,15 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     @Override
-    public ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId) {
+    public ContractSummaryResponseDTO approve(Long contractId, Long reviewerUserId, CommercialActivityType commercialActivityType) {
         CommercialContract contract = getContractOrThrow(contractId);
         requirePendingVeryganaReview(contract);
+
+        CommercialDetails details = contract.getCommercial();
+        if (commercialActivityType != null) {
+            details.setCommercialActivityType(commercialActivityType);
+            commercialDetailsRepository.save(details);
+        }
 
         contract.setStatus(ContractStatus.APPROVED);
         contract.setAdminReviewerUserId(reviewerUserId);
@@ -458,9 +478,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setAdminDecisionNotes("Aprobado");
         contractRepository.save(contract);
 
-        CommercialDetails details = contract.getCommercial();
         emailService.sendCommercialContractApprovedEmail(
-                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion());
+                details.getUser().getEmail(), details.getCompanyName(), contract.getVersion(), commercialActivityType);
 
         publishAudit(details.getId(), "COMMERCIAL_CONTRACT_APPROVED_BY_VERYGANA",
                 "VERYGANA aprobó el Contrato Marco v" + contract.getVersion() + ". Se envía a firma electrónica.",
@@ -511,6 +530,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (plan == null) {
             return null;
         }
+
+        Long netAmountCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeCentsSnapshot()
+                : o.getInvestmentAmountCentsSnapshot();
+        Long vatCents = plan.getCode() == Plan.PlanCode.BASIC
+                ? o.getMonthlyFeeVatCentsSnapshot()
+                : o.getInvestmentVatCentsSnapshot();
+        Long grossAmountCents = netAmountCents != null
+                ? netAmountCents + (vatCents != null ? vatCents : 0L)
+                : null;
+
         return new PlanSummaryResponseDTO(
                 plan.getCode(),
                 plan.getName(),
@@ -526,7 +556,11 @@ public class CommercialContractServiceImpl implements CommercialContractService 
                 o.getSpecialNegotiationResolvedAt(),
                 o.getSpecialNegotiationDetails(),
                 o.getPlanAcceptedAt() != null,
-                o.getPlanAcceptedAt());
+                o.getPlanAcceptedAt(),
+                grossAmountCents,
+                0L, // excludedTaxesCents — placeholder, no hay tributo excluido modelado todavía
+                commercialOnboardingMapper.toPlanBenefitsDTO(plan),
+                null); // prosperityThresholdCents — placeholder, concepto no definido
     }
 
     @Override
@@ -603,9 +637,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
 
         vars.put("planName", o.getSelectedPlan() != null ? o.getSelectedPlan().getName() : "");
         vars.put("monthlyFeeFormatted", formatMoney(o.getMonthlyFeeCentsSnapshot()));
+        vars.put("vatPct", String.valueOf(treasuryConfig.getVatPct()));
+        vars.put("monthlyFeeVatFormatted", formatMoney(o.getMonthlyFeeVatCentsSnapshot()));
+        vars.put("monthlyFeeTotalFormatted", formatMoney(plusVat(o.getMonthlyFeeCentsSnapshot())));
         vars.put("investmentRangeFormatted",
                 formatInvestmentRange(o.getMinInvestmentCentsSnapshot(), o.getMaxInvestmentCentsSnapshot()));
         vars.put("investmentAmountFormatted", formatMoney(o.getInvestmentAmountCentsSnapshot()));
+        vars.put("investmentVatFormatted", formatMoney(o.getInvestmentVatCentsSnapshot()));
+        vars.put("investmentTotalFormatted", formatMoney(plusVat(o.getInvestmentAmountCentsSnapshot())));
+        vars.put("taxNote", "El IVA (" + treasuryConfig.getVatPct()
+                + "%) sobre la tarifa mensual/inversión se cobra adicional al momento del pago. "
+                + "La comisión de venta a VERYGANA ya incluye IVA.");
         vars.put("saleCommissionPct", String.valueOf(o.getSaleCommissionPctSnapshot()));
         vars.put("maxKeysPct", String.valueOf(o.getMaxKeysPctSnapshot()));
 
@@ -638,6 +680,17 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (cents == null) return "No aplica";
         long pesos = cents / 100;
         return "$ " + NumberFormat.getNumberInstance(CO_LOCALE).format(pesos) + " COP";
+    }
+
+    /** IVA (TreasuryConfig.vatPct) sobre un monto base, o null si el monto base es null. */
+    private Long vatOf(Long baseAmountCents) {
+        return baseAmountCents == null ? null : baseAmountCents * treasuryConfig.getVatPct() / 100;
+    }
+
+    /** Total = base + IVA, o null si el monto base es null. */
+    private Long plusVat(Long baseAmountCents) {
+        Long vat = vatOf(baseAmountCents);
+        return vat == null ? null : baseAmountCents + vat;
     }
 
     private String formatInvestmentRange(Long min, Long max) {
@@ -700,6 +753,14 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     private ContractSummaryResponseDTO toSummary(CommercialContract c) {
+        LegalIdentificationSummaryDTO businessProfile = null;
+        DiagnosticAnswersSummaryDTO diagnosticAnswers = null;
+        if (c.getOnboarding() != null) {
+            CommercialOnboarding o = c.getOnboarding();
+            businessProfile = commercialOnboardingMapper.toLegalIdentificationSummary(o, o.getCommercialDetails());
+            diagnosticAnswers = commercialOnboardingMapper.toDiagnosticAnswersSummary(o, o.getDiagnosticAnswers());
+        }
+
         // CANCELLED borra el PDF de R2 (ver cancelForCommercial) — presignar igual
         // devolvería una URL que resuelve en 404.
         String downloadUrl = c.getStatus() != ContractStatus.CANCELLED
@@ -721,7 +782,8 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         return new ContractSummaryResponseDTO(
                 c.getId(), c.getVersion(), c.getStatus(), c.getGeneratedAt(),
                 c.getBusinessApprovedAt(), c.getAdminReviewedAt(), c.getAdminDecisionNotes(),
-                c.getEsignatureSentAt(), c.getEsignatureSignedAt(), downloadUrl, documents);
+                c.getEsignatureSentAt(), c.getEsignatureSignedAt(), downloadUrl, documents,
+                businessProfile, diagnosticAnswers);
     }
 
     private void publishAudit(Long userId, String action, String description, Map<String, Object> additionalData) {

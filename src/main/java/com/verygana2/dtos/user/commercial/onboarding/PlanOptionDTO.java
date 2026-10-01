@@ -36,13 +36,14 @@ public class PlanOptionDTO {
     private Long maxInvestmentCents;
 
     private int saleCommissionPct;
+    private int servicesCommissionPct;
     private int maxKeysPct;
 
     // ==================== FUNCIONALIDADES (booleanas) ====================
     private boolean canAdvertise;
     private boolean canUseGames;
     private boolean canUseSurveys;
-    private boolean canHavePets;
+    private boolean canUsePets;
 
     // ==================== LÍMITES (-1 = ilimitado) ====================
     private int maxProducts;

@@ -32,4 +32,17 @@ public interface PqrsRepository extends JpaRepository<Pqrs, Long> {
     List<Pqrs> findByStatus(PqrsStatus status);
 
     List<Pqrs> findByStatusInAndDueDateBefore(List<PqrsStatus> statuses, ZonedDateTime dueDate);
+
+    /**
+     * Usado para excluir del payout diario los ítems con un reclamo todavía
+     * sin resolver (ver PurchaseItemRepository.findClaimedWithoutPayout) y
+     * para bloquear reportes duplicados sobre el mismo ítem.
+     */
+    @Query("""
+            SELECT COUNT(p) > 0 FROM Pqrs p
+            WHERE p.purchaseItem.id = :purchaseItemId
+            AND p.status NOT IN (com.verygana2.models.enums.pqrs.PqrsStatus.RESUELTA,
+                                  com.verygana2.models.enums.pqrs.PqrsStatus.CERRADA)
+            """)
+    boolean existsOpenByPurchaseItemId(@Param("purchaseItemId") Long purchaseItemId);
 }

@@ -1,3 +1,27 @@
+## Variables de entorno (Infisical)
+
+Los secretos viven en Infisical, no en el repo. El `.env` local es una copia
+**generada y desechable** — no se edita a mano ni se commitea.
+
+**Setup (una vez):**
+1. Pedir acceso al proyecto de Infisical (un admin te agrega en Organization -> Members).
+2. Instalar: Para Windows `winget install infisical`
+3. `infisical login`
+
+**Generar / actualizar el `.env`:**
+```
+.\scripts\sync-env.ps1                  # entorno por defecto (dev, de .infisical.json)
+.\scripts\sync-env.ps1 -Environment prod
+```
+Regeneralo cada vez que alguien cambie un secreto en Infisical. Despues: boton Run
+de VS Code, `mvn spring-boot:run` o `docker compose up` — los tres leen el mismo `.env`.
+
+**Notas:**
+- `.infisical.json` (lleva el `workspaceId`) SI va al repo: es un identificador, no un secreto. Sin login + acceso al proyecto no sirve de nada.
+- `.env` NUNCA va al repo (ya esta en `.gitignore`).
+- No usar `infisical export ... > .env` directo: el `>` de PowerShell escribe UTF-16 y rompe el parseo de Spring. Usar `sync-env.ps1`.
+- Alternativa sin archivo: `infisical run -- mvn spring-boot:run` (inyecta las vars como entorno; no sirve para el boton Run de VS Code).
+
 ## Observations:
 - Implement Nimbus for JWT, implementar una clave separada para el refresh token, implementar redis para escalabilidad, accessToken en header
 - La clave privada se usa para firmar el token. La clave pública se usa para verificarlo.
@@ -33,46 +57,29 @@ docker push miguelvasquez777/verygana-api:latest
 ## Para correr localmente:
 docker build -t miguelvasquez777/verygana-api:latest .
 docker run --env-file .env -p 8080:8080 miguelvasquez777/verygana-api:latest (cambiar a host.docker.internal en la bd)
+- infisical run -- mvn spring-boot:run
 
 
-ver el plan y ver lo que hizo el front
-revisar sistema de recomendacion
-- ver si funciona la suspension de plan(niveles de suspension), umbrales de saldo, ver que revisar segun claude, abonos de cambio de plan.
-- cada recarga genera un nuevo contrato?, plan especial si recarga de mas, notific de presupuesto.
-- metricas (tabla comparativa de planes)
+- preguntar a nestor a donde va lo de las llaves, consolidar contrato, cuando sale verygana?, rep legal revisar al cambiarlo?, que pasa con lo de antecedentes?
+- revisar lo de los blocks motivos para los activos(encuestas, branding_request?, ver error de ads y si se puede desbloquear), notion, probar lo del aumento de presupuesto y historias de impacto
+- logs de init, documentar procesos
+- revisar sistema de recomendacion
+- revisar tests de helen de surveys (pag 97)
+- cambiar el contrato si el compliance cambia la actividad economica
 
 
-- flujo juegos full
-- ver lo de antecedentes.
+- flujo juegos full(puntuaciones) keys per action, completion (formula)
 - flujo de jugar, metricas, casos de juego, etc.
-- timer de saldo para incentivar su uso? o no permitir ediciones y cambios de estado?
+- timer de saldo para incentivar su uso? cuando saldo 0 no permitir ediciones y cambios de estado?
 
-- aumentar presupuestos?
 - flujo de sesiones y recompensa bien revisar.
 
-- ver que los asstes se borren del cdn.
-- ver que se puede editar o no despues de los contratos
+
+grecaptcha.ready(() => {
+  grecaptcha.execute('6Ldic44tAAAAAHzLT1mtmZo2c3aHA_VwORFbJrFg', {
+    action: 'login'
+  }).then(token => console.log(token));
+});
 
 
-- actuator (backend metrics)?
-
-cambio de plan:
-C:\Users\Usuario\.claude\plans\1-antes-de-eso-jaunty-harbor.md
-
-
-// -------------------------------------------
-Revisé el flujo completo del lado del frontend. Lo bueno: no hay ningún bug ahí — authService.login() y authService.refresh() (en authService.ts) ya usan credentials: 'include' en ambos fetch, y no hay ningún código JS en el repo que toque document.cookie manualmente. La cookie del refresh token es 100% httpOnly y la controla el backend vía Set-Cookie — desde este repo no se "setea" nada de esa cookie.
-
-Encontré algo concreto que sí explica el síntoma:
-
-Dos cookies de sesión totalmente independientes, con vidas distintas:
-
-La sesión de NextAuth (next-auth.session-token) dura 7 días — está hardcodeado en authOptions.ts:63: session: { strategy: 'jwt', maxAge: 7 * 24 * 60 * 60 }.
-La cookie httpOnly del refresh token la pone el backend en la respuesta de /auth/login / /auth/refresh, y su duración depende de los atributos Max-Age/Expires que el backend le ponga — algo que no vive en este repo, así que no lo puedo inspeccionar directamente.
-Esto explica exactamente tu síntoma: la app "cree" que seguís logueado por 7 días (gracias a la cookie de NextAuth, que sí sobrevive a cerrar el navegador), pero si la cookie del refresh token del backend no tiene Max-Age/Expires explícito, el navegador la trata como cookie de sesión y la borra al cerrar Chrome del todo — no al cerrar una pestaña, sino al matar el proceso. Al reabrir "en un rato", NextAuth sigue pensando que hay sesión, la app intenta refrescar, pero no hay cookie que mandar (o manda una vacía/vieja) → el backend no encuentra nada que coincida en la BD.
-
-Cómo confirmarlo en 30 segundos:
-
-Logueate, abrí DevTools → Application → Cookies → el dominio de tu backend (localhost:8080 en dev).
-Mirá la columna Expires / Max-Age de la cookie del refresh token. Si dice "Session" en vez de una fecha concreta, ahí está el bug — hay que agregarle Max-Age/Expires (y en cross-origin, también SameSite=None; Secure) del lado del backend al setear esa cookie.
-Como esto lo define el backend al hacer Set-Cookie, no es algo que pueda arreglar desde este repo (frontend). Si me pasás el código del endpoint /auth/login o /auth/refresh del backend (o el repo), reviso la config exacta de la cookie con vos.
+Fórmula: costo = min(maxRewardPerSessionCents, completionRewardCents + puntaje × scoreRewardFactor). La deduje de los nombres de campo y de los seeds de juegos (completar 5000, tope 20000, factor 1, promedio 15000); nadie de negocio la confirmó. Está aislada en calculateSessionRewardCents, por si hay que cambiarla.

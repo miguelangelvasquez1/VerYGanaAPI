@@ -123,7 +123,7 @@ public class WalletServiceImpl implements WalletService {
                 .map(p -> new PayoutSummaryResponseDTO(
                         p.getId(),
                         p.getGrossAmountCents(),
-                        p.getCommissionCents(),
+                        p.getCommissionAmountCents(),
                         p.getNetAmountCents(),
                         p.getStatus(),
                         p.getScheduledAt(),

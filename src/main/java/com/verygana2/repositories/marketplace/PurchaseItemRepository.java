@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
+import com.verygana2.models.enums.DocumentType;
 import com.verygana2.models.marketplace.PurchaseItem;
 
 @Repository
@@ -25,7 +26,7 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
                 LEFT JOIN FETCH pi.product p
                 LEFT JOIN FETCH pi.review r
                 WHERE pi.purchase.consumer.id = :consumerId
-                AND pi.status = 'DELIVERED'
+                AND pi.status = 'CLAIMED'
                 AND pi.review IS NULL
                 ORDER BY pi.deliveredAt DESC
             """)
@@ -36,7 +37,7 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
                 FROM PurchaseItem pi
                 WHERE pi.id = :purchaseItemId
                 AND pi.purchase.consumer.id = :consumerId
-                AND pi.status = 'DELIVERED'
+                AND pi.status = 'CLAIMED'
                 AND pi.review IS NULL
             """)
     boolean canUserReviewPurchaseItem(
@@ -187,6 +188,47 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             Pageable pageable);
 
     /**
+     * Ítems reclamados (CLAIMED) que aún no entraron a ningún Payout. Base de
+     * elegibilidad del job diario de payouts (PayoutServiceImpl.scheduleDailyPayouts):
+     * sin filtro de fecha a propósito — un ítem reclamado tarde entra al ciclo
+     * del día en que se reclamó, no se pierde ni queda atado al día de la venta.
+     * Excluye ítems con un PQRS todavía sin resolver (ver PqrsRepository.existsOpenByPurchaseItemId):
+     * si el comprador reportó un problema, el pago a ese comerciante queda en
+     * espera hasta que el PQRS se resuelva.
+     */
+    @Query("""
+            SELECT pi FROM PurchaseItem pi
+            JOIN FETCH pi.product p
+            JOIN FETCH p.commercial
+            WHERE pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.CLAIMED
+            AND NOT EXISTS (SELECT 1 FROM PayoutItem poi WHERE poi.purchaseItem = pi)
+            AND NOT EXISTS (
+                SELECT 1 FROM Pqrs pq WHERE pq.purchaseItem = pi
+                AND pq.status NOT IN (com.verygana2.models.enums.pqrs.PqrsStatus.RESUELTA,
+                                      com.verygana2.models.enums.pqrs.PqrsStatus.CERRADA)
+            )
+            """)
+    List<PurchaseItem> findClaimedWithoutPayout();
+
+    /**
+     * Ítems físicos entregados (PENDING, esperando que el comerciante valide
+     * el PIN) cuyo plazo de reclamación ya venció. Base del
+     * PurchaseItemExpirationScheduler — ver PurchaseItemRefundService.expireUnclaimed.
+     */
+    @Query("""
+            SELECT pi FROM PurchaseItem pi
+            JOIN FETCH pi.product p
+            JOIN FETCH p.commercial
+            JOIN FETCH pi.purchase pu
+            JOIN FETCH pu.consumer c
+            JOIN FETCH c.user
+            WHERE pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.PENDING
+            AND p.productType = com.verygana2.models.enums.marketplace.ProductType.PHYSICAL
+            AND pi.claimExpiresAt < :now
+            """)
+    List<PurchaseItem> findExpiredUnclaimedPhysicalItems(@Param("now") ZonedDateTime now);
+
+    /**
      * Desvincula (nunca borra) los PurchaseItem de un producto que se va a
      * purgar permanentemente. product y assignedProductStock quedan en null;
      * unitPriceCents, commissionCents, productNameSnapshot, commercialId,
@@ -234,5 +276,18 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             @Param("commercialId") Long commercialId,
             @Param("startDate") ZonedDateTime startDate,
             @Param("endDate") ZonedDateTime endDate);
+
+    @Query("""
+           SELECT pi FROM PurchaseItem pi
+           JOIN FETCH pi.product p
+           JOIN FETCH pi.purchase pu
+           JOIN FETCH pu.consumer c
+           WHERE pi.commercialId = :commercialId
+           AND pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.PENDING
+           AND p.productType = com.verygana2.models.enums.marketplace.ProductType.PHYSICAL
+           AND (:documentType IS NULL OR c.documentType = :documentType)
+           AND (:documentNumber IS NULL OR :documentNumber = '' OR LOWER(c.documentNumber) LIKE LOWER(CONCAT('%', :documentNumber, '%')))
+                    """)
+    Page<PurchaseItem> findPendingPhysicalItems (@Param("commercialId") Long commercialId, @Param("documentType") DocumentType documentType, @Param("documentNumber") String documentNumber, Pageable pageable);
 
 }

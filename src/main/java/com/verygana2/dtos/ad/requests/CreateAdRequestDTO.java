@@ -4,6 +4,8 @@ import java.util.List;
 
 import org.hibernate.validator.constraints.URL;
 
+import com.verygana2.utils.validators.MinTargetAge;
+
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -60,12 +62,12 @@ public class CreateAdRequestDTO {
     private List<String> targetMunicipalitiesCodes;
     
     @NotNull(message = "Min age is required")
-    @Min(value = 13, message = "Min age must be at least 13")
+    @MinTargetAge(message = "Min age must be at least {minAge}")
     @Max(value = 100, message = "Min age must not exceed 100")
     private Integer minAge;
-    
+
     @NotNull(message = "Max age is required")
-    @Min(value = 13, message = "Max age must be at least 13")
+    @MinTargetAge(message = "Max age must be at least {minAge}")
     @Max(value = 100, message = "Max age must not exceed 100")
     private Integer maxAge;
     

@@ -52,6 +52,12 @@ public class EffectivePlanStateResponseDTO {
     private boolean canAdvertise;
     private boolean canUseGames;
     private boolean canUseSurveys;
+
+    /** true si el plan permite ver métricas de rendimiento de anuncios/encuestas/campañas (Estándar y Premium). */
+    private boolean canViewPerformanceMetrics;
+    /** true si el plan permite ver la métrica de visitas a la página oficial / "Remisión" (solo Premium). */
+    private boolean canViewPageVisitMetrics;
+
     private int maxProducts;
     private int maxAds;
     private int maxBrandedGames;
@@ -63,7 +69,7 @@ public class EffectivePlanStateResponseDTO {
     /** Días restantes de la suscripción. Solo aplica para BASIC. */
     private Long subscriptionDaysRemaining;
  
-    /** Estado de la wallet: INACTIVE, ACTIVE, LOW_BALANCE, EXHAUSTED */
+    /** Estado de la wallet: INACTIVE, ACTIVE, EXHAUSTED */
     private String walletStatus;
 }
 

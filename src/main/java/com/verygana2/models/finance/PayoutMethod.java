@@ -16,6 +16,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -168,6 +169,14 @@ public class PayoutMethod {
     @Column(name = "verified_at")
     private ZonedDateTime verifiedAt;
 
+    /**
+     * Certificación bancaria (PDF o foto) subida por el commercial para que el
+     * admin verifique titularidad. Solo aplica a BANK_ACCOUNT — NEQUI/DAVIPLATA
+     * se verifican por OTP.
+     */
+    @OneToOne(mappedBy = "payoutMethod", fetch = FetchType.LAZY)
+    private PayoutMethodCertificateAsset certificateAsset;
+
     @PrePersist
     protected void onCreate() {
         this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
@@ -197,7 +206,7 @@ public class PayoutMethod {
     // ===== ENUMS =====
 
     public enum PayoutMethodType {
-        BANK_TRANSFER,
+        BANK_ACCOUNT,
         NEQUI,
         DAVIPLATA
     }
@@ -213,7 +222,6 @@ public class PayoutMethod {
         NIT,  // NIT empresa
         PP,   // Pasaporte
         TI,   // Tarjeta de identidad
-        DNI   // Documento nacional de identidad (extranjero)
     }
 
     public enum VerificationStatus {

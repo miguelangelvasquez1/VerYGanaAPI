@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import com.verygana2.dtos.payout.PayoutResponseDTO;
@@ -18,8 +19,8 @@ public interface PayoutService {
     /** Ejecuta las transferencias Wompi para todos los payouts SCHEDULED. */
     void processScheduledPayouts();
 
-    /** Reintenta los payouts FAILED del día anterior. */
-    void retryFailedPayouts(ZonedDateTime previousPeriodStart, ZonedDateTime previousPeriodEnd);
+    /** Reintenta todos los payouts que estén actualmente en FAILED, sin importar cuándo se programaron. */
+    void retryFailedPayouts();
 
     /**
      * Procesa la confirmación de Wompi (Pagos a Terceros) vía webhook y
@@ -32,4 +33,11 @@ public interface PayoutService {
 
     /** Para el endpoint de monitoreo del admin. */
     List<PayoutResponseDTO> getPayoutsForDate(LocalDate date);
+
+    /**
+     * Consulta directo en Wompi el estado real de un Payout ya enviado, sin
+     * depender del webhook — para diagnóstico cuando la confirmación no llega
+     * o no correlaciona.
+     */
+    Map<String, Object> getWompiStatus(UUID payoutId);
 }

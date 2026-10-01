@@ -5,6 +5,10 @@ public record TreasuryBalanceResponseDTO(
         long fortificationCents,
         long operationsCents,
         long payoutsPendingCents,
+        long taxReserveCents,
+        long connectivityCents,
+        long infrastructureCents,
+        long payrollCents,
         long totalCents,
         /** Peso de KEYS_RESERVE sobre el total de tesorería. Mide reparto, no solvencia. */
         double keysReserveHealthPct,

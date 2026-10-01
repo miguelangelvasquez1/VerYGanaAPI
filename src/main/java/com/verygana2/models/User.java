@@ -6,8 +6,8 @@ import java.util.UUID;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
+import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
 import com.verygana2.models.userDetails.UserDetails;
 
 import jakarta.persistence.CascadeType;
@@ -53,10 +53,9 @@ public class User{
     private String phoneNumber;
     @JsonIgnore
     private String password;
-    @Column(nullable = false)
-
+    @Column(name = "account_status", nullable = false)
     @Enumerated(EnumType.STRING)
-    private UserState userState;
+    private AccountStatus accountStatus;
 
     private ZonedDateTime registeredDate;
 

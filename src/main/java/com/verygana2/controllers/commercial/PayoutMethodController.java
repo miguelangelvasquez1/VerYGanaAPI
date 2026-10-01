@@ -18,11 +18,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.verygana2.dtos.FileUploadRequestDTO;
 import com.verygana2.dtos.PagedResponse;
+import com.verygana2.dtos.finance.requests.ConfirmPayoutMethodCertificateUploadRequestDTO;
 import com.verygana2.dtos.finance.requests.CreatePayoutMethodRequestDTO;
 import com.verygana2.dtos.finance.requests.VerifyOtpRequestDTO;
 import com.verygana2.dtos.finance.responses.PayoutBankResponseDTO;
 import com.verygana2.dtos.finance.responses.PayoutMethodResponseDTO;
+import com.verygana2.dtos.generic.AssetUploadPermissionDTO;
 import com.verygana2.dtos.generic.EntityCreatedResponseDTO;
 import com.verygana2.services.interfaces.finance.PayoutMethodService;
 
@@ -30,7 +33,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/commercial/payout-methods")
+@RequestMapping("/commercial/payout-methods")
 @PreAuthorize("hasRole('COMMERCIAL')")
 @RequiredArgsConstructor
 public class PayoutMethodController {
@@ -126,5 +129,53 @@ public class PayoutMethodController {
         Long commercialId = jwt.getClaim("userId");
         payoutMethodService.deactivatePayoutMethod(commercialId, id);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Marca un método de pago como el predeterminado para recibir payouts.
+     * Solo se puede marcar como predeterminado un método VERIFIED y activo.
+     *
+     * PUT /api/commercial/payout-methods/{id}/set-default
+     */
+    @PutMapping("/{id}/set-default")
+    public ResponseEntity<Void> setDefault(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id) {
+
+        Long commercialId = jwt.getClaim("userId");
+        payoutMethodService.setDefaultPayoutMethod(commercialId, id);
+        return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Paso 1 — Prepara la subida de la certificación bancaria (PDF/foto) que el
+     * admin usará para verificar titularidad. Solo aplica a BANK_ACCOUNT.
+     *
+     * POST /api/commercial/payout-methods/{id}/certificate/prepare
+     */
+    @PostMapping("/{id}/certificate/prepare")
+    public ResponseEntity<AssetUploadPermissionDTO> prepareCertificateUpload(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @Valid @RequestBody FileUploadRequestDTO metadata) {
+
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(payoutMethodService.prepareCertificateUpload(commercialId, id, metadata));
+    }
+
+    /**
+     * Paso 2 — Confirma la certificación ya subida a R2 y la asocia al método de pago.
+     *
+     * POST /api/commercial/payout-methods/{id}/certificate/confirm
+     */
+    @PostMapping("/{id}/certificate/confirm")
+    public ResponseEntity<EntityCreatedResponseDTO> confirmCertificateUpload(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable Long id,
+            @Valid @RequestBody ConfirmPayoutMethodCertificateUploadRequestDTO request) {
+
+        Long commercialId = jwt.getClaim("userId");
+        return ResponseEntity.ok(
+                payoutMethodService.confirmCertificateUpload(commercialId, id, request.getCertificateAssetId()));
     }
 }

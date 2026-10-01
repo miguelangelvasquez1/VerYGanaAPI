@@ -58,7 +58,7 @@ public class Ad {
     @Min(value = 1,      message = "La recompensa mínima es 1 centavo")
     @Max(value = 100000, message = "La recompensa no puede exceder 100.000 centavos (1.000 COP)")
     @Column(name = "reward_per_like", nullable = false)
-    private Long rewardPerLike;
+    private Long rewardPerLike; //cents
 
     @NotNull(message = "El máximo de likes es obligatorio")
     @Min(value = 1,        message = "Debe permitir al menos 1 like")
@@ -128,6 +128,12 @@ public class Ad {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = ZonedDateTime.now();
+        // Red de seguridad: todo anuncio COMPLETED debe tener endDate (fecha real
+        // de cierre). Las vías normales ya lo fijan vía markCompleted() / el UPDATE
+        // atómico de AdRepository.incrementLikeIfAvailable; esto sólo cubre huecos.
+        if (status == AdStatus.COMPLETED && endDate == null) {
+            endDate = ZonedDateTime.now();
+        }
     }
 
     // ── Métodos de negocio ────────────────────────────────────────────────────
@@ -145,7 +151,24 @@ public class Ad {
     public void incrementLike() {
         this.currentLikes++;
         if (this.currentLikes >= this.maxLikes || !hasRemainingBudget()) {
-            this.status = AdStatus.COMPLETED;
+            markCompleted(ZonedDateTime.now());
+        }
+    }
+
+    /**
+     * Cierra el anuncio: pasa a {@link AdStatus#COMPLETED} y fija {@code endDate}
+     * (fecha real de cierre) si aún no estaba puesta. Idempotente respecto de
+     * {@code endDate}.
+     *
+     * <p>El cierre por el último like en circulación lo resuelve el UPDATE atómico
+     * {@link com.verygana2.repositories.AdRepository#incrementLikeIfAvailable}, que
+     * setea {@code status} y {@code endDate} en la misma sentencia; este método
+     * cubre el resto de vías (p. ej. agotamiento de presupuesto).
+     */
+    public void markCompleted(ZonedDateTime when) {
+        this.status = AdStatus.COMPLETED;
+        if (this.endDate == null) {
+            this.endDate = when;
         }
     }
 

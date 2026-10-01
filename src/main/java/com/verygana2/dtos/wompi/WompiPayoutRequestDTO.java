@@ -48,10 +48,6 @@ public class WompiPayoutRequestDTO {
         @JsonProperty("legalId")
         private String legalId;
 
-        /** NATURAL o JURIDICA — JURIDICA cuando legalIdType=NIT, NATURAL en el resto de casos. */
-        @JsonProperty("personType")
-        private String personType;
-
         /** bankId (UUID) del catálogo GET /banks — ver WompiPayoutConfig para Nequi/Daviplata. */
         @JsonProperty("bankId")
         private String bankId;
@@ -71,14 +67,18 @@ public class WompiPayoutRequestDTO {
         @JsonProperty("name")
         private String name;
 
-        @JsonProperty("email")
-        private String email;
-
         /** Monto en centavos de COP. */
         @JsonProperty("amount")
         private Long amount;
 
-        /** Referencia de la transacción individual — "VG-PAYOUT-{payoutId}". */
+        /** NATURAL o JURIDICA — JURIDICA cuando legalIdType=NIT, NATURAL en el resto de casos. */
+        @JsonProperty("personType")
+        private String personType;
+
+        @JsonProperty("email")
+        private String email;
+
+        /** Referencia de la transacción individual — "{payoutId}". */
         @JsonProperty("reference")
         private String reference;
     }

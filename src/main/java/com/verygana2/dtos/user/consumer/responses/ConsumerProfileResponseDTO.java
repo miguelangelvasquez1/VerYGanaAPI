@@ -1,7 +1,7 @@
 package com.verygana2.dtos.user.consumer.responses;
 
 import com.verygana2.models.enums.Role;
-import com.verygana2.models.enums.UserState;
+import com.verygana2.models.enums.AccountStatus;
 
 import lombok.Data;
 
@@ -13,7 +13,7 @@ public class ConsumerProfileResponseDTO {
     private String email;
     private String phoneNumber;
     private Role role;
-    private UserState userState;
+    private AccountStatus accountStatus;
     private String department;
     private String municipalityName;
 }

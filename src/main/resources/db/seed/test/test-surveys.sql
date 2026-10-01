@@ -72,12 +72,14 @@ DELETE FROM surveys WHERE title IN (
     'Hábitos de alimentación'
 );
 
--- surveys.creator_id es NOT NULL. Usamos el comercial de prueba como creador
--- (sembrado en test-users.sql, que corre antes que este script).
+-- surveys.creator_id es NOT NULL. Usamos el comercial portador de la data de
+-- demo como creador (comercial-standard@verygana.com, sembrado en test-users.sql
+-- sección 10, que corre antes que este script). comercial@verygana.com se deja
+-- limpio a propósito para crear activos desde cero.
 SET @commercial_id = (
     SELECT cd.user_id FROM commercial_details cd
     JOIN users u ON u.id = cd.user_id
-    WHERE u.email = 'comercial@verygana.com'
+    WHERE u.email = 'comercial-standard@verygana.com'
 );
 
 

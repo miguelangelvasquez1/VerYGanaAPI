@@ -11,8 +11,7 @@ spring:
     # Para Docker
     # url: jdbc:mysql://host.docker.internal:3306/verygana
     # url: jdbc:postgresql://dpg-d66gfsmsb7us73f305j0-a.oregon-postgres.render.com:5432/verygana_eyf3
-    # username: root
-    # password: aig7UVXXEQlZl0ULkbZCpLHq6oLxS4TS
+
 
     # Para Railway (PostgreSQL) - usa variables de entorno
     url: ${DB_URL:jdbc:mysql://localhost:3306/verygana?useSSL=false&serverTimezone=UTC}
@@ -31,8 +30,6 @@ spring:
   # JPA/HIBERNATE CONFIGURATION
   # =====================
   jpa:
-    hibernate:
-      ddl-auto: update
     show-sql: false
     properties:
       hibernate:
@@ -95,6 +92,7 @@ cloudflare:
     bucket-name: ${R2_BUCKET_NAME:verygana-campaigns}
     cdn-domain: ${R2_CDN_DOMAIN:} # Opcional: cdn.verygana.com
     games-worker-domain: ${R2_GAMES_WORKER_DOMAIN:games.verygana.com}
+    games-domain: ${R2_GAMES_DOMAIN:games.verygana.com}
     endpoint: ${R2_ENDPOINT:} # Opcional, se construye automáticamente
     pets-bucket-name: ${R2_PETS_BUCKET_NAME:verygana-pets}
     pets-cdn-domain: ${R2_PETS_CDN_DOMAIN:}
@@ -123,16 +121,18 @@ spring.cache:
 # ============================================
 # LOGGING CONFIGURATION
 # ============================================
+# INFO, no DEBUG: BasicBinder en TRACE escribe en el log el valor de cada parámetro
+# SQL (cédulas, correos, teléfonos), y security en DEBUG el detalle de cada petición.
 logging:
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{correlationId:-no-corr}] %-5level %logger{36} - %msg%n"
   level:
     root: INFO
-    com.verygana2: DEBUG
-    com.verygana2.repositories: DEBUG
-    com.verygana2.services: DEBUG
-    com.verygana2.services.storage: DEBUG
-    #org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.springframework.security: DEBUG
+    com.verygana2: INFO
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+    org.springframework.security: WARN
+    # Ruido inofensivo de PDFBox al escanear fuentes del sistema (ver application-dev.yml).
+    org.apache.pdfbox.pdmodel.font.FileSystemFontProvider: ERROR
 
 # ============================================
 # Email service
@@ -181,10 +181,17 @@ pets:
   # el bloqueo por CORS al pedirlos con fetch desde el juego.
   asset-base-url: ${PETS_ASSET_BASE_URL:}
   game-path: ${PETS_GAME_PATH:index.html}
+  # Cobro al comercial por cada unidad que se compra de su ítem de mascotas, en
+  # centavos COP (15000 = $150). Sale de la bolsa que reservó al pedir la integración.
+  commercial-charge-per-use-cents: ${PETS_COMMERCIAL_CHARGE_PER_USE_CENTS:15000}
   # Imagen del producto que el comercial adjunta al pedir integración al catálogo.
   # Se sube al bucket de mascotas (cloudflare.r2.pets-bucket-name).
   catalog-request-image:
     max-size-bytes: ${PETS_CATALOG_REQUEST_IMAGE_MAX_BYTES:5242880} # 5 MB
+
+  # Assets que sube el diseñador (sprites del catálogo y objetos de escena).
+  designer-asset:
+    max-size-bytes: 26214400 # 25 MB
 
   # Sistema de coordenadas del área de juego, para el lienzo del editor de escenas.
   # Verificado contra el juego el 2026-08-17 (CanvasScaler del build + comparación
@@ -200,6 +207,34 @@ app:
   base-url: ${APP_BASE_URL}
   frontend:
     base-url: ${FRONTEND_BASE_URL}
+  # Enlaces de los correos (verificación, definir contraseña). Misma variable que
+  # frontend.base-url: son la misma URL y dos variables se desincronizan.
+  frontend-url: ${FRONTEND_BASE_URL}
+  admin-notification-email: ${ADMIN_NOTIFICATION_EMAIL:admin@verygana.com}
+  password-setup-token:
+    expiration-hours: ${GD_PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS:72}
+  security:
+    monitoring:
+      enabled: true
+      auto-block-enabled: false
+      check-interval-ms: 3600000       # Detección sospechosa: cada 1 hora
+      health-check-interval-ms: 300000   # Health check: cada 5 min
+    cleanup:
+      cron: "0 0 2 * * ?"              # Limpieza de tokens: 2:00 AM diario
+    suspicious-activity:
+      failed-logins-per-ip-threshold: 10  # Logins fallidos por IP que activan alerta
+      check-window-hours: 1               # Ventana de tiempo para detección
+    token-farming:
+      threshold: 10                       # Tokens de un mismo usuario en la ventana que activan alerta
+    sessions:
+      max-per-user: 5                   # Máx. sesiones activas por usuario
+      rapid-cycle-window-seconds: 60    # Sesión más vieja más joven que esto al llegar al cap: posible farming
+    account-lock:
+      max-failed-attempts: 5            # Intentos fallidos antes de bloquear la cuenta
+  # Orígenes permitidos para CORS y WebSocket (/ws). Lista separada por comas, sin "/" final.
+  # Sin default a propósito: si falta la variable la app no arranca, en vez de abrirse a todos.
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS}
   claim-code:
     encryption-key: ${APP_CLAIM_CODE_ENCRYPTION_KEY}
   product-code:
@@ -210,9 +245,27 @@ payment:
   min-deposit: 5000      # $5.000 COP
   max-deposit: 10000000  # $10.000.000 COP
 
+commercial:
+  onboarding:
+    documents:
+      max-size-bytes: 10485760 # 10 MB
+  contract:
+    # Límite de generación de contratos de RECHARGE/PLAN_CHANGE por comercial: cada
+    # generación puede disparar un envío real a firma electrónica (con costo con el
+    # proveedor), así que se acota cuántos se pueden generar por ventana.
+    rate-limit:
+      max-per-window: 1
+      window-hours: 24
+  page-visit:
+    # Ventana de deduplicación por (anuncio, consumer) al registrar visitas a la
+    # página oficial del empresario ("Remisión"): un clic repetido dentro de este
+    # lapso no genera una fila nueva. Evita inflar la métrica por doble clic / reintentos.
+    dedup-window-minutes: 30
+
 purchase:
   expiry:
     max-age-minutes: 40   # checkout Wompi expira en ~30 min; 40 da margen para el webhook
+    cron: "0 0/30 * * * *"  # cada 30 minutos
   cleanup:
     interval-ms: 300000   # cada 5 minutos en producción
 
@@ -237,6 +290,7 @@ treasury:
   # el anunciante financió y lo que se acreditó al consumidor.
   issuance-settlement:
     cron: "0 0/10 * * * *"   # cada 10 minutos
+    vat-pct: 19 # IVA Colombia — depósitos/suscripción: se suma; comisión: se extrae (ya la incluye)
 
 financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
@@ -247,10 +301,16 @@ financial:
 # PRODUCT CLEANUP (REJECTED / INACTIVE)
 # ============================================
 marketplace:
+  min-product-price-cents: 100000      # $1.000 COP
+  max-product-price-cents: 50000000    # $500.000 COP
   product:
     cleanup:
       cron: "0 30 3 * * SUN"   # domingos 3:30 AM
       grace-period-days: 30    # dias en REJECTED/INACTIVE antes de purgar
+  claim:
+    expiration-days: 15                    # plazo para reclamar un producto fisico (PIN)
+    expiration-scheduler:
+      cron: "0 0 5 * * *"                  # todos los dias 5 AM UTC
 
 
 # ============================================
@@ -330,16 +390,21 @@ wompi:
   checkout-base-url: https://checkout.wompi.co/p/
   api-base-url: https://production.wompi.co/v1
   payout:
-    api-key: ${WOMPI_PAYOUT_API_KEY}
-    principal-user-id: ${WOMPI_PAYOUT_PRINCIPAL_USER_ID}
-    events-key: ${WOMPI_PAYOUT_EVENTS_KEY}
+    api-key: ${WOMPI_PAYOUTS_API_KEY}
+    principal-user-id: ${WOMPI_PAYOUTS_USER_PRINCIPAL_ID}
+    user-id: ${WOMPI_PAYOUTS_USER_ID}
+    events-key: ${WOMPI_PAYOUTS_SECRET}
     account-id: ${WOMPI_PAYOUT_ACCOUNT_ID}
     nequi-bank-id: ${WOMPI_PAYOUT_NEQUI_BANK_ID}
     daviplata-bank-id: ${WOMPI_PAYOUT_DAVIPLATA_BANK_ID}
     api-base-url: https://api.payouts.wompi.co/v1
-    cron: "0 0 4 * * *"
-    retry-cron: "0 30 4 * * *"
+    cron: "0 0 23 * * *"        # 11 PM hora Colombia (el @Scheduled fija zone=America/Bogota)
+    retry-cron: "0 30 23 * * *" # 11:30 PM hora Colombia
     min-balance-alert-cents: 5000000
+    connect-timeout-ms: 5000      # timeout de conexión TCP
+    response-timeout-ms: 20000    # timeout esperando la respuesta completa
+    max-retries: 5                # tope de reintentos antes de marcar EXHAUSTED
+    rate-limit-delay-ms: 300       # pausa entre llamadas consecutivas a POST /payouts
 
 zapsign:
   api-token: ${ZAPSIGN_API_TOKEN:}
@@ -358,13 +423,34 @@ zapsign:
   webhook-header-name: X-VeryGana-Secret
   webhook-secret: ${ZAPSIGN_WEBHOOK_SECRET:}
 
-  # ============================================
-  # reCAPTCHA
-  # ============================================
-  recaptcha:
-    secret-key: ${RECAPTCHA_SECRET_KEY:}
-    min-score: 0.5
-    login-action: login
+# PQRS — evidencia adjunta (foto/video, opcional)
+pqrs:
+  assets:
+    max-size-bytes: 26214400 # 25 MB (imagen o video)
+    max-count: 5
+
+# ============================================
+# reCAPTCHA
+# ============================================
+recaptcha:
+  secret-key: ${RECAPTCHA_SECRET_KEY:}
+  min-score: 0.5
+  login-action: login
+
+
+# ============================================
+# AVISOS DE SALDO BAJO / DORMANT WALLETS
+# ============================================
+budget:
+    # % del último depósito por debajo del cual se avisa "saldo bajo" (WARNING) y se muestra la alerta en el dashboard.
+    low-balance-warning-pct: 20
+    # % del último depósito por debajo del cual el aviso escala a "crítico" (CRITICAL). 0 = sin escalón crítico.
+    low-balance-critical-pct: 5
+    # Días que un wallet puede permanecer en saldo 0 antes de pasar a DORMANT (bloqueo de edición).
+    grace-period-days: 15
+    # Barrido periódico de wallets financiados (ACTIVE / EXHAUSTED). Cron de 6 campos, zona UTC.
+    alert-cron: "0 0 * * * *"
+
 # ============================================
 # OBSERVABILIDAD (prod)
 # ============================================
@@ -381,3 +467,38 @@ observability:
   # Generar uno nuevo con:  openssl rand -hex 32
   # Debe coincidir, byte por byte, con el que use el agente (monitoring/alloy/config.alloy).
   scrape-token: ${METRICS_SCRAPE_TOKEN:}
+
+# ============================================
+# ADS / ENCUESTAS / DOCUMENTOS LEGALES
+# ============================================
+ads:
+  watch-session-expiration-minutes: 5
+  cooldown-minutes: 60
+  scoring:
+    category-match: 40.0
+    age-match: 15.0
+    gender-match: 15.0
+    opportunity-ratio: 20.0
+    recency-penalty: 20.0
+    recency-decay-window-minutes: 10080
+    candidate-limit: 50
+
+surveys:
+  scoring:
+    visibility-boost: 1.0
+
+legal:
+  documents:
+    max-size-bytes: 10485760 # 10 MB
+
+# ============================================
+# OPENAPI / SWAGGER — apagado fuera de dev
+# ============================================
+# /swagger-ui.html y /v3/api-docs son públicos (PublicPaths): encendidos, cualquiera con
+# la URL ve el mapa completo de la API, incluidos los endpoints de admin. Apagados, los
+# dos responden 404. Beta lo hereda (prod,beta). En dev siguen encendidos.
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false

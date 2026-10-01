@@ -7,6 +7,7 @@ import java.util.List;
 
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.models.TargetAudience;
+import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.userDetails.AdminDetails;
@@ -103,6 +104,17 @@ public class Product {
      */
     @Column(name = "max_keys_pct", nullable = false)
     private Integer maxKeysPct;
+
+    /**
+     * Determina si el producto requiere el flujo de PIN de reclamación física.
+     * Default DIGITAL (inicializado aquí, no solo en @PrePersist, para que
+     * instancias construidas en memoria —tests, código que no pasa por JPA—
+     * también se comporten como digitales salvo que se marquen explícitamente
+     * PHYSICAL).
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "product_type", nullable = false, length = 20)
+    private ProductType productType = ProductType.DIGITAL;
 
     @Transient
     private Integer stock;

@@ -181,4 +181,54 @@ public class Campaign {
         }
         return budgetCents / averageRewardPerSessionCents;
     }
+
+    // ===== PRESUPUESTO =====
+
+    /** Presupuesto aún no consumido (nunca negativo). */
+    public Long getRemainingBudgetCents() {
+        long budget = budgetCents != null ? budgetCents : 0L;
+        long spent = spentCents != null ? spentCents : 0L;
+        return Math.max(0L, budget - spent);
+    }
+
+    /**
+     * Costo nominal de una sesión terminada con {@code score}: la recompensa por completar más
+     * {@code score * scoreRewardFactor}, con tope en {@code maxRewardPerSessionCents}. Un puntaje
+     * nulo o negativo no suma nada.
+     */
+    public long calculateSessionRewardCents(Integer score) {
+        long fromScore = (score == null || score <= 0) ? 0L : Math.round(score * scoreRewardFactor);
+        return Math.min(maxRewardPerSessionCents, completionRewardCents + fromScore);
+    }
+
+    /**
+     * Carga el costo de una sesión terminada al presupuesto de la campaña y devuelve lo que
+     * realmente se cargó. El presupuesto es prepago (ya salió de la wallet del comercial al crear
+     * la solicitud de branding), así que solo se mueve {@code spentCents}.
+     *
+     * <ul>
+     *   <li>Solo una campaña ACTIVE o PAUSED cobra: una sesión iniciada antes de una pausa sigue
+     *       costando, pero DRAFT/CANCELLED/COMPLETED no.</li>
+     *   <li>Nunca se cobra más de lo que queda: el costo se recorta al presupuesto restante, de
+     *       modo que sesiones concurrentes no pueden sobregirar la campaña.</li>
+     *   <li>Al agotarse el presupuesto la campaña pasa a COMPLETED. Aumentar el presupuesto la
+     *       reabre (ver {@code CampaignServiceImpl#increaseCampaignBudget}).</li>
+     * </ul>
+     *
+     * @return centavos cargados (0 si la campaña no cobra o ya no tiene presupuesto)
+     */
+    public long chargeSession(Integer score) {
+        if (status != CampaignStatus.ACTIVE && status != CampaignStatus.PAUSED) {
+            return 0L;
+        }
+        long charged = Math.min(calculateSessionRewardCents(score), getRemainingBudgetCents());
+        if (charged <= 0) {
+            return 0L;
+        }
+        spentCents = (spentCents != null ? spentCents : 0L) + charged;
+        if (getRemainingBudgetCents() == 0L) {
+            status = CampaignStatus.COMPLETED;
+        }
+        return charged;
+    }
 }

@@ -22,6 +22,18 @@ public interface SurveyRepository extends JpaRepository<Survey, Long> {
 
     Page<Survey> findAllByCreatorIdOrderByCreatedAtDesc(Pageable pageable, Long creatorId);
 
+    /** Todas las encuestas de un comercial (acotado por MAX_SURVEYS del plan) — para reportes. */
+    List<Survey> findAllByCreatorId(Long creatorId);
+
+    /** [Long surveyId, Long questionCount] de las encuestas de un comercial — para reportes. */
+    @Query("""
+        SELECT s.id, COUNT(q) FROM Survey s
+        LEFT JOIN s.questions q
+        WHERE s.creator.id = :creatorId
+        GROUP BY s.id
+    """)
+    List<Object[]> countQuestionsByCreator(@Param("creatorId") Long creatorId);
+
     Page<Survey> findAllByCreatorIdAndStatusOrderByCreatedAtDesc(Pageable pageable, Long creatorId, Survey.SurveyStatus status);
 
     Page<Survey> findAllByStatusOrderByCreatedAtDesc(Pageable pageable, Survey.SurveyStatus status);

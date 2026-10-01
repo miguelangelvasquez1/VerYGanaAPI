@@ -33,9 +33,13 @@ public @interface RequirePlanCapability {
         CAN_USE_GAMES,
         CAN_USE_SURVEYS,
         CAN_SELL_DIRECTLY,
-        CAN_HAVE_PETS,
+        CAN_USE_PETS,
         CAN_PROMOTE_ALLY_PRODUCTS,
         CAN_EXPORT_REPORT,
+        /** Métricas de rendimiento de anuncios, encuestas y campañas (Estándar y Premium). */
+        CAN_VIEW_PERFORMANCE_METRICS,
+        /** Métrica de visitas a la página oficial del empresario / "Remisión" (exclusiva Premium). */
+        CAN_VIEW_PAGE_VISIT_METRICS,
         MAX_PRODUCTS,
         MAX_ADS,
         MAX_BRANDED_GAMES,
