@@ -45,6 +45,7 @@ import jakarta.persistence.EntityManager;
  * los cupos disponibles y el resto obtiene 0 filas afectadas.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:ad-like-concurrency-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;"
                 + "CASE_INSENSITIVE_IDENTIFIERS=TRUE;LOCK_TIMEOUT=10000",

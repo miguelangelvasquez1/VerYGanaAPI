@@ -31,6 +31,7 @@ import jakarta.persistence.EntityManager;
  * Carga solo el slice JPA + LevelServiceImpl; NotificationService va mockeado.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         // Perfil vacío: evita cargar application-dev.yml (llaves RSA, R2, etc.)
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:levels-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",

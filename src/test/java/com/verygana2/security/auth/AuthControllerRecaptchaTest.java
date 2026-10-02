@@ -9,6 +9,18 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.client.RestClient;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.verygana2.loadtest.stubs.LoadTestRecaptchaService;
+import com.verygana2.loadtest.stubs.StubCallCounter;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -34,6 +46,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Tests de la puerta de reCAPTCHA de {@link AuthController}.
@@ -196,6 +210,102 @@ class AuthControllerRecaptchaTest {
             verify(userService).registerCommercial(dto);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody()).asString().contains("Revisa tu correo");
+        }
+    }
+
+    /**
+     * En el perfil loadtest el reCAPTCHA real se reemplaza por
+     * {@link LoadTestRecaptchaService}. Aquí el controller usa esa clase de verdad (no un mock),
+     * con un token de relleno que Google rechazaría.
+     */
+    @Nested
+    @DisplayName("modo prueba de carga (LoadTestRecaptchaService real)")
+    class LoadTestMode {
+
+        private static final String PLACEHOLDER = "loadtest-placeholder";
+
+        private AuthController loadTestController;
+        private MockMvc mockMvc;
+
+        @BeforeEach
+        void setUpLoadTestController() {
+            RecaptchaService fake = new LoadTestRecaptchaService(
+                    RestClient.builder(), new StubCallCounter(new SimpleMeterRegistry()));
+            loadTestController = new AuthController(tokenService, authManager, userService,
+                    ticketDeliveryService, passwordSetupService, securityAuditService,
+                    accountLockService, fake);
+            ReflectionTestUtils.setField(loadTestController, "loginRecaptchaAction", "login");
+            ReflectionTestUtils.setField(loadTestController, "registerConsumerRecaptchaAction", "register_consumer");
+            ReflectionTestUtils.setField(loadTestController, "registerCommercialRecaptchaAction", "register_commercial");
+
+            ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
+            mockMvc = MockMvcBuilders.standaloneSetup(loadTestController)
+                    // Sin esto gana el converter de XML y el cuerpo del error se pierde.
+                    .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                    .build();
+        }
+
+        @Test
+        @DisplayName("login con token de relleno llega a authenticate")
+        void loginWithPlaceholderTokenReachesAuthentication() {
+            when(authManager.authenticate(any())).thenThrow(new BadCredentialsException("credenciales"));
+            AuthRequest request = authRequest();
+            request.setRecaptchaToken(PLACEHOLDER);
+
+            assertThatThrownBy(() -> loadTestController.login(request, "web", new MockHttpServletRequest()))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessage("credenciales"); // no el mensaje del reCAPTCHA
+
+            verify(authManager).authenticate(any());
+        }
+
+        @Test
+        @DisplayName("registro de consumidor con token de relleno crea el usuario")
+        void registerConsumerWithPlaceholderTokenCreatesUser() {
+            ConsumerRegisterDTO dto = consumerDto();
+            dto.setRecaptchaToken(PLACEHOLDER);
+
+            ResponseEntity<?> response = loadTestController.registerConsumer(dto);
+
+            verify(userService).registerConsumer(dto);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        }
+
+        @Test
+        @DisplayName("registro de comercial con token de relleno crea el usuario")
+        void registerCommercialWithPlaceholderTokenCreatesUser() {
+            CommercialRegisterDTO dto = commercialDto();
+            dto.setRecaptchaToken(PLACEHOLDER);
+
+            ResponseEntity<?> response = loadTestController.registerCommercial(dto);
+
+            verify(userService).registerCommercial(dto);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        }
+
+        @Test
+        @DisplayName("un token vacío sigue devolviendo 400 por @NotBlank y no llega al service")
+        void blankTokenIsStillRejectedWith400() throws Exception {
+            // Cuerpo válido salvo el token: la única causa posible del 400 es @NotBlank.
+            mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"identifier\":\"usuario@test.com\",\"password\":\"secreta\",\"recaptchaToken\":\"\"}"))
+                    .andExpect(status().isBadRequest());
+
+            verify(authManager, never()).authenticate(any());
+            verify(accountLockService, never()).isLocked(anyString());
+
+            mockMvc.perform(post("/auth/register/consumer")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"recaptchaToken\":\"\"}"))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(post("/auth/register/commercial")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"recaptchaToken\":\"\"}"))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).registerConsumer(any());
+            verify(userService, never()).registerCommercial(any());
         }
     }
 }

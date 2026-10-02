@@ -26,6 +26,7 @@ import jakarta.persistence.EntityManager;
  * Usa el mapper real generado por MapStruct.
  */
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         // Perfil vacío: evita cargar application-dev.yml (llaves RSA, R2, etc.)
         "spring.profiles.active=test",
         // NON_KEYWORDS=VALUE: la entidad Prize mapea una columna "value", que en H2 es

@@ -14,6 +14,7 @@ import com.verygana2.models.commercial.diagnostic.DiagnosticQuestionnaire;
 import com.verygana2.repositories.commercial.DiagnosticQuestionnaireRepository;
 
 @DataJpaTest(properties = {
+        "spring.flyway.enabled=false",
         "spring.profiles.active=test",
         "spring.datasource.url=jdbc:h2:mem:diagnostic-questionnaire-it;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE",
         "spring.datasource.driver-class-name=org.h2.Driver",

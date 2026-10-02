@@ -2,6 +2,7 @@ package com.verygana2.models.surveys;
 
 import java.time.ZonedDateTime;
 
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import jakarta.persistence.Column;
@@ -59,7 +60,10 @@ public class SurveyReward {
      * Si el diferencial (financiado − acreditado) de esta fila ya se liquidó en
      * tesorería. Lo pone el job por lotes, no el envío de la encuesta.
      */
+    // Mismo DEFAULT que la migración: sin él, el esquema que genera Hibernate en los
+    // tests (H2) rechaza los inserts que no mandan la columna y MySQL los acepta.
     @Column(name = "issuance_settled", nullable = false)
+    @ColumnDefault("false")
     @Builder.Default
     private boolean issuanceSettled = false;
 
