@@ -1,0 +1,32 @@
+{
+  "mappings": [
+    {
+      "name": "random.org generateIntegers",
+      "request": { "method": "POST", "urlPath": "/random/json-rpc/4/invoke" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 300,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "jsonrpc": "2.0",
+          "result": {
+            "random": {
+              "data": [1],
+              "completionTime": "{{now}}",
+              "serialNumber": 1,
+              "hashedApiKey": "loadtest",
+              "license": null
+            },
+            "signature": "loadtest",
+            "bitsUsed": 1,
+            "bitsLeft": 1000000,
+            "requestsLeft": 1000000,
+            "advisories": {}
+          },
+          "id": "{{jsonPath request.body '$.id'}}"
+        }
+      }
+    }
+  ]
+}

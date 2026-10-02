@@ -1,0 +1,3 @@
+# Copias locales del env de la prueba de carga y resultados de las corridas
+env/*.env
+results/

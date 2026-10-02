@@ -30,6 +30,7 @@ import org.springframework.boot.context.properties.bind.validation.ValidationBin
 import org.springframework.boot.context.properties.source.ConfigurationPropertySources;
 import org.springframework.boot.env.YamlPropertySourceLoader;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.env.StandardEnvironment;
 import org.springframework.core.io.ClassPathResource;
@@ -69,6 +70,23 @@ class ProfileConfigurationTest {
     @MethodSource("deployableProfiles")
     @DisplayName("cada @Value y @Scheduled sin default resuelve")
     void everyRequiredPlaceholderResolves(List<String> profiles) {
+        assertThat(missingKeys(profiles))
+                .as("Claves sin default que el perfil %s no resuelve (la app no arranca)", profiles)
+                .isEmpty();
+    }
+
+    /** El perfil de la prueba de carga se monta sobre prod: si le falta una clave, la API no arranca. */
+    @Test
+    @DisplayName("prod+loadtest resuelve cada clave requerida")
+    void loadTestProfileResolvesEveryKey() {
+        List<String> profiles = List.of("prod", "loadtest");
+
+        assertThat(missingKeys(profiles))
+                .as("Claves sin default que el perfil %s no resuelve (la API de la prueba no arranca)", profiles)
+                .isEmpty();
+    }
+
+    private static Set<String> missingKeys(List<String> profiles) {
         StandardEnvironment env = environmentFor(profiles);
 
         Set<String> missing = new TreeSet<>();
@@ -81,10 +99,7 @@ class ProfileConfigurationTest {
                 }
             }
         }
-
-        assertThat(missing)
-                .as("Claves sin default que el perfil %s no resuelve (la app no arranca)", profiles)
-                .isEmpty();
+        return missing;
     }
 
     @ParameterizedTest(name = "{0}")
@@ -151,6 +166,86 @@ class ProfileConfigurationTest {
             StandardEnvironment prod = environmentFor(List.of("prod"));
             assertThat(prod.getProperty("wompi.api-base-url")).doesNotContain("sandbox");
             assertThat(prod.getProperty("zapsign.sandbox", Boolean.class)).isFalse();
+        }
+    }
+
+    /**
+     * El modo prueba de carga no puede quedar activo en ningún perfil que se despliega.
+     * Los simuladores y el sembrado solo existen con el perfil {@code loadtest}, que se pasa
+     * a mano; ningún yml desplegable debe activarlo ni apuntar a un simulador.
+     */
+    @Nested
+    @DisplayName("loadtest nunca se activa en dev, prod ni prod+beta")
+    class LoadTestIsolation {
+
+        @Test
+        @DisplayName("ningún perfil desplegable activa, incluye ni agrupa loadtest")
+        void loadTestProfileIsNeverActivatedByDeployableProfiles() {
+            deployableProfiles().forEach(profiles -> {
+                StandardEnvironment env = environmentFor(profiles);
+                List<String> offending = new ArrayList<>();
+                for (PropertySource<?> source : env.getPropertySources()) {
+                    if (!(source instanceof EnumerablePropertySource<?> enumerable)
+                            || source.getName().startsWith("configurationProperties")) {
+                        continue;
+                    }
+                    for (String name : enumerable.getPropertyNames()) {
+                        if (name.startsWith("spring.profiles.") || name.startsWith("spring.config.activate")) {
+                            String value = String.valueOf(enumerable.getProperty(name));
+                            if (value.contains("loadtest")) {
+                                offending.add(name + " en " + source.getName());
+                            }
+                        }
+                    }
+                }
+                assertThat(offending).as("Perfiles %s", profiles).isEmpty();
+                assertThat(env.getProperty("spring.profiles.active", "")).doesNotContain("loadtest");
+                assertThat(env.getProperty("spring.profiles.include", "")).doesNotContain("loadtest");
+            });
+        }
+
+        @Test
+        @DisplayName("las URLs de Wompi y Random.org son las reales fuera de loadtest")
+        void providerUrlsAreRealOutsideLoadTest() {
+            deployableProfiles().forEach(profiles -> {
+                StandardEnvironment env = environmentFor(profiles);
+                assertThat(env.getProperty("wompi.api-base-url")).as("%s", profiles).contains("wompi.co");
+                assertThat(env.getProperty("wompi.payout.api-base-url")).as("%s", profiles).contains("wompi.co");
+                assertThat(env.getProperty("randomOrg.api-url")).as("%s", profiles).contains("random.org");
+                assertThat(rawValue(env, "cloudflare.r2.endpoint")).as("%s", profiles)
+                        .doesNotContain("minio").doesNotContain("localhost");
+                assertThat(env.getProperty("loadtest.stubs.base-url", "")).as("%s", profiles).isEmpty();
+                assertThat(env.getProperty("loadtest.seed.users", Integer.class)).as("%s", profiles).isZero();
+            });
+        }
+
+        @Test
+        @DisplayName("R2 usa estilo virtual-hosted (path-style apagado) fuera de loadtest")
+        void r2PathStyleIsOffOutsideLoadTest() {
+            deployableProfiles().forEach(profiles -> assertThat(
+                    environmentFor(profiles).getProperty("cloudflare.r2.path-style-access", Boolean.class))
+                    .as("%s", profiles).isFalse());
+        }
+
+        @Test
+        @DisplayName("el perfil loadtest sí enciende los simuladores")
+        void loadTestProfileTurnsStubsOn() {
+            StandardEnvironment env = environmentFor(List.of("prod", "loadtest"));
+            assertThat(env.getProperty("cloudflare.r2.path-style-access", Boolean.class)).isTrue();
+            assertThat(env.getProperty("zapsign.sandbox", Boolean.class)).isTrue();
+            assertThat(rawValue(env, "wompi.private-key")).startsWith("loadtest-");
+            assertThat(rawValue(env, "recaptcha.secret-key")).startsWith("loadtest-");
+            assertThat(rawValue(env, "wompi.api-base-url")).contains("loadtest.stubs.base-url");
+        }
+
+        @Test
+        @DisplayName("loadtest publica las métricas de hilos de Tomcat; prod y beta no cambian")
+        void tomcatThreadMetricsAreExposedOnlyInLoadTest() {
+            assertThat(environmentFor(List.of("prod", "loadtest"))
+                    .getProperty("server.tomcat.mbeanregistry.enabled", Boolean.class)).isTrue();
+            deployableProfiles().forEach(profiles -> assertThat(
+                    environmentFor(profiles).getProperty("server.tomcat.mbeanregistry.enabled", Boolean.class))
+                    .as("%s", profiles).isNull());
         }
     }
 

@@ -29,6 +29,11 @@ public class R2Config {
     private String endpoint;
     private String petsBucketName;
     private String petsCdnDomain;
+    /**
+     * false (default) = virtual-hosted, el estilo de R2. true solo en el perfil loadtest:
+     * MinIO no resuelve buckets por subdominio.
+     */
+    private boolean pathStyleAccess = false;
 
     @Bean
     public S3Client r2Client() {
@@ -46,7 +51,7 @@ public class R2Config {
                 : String.format("https://%s.r2.cloudflarestorage.com", accountId);
 
             S3Configuration s3Config = S3Configuration.builder()
-                .pathStyleAccessEnabled(false) // R2 usa virtual-hosted style
+                .pathStyleAccessEnabled(pathStyleAccess) // R2 usa virtual-hosted style (false)
                 .build();
 
             S3Client client = S3Client.builder()
@@ -87,6 +92,9 @@ public class R2Config {
                 .region(Region.of("auto"))
                 .endpointOverride(URI.create(r2Endpoint))
                 .credentialsProvider(StaticCredentialsProvider.create(credentials))
+                .serviceConfiguration(S3Configuration.builder()
+                    .pathStyleAccessEnabled(pathStyleAccess)
+                    .build())
                 .build();
 
             log.info("R2 Presigner inicializado exitosamente");

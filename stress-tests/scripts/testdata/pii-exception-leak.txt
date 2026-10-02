@@ -1,0 +1,6 @@
+# La excepcion NO debe tapar nada mas: cada linea de abajo (3, 4, 5, 6) tiene que seguir marcandose.
+GameEventDTO(sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9, userHash=9f8e7d6c5b4a39281706f5e4d3c2b1a0, isBrandedMode=true, campaignId=21, gameTitle=Ball Bounce, payload={score=10}, technicalData=null)
+sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9
+2026-10-01 INFO otro.Logger token: 0a1b2c3d4e5f60718293a4b5c6d7e8f9 recibido
+WARN x GameEventDTO(sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9, userHash=9f8e7d6c5b4a39281706f5e4d3c2b1a0, isBrandedMode=true, campaignId=21, gameTitle=g, payload=null, technicalData=null)
+GameEventDTO(sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9, userHash=9f8e7d6c5b4a39281706f5e4d3c2b1a0, isBrandedMode=true, campaignId=21, gameTitle=g, payload={mail=persona@ejemplo.com}, technicalData=null)

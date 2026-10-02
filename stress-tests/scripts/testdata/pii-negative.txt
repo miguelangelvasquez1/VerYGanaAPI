@@ -1,0 +1,21 @@
+# Salidas normales de la prueba: nada de esto debe disparar check-pii.sh.
+2026-10-02T02:13:37.771000Z INFO  Modo prueba de carga activo
+status.Bytes_received	3269273
+status.Bytes_sent	3141592653
+snapshot_utc	2026-10-02T02:13:37.771000Z
+epoch 1759372800000 y 1759372800
+pi = 0.3141592653 y 3.14159265358
+GET /api/raffles/{id} p95=245.3ms p99=1010.0ms error=0.00%
+POST /auth/login n=1200 rejected=0
+journey,endpoint,count,p50,p95,p99,error_rate
+C5,POST /purchases/buy,812,120.5,300.1,455.9,0.0000
+digest_text: SELECT `id` FROM `users` WHERE `email` = ? AND `role` = ?
+version 8.0.46, buffer 536870912, max_connections 75, ip 172.18.0.5, build 1.234.567
+sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+token de relleno recaptchaToken=loadtest-placeholder
+METRICS_SCRAPE_TOKEN=loadtest-scrape-token
+loadtest_stub_calls_total{provider="email"} 412.0
+usuario virtual 42 de 200 (consumer), vu=1890
+hikaricp_connections_active{pool="HikariProd"} 7.0
+Authorization: Bearer loadtest-zapsign-token (literal ficticio del perfil)
+flyway ... -user=verygana_app -password=lt-app-local migrate (contraseña ficticia de la BD local)

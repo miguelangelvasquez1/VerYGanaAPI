@@ -129,3 +129,22 @@ pets:
   # Cobro al comercial por cada unidad que se compra de su ítem de mascotas, en
   # centavos COP (15000 = $150). Sale de la bolsa que reservó al pedir la integración.
   commercial-charge-per-use-cents: ${PETS_COMMERCIAL_CHARGE_PER_USE_CENTS:15000}
+
+cloudflare:
+  r2:
+    path-style-access: false # true solo en loadtest (MinIO); R2 usa virtual-hosted
+
+# ============================================
+# PRUEBA DE CARGA — valores neutros
+# ============================================
+# Solo los lee código con @Profile("loadtest"). El perfil loadtest se monta a mano
+# sobre prod (SPRING_PROFILES_ACTIVE=prod,loadtest) y nunca desde un yml desplegable.
+loadtest:
+  stubs:
+    base-url: ""
+    otp-code: ""
+    email-latency-ms: 0
+    sms-latency-ms: 0
+  seed:
+    users: 0          # 0 = no siembra
+    password: ""

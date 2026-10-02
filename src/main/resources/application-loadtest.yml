@@ -1,0 +1,95 @@
+# ============================================
+# PERFIL LOADTEST — prueba de carga
+# ============================================
+# Se monta ENCIMA de prod y SOLO a mano, nunca desde otro yml:
+#
+#   SPRING_PROFILES_ACTIVE=prod,loadtest
+#
+# Todo tercero (Wompi, ZapSign, Random.org, R2, Twilio, SendGrid, reCAPTCHA) queda
+# apuntando a simuladores (WireMock y MinIO) con credenciales falsas "loadtest-...":
+# no son secretos, la base es ficticia y desechable. LoadTestSafetyGuard tumba el
+# arranque si alguna URL es real o alguna credencial no trae el prefijo.
+
+loadtest:
+  stubs:
+    # WireMock: http://wiremock:8080 en local, IP privada del generador en la nube.
+    base-url: ${LOADTEST_STUB_BASE_URL}
+    otp-code: "000000"
+    # Aproximan lo que tarda el proveedor real: la conexión de BD se queda retenida
+    # dentro del @Transactional, como en producción.
+    email-latency-ms: 150
+    sms-latency-ms: 200
+  seed:
+    users: ${LOADTEST_SEED_USERS:0}
+    password: ${LOADTEST_PASSWORD}
+
+# Sin esto Micrometer no publica tomcat_threads_busy/current/config.max, que el árbol de
+# diagnóstico de la prueba necesita. Solo en la prueba: prod y beta no cambian.
+server:
+  tomcat:
+    mbeanregistry:
+      enabled: true
+
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:40}
+
+logging:
+  level:
+    # WARN apaga los INFO que escriben correo o teléfono (ver plan, sección 5).
+    com.verygana2: WARN
+    # El sembrado solo escribe conteos (LoadTestSeederTest#logsOnlyCounts): su avance sí se ve.
+    com.verygana2.loadtest.seed: INFO
+
+wompi:
+  public-key: loadtest-wompi-public
+  private-key: loadtest-wompi-private
+  integrity-secret: loadtest-wompi-integrity
+  events-key: loadtest-wompi-events
+  api-base-url: ${loadtest.stubs.base-url}/wompi/v1
+  payout:
+    api-key: loadtest-wompi-payout-key
+    principal-user-id: loadtest-wompi-payout-principal
+    user-id: loadtest-wompi-payout-user
+    events-key: loadtest-wompi-payout-events
+    account-id: loadtest-wompi-payout-account
+    nequi-bank-id: loadtest-nequi-bank
+    daviplata-bank-id: loadtest-daviplata-bank
+    api-base-url: ${loadtest.stubs.base-url}/wompi-payouts/v1
+
+zapsign:
+  sandbox: true
+  api-token: loadtest-zapsign-token
+  webhook-secret: loadtest-zapsign-secret
+
+randomOrg:
+  api-url: ${loadtest.stubs.base-url}/random/json-rpc/4/invoke
+  api-key: loadtest-random
+
+# Los beans reales se crean, pero LoadTestSmsService y LoadTestEmailService
+# (@Primary) los reemplazan: nadie llama a Twilio ni a SendGrid.
+twilio:
+  account-sid: loadtest-twilio-sid
+  auth-token: loadtest-twilio-token
+  verify-service-sid: loadtest-twilio-verify
+  phone-number: loadtest-twilio-phone
+
+sendgrid:
+  api-key: loadtest-sendgrid
+
+cloudflare:
+  r2:
+    endpoint: ${LOADTEST_S3_ENDPOINT}
+    path-style-access: true       # MinIO no resuelve buckets por subdominio
+    account-id: loadtest-r2-account
+    access-key-id: loadtest-r2-access
+    secret-access-key: loadtest-r2-secret
+    bucket-name: loadtest-campaigns
+    pets-bucket-name: loadtest-pets
+
+recaptcha:
+  secret-key: loadtest-recaptcha
+
+screening:
+  provider: noop

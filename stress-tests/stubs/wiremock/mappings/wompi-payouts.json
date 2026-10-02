@@ -1,0 +1,64 @@
+{
+  "mappings": [
+    {
+      "name": "wompi payouts balance",
+      "request": { "method": "GET", "urlPath": "/wompi-payouts/v1/accounts" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 150,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "status": 200,
+          "code": "OK",
+          "data": [ { "id": "loadtest-wompi-payout-account", "balanceInCents": 1000000000, "status": "ACTIVE" } ]
+        }
+      }
+    },
+    {
+      "name": "wompi payouts bancos",
+      "request": { "method": "GET", "urlPath": "/wompi-payouts/v1/banks" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 150,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": {
+          "status": 200,
+          "code": "OK",
+          "data": [
+            { "id": "loadtest-nequi-bank", "name": "NEQUI" },
+            { "id": "loadtest-daviplata-bank", "name": "DAVIPLATA" },
+            { "id": "loadtest-bancolombia", "name": "BANCOLOMBIA" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wompi payouts crear",
+      "request": { "method": "POST", "urlPath": "/wompi-payouts/v1/payouts" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 250,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "status": 200,
+          "code": "OK",
+          "message": "ok",
+          "data": { "payoutId": "{{randomValue type='UUID'}}", "transactions": 1, "success": 1, "failed": 0 }
+        }
+      }
+    },
+    {
+      "name": "wompi payouts estado",
+      "priority": 2,
+      "request": { "method": "GET", "urlPathPattern": "/wompi-payouts/v1/payouts/[^/]+" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 150,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": { "status": 200, "code": "OK", "data": { "payoutId": "{{request.pathSegments.[3]}}", "status": "TOTAL_PAYMENT" } }
+      }
+    }
+  ]
+}
