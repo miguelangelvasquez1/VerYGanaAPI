@@ -152,15 +152,8 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void loadBaseData(ResourceDatabasePopulator populator) {
-        populator.addScript(new ClassPathResource("db/seed/categories.sql"));
-        populator.addScript(new ClassPathResource("db/seed/system-features.sql"));
-        populator.addScript(new ClassPathResource("db/seed/pricing-config.sql"));
-        populator.addScript(new ClassPathResource("db/seed/legal-documents.sql"));
-        populator.addScript(new ClassPathResource("db/seed/avatars.sql"));
-        populator.addScript(new ClassPathResource("db/seed/departments.sql"));
-        populator.addScript(new ClassPathResource("db/seed/municipalities.sql")); // depende de departamentos
-        populator.addScript(new ClassPathResource("db/seed/productCategories.sql"));
-        populator.addScript(new ClassPathResource("db/seed/pet-catalog-baked.sql"));
+        // La lista vive en ReferenceSeedScripts: la comparte con LoadTestSeeder (prueba de carga).
+        ReferenceSeedScripts.BASE_DATA.forEach(path -> populator.addScript(new ClassPathResource(path)));
     }
 
     private void loadTestEntities(ResourceDatabasePopulator populator) {
@@ -177,38 +170,8 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void loadGames(ResourceDatabasePopulator populator) {
-        populator.addScript(new ClassPathResource("db/seed/games/cali/avoid-the-bomb.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/ball-bounce.sql"));
-        // v2: agrega game_config.initial_lives, que el build lee y la v1 no declaraba.
-        populator.addScript(new ClassPathResource("db/seed/games/cali/ball-bounce-v2.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/balloon-lift.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/catch-it.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/hangman.sql"));
-        // v2: contenido en español y sin el default de palabras en inglés.
-        populator.addScript(new ClassPathResource("db/seed/games/cali/hangman-v2.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/match3.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/memory.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/sudoku.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/tap-to-rotate.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/cali/whack-a-mole.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/dash-runner.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/endless-runner.sql"));
-        // v2: exige keys_per_action >= 1 y key_spawn_probability > 0; con 0 el build descarta la config.
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/endless-runner-v2.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/memory-match.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/mini-flappy.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/simple-crossword.sql"));
-        // v2: el bloque de contenido en español, que ahora lo llena el anunciante.
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/simple-crossword-v2.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/stack-tower.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/tic-tac-toe.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/tile-puzzle.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/trivia-quiz.sql"));
-        // v2: el bloque de contenido en español y las opciones acotadas a 4.
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/trivia-quiz-v2.sql"));
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/word-search.sql"));
-        // v2: el bloque de contenido en español y palabras de máximo 10 letras.
-        populator.addScript(new ClassPathResource("db/seed/games/bogota/word-search-v2.sql"));
+        // La lista vive en ReferenceSeedScripts: la comparte con LoadTestSeeder (prueba de carga).
+        ReferenceSeedScripts.GAMES.forEach(path -> populator.addScript(new ClassPathResource(path)));
     }
 
 
