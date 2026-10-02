@@ -28,4 +28,20 @@ public interface CatalogIntegrationRequestRepository extends JpaRepository<Catal
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT r FROM CatalogIntegrationRequest r WHERE r.resultCatalogItemId = :catalogItemId")
     Optional<CatalogIntegrationRequest> findByResultCatalogItemIdForUpdate(@Param("catalogItemId") Long catalogItemId);
+
+    /**
+     * Lo que queda de las bolsas de mascotas, en centavos: salió de la wallet del
+     * comercial al enviar la solicitud y todavía no se cobró. Es parte de la identidad
+     * del fondo de llaves (ver KeyBackingCalculator).
+     *
+     * Las rechazadas no cuentan porque su bolsa volvió entera a la wallet. Las
+     * anteriores al cobro no tienen bolsa.
+     */
+    @Query("""
+            SELECT COALESCE(SUM(r.budgetCents - r.spentCents), 0)
+            FROM CatalogIntegrationRequest r
+            WHERE r.budgetCents IS NOT NULL
+              AND r.status <> com.verygana2.models.enums.CatalogRequestStatus.REJECTED
+            """)
+    long sumCommittedUnspentBudgetCents();
 }

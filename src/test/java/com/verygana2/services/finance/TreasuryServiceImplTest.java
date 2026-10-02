@@ -370,7 +370,7 @@ class TreasuryServiceImplTest {
                     .thenAnswer(inv -> new KeyBacking(
                             inv.getArgument(0),
                             keyWalletRepository.sumLiveKeyLiabilityCents(),
-                            advertiserBalance, committedAds, committedSurveys, 0L, 0L));
+                            advertiserBalance, committedAds, committedSurveys, 0L, 0L, 0L));
         }
 
         private boolean loggedErrorContaining(String fragment) {
