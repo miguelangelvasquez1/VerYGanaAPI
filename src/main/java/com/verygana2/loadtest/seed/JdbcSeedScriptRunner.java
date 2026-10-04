@@ -48,7 +48,8 @@ public class JdbcSeedScriptRunner implements SeedScriptRunner {
                 ScriptUtils.executeSqlScript(connection, new EncodedResource(new ClassPathResource(path), "UTF-8"));
             }
         } catch (SQLException e) {
-            // El mensaje del driver puede traer fragmentos de datos; solo se propaga la causa.
+            // El mensaje propio solo lleva SQLState y código. La SQLException va como causa, así que su mensaje
+            // sí sale en el stack trace: es aceptable porque los datos sembrados son ficticios (@loadtest.invalid).
             throw new IllegalStateException("Falló el sembrado de la prueba de carga (SQLState "
                     + e.getSQLState() + ", código " + e.getErrorCode() + ")", e);
         }

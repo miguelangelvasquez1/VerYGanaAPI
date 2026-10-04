@@ -4,8 +4,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.boot.logging.DeferredLogFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.core.io.support.SpringFactoriesLoader;
 import org.springframework.mock.env.MockEnvironment;
 
 @DisplayName("LoadTestSafetyGuard - ningún tercero real recibe la prueba de carga")
@@ -33,7 +41,23 @@ class LoadTestSafetyGuardTest {
     }
 
     private static void validate(MockEnvironment env) {
-        new LoadTestSafetyGuard(env).validate();
+        new LoadTestSafetyGuard(guardLogs()).validate(env);
+    }
+
+    private static DeferredLogFactory guardLogs() {
+        return logSupplier -> logSupplier.get();
+    }
+
+    /** Se marca si Spring llegó a crear beans: el guardián tiene que fallar antes. */
+    static final AtomicBoolean BEAN_CREATED = new AtomicBoolean();
+
+    /** Sin @Configuration a propósito: así los escaneos de componentes de otros tests no la recogen. */
+    static class ProbeConfig {
+        @Bean
+        Object probeBean() {
+            BEAN_CREATED.set(true);
+            return new Object();
+        }
     }
 
     @Test
@@ -134,5 +158,39 @@ class LoadTestSafetyGuardTest {
                         .contains("twilio.auth-token")
                         .doesNotContain(SECRET_VALUE)
                         .doesNotContain("super-secreto"));
+    }
+
+    @Test
+    @DisplayName("está registrado como EnvironmentPostProcessor: corre antes de Flyway, los @Scheduled y los clientes")
+    void isRegisteredAsEnvironmentPostProcessor() {
+        var registered = SpringFactoriesLoader.loadFactoryNames(EnvironmentPostProcessor.class, getClass().getClassLoader());
+
+        assertThat(registered).contains(LoadTestSafetyGuard.class.getName());
+    }
+
+    @Test
+    @DisplayName("sin el perfil loadtest no hace nada, aunque la configuración sea insegura")
+    void doesNothingWithoutLoadTestProfile() {
+        MockEnvironment env = new MockEnvironment();
+        env.setActiveProfiles("prod");
+        env.setProperty("wompi.api-base-url", "https://production.wompi.co/v1");
+
+        assertThatCode(() -> new LoadTestSafetyGuard(guardLogs()).postProcessEnvironment(env, new SpringApplication()))
+                .doesNotThrowAnyException();
+    }
+
+    @Test
+    @DisplayName("con loadtest y configuración insegura tumba el arranque antes de crear ningún bean")
+    void failsBeforeAnyBeanIsCreated() {
+        BEAN_CREATED.set(false);
+        SpringApplication app = new SpringApplication(ProbeConfig.class);
+        app.setWebApplicationType(WebApplicationType.NONE);
+        app.setAdditionalProfiles("loadtest");
+
+        assertThatThrownBy(() -> app.run("--wompi.api-base-url=https://production.wompi.co/v1",
+                "--spring.main.banner-mode=off"))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("wompi.api-base-url");
+        assertThat(BEAN_CREATED).as("el guardián corrió después de crear beans").isFalse();
     }
 }

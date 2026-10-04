@@ -10,7 +10,8 @@
 # Reglas (perl, que viene con macOS y con Linux):
 #   correo     cualquier dirección usuario@dominio.tld (también @loadtest.invalid: ningún log debe traerla)
 #   celular    +57 / separadores (3xx xxx xxxx) siempre; 10 dígitos pelados solo si la línea habla de
-#              teléfono, celular o SMS (si no, contadores de bytes de 10 dígitos darían falsos positivos)
+#              teléfono, celular o SMS (si no, contadores de bytes de 10 dígitos darían falsos positivos).
+#              Antes de esta regla se enmascaran los UUID 8-4-4-4-12 (sus segmentos imitan 3dd-ddd-dddd).
 #   cedula     palabra clave (cédula, documento, NIT, CC...) seguida de 7 a 12 dígitos o puntos
 #   cuenta     palabra clave (cuenta, account, IBAN, Nequi, Daviplata) seguida de 8 a 20 dígitos
 #   token      JWT, "Bearer <token largo>" y password/secret/token/api-key con valor de 12+
@@ -77,8 +78,11 @@ perl -e '
       $excepted{"F-GAMES-METRICS-STDOUT"}++;
     }
     my @types;
-    for my $name (sort keys %rules) { push @types, $name if $line =~ $rules{$name}; }
-    push @types, "celular" if $line =~ $kw_phone && $line =~ $bare_phone && !grep { $_ eq "celular" } @types;
+    # Los UUID (ids de correlacion) se enmascaran solo para la regla de celular: sus segmentos de
+    # digitos (p. ej. 313405-4536) imitan el formato 3dd-ddd-dddd. Las demas reglas ven la linea entera.
+    (my $nouuid = $line) =~ s/(?<![0-9A-Fa-f])[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}(?![0-9A-Fa-f])/<uuid>/g;
+    for my $name (sort keys %rules) { push @types, $name if ($name eq "celular" ? $nouuid : $line) =~ $rules{$name}; }
+    push @types, "celular" if $nouuid =~ $kw_phone && $nouuid =~ $bare_phone && !grep { $_ eq "celular" } @types;
     for my $t (@types) { printf "%s:%d: %s\n", ($ARGV eq "-" ? "<stdin>" : $ARGV), $., $t; $found++; }
     close ARGV if eof;
   }

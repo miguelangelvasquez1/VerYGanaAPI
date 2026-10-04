@@ -9,7 +9,7 @@ import lombok.Data;
 /**
  * Parámetros del modo prueba de carga. Sin {@code @Validated}: el escaneo de
  * {@code ProfileConfigurationTest} enlazaría la clase en dev y prod. La validación la
- * hace {@link LoadTestSafetyGuard}, que solo existe en {@code loadtest}.
+ * hace {@link LoadTestSafetyGuard}, que solo actúa con el perfil {@code loadtest}.
  */
 @Data
 @Component

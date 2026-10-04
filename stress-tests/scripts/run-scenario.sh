@@ -3,6 +3,9 @@
 # stress-tests/results/<fecha>-<escenario>-<plan>/. Equivale a los pasos 6 de GUIDE-local.md.
 #
 # Uso: PLAN=do-1vcpu-1gb run-scenario.sh <smoke|A|B>
+#   El perfil de escenario (local/scenarios/A.env o B.env: API, pool, Tomcat, k6, wiremock, minio) se elige
+#   con el mismo argumento (smoke usa A). Los límites del `api` se fijan al crear el contenedor: si se
+#   levantó con otro escenario, el script avisa y hay que recrearlo con `LT_SCENARIO=<A|B> lt.sh up -d`.
 #   Variables opcionales: DURATION_SCALE (acorta las etapas, solo para ensayar), K6_EXTRA (args de k6),
 #   STATS_INTERVAL (s, 5), API_INTERVAL (s, 15). Requiere el ambiente arriba y sembrado (guía, pasos 4-5).
 #
@@ -16,6 +19,9 @@ source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
 SCENARIO="${1:?uso: run-scenario.sh <smoke|A|B>}"
 case "${SCENARIO}" in smoke|A|B) ;; *) echo "escenario inválido: ${SCENARIO} (smoke, A o B)" >&2; exit 2 ;; esac
+# Perfil de escenario: lo lee lt.sh (smoke usa el de A).
+LT_SCENARIO="${SCENARIO}"; [ "${LT_SCENARIO}" = "smoke" ] && LT_SCENARIO=A
+export LT_SCENARIO
 STATS_INTERVAL="${STATS_INTERVAL:-5}"
 API_INTERVAL="${API_INTERVAL:-15}"
 STAMP="$(date +%Y%m%d-%H%M)"
@@ -30,6 +36,35 @@ health="$(api_get /actuator/health || true)"
 case "${health}" in *UP*) ;; *) echo "la API no responde UP: levantar el ambiente (guía, paso 4)" >&2; exit 3 ;; esac
 
 cp "${STRESS_DIR}/local/plans/${PLAN}.env" "${OUT}/plan.env"
+cp "${STRESS_DIR}/local/scenarios/${LT_SCENARIO}.env" "${OUT}/scenario.env"
+# Valores EFECTIVOS: lo que compose resuelve (plan + escenario + variables exportadas en el shell) y lo que
+# tienen de verdad los contenedores en marcha. Es lo que se midió; plan.env y scenario.env son solo los archivos.
+lt --profile tools config --format json 2>/dev/null | python3 -c '
+import json, sys
+cfg = json.load(sys.stdin)
+for name in ("mysql", "api", "k6", "wiremock", "minio"):
+    s = cfg["services"].get(name, {})
+    env = s.get("environment", {})
+    extra = ""
+    if name == "api":
+        extra = " DB_POOL_SIZE=%s SERVER_TOMCAT_THREADS_MAX=%s" % (env.get("DB_POOL_SIZE"), env.get("SERVER_TOMCAT_THREADS_MAX"))
+    if name == "mysql":
+        extra = " " + " ".join(s.get("command", []))
+    print("%s cpus=%s mem_limit=%s%s" % (name, s.get("cpus"), s.get("mem_limit"), extra))
+' > "${OUT}/effective-config.txt" 2>/dev/null || log "aviso: no se pudo resolver la configuración efectiva"
+{
+  echo "PLAN=${PLAN} LT_SCENARIO=${LT_SCENARIO}"
+  for c in mysql api wiremock minio; do
+    id="$(lt ps -q "${c}" 2>/dev/null | head -n1)"
+    [ -n "${id}" ] && echo "${c} (en marcha) $(docker inspect -f '{{.HostConfig.NanoCpus}} {{.HostConfig.Memory}}' "${id}" 2>/dev/null | awk '{printf "cpus=%g mem_limit=%s", $1/1000000000, $2}')"
+  done
+} > "${OUT}/running-limits.txt"
+# El `api` en marcha tiene que coincidir con el escenario pedido (si no, la corrida mide otra cosa).
+want_api="$(grep '^api ' "${OUT}/effective-config.txt" | sed -E 's/.*cpus=([0-9.]+).*/\1/')"
+have_api="$(grep '^api (en marcha)' "${OUT}/running-limits.txt" | sed -E 's/.*cpus=([0-9.]+).*/\1/')"
+if [ -n "${want_api}" ] && [ "$(echo "${want_api}" | awk '{print $1+0}')" != "$(echo "${have_api}" | awk '{print $1+0}')" ]; then
+  log "AVISO: el api en marcha tiene ${have_api} CPU y el escenario ${LT_SCENARIO} pide ${want_api}: recrearlo con LT_SCENARIO=${LT_SCENARIO} lt.sh up -d"
+fi
 START_ISO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "${START_ISO}" > "${OUT}/start-utc.txt"
 

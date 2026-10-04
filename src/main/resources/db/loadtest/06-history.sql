@@ -232,12 +232,13 @@ FROM cons c
 JOIN seq q
 JOIN adr a ON a.rn = MOD(c.n + q.s * 11, @lt_ads);
 
--- Refresh tokens ya revocados (sesiones viejas): jti único determinista, así que INSERT IGNORE basta
-INSERT IGNORE INTO refresh_tokens (created_at, expires_at, jti, last_used_at, revoked, token, username)
+-- Refresh tokens ya revocados (sesiones viejas): la base guarda la huella SHA-256, no el token.
+-- jti único determinista, así que INSERT IGNORE basta
+INSERT IGNORE INTO refresh_tokens (created_at, expires_at, jti, last_used_at, revoked, token_hash, username)
 WITH RECURSIVE seq (s) AS (SELECT 0 UNION ALL SELECT s + 1 FROM seq WHERE s < @lt_m_refresh_tokens - 1)
 SELECT TIMESTAMPADD(DAY, -(1 + q.s), NOW()), TIMESTAMPADD(DAY, 6 - q.s, NOW()),
        CONCAT('lt-jti-', u.id, '-', q.s), TIMESTAMPADD(DAY, -(1 + q.s), NOW()), 1,
-       CONCAT('loadtest-token-', u.id, '-', q.s), u.email
+       SHA2(CONCAT('loadtest-token-', u.id, '-', q.s), 256), u.email
 FROM users u
 JOIN seq q
 WHERE u.role = 'CONSUMER' AND u.email LIKE 'lt-consumer-%@loadtest.invalid';

@@ -5,14 +5,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.context.annotation.Profile;
-import org.springframework.core.annotation.Order;
+import org.apache.commons.logging.Log;
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.env.EnvironmentPostProcessor;
+import org.springframework.boot.logging.DeferredLogFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Component;
-
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Tumba el arranque si el modo prueba de carga podría tocar un tercero real:
@@ -21,12 +20,15 @@ import lombok.extern.slf4j.Slf4j;
  * exportadas por error: el binding relajado de Spring las pondría por encima del yml).
  *
  * <p>Los mensajes nombran la clave, nunca su valor.
+ *
+ * <p>Es un {@link EnvironmentPostProcessor} (registrado en {@code META-INF/spring.factories}):
+ * corre con el entorno ya cargado pero antes de crear el contexto, así que Flyway, los
+ * {@code @Scheduled} y los clientes salientes (R2, Wompi, ZapSign) no llegan a arrancar con una
+ * configuración insegura. Solo actúa con el perfil {@code loadtest}; en dev, prod y beta no hace nada.
  */
-@Slf4j
-@Component
-@Profile("loadtest")
-@Order(0)
-public class LoadTestSafetyGuard implements ApplicationRunner {
+public class LoadTestSafetyGuard implements EnvironmentPostProcessor, Ordered {
+
+    static final String PROFILE = "loadtest";
 
     static final String CREDENTIAL_PREFIX = "loadtest-";
 
@@ -57,19 +59,28 @@ public class LoadTestSafetyGuard implements ApplicationRunner {
             "cloudflare.r2.access-key-id", "cloudflare.r2.secret-access-key",
             "recaptcha.secret-key");
 
-    private final Environment environment;
+    private final Log log;
 
-    public LoadTestSafetyGuard(Environment environment) {
-        this.environment = environment;
+    public LoadTestSafetyGuard(DeferredLogFactory logFactory) {
+        this.log = logFactory.getLog(LoadTestSafetyGuard.class);
+    }
+
+    /** Después de la carga de los archivos de configuración (application*.yml) y de las variables. */
+    @Override
+    public int getOrder() {
+        return Ordered.LOWEST_PRECEDENCE;
     }
 
     @Override
-    public void run(ApplicationArguments args) {
-        validate();
+    public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+        if (!Arrays.asList(environment.getActiveProfiles()).contains(PROFILE)) {
+            return;
+        }
+        validate(environment);
         log.warn("Modo prueba de carga activo: terceros simulados, credenciales y URLs verificadas");
     }
 
-    void validate() {
+    void validate(Environment environment) {
         List<String> problems = new ArrayList<>();
 
         List<String> active = Arrays.asList(environment.getActiveProfiles());

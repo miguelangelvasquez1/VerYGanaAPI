@@ -9,7 +9,8 @@ Todos los comandos se corren desde la **raíz del repositorio**. El atajo `stres
 `docker compose` del proyecto con el archivo de plan elegido en `PLAN` (funciona en bash y en zsh):
 
 ```bash
-export PLAN=do-1vcpu-1gb          # elige el archivo de local/plans/ (paso 2)
+export PLAN=do-1vcpu-1gb          # elige el archivo de local/plans/ (paso 2): límites y parámetros de MySQL
+export LT_SCENARIO=A              # elige local/scenarios/<A|B>.env: límites de API, k6, pool y Tomcat (paso 2)
 LT=stress-tests/scripts/lt.sh     # LT <args de docker compose>
 ```
 
@@ -39,8 +40,23 @@ El archivo es ficticio y desechable (git lo ignora). No hay que editarlo salvo `
 
 ## 2. Elegir el archivo de plan, la regla de llaves primarias y el trust
 
-Archivos en `stress-tests/local/plans/` (cada uno trae el límite del contenedor `mysql`, buffer pool,
-`max_connections` y el reparto del resto del Mac; la fuente y fecha de esos valores van en su cabecera):
+Hay **dos ejes** y los dos se cargan en cada `lt.sh`/`run-scenario.sh` (el escenario después del plan, así que manda):
+
+- `PLAN` = `stress-tests/local/plans/<plan>.env`: contenedor `mysql` (CPU, memoria, buffer pool, `max_connections`, llaves
+  primarias, trust). La fuente y fecha de esos valores van en su cabecera.
+- `LT_SCENARIO` = `stress-tests/local/scenarios/<A|B>.env`: reparto del resto del Mac. `run-scenario.sh <smoke|A|B>` lo
+  fija solo con su argumento (smoke usa A); para `up`, `config` y el sembrado exporta `LT_SCENARIO` tú.
+
+| `LT_SCENARIO` | API | Pool / Tomcat | k6 | wiremock + minio |
+|---------------|-----|---------------|----|------------------|
+| `A` | 2 CPU / 4 GB | 10 / 200 | 1 CPU / 1 GB | 0,5 + 0,5 CPU |
+| `B` (límites reales de L-B2 y L-B3) | 3 CPU / 4 GB | 150 / 400 | 3 CPU / 3 GiB | 0,5 + 0,5 CPU |
+
+Con B y k6 en 1 GB el kernel mata a k6 a los 2 minutos (corrida `...-FALLIDA-k6-OOM-1g`): no bajes de 3 GiB. Los límites del
+`api` se fijan **al crear** el contenedor: cambia de escenario con `LT_SCENARIO=B $LT up -d` antes de correr. Comprobación
+sin levantar nada: `LT_SCENARIO=B $LT --profile tools config | grep -E 'cpus|mem_limit|DB_POOL_SIZE|TOMCAT'`.
+
+Archivos de plan:
 
 | `PLAN` | Plan de DigitalOcean equivalente | Se evalúa en |
 |--------|----------------------------------|--------------|
@@ -53,7 +69,7 @@ Archivos en `stress-tests/local/plans/` (cada uno trae el límite del contenedor
   `MYSQL_REQUIRE_PK=OFF` (así vienen los archivos). Si **existe**, pon `MYSQL_REQUIRE_PK=ON` en el archivo
   de plan o expórtalo (`export MYSQL_REQUIRE_PK=ON`): una variable del shell pisa la del archivo.
 - **Trust de los triggers de V9.** Los archivos traen `MYSQL_TRUST_FUNCTION_CREATORS=ON` porque V9 falla con `OFF`
-  (error 1419). En DigitalOcean real no es configurable y está pendiente de resolver; no lo cambies sin saberlo.
+  (error 1419). En DigitalOcean real no es configurable y se resuelve en la nube con D6 (V9 se prueba en un cluster real de DO; si falla, RDS con `log_bin_trust_function_creators=1`); no lo cambies sin saberlo.
 - Anota el archivo elegido y la variante de llaves primarias: van al informe.
 
 ## 3. Verificar las migraciones
@@ -66,7 +82,7 @@ stress-tests/scripts/run-sql.sh check-schema.sql          # variables de MySQL y
 Con la base vacía el script muestra `sql_require_primary_key`, `log_bin`, `gtid_mode` y
 `log_bin_trust_function_creators` con los valores del plan. La verificación real (variante 4 de 3.2.1) es el paso 4:
 la **API** migra sola sobre la base vacía. Cuando termine, `check-schema.sql` debe mostrar `trigger_count = 4` y
-`SELECT COUNT(*) FROM flyway_schema_history` las migraciones de la rama (V1 a V12 hoy):
+`SELECT COUNT(*) FROM flyway_schema_history` las migraciones de la rama (V1 a V12 y `V202610021500__refresh_token_hash` hoy: 13 filas):
 
 ```bash
 stress-tests/scripts/run-sql.sh check-schema.sql | grep -A3 trigger_count
@@ -96,7 +112,7 @@ stress-tests/scripts/run-sql.sh check-seed.sql | head -20      # 940 / 50 / 5 / 
 plan a evaluar **sobre el mismo volumen** (paso 8):
 
 ```bash
-export PLAN=do-4vcpu-8gb
+export PLAN=do-4vcpu-8gb LT_SCENARIO=B
 sed -i.bak 's/^LOADTEST_SEED_USERS=.*/LOADTEST_SEED_USERS=10000/' stress-tests/env/loadtest.local.env && rm stress-tests/env/loadtest.local.env.bak
 $LT up -d --build      # si A ya estaba sembrada, la API solo agrega consumidores 941+ y comerciales 51+
 stress-tests/scripts/run-sql.sh check-seed.sql | head -20      # 9.490 / 500 / 5 / 3 / 2 (~4 min)
@@ -133,7 +149,8 @@ Un solo comando hace todo el paso (con la API arriba y sembrada):
 ```bash
 caffeinate -dimsu &                      # o en otra terminal
 PLAN=do-1vcpu-1gb stress-tests/scripts/run-scenario.sh A      # ~27 min + preparación
-# B: PLAN=do-2vcpu-4gb stress-tests/scripts/run-scenario.sh B  # ~47 min
+# B (recrea antes el api con los límites de B): LT_SCENARIO=B PLAN=do-2vcpu-4gb stress-tests/scripts/lt.sh up -d
+#    PLAN=do-2vcpu-4gb stress-tests/scripts/run-scenario.sh B                   # ~47 min
 # Ensayo corto: DURATION_SCALE=0.12 PLAN=... stress-tests/scripts/run-scenario.sh A   (~3,5 min)
 ```
 
@@ -159,7 +176,8 @@ Deja todo en `stress-tests/results/<fecha>-<escenario>-<plan>/` (se ignora por g
 | `check-seed-before.txt`, `check-seed-after.txt` | Conteos antes y después (la deriva entre corridas) | `check-seed.sql` |
 | `api.log` | Log de la API durante la corrida | `lt logs --since` |
 | `check-pii.txt`, `check-pii-exit-code.txt` | Verificación de datos personales y secretos sobre toda la carpeta | `check-pii.sh` |
-| `plan.env`, `start-utc.txt`, `k6-exit-code.txt` | Plan usado, inicio y código de k6 | `run-scenario.sh` |
+| `effective-config.txt`, `running-limits.txt` | Valores **efectivos**: lo que compose resuelve (plan + escenario + variables del shell: CPU, memoria, pool, Tomcat, parámetros de MySQL) y los límites de los contenedores en marcha; avisa si el `api` no coincide con el escenario | `run-scenario.sh` |
+| `plan.env`, `scenario.env`, `start-utc.txt`, `k6-exit-code.txt` | Los archivos de plan y de escenario tal cual (pueden estar pisados por variables del shell: manda `effective-config.txt`), inicio y código de k6 | `run-scenario.sh` |
 
 Qué mide cada script de `stress-tests/scripts/` por separado (se pueden correr a mano con el mismo nombre):
 
@@ -198,7 +216,7 @@ igual a `plateau-stats.sh`. Fuentes locales:
 | 4. ¿Cumple los umbrales? p95 < 1 s, error < 1 %, CPU BD < 75 %, sin agotar conexiones | `plateau-stats.sh` y el resumen de k6 |
 
 Si el cuello es la API (1) se anota y se deja para la nube (R3); si el pool (2), sube `DB_POOL_SIZE` en el archivo de
-plan dentro del límite (`0,8 × max_connections`) y repite; si el plan de BD (3), pasa al siguiente (paso 8).
+escenario (`local/scenarios/`) dentro del límite (`0,8 × max_connections`) y repite; si el plan de BD (3), pasa al siguiente (paso 8).
 
 **Una corrida queda "sesgada"** (se marca en el informe, no se descarta) si se cumple **cualquiera**:
 
@@ -217,7 +235,7 @@ a la nube.
 El volumen de MySQL (`verygana-loadtest_mysql-data`) se conserva; solo cambia el contenedor:
 
 ```bash
-export PLAN=do-2vcpu-4gb          # el siguiente de la escalera
+export PLAN=do-2vcpu-4gb          # el siguiente de la escalera (LT_SCENARIO se mantiene)
 $LT up -d                         # recrea mysql y api (cambian sus límites, buffer pool y pool de conexiones)
 until $LT exec -T tools curl -sf http://api:8080/actuator/health | grep -q UP; do sleep 5; done
 stress-tests/scripts/run-sql.sh check-seed.sql | head -20     # los mismos conteos: no se resembró

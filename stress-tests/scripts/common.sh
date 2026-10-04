@@ -7,6 +7,7 @@
 #
 # Variables (con valores de la fase local por defecto; en la nube se pasan por ambiente):
 #   PLAN                 archivo de plan en local/plans/ (solo local), por defecto do-1vcpu-1gb
+#   LT_SCENARIO          perfil de escenario en local/scenarios/ (A o B; por defecto A): límites de API, k6, pool y Tomcat
 #   METRICS_SCRAPE_TOKEN token de /actuator/prometheus (el de env/loadtest.local.env en local)
 #   API_URL              URL base de la API, por defecto http://api:8080 (en direct es obligatoria)
 #   DB_HOST DB_PORT DB_NAME DB_CA   destino de la base en modo direct (DB_CA = CA de DO, VERIFY_CA)
@@ -33,7 +34,7 @@ METRICS_SCRAPE_TOKEN="${METRICS_SCRAPE_TOKEN:-}"
 
 # docker compose del proyecto de la prueba (el $LT de la documentación; ver lt.sh).
 lt() {
-  PLAN="${PLAN}" "${STRESS_DIR}/scripts/lt.sh" "$@"
+  PLAN="${PLAN}" LT_SCENARIO="${LT_SCENARIO:-A}" "${STRESS_DIR}/scripts/lt.sh" "$@"
 }
 
 # GET a la API con el token de scrapeo. Uso: api_get /actuator/prometheus

@@ -202,6 +202,17 @@ class LoadTestSeedScriptsTest {
     }
 
     @Test
+    @DisplayName("los refresh tokens se siembran como huella SHA-256 (token_hash), nunca con la columna token")
+    void refreshTokensAreSeededAsHash() throws IOException {
+        String refreshTokens = insertsByTable().get("refresh_tokens");
+
+        assertThat(refreshTokens).isNotNull()
+                .containsPattern("(?i)SHA2\\([^;]*,\\s*256\\)")
+                .containsPattern("(?i)\\btoken_hash\\b")
+                .doesNotContainPattern("(?i)[,(\\s]token\\s*[,)]");
+    }
+
+    @Test
     @DisplayName("hay historias de impacto PUBLISHED, globales, sin columnas de dinero decimal")
     void impactStoriesAreSeededAsPublished() throws IOException {
         String stories = insertsByTable().get("impact_stories");
