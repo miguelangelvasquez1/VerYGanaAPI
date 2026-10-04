@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -28,6 +29,7 @@ import com.verygana2.exceptions.authExceptions.TokenBlacklistedException;
 import com.verygana2.security.CustomUserDetails;
 import com.verygana2.security.CustomUserDetailsService;
 import com.verygana2.security.auth.refreshToken.RefreshToken;
+import com.verygana2.security.auth.refreshToken.RefreshTokenHasher;
 import com.verygana2.security.auth.refreshToken.RefreshTokenRepository;
 import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 
@@ -203,7 +205,7 @@ public class TokenService {
         storeRefreshToken(username, newRefreshToken);
 
         // Marcar como usado y blacklist token anterior
-        refreshTokenRepository.findByToken(oldRefreshToken).ifPresent(rt -> {
+        findStoredToken(oldRefreshToken).ifPresent(rt -> {
             rt.setLastUsedAt(now);
             rt.setRevoked(true);
             refreshTokenRepository.save(rt);
@@ -233,7 +235,7 @@ public class TokenService {
             // No hay contexto HTTP (tests, async, etc.)
         }
 
-        RefreshToken refreshToken = new RefreshToken(username, token, jti, expiryDate, ipAddress, userAgent);
+        RefreshToken refreshToken = new RefreshToken(username, RefreshTokenHasher.hash(token), jti, expiryDate, ipAddress, userAgent);
 
         return refreshTokenRepository.save(refreshToken);
     }
@@ -290,13 +292,18 @@ public class TokenService {
         );
     }
 
+    /** Única vía para buscar un refresh token: por la huella del valor presentado. */
+    private Optional<RefreshToken> findStoredToken(String rawToken) {
+        return refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(rawToken));
+    }
+
     private boolean isRefreshTokenValid(String token) {
-        return refreshTokenRepository.findByToken(token)
+        return findStoredToken(token)
                 .filter(rt -> !rt.getRevoked() && rt.getExpiresAt().isAfter(Instant.now())).isPresent();
     }
 
     public void revokeRefreshToken(String token) {
-        refreshTokenRepository.findByToken(token).ifPresent(rt -> {
+        findStoredToken(token).ifPresent(rt -> {
             rt.setRevoked(true);
             refreshTokenRepository.save(rt);
         });

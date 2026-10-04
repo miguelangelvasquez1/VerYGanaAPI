@@ -1,5 +1,8 @@
 package com.verygana2.security.auth;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -31,6 +34,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.models.Category;
+import com.verygana2.models.enums.DocumentType;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 import com.verygana2.security.recaptcha.RecaptchaService;
 import com.verygana2.services.interfaces.PasswordSetupService;
@@ -42,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -283,6 +290,42 @@ class AuthControllerRecaptchaTest {
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
         }
 
+        /** Cuerpo de registro de consumidor válido en todo salvo, a lo sumo, el token. */
+        private String consumerJson(String recaptchaToken) throws Exception {
+            Category category = new Category();
+            category.setId(1L);
+            category.setName("Deportes");
+            ConsumerRegisterDTO dto = new ConsumerRegisterDTO();
+            dto.setName("Ana");
+            dto.setLastName("Prueba");
+            dto.setEmail("ana@loadtest.invalid");
+            dto.setPhoneNumber("3000000000");
+            dto.setPassword("secreta1");
+            dto.setCategories(List.of(category));
+            dto.setUserName("ana.prueba");
+            dto.setAvatarId(1L);
+            dto.setBirthDate(LocalDate.of(1990, 1, 1));
+            dto.setGender(Gender.OTHER);
+            dto.setAgeDeclaration(true);
+            dto.setTermsAccepted(true);
+            dto.setTermsVersion("1.0");
+            dto.setDocumentType(DocumentType.CC);
+            dto.setDocumentNumber("1000000000");
+            dto.setIsPEP(false);
+            dto.setRecaptchaToken(recaptchaToken);
+            return Jackson2ObjectMapperBuilder.json().build().writeValueAsString(dto);
+        }
+
+        /** Cuerpo de registro de comercial válido en todo salvo, a lo sumo, el token. */
+        private String commercialJson(String recaptchaToken) throws Exception {
+            CommercialRegisterDTO dto = new CommercialRegisterDTO();
+            dto.setEmail("tienda@loadtest.invalid");
+            dto.setPassword("secreta1");
+            dto.setPhoneNumber("3000000001");
+            dto.setRecaptchaToken(recaptchaToken);
+            return Jackson2ObjectMapperBuilder.json().build().writeValueAsString(dto);
+        }
+
         @Test
         @DisplayName("un token vacío sigue devolviendo 400 por @NotBlank y no llega al service")
         void blankTokenIsStillRejectedWith400() throws Exception {
@@ -295,13 +338,27 @@ class AuthControllerRecaptchaTest {
             verify(authManager, never()).authenticate(any());
             verify(accountLockService, never()).isLocked(anyString());
 
+            // Control: el mismo cuerpo válido con el token de relleno sí pasa (201). Así el 400 de abajo
+            // solo puede venir del token vacío y no de otro @NotBlank del DTO.
             mockMvc.perform(post("/auth/register/consumer")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"recaptchaToken\":\"\"}"))
+                            .content(consumerJson(PLACEHOLDER)))
+                    .andExpect(status().isCreated());
+            mockMvc.perform(post("/auth/register/commercial")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(commercialJson(PLACEHOLDER)))
+                    .andExpect(status().isCreated());
+            verify(userService).registerConsumer(any());
+            verify(userService).registerCommercial(any());
+            clearInvocations(userService);
+
+            mockMvc.perform(post("/auth/register/consumer")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(consumerJson("")))
                     .andExpect(status().isBadRequest());
             mockMvc.perform(post("/auth/register/commercial")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"recaptchaToken\":\"\"}"))
+                            .content(commercialJson("")))
                     .andExpect(status().isBadRequest());
 
             verify(userService, never()).registerConsumer(any());
