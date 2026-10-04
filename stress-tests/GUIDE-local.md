@@ -65,9 +65,12 @@ Archivos de plan:
 | `do-2vcpu-4gb` | 2 vCPU / 4 GB | A, B |
 | `do-4vcpu-8gb` | 4 vCPU / 8 GB | A; y como plan **holgado** para sembrar B |
 
-- **Regla de llaves primarias.** `ls src/main/resources/db/migration/ | grep '^V13__' || echo "no hay V13"`. Si **no existe**, deja
-  `MYSQL_REQUIRE_PK=OFF` (así vienen los archivos). Si **existe**, pon `MYSQL_REQUIRE_PK=ON` en el archivo
-  de plan o expórtalo (`export MYSQL_REQUIRE_PK=ON`): una variable del shell pisa la del archivo.
+- **Regla de llaves primarias.** Para crear el esquema desde una base vacía, `sql_require_primary_key` va **siempre apagado**
+  (`MYSQL_REQUIRE_PK=OFF`, como vienen los archivos de plan): V1 crea 8 tablas sin llave y falla con el error 3750 si el
+  requisito está encendido. Se enciende **después de migrar**, y solo se puede si la rama trae la migración que les agrega la
+  llave: `ls src/main/resources/db/migration/ | grep '^V202610041435__' || echo "no hay llaves primarias"`. Si aparece, tras migrar
+  puedes poner `MYSQL_REQUIRE_PK=ON` en el archivo de plan o exportarlo (`export MYSQL_REQUIRE_PK=ON`; una variable del shell pisa
+  la del archivo) y recrear el contenedor `mysql`; si no aparece, el requisito sigue apagado en toda la prueba.
 - **Trust de los triggers de V9.** Los archivos traen `MYSQL_TRUST_FUNCTION_CREATORS=ON` porque V9 falla con `OFF`
   (error 1419). En DigitalOcean real no es configurable y se resuelve en la nube con D6 (V9 se prueba en un cluster real de DO; si falla, RDS con `log_bin_trust_function_creators=1`); no lo cambies sin saberlo.
 - Anota el archivo elegido y la variante de llaves primarias: van al informe.
@@ -82,7 +85,7 @@ stress-tests/scripts/run-sql.sh check-schema.sql          # variables de MySQL y
 Con la base vacía el script muestra `sql_require_primary_key`, `log_bin`, `gtid_mode` y
 `log_bin_trust_function_creators` con los valores del plan. La verificación real (variante 4 de 3.2.1) es el paso 4:
 la **API** migra sola sobre la base vacía. Cuando termine, `check-schema.sql` debe mostrar `trigger_count = 4` y
-`SELECT COUNT(*) FROM flyway_schema_history` las migraciones de la rama (V1 a V12 y `V202610021500__refresh_token_hash` hoy: 13 filas):
+`SELECT COUNT(*) FROM flyway_schema_history` las migraciones de la rama (V1 a V12, `V202610021500__refresh_token_hash` y `V202610041435__primary_keys_join_tables` hoy: 14 filas):
 
 ```bash
 stress-tests/scripts/run-sql.sh check-schema.sql | grep -A3 trigger_count

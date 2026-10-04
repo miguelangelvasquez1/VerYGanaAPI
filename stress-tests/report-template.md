@@ -173,7 +173,7 @@ se arregla en su propia spec.
 | 3 | OFF | ON | … | — |
 | 4 · la API arranca sobre base vacía y migra sola | … | … | … | … |
 
-- ¿Existe `V13` en la rama medida? … → variante de llaves primarias usada en las corridas: …
+- ¿La rama medida trae `V202610041435__primary_keys_join_tables.sql`? … → `sql_require_primary_key` al crear el esquema (siempre OFF) y después de migrar: …
 - ¿Se siguió con `MYSQL_TRUST_FUNCTION_CREATORS=ON`? … → **la decisión sobre los triggers se escala con este dato**: …
 - Triggers del esquema (`check-schema.sql`): … (esperado 4).
 
@@ -350,7 +350,7 @@ Archivo de prueba positivo (`testdata/pii-positive.txt`) sigue fallando: sí / n
 | API en B | EC2 c7g.2xlarge, Tomcat 400, `-Xmx` al 70 %, pool … |
 | Generador | EC2 m7g.xlarge con k6, WireMock y MinIO; CPU de k6 < 70 %: … |
 | DO Managed MySQL | versión …, plan por corrida (3.5), nodos … |
-| Variante de llaves primarias | `V13` presente: sí / no → `sql_require_primary_key` = … (¿coincide con la fase local?) |
+| Variante de llaves primarias | `V202610041435` presente: sí / no → `sql_require_primary_key` tras migrar = … (¿coincide con la fase local?) |
 | Duración de las corridas y fecha | … |
 
 ### 3.2 Cluster real y diferencias con los supuestos locales
