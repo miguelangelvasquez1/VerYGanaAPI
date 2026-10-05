@@ -254,12 +254,17 @@ function plans(session, me) {
     ? call('POST /plans/recharge/request', { session, body: { amountCents: rechargeCents }, ok: [200, 201], json: true, reject: REJ_ILLEGAL_STATE })
     : { body: null };
   const rid = recharge.body && (recharge.body.contractId || recharge.body.id);
+  // Recarga en curso (204 si no hay ninguna): lectura pura.
+  call('GET /plans/recharge/current', { session, ok: [200, 204], reject: REJ });
   if (rid) {
     call('GET /plans/recharge/{contractId}', { session, path: { contractId: rid }, reject: REJ });
+    // Antes del checkout la recarga aún no tiene inversión: la conciliación no llega a Wompi ni acredita saldo.
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: rid }, reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
   } else if (SMOKE) {
     call('GET /plans/recharge/{contractId}', { session, path: { contractId: 1 }, reject: REJ });
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: 1 }, reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: 1 }, reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: 1 }, reject: REJ });
   }
