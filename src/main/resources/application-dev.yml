@@ -64,6 +64,7 @@ cloudflare:
     endpoint: ${R2_ENDPOINT:}
     pets-bucket-name: ${R2_PETS_BUCKET_NAME:verygana-pets}
     pets-cdn-domain: ${R2_PETS_CDN_DOMAIN:}
+    path-style-access: false # true solo en loadtest (MinIO); R2 usa virtual-hosted
 
 # Configuración de limpieza de huérfanos
 cleanup:
@@ -500,4 +501,17 @@ budget:
     # Barrido periódico de wallets financiados (ACTIVE / EXHAUSTED). Cron de 6 campos, zona UTC.
     alert-cron: "0 0 * * * *"
 
-
+# ============================================
+# PRUEBA DE CARGA — valores neutros
+# ============================================
+# Solo los lee código con @Profile("loadtest"). El perfil loadtest se monta a mano
+# sobre prod (SPRING_PROFILES_ACTIVE=prod,loadtest) y nunca desde un yml desplegable.
+loadtest:
+  stubs:
+    base-url: ""
+    otp-code: ""
+    email-latency-ms: 0
+    sms-latency-ms: 0
+  seed:
+    users: 0          # 0 = no siembra
+    password: ""

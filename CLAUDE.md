@@ -58,7 +58,7 @@ para dejarlos en sandbox.
 
 ## Base de datos
 
-- El esquema lo maneja Flyway (`src/main/resources/db/migration/`, `V<n>__*.sql`).
+- El esquema lo maneja Flyway (`src/main/resources/db/migration/`, `V<n>__*.sql` las históricas, `V<AAAAMMDDHHmm>__*.sql` las nuevas).
   Hibernate solo valida (`ddl-auto: validate`): una entidad con una columna que
   no tiene migración tumba el arranque. Todo cambio de entidad trae su migración.
 - `V1__baseline.sql` es el dump del esquema; con `baseline-on-migrate` una base
@@ -67,8 +67,17 @@ para dejarlos en sandbox.
   ser idempotentes (MySQL no tiene `ADD COLUMN IF NOT EXISTS`; ver el patrón con
   `information_schema` en V10).
 - Nunca editar ni renumerar una migración ya aplicada: `validate-on-migrate`
-  compara checksums y la app no arranca. Si dos ramas crean el mismo número, la
-  que llega después toma el siguiente libre.
+  compara checksums y la app no arranca.
+- Las migraciones nuevas se nombran `V<AAAAMMDDHHmm>__descripcion.sql` (fecha y
+  hora de creación), no con `V<n>` correlativo: así dos ramas no chocan por el
+  mismo número. V1–V12 no se renombran; desde la primera migración con fecha
+  (`V202610021500`) no se crean más `V<n>` correlativas, porque una `V13` quedaría
+  "en el pasado" y Flyway (`out-of-order: false`) tumbaría el arranque. Un test
+  (`MigrationVersioningTest`) falla si aparece una `V<n>` mayor que 12.
+- Si al hacer merge ya existe en la rama destino una migración con fecha posterior
+  a la tuya, renombra la tuya con la fecha y hora actuales antes del merge: con
+  `out-of-order: false`, Flyway no arranca si una versión anterior aparece después
+  de otra ya aplicada.
 - Seeds: `DataSeeder` (`@Profile("dev")`) ejecuta los `.sql` de `db/seed/`.
   Otros initializers en `config/` cargan datos propios (p. ej. el cuestionario
   diagnóstico desde JSON).

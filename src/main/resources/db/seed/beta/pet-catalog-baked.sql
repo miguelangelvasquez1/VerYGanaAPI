@@ -197,6 +197,12 @@ INSERT INTO pet_catalog_items (external_id, name, description, price, active)
 SELECT NULL, 'viking', 'Ropa (horneada en el build)', 50, false
 FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM pet_catalog_items p WHERE LOWER(p.name) = LOWER('viking'));
 
+-- Estaba en la tienda (GameInstance.petClothesData de Home.unity) y faltaba acá:
+-- sin la fila, el precio de esta prenda lo ponía el cliente.
+INSERT INTO pet_catalog_items (external_id, name, description, price, active)
+SELECT NULL, 'wizard', 'Ropa (horneada en el build)', 50, false
+FROM DUAL WHERE NOT EXISTS (SELECT 1 FROM pet_catalog_items p WHERE LOWER(p.name) = LOWER('wizard'));
+
 
 -- ── Colores del selector de mascota (por nombre) ─────────────────────────────
 -- PetColorPicker manda itemName = "color_" + ColorUtility.ToHtmlStringRGBA(color),

@@ -1,0 +1,5 @@
+# Copias locales del env de la prueba de carga y resultados de las corridas
+env/*.env
+results/
+# Par RSA desechable de la prueba (lo genera scripts/lt.sh); nunca se versiona
+env/keys/

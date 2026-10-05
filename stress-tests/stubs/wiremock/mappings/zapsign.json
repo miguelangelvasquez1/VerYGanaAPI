@@ -1,0 +1,69 @@
+{
+  "mappings": [
+    {
+      "name": "zapsign crear documento",
+      "request": { "method": "POST", "urlPath": "/zapsign/api/v1/docs/" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 400,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "token": "{{randomValue type='UUID'}}",
+          "status": "pending",
+          "name": "contrato-loadtest",
+          "original_file": "http://wiremock:8080/zapsign/files/original.pdf",
+          "signed_file": null,
+          "signers": [
+            { "token": "{{randomValue type='UUID'}}", "status": "new", "sign_url": "http://wiremock:8080/zapsign/sign/loadtest" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "zapsign crear check",
+      "request": { "method": "POST", "urlPath": "/zapsign/api/v1/checks/" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 300,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": { "check_id": "{{randomValue type='UUID'}}", "status": "completed", "score": 0.0, "country": "CO" }
+      }
+    },
+    {
+      "name": "zapsign consultar check",
+      "priority": 2,
+      "request": { "method": "GET", "urlPathPattern": "/zapsign/api/v1/checks/[^/]+/" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 200,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": { "check_id": "{{request.pathSegments.[4]}}", "status": "completed", "score": 0.0, "country": "CO" }
+      }
+    },
+    {
+      "name": "zapsign detalle de check",
+      "priority": 1,
+      "request": { "method": "GET", "urlPathPattern": "/zapsign/api/v1/checks/[^/]+/details/" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 200,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": { "check_id": "{{request.pathSegments.[4]}}", "status": "completed", "score": 0.0, "country": "CO" }
+      }
+    },
+    {
+      "name": "zapsign registrar webhook",
+      "request": { "method": "POST", "urlPath": "/zapsign/api/v1/user/company/webhook/" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 200,
+        "headers": { "Content-Type": "application/json" },
+        "jsonBody": { "id": "loadtest-webhook" }
+      }
+    }
+  ]
+}

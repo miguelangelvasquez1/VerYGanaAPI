@@ -29,6 +29,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import com.verygana2.repositories.details.AdminDetailsRepository;
 import com.verygana2.security.auth.refreshToken.RefreshToken;
+import com.verygana2.security.auth.refreshToken.RefreshTokenHasher;
 import com.verygana2.security.auth.refreshToken.RefreshTokenRepository;
 import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 import com.verygana2.security.auth.refreshToken.SecurityMonitoringService;
@@ -63,7 +64,7 @@ class SecurityMonitoringServiceTest {
         RefreshToken t = new RefreshToken();
         t.setUsername(username);
         t.setJti("jti-" + Math.random());
-        t.setToken("tok-" + Math.random());
+        t.setTokenHash(RefreshTokenHasher.hash("tok-" + Math.random()));
         t.setIpAddress(ip);
         t.setUserAgent(userAgent);
         t.setCreatedAt(Instant.now());  // vía setter — campo tiene valor por defecto pero podemos sobreescribir con reflexión

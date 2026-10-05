@@ -11,6 +11,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Entity
 @Table(
@@ -19,7 +20,8 @@ import lombok.NoArgsConstructor;
         @Index(name = "idx_rt_username", columnList = "username"),
         @Index(name = "idx_rt_jti", columnList = "jti"),
         @Index(name = "idx_rt_ip", columnList = "ip_address"),
-        @Index(name = "idx_rt_created_at", columnList = "created_at")
+        @Index(name = "idx_rt_created_at", columnList = "created_at"),
+        @Index(name = "uk_rt_token_hash", columnList = "token_hash", unique = true)
     }
 )
 @Data
@@ -33,8 +35,10 @@ public class RefreshToken {
     @Column(nullable = false)
     private String username;
 
-    @Column(nullable = false, length = 1024)
-    private String token;
+    // Huella SHA-256 (hex) del refresh token; el token en claro nunca se guarda.
+    @ToString.Exclude
+    @Column(name = "token_hash", nullable = false, length = 64)
+    private String tokenHash;
 
     @Column(nullable = false, unique = true, length = 100)
     private String jti;
@@ -59,9 +63,9 @@ public class RefreshToken {
     @Column(name = "last_used_at")
     private Instant lastUsedAt;
 
-    public RefreshToken(String username, String token, String jti, Instant expiresAt, String ipAddress, String userAgent) {
+    public RefreshToken(String username, String tokenHash, String jti, Instant expiresAt, String ipAddress, String userAgent) {
         this.username = username;
-        this.token = token;
+        this.tokenHash = tokenHash;
         this.jti = jti;
         this.expiresAt = expiresAt;
         this.ipAddress = ipAddress;

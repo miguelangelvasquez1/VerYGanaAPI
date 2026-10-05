@@ -15,7 +15,20 @@ class KeyBackingTest {
 
     private KeyBacking backing(long reserve, long liability, long balance,
                                long ads, long surveys, long branding, long campaigns) {
-        return new KeyBacking(reserve, liability, balance, ads, surveys, branding, campaigns);
+        return new KeyBacking(reserve, liability, balance, ads, surveys, branding, campaigns, 0L);
+    }
+
+    @Test
+    @DisplayName("las bolsas de mascotas cuentan: salen de la wallet y quedan comprometidas")
+    void petItemBudgetsCount() {
+        // Regresión: al reservar la bolsa de un ítem de mascotas baja el saldo del
+        // comercial y no se mueve tesorería. Sin este sumando, esa plata desaparecía
+        // de la identidad y la conciliación reportaba respaldo sobrante.
+        KeyBacking conBolsa = new KeyBacking(10_000L, 0L, 7_000L, 0L, 0L, 0L, 0L, 3_000L);
+        assertThat(conBolsa.driftCents()).isZero();
+
+        KeyBacking sinBolsa = new KeyBacking(10_000L, 0L, 7_000L, 0L, 0L, 0L, 0L, 0L);
+        assertThat(sinBolsa.driftCents()).isEqualTo(3_000L);
     }
 
     @Test

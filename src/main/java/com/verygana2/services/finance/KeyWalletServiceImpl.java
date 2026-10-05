@@ -123,6 +123,12 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         KeyWallet wallet = getByConsumerId(consumerId);
 
         PetCatalogItem item = resolveCatalogItem(request);
+
+        if (petItemChargeService.isBudgetExhausted(item)) {
+            log.info("PetGame spend rechazado: el ítem {} agotó la bolsa del comercial", item.getId());
+            return SpendKeysResponseDTO.fail("Este producto ya no está disponible");
+        }
+
         long amountCents = priceCentsFor(item, request);
 
         log.info("PetGame spend: itemId={} itemName={} qty={} amountCents={} consumerId={}",

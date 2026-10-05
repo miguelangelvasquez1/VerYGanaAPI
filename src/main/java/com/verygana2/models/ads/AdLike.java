@@ -1,5 +1,7 @@
 package com.verygana2.models.ads;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.userDetails.ConsumerDetails;
@@ -70,7 +72,10 @@ public class AdLike {
      * tesorería. Lo pone el job por lotes, no el like: liquidar inline tomaba
      * lock pesimista sobre dos cuentas globales en cada like.
      */
+    // Mismo DEFAULT que la migración: sin él, el esquema que genera Hibernate en los
+    // tests (H2) rechaza los inserts que no mandan la columna y MySQL los acepta.
     @Column(name = "issuance_settled", nullable = false)
+    @ColumnDefault("false")
     @Builder.Default
     private boolean issuanceSettled = false;
 

@@ -1,5 +1,8 @@
 package com.verygana2.security.auth;
 
+import java.time.LocalDate;
+import java.util.List;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -9,6 +12,18 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+import org.springframework.web.client.RestClient;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.verygana2.loadtest.stubs.LoadTestRecaptchaService;
+import com.verygana2.loadtest.stubs.StubCallCounter;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
@@ -19,6 +34,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.dtos.auth.AuthRequest;
 import com.verygana2.dtos.user.CommercialRegisterDTO;
 import com.verygana2.dtos.user.ConsumerRegisterDTO;
+import com.verygana2.models.Category;
+import com.verygana2.models.enums.DocumentType;
+import com.verygana2.models.enums.Gender;
 import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 import com.verygana2.security.recaptcha.RecaptchaService;
 import com.verygana2.services.interfaces.PasswordSetupService;
@@ -30,10 +48,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
  * Tests de la puerta de reCAPTCHA de {@link AuthController}.
@@ -196,6 +217,152 @@ class AuthControllerRecaptchaTest {
             verify(userService).registerCommercial(dto);
             assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
             assertThat(response.getBody()).asString().contains("Revisa tu correo");
+        }
+    }
+
+    /**
+     * En el perfil loadtest el reCAPTCHA real se reemplaza por
+     * {@link LoadTestRecaptchaService}. Aquí el controller usa esa clase de verdad (no un mock),
+     * con un token de relleno que Google rechazaría.
+     */
+    @Nested
+    @DisplayName("modo prueba de carga (LoadTestRecaptchaService real)")
+    class LoadTestMode {
+
+        private static final String PLACEHOLDER = "loadtest-placeholder";
+
+        private AuthController loadTestController;
+        private MockMvc mockMvc;
+
+        @BeforeEach
+        void setUpLoadTestController() {
+            RecaptchaService fake = new LoadTestRecaptchaService(
+                    RestClient.builder(), new StubCallCounter(new SimpleMeterRegistry()));
+            loadTestController = new AuthController(tokenService, authManager, userService,
+                    ticketDeliveryService, passwordSetupService, securityAuditService,
+                    accountLockService, fake);
+            ReflectionTestUtils.setField(loadTestController, "loginRecaptchaAction", "login");
+            ReflectionTestUtils.setField(loadTestController, "registerConsumerRecaptchaAction", "register_consumer");
+            ReflectionTestUtils.setField(loadTestController, "registerCommercialRecaptchaAction", "register_commercial");
+
+            ObjectMapper objectMapper = Jackson2ObjectMapperBuilder.json().build();
+            mockMvc = MockMvcBuilders.standaloneSetup(loadTestController)
+                    // Sin esto gana el converter de XML y el cuerpo del error se pierde.
+                    .setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
+                    .build();
+        }
+
+        @Test
+        @DisplayName("login con token de relleno llega a authenticate")
+        void loginWithPlaceholderTokenReachesAuthentication() {
+            when(authManager.authenticate(any())).thenThrow(new BadCredentialsException("credenciales"));
+            AuthRequest request = authRequest();
+            request.setRecaptchaToken(PLACEHOLDER);
+
+            assertThatThrownBy(() -> loadTestController.login(request, "web", new MockHttpServletRequest()))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessage("credenciales"); // no el mensaje del reCAPTCHA
+
+            verify(authManager).authenticate(any());
+        }
+
+        @Test
+        @DisplayName("registro de consumidor con token de relleno crea el usuario")
+        void registerConsumerWithPlaceholderTokenCreatesUser() {
+            ConsumerRegisterDTO dto = consumerDto();
+            dto.setRecaptchaToken(PLACEHOLDER);
+
+            ResponseEntity<?> response = loadTestController.registerConsumer(dto);
+
+            verify(userService).registerConsumer(dto);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        }
+
+        @Test
+        @DisplayName("registro de comercial con token de relleno crea el usuario")
+        void registerCommercialWithPlaceholderTokenCreatesUser() {
+            CommercialRegisterDTO dto = commercialDto();
+            dto.setRecaptchaToken(PLACEHOLDER);
+
+            ResponseEntity<?> response = loadTestController.registerCommercial(dto);
+
+            verify(userService).registerCommercial(dto);
+            assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
+        }
+
+        /** Cuerpo de registro de consumidor válido en todo salvo, a lo sumo, el token. */
+        private String consumerJson(String recaptchaToken) throws Exception {
+            Category category = new Category();
+            category.setId(1L);
+            category.setName("Deportes");
+            ConsumerRegisterDTO dto = new ConsumerRegisterDTO();
+            dto.setName("Ana");
+            dto.setLastName("Prueba");
+            dto.setEmail("ana@loadtest.invalid");
+            dto.setPhoneNumber("3000000000");
+            dto.setPassword("secreta1");
+            dto.setCategories(List.of(category));
+            dto.setUserName("ana.prueba");
+            dto.setAvatarId(1L);
+            dto.setBirthDate(LocalDate.of(1990, 1, 1));
+            dto.setGender(Gender.OTHER);
+            dto.setAgeDeclaration(true);
+            dto.setTermsAccepted(true);
+            dto.setTermsVersion("1.0");
+            dto.setDocumentType(DocumentType.CC);
+            dto.setDocumentNumber("1000000000");
+            dto.setIsPEP(false);
+            dto.setRecaptchaToken(recaptchaToken);
+            return Jackson2ObjectMapperBuilder.json().build().writeValueAsString(dto);
+        }
+
+        /** Cuerpo de registro de comercial válido en todo salvo, a lo sumo, el token. */
+        private String commercialJson(String recaptchaToken) throws Exception {
+            CommercialRegisterDTO dto = new CommercialRegisterDTO();
+            dto.setEmail("tienda@loadtest.invalid");
+            dto.setPassword("secreta1");
+            dto.setPhoneNumber("3000000001");
+            dto.setRecaptchaToken(recaptchaToken);
+            return Jackson2ObjectMapperBuilder.json().build().writeValueAsString(dto);
+        }
+
+        @Test
+        @DisplayName("un token vacío sigue devolviendo 400 por @NotBlank y no llega al service")
+        void blankTokenIsStillRejectedWith400() throws Exception {
+            // Cuerpo válido salvo el token: la única causa posible del 400 es @NotBlank.
+            mockMvc.perform(post("/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"identifier\":\"usuario@test.com\",\"password\":\"secreta\",\"recaptchaToken\":\"\"}"))
+                    .andExpect(status().isBadRequest());
+
+            verify(authManager, never()).authenticate(any());
+            verify(accountLockService, never()).isLocked(anyString());
+
+            // Control: el mismo cuerpo válido con el token de relleno sí pasa (201). Así el 400 de abajo
+            // solo puede venir del token vacío y no de otro @NotBlank del DTO.
+            mockMvc.perform(post("/auth/register/consumer")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(consumerJson(PLACEHOLDER)))
+                    .andExpect(status().isCreated());
+            mockMvc.perform(post("/auth/register/commercial")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(commercialJson(PLACEHOLDER)))
+                    .andExpect(status().isCreated());
+            verify(userService).registerConsumer(any());
+            verify(userService).registerCommercial(any());
+            clearInvocations(userService);
+
+            mockMvc.perform(post("/auth/register/consumer")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(consumerJson("")))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(post("/auth/register/commercial")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(commercialJson("")))
+                    .andExpect(status().isBadRequest());
+
+            verify(userService, never()).registerConsumer(any());
+            verify(userService, never()).registerCommercial(any());
         }
     }
 }

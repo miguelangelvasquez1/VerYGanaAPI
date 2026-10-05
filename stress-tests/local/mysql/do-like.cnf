@@ -1,0 +1,13 @@
+# MySQL local configurado como DigitalOcean Managed MySQL (plan 3.2.1).
+# sql_require_primary_key, log_bin_trust_function_creators, innodb_buffer_pool_size y
+# max_connections se pasan por línea de comando desde docker-compose.local.yml.
+[mysqld]
+server-id = 1
+log_bin = mysql-bin
+binlog_format = ROW
+gtid_mode = ON
+enforce_gtid_consistency = ON
+performance_schema = ON
+character_set_server = utf8mb4
+collation_server = utf8mb4_0900_ai_ci
+default_time_zone = +00:00

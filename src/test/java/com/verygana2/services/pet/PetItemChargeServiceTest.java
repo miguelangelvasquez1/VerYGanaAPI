@@ -124,6 +124,45 @@ class PetItemChargeServiceTest {
     }
 
     @Test
+    @DisplayName("bolsa en cero: el ítem del comercial ya no se puede vender")
+    void exhaustedBudgetBlocksTheSale() {
+        requestWithBudget(CHARGE_PER_USE, CHARGE_PER_USE);
+
+        assertThat(service.isBudgetExhausted(item)).isTrue();
+    }
+
+    @Test
+    @DisplayName("bolsa con saldo: se puede vender aunque quede menos de una unidad")
+    void budgetWithBalanceAllowsTheSale() {
+        requestWithBudget(CHARGE_PER_USE, CHARGE_PER_USE - 1L);
+
+        assertThat(service.isBudgetExhausted(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName("ítem horneado inactivo: se sigue vendiendo, no tiene bolsa que agotar")
+    void bakedInactiveItemIsNotExhausted() {
+        item.setActive(false);
+        when(requestRepository.findByResultCatalogItemIdForUpdate(5L)).thenReturn(Optional.empty());
+
+        assertThat(service.isBudgetExhausted(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName("solicitud anterior al cobro (sin bolsa): se sigue vendiendo")
+    void legacyRequestIsNotExhausted() {
+        requestWithBudget(null, 0L);
+
+        assertThat(service.isBudgetExhausted(item)).isFalse();
+    }
+
+    @Test
+    @DisplayName("ítem que no está en el catálogo: no hay bolsa que mirar")
+    void unknownItemIsNotExhausted() {
+        assertThat(service.isBudgetExhausted(null)).isFalse();
+    }
+
+    @Test
     @DisplayName("compra de un ítem que no está en el catálogo: no busca solicitud")
     void unknownItem() {
         assertThat(service.chargeForPurchase(null, 1L, purchaseId)).isZero();

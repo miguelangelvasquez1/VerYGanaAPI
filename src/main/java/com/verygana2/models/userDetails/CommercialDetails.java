@@ -1,5 +1,7 @@
 package com.verygana2.models.userDetails;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -79,7 +81,10 @@ public class CommercialDetails extends UserDetails {
     // whatsappNumber se limpia a null cuando whatsappAvailable pasa a false, para no dejar
     // un número obsoleto mostrándose como disponible.
 
+    // Mismo DEFAULT que la migración: sin él, el esquema que genera Hibernate en los
+    // tests (H2) rechaza los inserts que no mandan la columna y MySQL los acepta.
     @Column(name = "whatsapp_available", nullable = false)
+    @ColumnDefault("false")
     private boolean whatsappAvailable = false;
 
     @Column(name = "whatsapp_number", length = 20)

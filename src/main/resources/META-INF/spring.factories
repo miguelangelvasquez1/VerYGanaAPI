@@ -1,0 +1,2 @@
+# Guardián de la prueba de carga: valida el entorno antes de crear el contexto (solo actúa con el perfil loadtest).
+org.springframework.boot.env.EnvironmentPostProcessor=com.verygana2.loadtest.LoadTestSafetyGuard

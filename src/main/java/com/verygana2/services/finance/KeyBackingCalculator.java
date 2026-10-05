@@ -9,6 +9,7 @@ import com.verygana2.repositories.WalletRepository;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.games.CampaignRepository;
+import com.verygana2.repositories.pet.CatalogIntegrationRequestRepository;
 import com.verygana2.repositories.surveys.SurveyRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,7 @@ public class KeyBackingCalculator {
     private final SurveyRepository surveyRepository;
     private final BrandingRequestRepository brandingRequestRepository;
     private final CampaignRepository campaignRepository;
+    private final CatalogIntegrationRequestRepository catalogIntegrationRequestRepository;
 
     @Transactional(readOnly = true)
     public KeyBacking compute(long keysReserveCents) {
@@ -47,6 +49,7 @@ public class KeyBackingCalculator {
                 adRepository.sumCommittedUnspentBudgetCents(),
                 surveyRepository.sumCommittedUnspentBudgetCents(),
                 brandingRequestRepository.sumCommittedBudgetCents(),
-                campaignRepository.sumUnspentBudgetCents());
+                campaignRepository.sumUnspentBudgetCents(),
+                catalogIntegrationRequestRepository.sumCommittedUnspentBudgetCents());
     }
 }

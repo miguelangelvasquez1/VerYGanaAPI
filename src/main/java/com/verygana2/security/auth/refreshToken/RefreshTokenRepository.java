@@ -14,9 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
-    Optional<RefreshToken> findByToken(String token);
-
-    Boolean existsByToken(String token);
+    // Recibe la huella (RefreshTokenHasher.hash), nunca el token en claro.
+    Optional<RefreshToken> findByTokenHash(String tokenHash);
 
     // username es el String de authentication.getName() (email), no la entidad User
     void deleteByUsername(String username);

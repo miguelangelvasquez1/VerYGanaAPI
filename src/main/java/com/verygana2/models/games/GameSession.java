@@ -1,5 +1,7 @@
 package com.verygana2.models.games;
 
+import org.hibernate.annotations.ColumnDefault;
+
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -74,7 +76,10 @@ public class GameSession {
     private Long creditedAmountCents;
 
     /** Si el diferencial (financiado − acreditado) ya se liquidó en tesorería. */
+    // Mismo DEFAULT que la migración: sin él, el esquema que genera Hibernate en los
+    // tests (H2) rechaza los inserts que no mandan la columna y MySQL los acepta.
     @Column(name = "issuance_settled", nullable = false)
+    @ColumnDefault("false")
     @Builder.Default
     private boolean issuanceSettled = false;
 

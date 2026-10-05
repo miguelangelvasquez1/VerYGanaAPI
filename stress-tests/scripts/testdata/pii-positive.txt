@@ -1,0 +1,20 @@
+# Datos FICTICIOS que check-pii.sh tiene que detectar (cada línea es un caso). No son personas reales.
+# correo
+Login failed for identifier juan.perez@example.com from 10.0.0.5
+usuario lt-consumer-12@loadtest.invalid inició sesión
+# celular colombiano (con prefijo, con separadores y pelado con contexto)
+Enviando OTP a +57 300 123 4567
+sms enviado al celular 3105558899 correctamente
+contacto: 320-555-8899
+# cédula (con contexto)
+Cedula: 1012345678 registrada
+documento 1.012.345.678 duplicado
+document_number=79123456
+# cuenta bancaria
+cuenta de ahorros 123456789012 aprobada
+account_number: 98765432109
+nequi 3001234567
+# tokens y secretos
+Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789
+jwt eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.c2lnbmF0dXJlLWZpY3RpY2lh
+integritySecret=prod_integrity_FICTICIO_0123456789

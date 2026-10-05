@@ -213,11 +213,15 @@ public class PlanDataInitializer implements ApplicationRunner {
                 .type(FeatureType.LIMIT)
                 .build());
         
-        Feature prosperityThresholdMultiplier = featureRepository.save(Feature.builder()
-                .code("PROSPERITY_THRESHOLD_MULTIPLIER")
-                .name("Multiplicador de umbral de prosperidad")
-                .type(FeatureType.LIMIT)
-                .build());
+        // V9__prosperity_ledger ya inserta esta feature, y en una base nueva Flyway corre
+        // antes que este initializer: crearla de nuevo choca con el UNIQUE de features.code
+        // y tumba el arranque. Se reutiliza la de la migración.
+        Feature prosperityThresholdMultiplier = featureRepository.findByCode("PROSPERITY_THRESHOLD_MULTIPLIER")
+                .orElseGet(() -> featureRepository.save(Feature.builder()
+                        .code("PROSPERITY_THRESHOLD_MULTIPLIER")
+                        .name("Multiplicador de umbral de prosperidad")
+                        .type(FeatureType.LIMIT)
+                        .build()));
 
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(

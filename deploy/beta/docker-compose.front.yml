@@ -1,0 +1,24 @@
+# Etapa 2 (T11): suma el front a docker-compose.yml. Ver el uso en ese archivo.
+# Requiere FRONT_IMAGE en el entorno. No lleva `name:`, `networks` ni `volumes`:
+# los hereda del archivo base, que siempre va primero en el comando.
+
+services:
+  # SUPUESTOS sobre el front (repo aparte, no se pudo leer; confirmar en T4/T11):
+  #   - La imagen escucha en el 3000 (`next start`) y NO necesita variables en
+  #     ejecución: las NEXT_PUBLIC_* ya van horneadas en `next build`.
+  #   - Sirve también los rewrites /pet-game y /pet-assets (D-9).
+  #   - Si la imagen necesita variables de servidor, agregarlas aquí.
+  front:
+    image: ${FRONT_IMAGE:?FRONT_IMAGE - imagen del front con etiqueta por commit}
+    container_name: verygana-front
+    restart: unless-stopped
+    expose:
+      - "3000"
+    # Misma rotación que en docker-compose.yml (los anchors no cruzan archivos).
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - internal

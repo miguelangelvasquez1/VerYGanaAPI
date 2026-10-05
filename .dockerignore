@@ -9,3 +9,6 @@ target/
 *.log
 .idea/
 *.iml
+# Clave privada del JWT (D-21): ninguna imagen debe llevarla. public.pem sí se queda (está versionada).
+src/main/resources/certs/private.pem
+stress-tests/env/keys

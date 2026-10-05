@@ -1,0 +1,4 @@
+# Solo la salida del System.out de POST /games/metrics (hallazgo F-GAMES-METRICS-STDOUT): el script debe salir con 0 y excluir 3 lineas (la última con el prefijo "api-1  | " de docker compose logs).
+GameEventDTO(sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9, userHash=9f8e7d6c5b4a39281706f5e4d3c2b1a0, isBrandedMode=true, campaignId=21, gameTitle=Ball Bounce, payload={score=10}, technicalData=null)
+GameEventDTO(sessionToken=ffffffff-4e5f-6071-8293-a4b5c6d7e8f9, userHash=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa, isBrandedMode=null, campaignId=null, gameTitle=null, payload=null, technicalData=null)
+api-1  | GameEventDTO(sessionToken=0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9, userHash=9f8e7d6c5b4a39281706f5e4d3c2b1a0, isBrandedMode=false, campaignId=21, gameTitle=g, payload={score=1}, technicalData=null)

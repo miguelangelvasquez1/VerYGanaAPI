@@ -2,6 +2,7 @@ package com.verygana2.config.zapsign;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 import org.springframework.web.reactive.function.client.ExchangeFilterFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -29,6 +30,7 @@ public class ZapSignWebClientConfig {
     private final ZapSignConfig zapSignConfig;
 
     @Bean(name = "zapSignWebClient")
+    @Profile("!loadtest") // en loadtest lo define LoadTestStubClientsConfig, contra WireMock
     public WebClient zapSignWebClient() {
         String baseUrl = zapSignConfig.isSandbox() ? SANDBOX_BASE_URL : PRODUCTION_BASE_URL;
         log.info("[ZAPSIGN] WebClient apuntando a {} (sandbox={})", baseUrl, zapSignConfig.isSandbox());

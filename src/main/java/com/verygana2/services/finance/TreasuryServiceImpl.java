@@ -868,11 +868,12 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long identityDriftCents = backing.driftCents();
 
                 log.info("[RECONCILIATION] IDENTIDAD: KEYS_RESERVE={} vs. pasivo={} + saldos={} "
-                                + "+ ads={} + encuestas={} + brandeo={} + campañas={} = {} (desviación {})",
+                                + "+ ads={} + encuestas={} + brandeo={} + campañas={} + mascotas={} = {} (desviación {})",
                                 backing.keysReserveCents(), backing.keyLiabilityCents(),
                                 backing.advertiserBalanceCents(), backing.committedAdsCents(),
                                 backing.committedSurveysCents(), backing.committedBrandingCents(),
-                                backing.committedCampaignsCents(), backing.accountedCents(),
+                                backing.committedCampaignsCents(), backing.committedPetItemsCents(),
+                                backing.accountedCents(),
                                 identityDriftCents);
 
                 if (identityDriftCents > 0) {

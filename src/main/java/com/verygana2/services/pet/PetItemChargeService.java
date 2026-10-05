@@ -80,6 +80,28 @@ public class PetItemChargeService {
         return charged;
     }
 
+    /**
+     * Si el ítem es de un comercial y su bolsa ya se agotó, así que no se puede vender.
+     *
+     * Desactivar el ítem lo saca del catálogo, pero un jugador que lo descargó antes lo
+     * sigue viendo en la tienda: sin esta puerta pagaba sus llaves y al comercial no se le
+     * cobraba nada. Mira la bolsa y no {@code active} porque los ítems horneados en el
+     * build están inactivos a propósito y se tienen que seguir vendiendo; esos no tienen
+     * solicitud, igual que las solicitudes anteriores al cobro no tienen bolsa.
+     *
+     * Bloquea la fila igual que {@link #chargeForPurchase}: con dos compras simultáneas
+     * de la última unidad, la segunda espera a la primera y ve la bolsa en cero.
+     */
+    @Transactional
+    public boolean isBudgetExhausted(PetCatalogItem item) {
+        if (item == null || item.getId() == null) {
+            return false;
+        }
+        return requestRepository.findByResultCatalogItemIdForUpdate(item.getId())
+                .map(request -> request.getBudgetCents() != null && request.getRemainingBudgetCents() == 0L)
+                .orElse(false);
+    }
+
     public long getChargePerUseCents() {
         return chargePerUseCents;
     }

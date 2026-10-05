@@ -1,0 +1,62 @@
+# Simuladores de terceros, comunes a la fase local y a la nube.
+# WireMock simula Wompi, ZapSign y Random.org; MinIO simula R2 (S3, path-style).
+# Los puertos se publican en STUB_BIND: 127.0.0.1 en local; en la nube se pone 0.0.0.0
+# y el security group restringe quién entra. Las llaves de MinIO son ficticias.
+name: verygana-loadtest
+
+services:
+  wiremock:
+    image: wiremock/wiremock:3.9.1
+    cpus: ${WIREMOCK_CPUS:-0.5}
+    mem_limit: ${WIREMOCK_MEM:-512m}
+    command: ["--global-response-templating", "--disable-gzip"]
+    ports:
+      - "${STUB_BIND:-127.0.0.1}:8089:8080"
+    volumes:
+      - ./stubs/wiremock/mappings:/home/wiremock/mappings:ro
+    restart: unless-stopped
+
+  # MinIO ya no publica imagenes en Docker Hub ni en quay.io (verificado 2026-10-01);
+  # se usa la ultima copia congelada de Bitnami (MinIO 2025.7.23, trae el cliente mc).
+  # Para un simulador de pruebas no importa que no reciba parches.
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    cpus: ${MINIO_CPUS:-0.5}
+    mem_limit: ${MINIO_MEM:-512m}
+    environment:
+      MINIO_ROOT_USER: loadtest-r2-access
+      MINIO_ROOT_PASSWORD: loadtest-r2-secret
+      MINIO_DEFAULT_BUCKETS: loadtest-campaigns,loadtest-pets
+    ports:
+      - "${STUB_BIND:-127.0.0.1}:9000:9000"
+    volumes:
+      - minio-data:/bitnami/minio/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  # Verifica (y crea si faltan) los buckets que usa la API (cloudflare.r2.bucket-name y
+  # pets-bucket-name) y termina. MINIO_DEFAULT_BUCKETS ya los crea al arrancar; esto lo
+  # deja explicito e idempotente.
+  minio-init:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint:
+      - /bin/sh
+      - -c
+      - >
+        for i in $$(seq 1 30); do
+          mc alias set lt http://minio:9000 loadtest-r2-access loadtest-r2-secret >/dev/null 2>&1 && break;
+          sleep 2;
+        done;
+        mc mb --ignore-existing lt/loadtest-campaigns &&
+        mc mb --ignore-existing lt/loadtest-pets
+    restart: "no"
+
+volumes:
+  minio-data:

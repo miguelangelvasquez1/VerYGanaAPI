@@ -15,11 +15,12 @@ public record KeyBacking(
         long committedAdsCents,
         long committedSurveysCents,
         long committedBrandingCents,
-        long committedCampaignsCents) {
+        long committedCampaignsCents,
+        long committedPetItemsCents) {
 
     public long committedCents() {
         return committedAdsCents + committedSurveysCents
-                + committedBrandingCents + committedCampaignsCents;
+                + committedBrandingCents + committedCampaignsCents + committedPetItemsCents;
     }
 
     /** Todo lo que KEYS_RESERVE debería estar respaldando. */

@@ -1,14 +1,11 @@
 package com.verygana2.services.referrals;
 
 import com.verygana2.dtos.referral.responses.ReferralItemDTO;
-import com.verygana2.event.XpAwardRequestedEvent;
 import com.verygana2.models.User;
-import com.verygana2.models.enums.ActivityType;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
 import com.verygana2.services.interfaces.ReferralService;
 import com.verygana2.utils.referral.ReferralCodeGenerator;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.mappers.ReferralMapper;
@@ -22,14 +19,11 @@ public class ReferralServiceImpl implements ReferralService {
 
     private final ConsumerDetailsRepository consumerDetailsRepository;
     private final ReferralMapper referralMapper;
-    private final ApplicationEventPublisher eventPublisher;
 
     public ReferralServiceImpl(ConsumerDetailsRepository consumerDetailsRepository,
-                               ReferralMapper referralMapper,
-                               ApplicationEventPublisher eventPublisher) {
+                               ReferralMapper referralMapper) {
         this.consumerDetailsRepository = consumerDetailsRepository;
         this.referralMapper = referralMapper;
-        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -81,13 +75,10 @@ public class ReferralServiceImpl implements ReferralService {
         // No sobrescribir si ya tenía referidor
         if (consumer.getReferredBy() != null) return;
 
+        // Sin XP acá: se paga al confirmar la cuenta, en
+        // UserServiceImpl.triggerReferralRewardsIfApplicable. Pagarlo también en el
+        // registro lo duplicaba y premiaba registros que nunca verifican el correo.
         consumer.setReferredBy(referrer);
-
-        // XP para el referidor. Se publica dentro de la transacción del caller
-        // (este método es readOnly y no persiste nada por sí mismo) y se procesa
-        // con @TransactionalEventListener(AFTER_COMMIT) — ver XpAwardRequestedEvent.
-        eventPublisher.publishEvent(
-                new XpAwardRequestedEvent(this, referrer.getId(), ActivityType.REFERRAL_ACTIVE));
     }
 
     @Override

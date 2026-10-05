@@ -1,0 +1,77 @@
+{
+  "mappings": [
+    {
+      "name": "wompi crear transaccion",
+      "request": { "method": "POST", "urlPath": "/wompi/v1/transactions" },
+      "response": {
+        "status": 201,
+        "fixedDelayMilliseconds": 120,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "data": {
+            "id": "{{randomValue type='UUID'}}",
+            "status": "PENDING",
+            "reference": "{{jsonPath request.body '$.reference'}}",
+            "amount_in_cents": 0,
+            "currency": "COP",
+            "payment_method_type": "NEQUI",
+            "created_at": "{{now}}"
+          }
+        }
+      }
+    },
+    {
+      "name": "wompi buscar por reference",
+      "priority": 1,
+      "request": {
+        "method": "GET",
+        "urlPath": "/wompi/v1/transactions",
+        "queryParameters": { "reference": { "matches": ".+" } }
+      },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 120,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "data": [
+            {
+              "id": "lt-tx-{{request.query.reference}}",
+              "status": "APPROVED",
+              "reference": "{{request.query.reference}}",
+              "amount_in_cents": 0,
+              "currency": "COP",
+              "payment_method_type": "NEQUI",
+              "created_at": "{{now}}",
+              "finalized_at": "{{now}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "wompi consultar transaccion por id",
+      "priority": 2,
+      "request": { "method": "GET", "urlPathPattern": "/wompi/v1/transactions/[^/]+" },
+      "response": {
+        "status": 200,
+        "fixedDelayMilliseconds": 120,
+        "headers": { "Content-Type": "application/json" },
+        "transformers": ["response-template"],
+        "jsonBody": {
+          "data": {
+            "id": "{{request.pathSegments.[3]}}",
+            "status": "APPROVED",
+            "reference": "lt-reference",
+            "amount_in_cents": 0,
+            "currency": "COP",
+            "payment_method_type": "NEQUI",
+            "created_at": "{{now}}",
+            "finalized_at": "{{now}}"
+          }
+        }
+      }
+    }
+  ]
+}

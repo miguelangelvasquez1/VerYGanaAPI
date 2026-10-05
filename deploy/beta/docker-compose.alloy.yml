@@ -1,0 +1,38 @@
+# Etapa 3 (T17): suma Alloy a docker-compose.yml. Ver el uso en ese archivo.
+# Requiere las tres GRAFANA_CLOUD_* en el entorno.
+
+services:
+  # Manda las métricas a Grafana Cloud con env=beta (RN-6). Solo métricas: no
+  # envía logs. Sin `ports`: la UI de Alloy (12345) no sale de la red interna.
+  alloy:
+    image: grafana/alloy:v1.19.2
+    container_name: verygana-alloy
+    restart: unless-stopped
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    volumes:
+      - ../../monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - alloy-data:/var/lib/alloy/data
+    environment:
+      - API_METRICS_TARGET=api:8080
+      - DEPLOY_ENV=beta
+      - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:?METRICS_SCRAPE_TOKEN falta en Infisical beta}
+      - GRAFANA_CLOUD_PROM_URL=${GRAFANA_CLOUD_PROM_URL:?GRAFANA_CLOUD_PROM_URL falta en Infisical beta}
+      - GRAFANA_CLOUD_PROM_USER=${GRAFANA_CLOUD_PROM_USER:?GRAFANA_CLOUD_PROM_USER falta en Infisical beta}
+      - GRAFANA_CLOUD_TOKEN=${GRAFANA_CLOUD_TOKEN:?GRAFANA_CLOUD_TOKEN falta en Infisical beta}
+    depends_on:
+      - api
+    # Misma rotación que en docker-compose.yml (los anchors no cruzan archivos).
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - internal
+
+volumes:
+  alloy-data:

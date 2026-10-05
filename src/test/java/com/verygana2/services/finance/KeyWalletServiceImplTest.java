@@ -400,6 +400,51 @@ class KeyWalletServiceImplTest {
             verify(petItemChargeService, org.mockito.Mockito.never())
                     .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong(), any());
         }
+
+        /**
+         * Regresión: al agotarse la bolsa el ítem salía del catálogo, pero un jugador que
+         * lo tenía cargado podía comprarlo igual. Pagaba sus llaves y al comercial se le
+         * cobraban $0.
+         */
+        @Test
+        @DisplayName("ítem con la bolsa del comercial agotada: rechaza la compra sin tocar el saldo")
+        void exhaustedCommercialItem_rejectsPurchase() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            PetCatalogItem pizza = pizza();
+            pizza.setActive(false);
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza));
+            when(petItemChargeService.isBudgetExhausted(pizza)).thenReturn(true);
+
+            SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
+                    new SpendKeysRequestDTO(null, 1L, 0, "1005"));
+
+            assertThat(response.success()).isFalse();
+            assertThat(response.error()).isEqualTo("Este producto ya no está disponible");
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(100L * KEY_VALUE_CENTS);
+            verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
+            verify(treasuryService, org.mockito.Mockito.never())
+                    .registerPetGameSpend(org.mockito.ArgumentMatchers.anyLong(), any());
+            verify(petItemChargeService, org.mockito.Mockito.never())
+                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("ítem horneado inactivo: se sigue cobrando al precio del catálogo")
+        void bakedInactiveItem_stillSells() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            PetCatalogItem monoculo = monoculo();
+            monoculo.setActive(false);
+            when(petCatalogItemRepository.findByNameIgnoreCase("monoculo")).thenReturn(Optional.of(monoculo));
+
+            SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
+                    new SpendKeysRequestDTO(null, 1L, 0, "monoculo"));
+
+            assertThat(response.success()).isTrue();
+            assertThat(wallet.getPurchaseKeysCents())
+                    .isEqualTo(100L * KEY_VALUE_CENTS - monoculo.getPrice() * KEY_VALUE_CENTS);
+        }
     }
 
     @Nested

@@ -1,0 +1,78 @@
+# Proxy TLS de la beta (spec 006, D-19). Caddy pide y renueva solo los
+# certificados de Let's Encrypt; para eso el DNS de los dos hosts ya tiene que
+# apuntar a esta instancia y los puertos 80 y 443 estar abiertos.
+#
+# Los nombres `api` y `front` son los servicios del docker-compose.yml: se
+# resuelven por la red interna, ninguno de los dos publica puertos.
+#
+# No poner HSTS con includeSubDomains aquí: afectaría a todo verygana.com.
+
+# Registro de Caddy: el de accesos y el de errores (el logger `default`) pasan
+# por EL MISMO filtro. Va a stdout/stderr para verlo con `docker logs caddy`.
+# Se conserva para T15 (ver /games/end-session) y para detectar errores, pero
+# sin nada que sea secreto o dato personal (constitución §5):
+#   - Sin cabeceras de la petición ni de la respuesta (llevan X-VeryGana-Secret
+#     del webhook de ZapSign, Referer con tokens, X-Forwarded-For del cliente...).
+#   - Sin query string (`?token=` con JWT, `documentNumber`, correo, teléfono).
+#   - Las rutas con el dato en el path salen enmascaradas. Revisadas todas las
+#     @PathVariable de controllers: solo UserController (/users) lleva datos
+#     personales, en tres rutas: /users/email/{email},
+#     /users/exists/email/{email} y /users/exists/phoneNumber/{phoneNumber}.
+#     Si se agrega una ruta con correo, teléfono o cédula en el path, va aquí.
+# Se conserva la IP del cliente (remote_ip y client_ip). Los filtros no cubren
+# `request>tls` ni `request>host`: no llevan nada sensible.
+# Un solo regexp sobre la URI (dos filtros anidados no se aplican los dos, se
+# probó): si la ruta es una de las tres con datos, deja solo el prefijo
+# (`/users/exists/email/`, sin el valor); si trae algo codificado (`%XX`) en el
+# path (`/%75sers/email/...`, `/users/email%2F...`), deja solo lo que hay antes
+# del primer `%`: se pierde detalle de una ruta rara a cambio de no dejar un dato
+# que el cliente escribió disfrazado; si no, deja la ruta sin la query.
+# Una URI sin query ni datos no coincide y queda igual.
+#
+# Por qué dos sitios con el filtro: Caddy manda `http.log.access.<sitio>` al
+# logger de cada sitio, y todo lo demás (`http.log.error.*` cuando el upstream
+# no responde, `http.handlers.reverse_proxy`, el acceso de un Host que no es
+# ninguno de los dos sitios) al logger `default`. Sin filtro en `default`, cada
+# 502 escribía la URL con su query y todas las cabeceras. Los mensajes
+# (`msg`), el estado y el upstream se conservan para diagnosticar.
+(filtered_format) {
+	format filter {
+		wrap json
+		request>uri regexp (?i)^(/+users/+(?:exists/+)?(?:email|phoneNumber)/)[^?]*(?:\?.*)?$|^([^?%]*)%[^?]*(?:\?.*)?$|^([^?]*)\?.*$ ${1}${2}${3}
+		request>headers delete
+		resp_headers delete
+	}
+}
+
+(access_log) {
+	log {
+		output stdout
+		import filtered_format
+	}
+}
+
+{
+	log default {
+		import filtered_format
+	}
+}
+
+api-beta.verygana.com {
+	import access_log
+
+	# Solo /actuator/health es público. /actuator/prometheus lo scrapea Alloy por
+	# la red interna (api:8080), así que no necesita salir a internet.
+	@actuator_privado {
+		path /actuator/*
+		not path /actuator/health /actuator/health/*
+	}
+	respond @actuator_privado 404
+
+	reverse_proxy api:8080
+}
+
+beta.verygana.com {
+	import access_log
+
+	reverse_proxy front:3000
+}

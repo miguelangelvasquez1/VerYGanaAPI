@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.never;
@@ -53,6 +54,7 @@ import com.verygana2.models.enums.AccountStatus;
 import com.verygana2.security.CustomUserDetails;
 import com.verygana2.security.CustomUserDetailsService;
 import com.verygana2.security.auth.refreshToken.RefreshToken;
+import com.verygana2.security.auth.refreshToken.RefreshTokenHasher;
 import com.verygana2.security.auth.refreshToken.RefreshTokenRepository;
 import com.verygana2.security.auth.refreshToken.SecurityAuditService;
 
@@ -141,6 +143,19 @@ class TokenServiceTest {
         }
 
         @Test
+        @DisplayName("persiste solo la huella del refresh token, nunca el token en claro")
+        void storesOnlyTheHashNeverTheRawToken() {
+            TokenPairDTO pair = tokenService.generateTokenPair(authentication());
+
+            verify(refreshTokenRepository).save(savedToken.capture());
+            String storedHash = savedToken.getValue().getTokenHash();
+            assertThat(storedHash)
+                    .isEqualTo(RefreshTokenHasher.hash(pair.getRefreshToken()))
+                    .isNotEqualTo(pair.getRefreshToken())
+                    .doesNotContain("eyJ");
+        }
+
+        @Test
         @DisplayName("persiste el refresh token con su jti y expiración")
         void persistsRefreshToken() {
             TokenPairDTO pair = tokenService.generateTokenPair(authentication());
@@ -148,7 +163,7 @@ class TokenServiceTest {
             verify(refreshTokenRepository).save(savedToken.capture());
             RefreshToken stored = savedToken.getValue();
             assertThat(stored.getUsername()).isEqualTo(USERNAME);
-            assertThat(stored.getToken()).isEqualTo(pair.getRefreshToken());
+            assertThat(stored.getTokenHash()).isEqualTo(RefreshTokenHasher.hash(pair.getRefreshToken()));
             assertThat(stored.getJti()).isEqualTo(decoder.decode(pair.getRefreshToken()).getId());
             assertThat(stored.getRevoked()).isFalse();
         }
@@ -170,7 +185,7 @@ class TokenServiceTest {
 
             verify(refreshTokenRepository, atLeastOnce()).save(savedToken.capture());
             assertThat(savedToken.getAllValues())
-                    .filteredOn(rt -> oldRefresh.equals(rt.getToken()))
+                    .filteredOn(rt -> RefreshTokenHasher.hash(oldRefresh).equals(rt.getTokenHash()))
                     .singleElement()
                     .satisfies(rt -> {
                         assertThat(rt.getRevoked()).isTrue();
@@ -184,7 +199,7 @@ class TokenServiceTest {
             String token = signedRefreshToken();
             RefreshToken revoked = storedRefreshToken(token);
             revoked.setRevoked(true);
-            when(refreshTokenRepository.findByToken(token)).thenReturn(Optional.of(revoked));
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(token))).thenReturn(Optional.of(revoked));
 
             assertThatThrownBy(() -> tokenService.refreshAccessToken(token))
                     .isInstanceOf(TokenBlacklistedException.class);
@@ -208,10 +223,57 @@ class TokenServiceTest {
         }
 
         @Test
+        @DisplayName("busca por la huella del token presentado y no hace ninguna otra búsqueda")
+        void lookupIsByHashOfPresentedToken() {
+            String token = validRefreshTokenRegisteredInDb();
+
+            tokenService.refreshAccessToken(token);
+
+            verify(refreshTokenRepository, atLeastOnce()).findByTokenHash(RefreshTokenHasher.hash(token));
+            verify(refreshTokenRepository, never()).findByTokenHash(argThat(h -> !RefreshTokenHasher.hash(token).equals(h)));
+            verify(refreshTokenRepository, never()).findByJti(anyString());
+        }
+
+        @Test
+        @DisplayName("la huella guardada no sirve como refresh token (un volcado de la tabla no renueva sesiones)")
+        void storedHashCannotBeUsedAsRefreshToken() {
+            String token = signedRefreshToken();
+            RefreshToken stored = storedRefreshToken(token);
+
+            assertThatThrownBy(() -> tokenService.refreshAccessToken(stored.getTokenHash()))
+                    .isInstanceOf(InvalidTokenException.class);
+
+            verify(customUserDetailsService, never()).loadUserByUsername(anyString());
+            verify(refreshTokenRepository, never()).findByTokenHash(anyString());
+        }
+
+        @Test
+        @DisplayName("una sesión anterior a la migración (sin huella en la BD) se rechaza; tras iniciar sesión de nuevo funciona")
+        void sessionIssuedBeforeMigrationIsRejectedThenLoginWorks() {
+            // Es el CA-7: una sesión emitida antes de la migración no tiene huella en la BD (la migración borra
+            // esas filas), así que el lookup por huella no encuentra nada. Aquí se simula con Optional.empty();
+            // que la migración borre las filas solo se prueba contra MySQL (spec 005, T6/T7).
+            String legacy = signedRefreshToken();
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(legacy))).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> tokenService.refreshAccessToken(legacy))
+                    .isInstanceOf(TokenBlacklistedException.class);
+
+            TokenPairDTO fresh = tokenService.generateTokenPair(authentication());
+            verify(refreshTokenRepository).save(savedToken.capture());
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(fresh.getRefreshToken())))
+                    .thenReturn(Optional.of(savedToken.getValue()));
+
+            TokenPairDTO renewed = tokenService.refreshAccessToken(fresh.getRefreshToken());
+
+            assertThat(renewed.getRefreshToken()).isNotEqualTo(fresh.getRefreshToken());
+        }
+
+        @Test
         @DisplayName("un refresh token que no está en la BD se rechaza")
         void unknownRefreshTokenIsRejected() {
             String token = signedRefreshToken();
-            when(refreshTokenRepository.findByToken(token)).thenReturn(Optional.empty());
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(token))).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> tokenService.refreshAccessToken(token))
                     .isInstanceOf(TokenBlacklistedException.class);
@@ -223,7 +285,7 @@ class TokenServiceTest {
             String token = signedRefreshToken();
             RefreshToken stored = storedRefreshToken(token);
             stored.setExpiresAt(Instant.now().minusSeconds(1));
-            when(refreshTokenRepository.findByToken(token)).thenReturn(Optional.of(stored));
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(token))).thenReturn(Optional.of(stored));
 
             assertThatThrownBy(() -> tokenService.refreshAccessToken(token))
                     .isInstanceOf(TokenBlacklistedException.class);
@@ -237,7 +299,7 @@ class TokenServiceTest {
             assertThatThrownBy(() -> tokenService.refreshAccessToken(forged))
                     .isInstanceOf(InvalidTokenException.class);
 
-            verify(refreshTokenRepository, never()).findByToken(anyString());
+            verify(refreshTokenRepository, never()).findByTokenHash(anyString());
         }
     }
 
@@ -306,7 +368,7 @@ class TokenServiceTest {
         void revokeMarksTokenRevoked() {
             String token = signedRefreshToken();
             RefreshToken stored = storedRefreshToken(token);
-            when(refreshTokenRepository.findByToken(token)).thenReturn(Optional.of(stored));
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(token))).thenReturn(Optional.of(stored));
 
             tokenService.revokeRefreshToken(token);
 
@@ -317,7 +379,7 @@ class TokenServiceTest {
         @Test
         @DisplayName("revocar un token desconocido no falla (logout idempotente)")
         void revokeUnknownTokenIsNoOp() {
-            when(refreshTokenRepository.findByToken("desconocido")).thenReturn(Optional.empty());
+            when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash("desconocido"))).thenReturn(Optional.empty());
 
             assertThatCode(() -> tokenService.revokeRefreshToken("desconocido")).doesNotThrowAnyException();
             verify(refreshTokenRepository, never()).save(any());
@@ -345,7 +407,7 @@ class TokenServiceTest {
     /** Emite un refresh token real y lo deja registrado y activo en la BD mockeada. */
     private String validRefreshTokenRegisteredInDb() {
         String token = signedRefreshToken();
-        when(refreshTokenRepository.findByToken(token)).thenReturn(Optional.of(storedRefreshToken(token)));
+        when(refreshTokenRepository.findByTokenHash(RefreshTokenHasher.hash(token))).thenReturn(Optional.of(storedRefreshToken(token)));
         return token;
     }
 
@@ -375,13 +437,13 @@ class TokenServiceTest {
 
     private RefreshToken storedRefreshToken(String token) {
         Jwt jwt = decoder.decode(token);
-        return new RefreshToken(USERNAME, token, jwt.getId(), jwt.getExpiresAt(), "127.0.0.1", "junit");
+        return new RefreshToken(USERNAME, RefreshTokenHasher.hash(token), jwt.getId(), jwt.getExpiresAt(), "127.0.0.1", "junit");
     }
 
     private List<RefreshToken> activeSessions(int count, Instant lastUsedAt) {
         List<RefreshToken> sessions = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            RefreshToken rt = new RefreshToken(USERNAME, "tok-" + i, "jti-" + i,
+            RefreshToken rt = new RefreshToken(USERNAME, RefreshTokenHasher.hash("tok-" + i), "jti-" + i,
                     Instant.now().plusSeconds(REFRESH_TTL), "127.0.0.1", "junit");
             rt.setLastUsedAt(lastUsedAt);
             sessions.add(rt);
