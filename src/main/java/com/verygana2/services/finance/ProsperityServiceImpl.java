@@ -9,7 +9,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -21,7 +23,9 @@ import com.verygana2.dtos.prosperity.ProsperityMovementResponseDTO;
 import com.verygana2.dtos.prosperity.ProsperityReconciliationResultDTO;
 import com.verygana2.dtos.prosperity.ProsperityReversalRequestDTO;
 import com.verygana2.dtos.prosperity.ProsperitySummaryResponseDTO;
+import com.verygana2.dtos.prosperity.ProsperityThresholdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.mappers.finance.ProsperityMapper;
 import com.verygana2.models.enums.finance.ProsperityEntryType;
 import com.verygana2.models.enums.finance.ProsperityOriginType;
@@ -226,15 +230,21 @@ public class ProsperityServiceImpl implements ProsperityService {
                 .orElseThrow(() -> new EntityNotFoundException(
                         "La inversión " + investmentId + " no tiene Umbral de Prosperidad"));
 
-        String key = "REVERSAL:INV:" + investmentId;
-        Optional<ProsperityLedgerEntry> previous = ledgerRepository.findByIdempotencyKey(key);
-        if (previous.isPresent()) {
-            return prosperityMapper.toMovementResponseDTO(previous.get());
-        }
-
+        // Se bloquea por id de cuenta: navegar threshold.account.commercial cargaría la cuenta
+        // sin lock, y si otra transacción la modifica mientras se espera el bloqueo, Hibernate
+        // rechaza la versión obsoleta en vez de dejar llegar a la verificación de abajo.
         ProsperityAccount account = accountRepository
-                .findByCommercialIdForUpdate(threshold.getAccount().getCommercial().getId())
+                .findByIdForUpdate(threshold.getAccount().getId())
                 .orElseThrow();
+
+        // Un Umbral se reversa una sola vez. No se devuelve el asiento previo como si fuera
+        // un reintento: la causal y el soporte de esta solicitud no quedarían registrados.
+        // Se comprueba con la cuenta ya bloqueada para que dos solicitudes simultáneas no
+        // pasen ambas la verificación.
+        String key = "REVERSAL:INV:" + investmentId;
+        ledgerRepository.findByIdempotencyKey(key).ifPresent(previous -> {
+            throw alreadyReversed(investmentId, previous.getEffectiveAt());
+        });
 
         // Sin FIFO entre Umbrales (Guía 5.8) no hay forma de saber qué parte de ESTE Umbral
         // se consumió: se retira lo que el Saldo agregado permita y el resto queda como
@@ -244,20 +254,28 @@ public class ProsperityServiceImpl implements ProsperityService {
         long reducible = Math.min(account.getBalanceCents(), generated);
         long uncovered = generated - reducible;
 
-        ProsperityLedgerEntry entry = append(account, ProsperityLedgerEntry.Draft.builder()
-                .type(ProsperityEntryType.THRESHOLD_REVERSAL)
-                .amountCents(reducible)
-                .originType(ProsperityOriginType.INVESTMENT)
-                .originId(String.valueOf(investmentId))
-                .threshold(threshold)
-                .relatedEntry(ledgerRepository.findByIdempotencyKey("THRESHOLD:INV:" + investmentId).orElse(null))
-                .uncoveredCents(uncovered)
-                .idempotencyKey(key)
-                .effectiveAt(ZonedDateTime.now(ZoneOffset.UTC))
-                .cause(request.cause())
-                .supportRef(request.supportRef())
-                .performedBy("ADMIN:" + adminId)
-                .build());
+        ProsperityLedgerEntry entry;
+        try {
+            entry = append(account, ProsperityLedgerEntry.Draft.builder()
+                    .type(ProsperityEntryType.THRESHOLD_REVERSAL)
+                    .amountCents(reducible)
+                    .originType(ProsperityOriginType.INVESTMENT)
+                    .originId(String.valueOf(investmentId))
+                    .threshold(threshold)
+                    .relatedEntry(ledgerRepository.findByIdempotencyKey("THRESHOLD:INV:" + investmentId).orElse(null))
+                    .uncoveredCents(uncovered)
+                    .idempotencyKey(key)
+                    .effectiveAt(ZonedDateTime.now(ZoneOffset.UTC))
+                    .cause(request.cause())
+                    .supportRef(request.supportRef())
+                    .performedBy("ADMIN:" + adminId)
+                    .build());
+        } catch (DataIntegrityViolationException e) {
+            // MySQL (REPEATABLE READ): la lectura de arriba usa el snapshot tomado antes de
+            // esperar el lock y no ve la reversión que otra transacción acaba de confirmar.
+            // La atrapa la clave única de idempotencia.
+            throw alreadyReversed(investmentId, null);
+        }
 
         if (uncovered > 0) {
             log.warn("[PROSPERITY] Reversión con Umbral ya consumido: investmentId={}, umbral={}, retirado={}, "
@@ -323,8 +341,15 @@ public class ProsperityServiceImpl implements ProsperityService {
         }
 
         ProsperityAccount account = accountOpt.get();
+        Map<Long, ZonedDateTime> reversedAtByThreshold = ledgerRepository
+                .findByAccountIdAndType(account.getId(), ProsperityEntryType.THRESHOLD_REVERSAL).stream()
+                .collect(Collectors.toMap(e -> e.getThreshold().getId(), ProsperityLedgerEntry::getEffectiveAt));
+        List<ProsperityThresholdResponseDTO> thresholds = thresholdRepository
+                .findByAccountIdOrderByValidatedAtAsc(account.getId()).stream()
+                .map(t -> prosperityMapper.toThresholdResponseDTO(t, reversedAtByThreshold.get(t.getId())))
+                .toList();
         return prosperityMapper.toSummaryResponseDTO(account, commercial.getUser().getPublicId(), standard ? "ACTIVE" : "FROZEN",
-                thresholdRepository.findByAccountIdOrderByValidatedAtAsc(account.getId()), DISCLAIMER);
+                thresholds, DISCLAIMER);
     }
 
     @Override
@@ -408,6 +433,11 @@ public class ProsperityServiceImpl implements ProsperityService {
 
     private boolean isStandard(CommercialDetails commercial) {
         return commercial.getCurrentPlan() != null && commercial.getCurrentPlan().getCode() == PlanCode.STANDARD;
+    }
+
+    private InvalidStatusException alreadyReversed(Long investmentId, ZonedDateTime reversedAt) {
+        return new InvalidStatusException("El Umbral de la inversión " + investmentId + " ya fue reversado"
+                + (reversedAt != null ? " el " + reversedAt : ""));
     }
 
     private void requireCause(String cause) {

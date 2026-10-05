@@ -159,12 +159,34 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         if (!contract.getCommercial().getId().equals(commercialId)) {
             throw new ObjectNotFoundException("Contrato no encontrado: " + contractId, CommercialContract.class);
         }
+        CommercialContract saved = cancelUnpaidRecharge(contract,
+                "El comercial autocanceló su contrato de RECHARGE v" + contract.getVersion() + ".");
+
+        log.info("[CONTRACT] Recarga autocancelada: commercialId={}, contractId={}", commercialId, contractId);
+        return toSummary(saved);
+    }
+
+    @Override
+    public void expireRecharge(Long contractId) {
+        CommercialContract contract = getContractOrThrow(contractId);
+        CommercialContract saved = cancelUnpaidRecharge(contract,
+                "El contrato de RECHARGE v" + contract.getVersion()
+                        + " venció sin completarse el pago y se canceló automáticamente.");
+
+        log.info("[CONTRACT] Recarga vencida y cancelada: commercialId={}, contractId={}",
+                saved.getCommercial().getId(), contractId);
+    }
+
+    private CommercialContract cancelUnpaidRecharge(CommercialContract contract, String auditDescription) {
         if (contract.getPurpose() != ContractPurpose.RECHARGE) {
             throw new BusinessException(
                     "Solo un contrato de recarga se puede autocancelar — un cambio de plan se cancela desde su propia solicitud.");
         }
-        if (contract.getInvestment() != null) {
-            throw new BusinessException("Esta recarga ya generó un pago, no se puede cancelar.");
+        // Un checkout abierto y sin pagar no impide cancelar: quien llama ya concilió
+        // con Wompi (ver PlanServiceImpl#cancelRecharge). Lo que nunca se cancela es
+        // una recarga cuyo depósito ya se confirmó.
+        if (contract.getInvestment() != null && Boolean.TRUE.equals(contract.getInvestment().getConfirmed())) {
+            throw new BusinessException("Esta recarga ya fue pagada, no se puede cancelar.");
         }
         if (!RECHARGE_CANCELLABLE_STATUSES.contains(contract.getStatus())) {
             throw new BusinessException("Este contrato ya no se puede cancelar (estado actual: " + contract.getStatus() + ").");
@@ -174,12 +196,9 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         contract.setStatus(ContractStatus.CANCELLED);
         CommercialContract saved = contractRepository.save(contract);
 
-        publishAudit(commercialId, "COMMERCIAL_CONTRACT_CANCELLED",
-                "El comercial autocanceló su contrato de RECHARGE v" + saved.getVersion() + ".",
+        publishAudit(saved.getCommercial().getId(), "COMMERCIAL_CONTRACT_CANCELLED", auditDescription,
                 Map.of("contractId", saved.getId()));
-
-        log.info("[CONTRACT] Recarga autocancelada: commercialId={}, contractId={}", commercialId, contractId);
-        return toSummary(saved);
+        return saved;
     }
 
     @Override

@@ -71,26 +71,8 @@ public class WompiService {
         log.info("[WOMPI SERVICE] Generating checkout URL: reference={}, amount={}",
                 request.getReference(), request.getAmountInCents());
 
-        // 1. Generar hash de integridad SHA-256
-        //    Fórmula: SHA256(reference + amountInCents + currency + integrityKey)
-        String integrityHash = wompiClient.generateIntegrityHash(
-                request.getReference(),
-                request.getAmountInCents(),
-                "COP"
-        );
-
-        // 2. Construir la URL del checkout con todos los parámetros requeridos por Wompi
-        String checkoutUrl = UriComponentsBuilder
-                .fromUriString(wompiConfig.getCheckoutBaseUrl())
-                .queryParam("public-key",          wompiConfig.getPublicKey())
-                .queryParam("currency",            "COP")
-                .queryParam("amount-in-cents",     request.getAmountInCents())
-                .queryParam("reference",           request.getReference())
-                .queryParam("signature:integrity", integrityHash)
-                .queryParam("redirect-url",        request.getRedirectUrl())
-                .queryParam("customer-data:email", request.getCustomerEmail())
-                .build()
-                .toUriString();
+        // 1-2. Hash de integridad + URL del checkout con los parámetros de Wompi
+        String checkoutUrl = buildCheckoutUrl(request);
 
         log.debug("[WOMPI SERVICE] Checkout URL generated for reference={}", request.getReference());
 
@@ -121,6 +103,61 @@ public class WompiService {
                 .reference(request.getReference())
                 .amountInCents(request.getAmountInCents())
                 .build();
+    }
+
+    /**
+     * Vuelve a armar la URL del checkout de una referencia que ya se había generado
+     * y que el usuario abandonó sin llegar a pagar (Wompi no tiene transacción para
+     * ella). No crea otro WompiTransaction: el registro PENDING de la primera vez
+     * sigue siendo el que el webhook va a actualizar, y reference es única.
+     *
+     * Debe llamarse con el mismo monto de la primera vez — el hash de integridad se
+     * calcula sobre referencia + monto.
+     */
+    @Transactional
+    public WompiCheckoutResponseDTO resumeCheckoutUrl(
+            WompiCheckoutRequestDTO request,
+            WompiTransactionType type) {
+
+        if (wompiTransactionRepository.findByReference(request.getReference()).isEmpty()) {
+            return createCheckoutUrl(request, type);
+        }
+
+        log.info("[WOMPI SERVICE] Resuming checkout URL: reference={}, amount={}",
+                request.getReference(), request.getAmountInCents());
+
+        String checkoutUrl = buildCheckoutUrl(request);
+
+        return WompiCheckoutResponseDTO.builder()
+                .checkoutUrl(checkoutUrl)
+                .reference(request.getReference())
+                .amountInCents(request.getAmountInCents())
+                .build();
+    }
+
+    /**
+     * Construye la URL firmada del checkout. No hace ninguna llamada HTTP a Wompi.
+     */
+    private String buildCheckoutUrl(WompiCheckoutRequestDTO request) {
+        // Hash de integridad SHA-256
+        //    Fórmula: SHA256(reference + amountInCents + currency + integrityKey)
+        String integrityHash = wompiClient.generateIntegrityHash(
+                request.getReference(),
+                request.getAmountInCents(),
+                "COP"
+        );
+
+        return UriComponentsBuilder
+                .fromUriString(wompiConfig.getCheckoutBaseUrl())
+                .queryParam("public-key",          wompiConfig.getPublicKey())
+                .queryParam("currency",            "COP")
+                .queryParam("amount-in-cents",     request.getAmountInCents())
+                .queryParam("reference",           request.getReference())
+                .queryParam("signature:integrity", integrityHash)
+                .queryParam("redirect-url",        request.getRedirectUrl())
+                .queryParam("customer-data:email", request.getCustomerEmail())
+                .build()
+                .toUriString();
     }
 
      /**
