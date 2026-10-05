@@ -21,6 +21,22 @@ LT_SCENARIO="${LT_SCENARIO:-A}"
 [ "${LT_SCENARIO}" = "smoke" ] && LT_SCENARIO=A
 [ -f "${ROOT_DIR}/stress-tests/local/scenarios/${LT_SCENARIO}.env" ] || { echo "no existe el escenario ${LT_SCENARIO} (A o B)" >&2; exit 2; }
 cd "${ROOT_DIR}"
+
+# Par RSA de prueba para firmar los JWT (D-21: la imagen ya no lleva certs/private.pem). Se genera
+# aquí, una sola vez, en una carpeta que git ignora (stress-tests/env/keys/), y el compose la monta
+# en el contenedor `api` de solo lectura. Es desechable: no es la clave de dev ni de ningún ambiente.
+# PKCS#8 es el formato que exige la API (`BEGIN PRIVATE KEY`). Para rotarla, borrar la carpeta y
+# recrear el contenedor `api` (`$LT up -d --force-recreate api`).
+KEYS_DIR="${ROOT_DIR}/stress-tests/env/keys"
+if [ ! -s "${KEYS_DIR}/private.pem" ] || [ ! -s "${KEYS_DIR}/public.pem" ]; then
+  command -v openssl >/dev/null || { echo "falta openssl para generar el par de claves de prueba" >&2; exit 2; }
+  mkdir -p "${KEYS_DIR}"
+  openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "${KEYS_DIR}/private.pem" 2>/dev/null
+  openssl pkey -in "${KEYS_DIR}/private.pem" -pubout -out "${KEYS_DIR}/public.pem"
+  chmod 644 "${KEYS_DIR}/private.pem" "${KEYS_DIR}/public.pem"
+  echo "lt.sh: par de claves RSA de prueba generado en stress-tests/env/keys/ (ignorado por git)" >&2
+fi
+
 exec docker compose \
   -f stress-tests/docker-compose.yml -f stress-tests/docker-compose.local.yml \
   --env-file "stress-tests/local/plans/${PLAN}.env" \

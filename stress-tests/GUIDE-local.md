@@ -38,6 +38,15 @@ cp stress-tests/env/loadtest.local.env.example stress-tests/env/loadtest.local.e
 
 El archivo es ficticio y desechable (git lo ignora). No hay que editarlo salvo `LOADTEST_SEED_USERS` (paso 4).
 
+**Claves del JWT.** La imagen de la API ya no lleva `certs/private.pem` (`.dockerignore`, D-21). La prueba firma los
+tokens con un par RSA de prueba que `scripts/lt.sh` **genera solo** la primera vez (PKCS#8, 2048 bits, con `openssl`) en
+`stress-tests/env/keys/` (git lo ignora) y que el compose monta de solo lectura en la API
+(`RSA_PRIVATEKEY=file:/run/lt-keys/private.pem`). Es desechable y no se parece a ninguna clave de dev ni de beta. No hay
+nada que copiar ni pegar; **no escribas una clave privada en `loadtest.local.env` ni en ningún archivo versionado**. Para
+rotarla: borra `stress-tests/env/keys/` y recrea la API (`$LT up -d --force-recreate api`). Requiere `openssl` en el Mac
+(viene instalado). Si corres `docker compose` a mano en vez de `lt.sh`, genera el par antes o el montaje queda vacío y la
+API no arranca.
+
 ## 2. Elegir el archivo de plan, la regla de llaves primarias y el trust
 
 Hay **dos ejes** y los dos se cargan en cada `lt.sh`/`run-scenario.sh` (el escenario después del plan, así que manda):
@@ -260,6 +269,8 @@ rm stress-tests/env/loadtest.local.env        # opcional
 
 - La API no arranca y el log dice `LoadTestSafetyGuard`: algo apunta a un proveedor real o el perfil trae `beta`/`dev`.
   Es lo esperado con `SPRING_PROFILES_ACTIVE=prod,beta,loadtest`; no hay que "arreglarlo".
+- La API no arranca y el log dice `rsa.private-key ... certs/private.pem ... does not exist` (o `Illegal base64`): falta el
+  par de `stress-tests/env/keys/` (o está vacío). Bórralo y vuelve a correr cualquier comando de `lt.sh`; lo regenera.
 - `/actuator/prometheus` responde 401: falta `Authorization: Bearer <METRICS_SCRAPE_TOKEN>` (el de `loadtest.local.env`).
 - Docker Desktop se reinició durante la corrida (los contenedores `mysql`/`api` quedan `Exited`): la corrida no vale. Sube
   los contenedores con `$LT up -d` (los datos persisten) y repítela.

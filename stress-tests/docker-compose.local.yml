@@ -52,7 +52,13 @@ services:
     mem_limit: ${API_MEM}
     # Solo el env de la prueba: nunca el .env de la raiz ni secretos de Infisical.
     env_file: env/loadtest.local.env
+    # Claves del JWT: la imagen no lleva certs/private.pem (D-21). Las genera lt.sh en
+    # env/keys/ (ignorada por git) y se montan de solo lectura; RsaKeyProperties acepta `file:/ruta`.
+    volumes:
+      - ./env/keys:/run/lt-keys:ro
     environment:
+      RSA_PRIVATEKEY: file:/run/lt-keys/private.pem
+      RSA_PUBLICKEY: file:/run/lt-keys/public.pem
       JAVA_OPTS: -XX:MaxRAMPercentage=70
       DB_POOL_SIZE: ${DB_POOL_SIZE}
       SERVER_TOMCAT_THREADS_MAX: ${TOMCAT_THREADS_MAX:-200}

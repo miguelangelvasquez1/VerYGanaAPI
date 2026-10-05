@@ -1,0 +1,217 @@
+# Despliegue de la beta (spec 006). Una EC2 t4g.medium (ARM64) con la API, el
+# front, el proxy TLS y Alloy. La base es la de DigitalOcean (no va aquí).
+#
+# El despliegue es por ETAPAS, en el orden del runbook, y cada etapa suma un
+# archivo de compose. Compose interpola todos los archivos que se le dan, así
+# que una variable obligatoria (`:?`) solo se exige si su archivo está en el
+# comando: al levantar una etapa, lo que le falte hace fallar `up` con el
+# nombre de la variable, y lo de las etapas siguientes no estorba.
+#
+#   etapa 1 (T10)  api + proxy   docker-compose.yml
+#   etapa 2 (T11)  + front       docker-compose.front.yml
+#   etapa 3 (T17)  + alloy       docker-compose.alloy.yml
+#
+# Desde esta carpeta, con los secretos de la identidad de máquina de Infisical
+# (siempre se repiten los archivos de las etapas anteriores):
+#
+#   infisical run --env=beta -- docker compose up -d
+#   infisical run --env=beta -- docker compose -f docker-compose.yml -f docker-compose.front.yml up -d
+#   infisical run --env=beta -- docker compose -f docker-compose.yml -f docker-compose.front.yml -f docker-compose.alloy.yml up -d
+#
+# Si se levanta una etapa con menos archivos que la anterior, Compose avisa de
+# "orphan containers" y no los toca (no pasa nada, pero no es lo que se quiere).
+#
+# NUNCA `docker compose down -v` ni `docker volume rm`: borran el volumen
+# `caddy-data` con los certificados y Let's Encrypt limita las emisiones por
+# dominio. Y `docker compose stop`, `down`, `ps`, `logs` y `restart` NO sirven sin
+# las variables: Compose interpola el archivo entero y falla con `required variable
+# ... is missing`. Para parar, arrancar o mirar se usa Docker directo, por nombre
+# de contenedor (no necesita variables ni los `-f` de cada etapa):
+#
+#   docker stop  verygana-api verygana-front verygana-alloy caddy
+#   docker start verygana-api verygana-front verygana-alloy caddy
+#   docker ps / docker logs <nombre> / docker restart <nombre>
+#
+# Si alguno no existe todavía (el front y Alloy no están en la etapa 1) `docker`
+# responde "No such container" y sigue con el resto. Los parados a mano con `docker
+# stop` siguen parados tras reiniciar la instancia (`unless-stopped`). Solo un
+# `up -d` completo (con el prefijo `infisical run` y los `-f`) recrea contenedores
+# o aplica cambios del compose.
+#
+# Secretos: llegan por el entorno del proceso `docker compose`; no hay
+# `env_file` ni `.env`, así que no queda ningún archivo con secretos en la
+# instancia. Pero Docker SÍ guarda el entorno de cada contenedor en su
+# configuración (`/var/lib/docker/containers/<id>/config.v2.json`, solo root) y
+# `docker inspect` lo muestra: quien tenga acceso al daemon de Docker en la
+# instancia (root o grupo `docker`) puede leer los secretos. Es inevitable con
+# variables de entorno y es lo que hace funcionar `restart: unless-stopped`.
+#
+# Las imágenes se construyen FUERA de la instancia (Mac arm64) y se cargan con
+# `docker save | ssh ... docker load`. Etiqueta por commit:
+#
+#   export API_IMAGE=verygana-api:$SHA
+#   export FRONT_IMAGE=<imagen-del-front>:<etiqueta>
+#
+# Para volver atrás se cambia la etiqueta y se repite `up -d`.
+#
+# El repo se copia a la instancia respetando estas rutas (el compose monta
+# `../../monitoring/alloy/config.alloy`; si el archivo no está ahí, Docker crea
+# un DIRECTORIO con ese nombre y Alloy no arranca):
+#   <raíz>/deploy/beta/{docker-compose.yml,docker-compose.front.yml,docker-compose.alloy.yml,Caddyfile}
+#   <raíz>/monitoring/alloy/config.alloy
+
+# Nombre fijo del proyecto: los volúmenes (caddy-data, con los certificados) se
+# llaman `verygana-beta_caddy-data` aunque se ejecute desde otra carpeta.
+name: verygana-beta
+
+# Rotación de logs de Docker (el log de accesos de Caddy crece sin límite si no).
+# Tamaño amplio a propósito: T18 analiza estos logs y no debe quedar truncado.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  api:
+    image: ${API_IMAGE:?API_IMAGE - etiqueta por commit de la API, p. ej. verygana-api:abc1234}
+    container_name: verygana-api
+    restart: unless-stopped
+    # 1 GB efectivo (SCRUM-79: pico medido 920 MiB). Si muere por memoria, no se
+    # sube el heap: se revisa SERVER_TOMCAT_THREADS_MAX y se avisa.
+    mem_limit: 1g
+    # Sin `ports`: solo el proxy sale a internet. El 8080 es de la red interna.
+    expose:
+      - "8080"
+    environment:
+      # --- Configuración (no secretos) ---
+      - SPRING_PROFILES_ACTIVE=prod,beta
+      # Igual que ENV JAVA_OPTS del Dockerfile (con esto se midieron los 920 MiB).
+      - JAVA_OPTS=-Xmx512m -Xms256m
+      - SERVER_TOMCAT_THREADS_MAX=50
+      # Logger de WompiClient en WARN (D-17): ese cliente escribe el secreto de
+      # integridad en INFO. Va por SPRING_APPLICATION_JSON y no por
+      # LOGGING_LEVEL_COM_VERYGANA2_...: Spring enlaza las variables de entorno
+      # en minúsculas ("...wompi.wompiclient") y logback distingue mayúsculas,
+      # así que la variable clásica no apagaría nada.
+      - 'SPRING_APPLICATION_JSON={"logging":{"level":{"com.verygana2.services.wompi.WompiClient":"WARN"}}}'
+      - DB_URL=${DB_URL:?DB_URL - jdbc:mysql://<host>:25060/verygana?sslMode=REQUIRED&serverTimezone=UTC}
+      - APP_BASE_URL=${APP_BASE_URL:?APP_BASE_URL - https://api-beta.verygana.com sin barra final}
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:?FRONTEND_BASE_URL - https://beta.verygana.com sin barra final}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:?CORS_ALLOWED_ORIGINS - beta.verygana.com y games.verygana.com, sin barra final}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID:?R2_ACCOUNT_ID falta en Infisical beta}
+      - R2_PETS_CDN_DOMAIN=${R2_PETS_CDN_DOMAIN:?R2_PETS_CDN_DOMAIN falta en Infisical beta}
+      - IVA=${IVA:?IVA falta en Infisical beta}
+      # --- Secretos (salen de Infisical, entorno beta) ---
+      - DB_USERNAME=${DB_USERNAME:?DB_USERNAME falta en Infisical beta}
+      - DB_PASSWORD=${DB_PASSWORD:?DB_PASSWORD falta en Infisical beta}
+      - METRICS_SCRAPE_TOKEN=${METRICS_SCRAPE_TOKEN:?METRICS_SCRAPE_TOKEN falta en Infisical beta}
+      - RECAPTCHA_SECRET_KEY=${RECAPTCHA_SECRET_KEY:?RECAPTCHA_SECRET_KEY falta (sin ella el login falla cerrado)}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID:?R2_ACCESS_KEY_ID falta en Infisical beta}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY:?R2_SECRET_ACCESS_KEY falta en Infisical beta}
+      - SENDGRID_API_KEY=${SENDGRID_API_KEY:?SENDGRID_API_KEY falta en Infisical beta}
+      # Claves RSA del JWT (RN-9): propias de la beta, en Infisical como PEM en
+      # línea, con saltos de línea reales (la privada en PKCS#8). La imagen no lleva
+      # la clave privada porque `.dockerignore` excluye certs/private.pem (D-21), así
+      # que si estas variables faltan la API no arranca en vez de firmar con una
+      # clave empaquetada. Enlazan con rsa.private-key y rsa.public-key. Si el
+      # formato está mal, Spring Boot escribe la clave entera en el log: comprobarlo
+      # antes del `up` (T5).
+      - RSA_PRIVATEKEY=${RSA_PRIVATEKEY:?RSA_PRIVATEKEY falta en Infisical beta (PEM PKCS#8; la API no arranca sin ella)}
+      - RSA_PUBLICKEY=${RSA_PUBLICKEY:?RSA_PUBLICKEY falta en Infisical beta (PEM)}
+      - USER_HASH_SECRET=${USER_HASH_SECRET:?USER_HASH_SECRET falta en Infisical beta}
+      - APP_CLAIM_CODE_ENCRYPTION_KEY=${APP_CLAIM_CODE_ENCRYPTION_KEY:?APP_CLAIM_CODE_ENCRYPTION_KEY falta en Infisical beta}
+      - APP_PRODUCT_CODE_ENCRYPTION_KEY=${APP_PRODUCT_CODE_ENCRYPTION_KEY:?APP_PRODUCT_CODE_ENCRYPTION_KEY falta en Infisical beta}
+      - APP_PRODUCT_CODE_HMAC_SECRET=${APP_PRODUCT_CODE_HMAC_SECRET:?APP_PRODUCT_CODE_HMAC_SECRET falta en Infisical beta}
+      - RANDOM_ORG_API_KEY=${RANDOM_ORG_API_KEY:?RANDOM_ORG_API_KEY falta (la de desarrollo)}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:?TWILIO_ACCOUNT_SID falta en Infisical beta}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:?TWILIO_AUTH_TOKEN falta en Infisical beta}
+      - TWILIO_VERIFY_SERVICE_SID=${TWILIO_VERIFY_SERVICE_SID:?TWILIO_VERIFY_SERVICE_SID falta en Infisical beta}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:?TWILIO_PHONE_NUMBER falta en Infisical beta}
+      # Dinero y firmas: SOLO sandbox (RN-1, RN-7). Los tres WOMPI_PAYOUT_* los
+      # hereda beta de prod con ese nombre: su valor en Infisical beta es el de sandbox.
+      - WOMPI_SANDBOX_PUBLIC_KEY=${WOMPI_SANDBOX_PUBLIC_KEY:?WOMPI_SANDBOX_PUBLIC_KEY falta en Infisical beta}
+      - WOMPI_SANDBOX_PRIVATE_KEY=${WOMPI_SANDBOX_PRIVATE_KEY:?WOMPI_SANDBOX_PRIVATE_KEY falta en Infisical beta}
+      - WOMPI_SANDBOX_INTEGRITY_SECRET=${WOMPI_SANDBOX_INTEGRITY_SECRET:?WOMPI_SANDBOX_INTEGRITY_SECRET falta en Infisical beta}
+      - WOMPI_SANDBOX_EVENTS_KEY=${WOMPI_SANDBOX_EVENTS_KEY:?WOMPI_SANDBOX_EVENTS_KEY falta en Infisical beta}
+      - WOMPI_SANDBOX_PAYOUTS_API_KEY=${WOMPI_SANDBOX_PAYOUTS_API_KEY:?WOMPI_SANDBOX_PAYOUTS_API_KEY falta en Infisical beta}
+      - WOMPI_SANDBOX_PAYOUTS_USER_ID=${WOMPI_SANDBOX_PAYOUTS_USER_ID:?WOMPI_SANDBOX_PAYOUTS_USER_ID falta en Infisical beta}
+      - WOMPI_SANDBOX_PAYOUTS_SECRET=${WOMPI_SANDBOX_PAYOUTS_SECRET:?WOMPI_SANDBOX_PAYOUTS_SECRET falta en Infisical beta}
+      - WOMPI_PAYOUT_ACCOUNT_ID=${WOMPI_PAYOUT_ACCOUNT_ID:?WOMPI_PAYOUT_ACCOUNT_ID falta (valor de sandbox)}
+      - WOMPI_PAYOUT_NEQUI_BANK_ID=${WOMPI_PAYOUT_NEQUI_BANK_ID:?WOMPI_PAYOUT_NEQUI_BANK_ID falta (valor de sandbox)}
+      - WOMPI_PAYOUT_DAVIPLATA_BANK_ID=${WOMPI_PAYOUT_DAVIPLATA_BANK_ID:?WOMPI_PAYOUT_DAVIPLATA_BANK_ID falta (valor de sandbox)}
+      - ZAPSIGN_API_TOKEN=${ZAPSIGN_API_TOKEN:?ZAPSIGN_API_TOKEN falta (el de sandbox)}
+      - ZAPSIGN_WEBHOOK_SECRET=${ZAPSIGN_WEBHOOK_SECRET:?ZAPSIGN_WEBHOOK_SECRET falta (no puede ir vacío)}
+      # --- Opcionales: tienen default en application*.yml. Sin valor ("- NOMBRE")
+      # Compose solo las pasa si existen en el entorno; si no, rige el default.
+      - DB_POOL_SIZE
+      - GAMES_CDN_URL
+      # Placeholders sin default en application-prod.yml, pero ningún código las
+      # lee hoy (verificado en src/main/java), así que no son obligatorias.
+      - PRODUCT_SALE_COMMISSION
+      - AD_VIEW
+      - CLOUDINARY_CLOUD_NAME
+      - CLOUDINARY_API_KEY
+      - CLOUDINARY_API_SECRET
+      - R2_BUCKET_NAME
+      - R2_CDN_DOMAIN
+      - R2_ENDPOINT
+      - R2_GAMES_DOMAIN
+      - R2_GAMES_WORKER_DOMAIN
+      - R2_PETS_BUCKET_NAME
+      - PETS_ASSET_BASE_URL
+      - PETS_GAME_PATH
+      - EMAIL_LOGO_URL
+      - ADMIN_NOTIFICATION_EMAIL
+      - ZAPSIGN_BRAND_NAME
+      - ZAPSIGN_REQUIRE_SELFIE_VALIDATION
+      # Ajustes de negocio con default en application-prod.yml (si Infisical beta
+      # define alguno, tiene que llegar al contenedor; el lienzo de escenas de
+      # mascotas es el caso típico).
+      - PURCHASE_KEYS_PERCENTAGE
+      - CONNECTIVITY_KEYS_PERCENTAGE
+      - KEY_VALUE_CENTS
+      - GAMES_COIN_ICON_URL
+      - GAMES_PREVIEW_SAMPLE_PRODUCT_IMAGE_URL
+      - GD_PASSWORD_SETUP_TOKEN_EXPIRATION_HOURS
+      - PETS_CATALOG_REQUEST_IMAGE_MAX_BYTES
+      - PETS_COMMERCIAL_CHARGE_PER_USE_CENTS
+      - PETS_SCENE_CANVAS_WIDTH
+      - PETS_SCENE_CANVAS_HEIGHT
+      - PETS_SCENE_CANVAS_Y_AXIS
+      - PETS_SCENE_CANVAS_ANCHOR
+    logging: *default-logging
+    networks:
+      - internal
+
+  # Único servicio que publica puertos. El 80 es necesario para el desafío HTTP
+  # de Let's Encrypt y para redirigir a HTTPS.
+  proxy:
+    # Versión fijada (la validada con el Caddyfile); subirla a propósito.
+    image: caddy:2.11.6
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados y cuenta ACME. No recrear este volumen en cada intento:
+      # Let's Encrypt limita las emisiones por dominio.
+      - caddy-data:/data
+      - caddy-config:/config
+    # Sin `depends_on: front`: el front se levanta después (T11) y Caddy no lo
+    # necesita para arrancar. Hasta entonces beta.verygana.com responde 502;
+    # api-beta.verygana.com ya funciona.
+    depends_on:
+      - api
+    logging: *default-logging
+    networks:
+      - internal
+
+networks:
+  internal:
+
+volumes:
+  caddy-data:
+  caddy-config:
