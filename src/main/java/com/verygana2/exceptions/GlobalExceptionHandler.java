@@ -18,6 +18,7 @@ import org.hibernate.StaleStateException;
 import org.hibernate.exception.JDBCConnectionException;
 import org.springframework.transaction.UnexpectedRollbackException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -125,6 +126,30 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGlobalException(Exception ex, WebRequest request) {
         log.error("Unexpected error: ", ex);
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request);
+    }
+
+    /**
+     * Cliente SSE que se fue (cerró la pestaña, recargó, perdió la red): el siguiente
+     * envío falla con IOException y Spring re-despacha la request original con ese error.
+     *
+     * No es un fallo nuestro ni hay a quién contestarle. Sin este handler caía en el
+     * catch-all, que lo registraba como "Unexpected error" y luego fallaba al intentar
+     * escribir un ErrorResponse JSON sobre una respuesta text/event-stream: tres trazas
+     * por cada pestaña cerrada.
+     *
+     * Se decide por el estado de la respuesta y no por el mensaje de la excepción, que
+     * cambia según el sistema operativo ("Broken pipe", "connection was aborted"...).
+     */
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<ErrorResponse> handleIOException(
+            IOException ex, WebRequest request, HttpServletResponse response) {
+        String contentType = response.getContentType();
+        boolean eventStream = contentType != null && contentType.startsWith(MediaType.TEXT_EVENT_STREAM_VALUE);
+        if (eventStream || response.isCommitted()) {
+            log.debug("Client disconnected from {}: {}", request.getDescription(false), ex.getMessage());
+            return null; // respuesta ya iniciada: no hay cuerpo que escribir
+        }
+        return handleGlobalException(ex, request);
     }
 
     @ExceptionHandler(BusinessException.class)

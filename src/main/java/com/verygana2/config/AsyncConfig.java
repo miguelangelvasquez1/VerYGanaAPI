@@ -9,8 +9,11 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableAsync;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import lombok.extern.slf4j.Slf4j;
+
 @Configuration
 @EnableAsync
+@Slf4j
 public class AsyncConfig {
     @Bean(name = "notificationExecutor")
     public Executor notificationExecutor() {
@@ -19,6 +22,12 @@ public class AsyncConfig {
         executor.setMaxPoolSize(5);
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("notification-");
+        // Con la política por defecto (AbortPolicy) una cola llena lanza TaskRejectedException
+        // al llamador, que casi siempre está dentro de una transacción de negocio (sorteos,
+        // moderación, pagos). Una notificación in-app perdida no justifica ese rollback.
+        executor.setRejectedExecutionHandler((task, pool) ->
+                log.warn("Notification executor saturated (queue={}), notification dropped",
+                        pool.getQueue().size()));
         executor.initialize();
         return executor;
     }
