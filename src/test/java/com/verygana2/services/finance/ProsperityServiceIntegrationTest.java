@@ -2,6 +2,10 @@ package com.verygana2.services.finance;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.ZoneOffset;
@@ -35,7 +39,9 @@ import com.verygana2.dtos.prosperity.ProsperityAdjustmentRequestDTO;
 import com.verygana2.dtos.prosperity.ProsperityMovementResponseDTO;
 import com.verygana2.dtos.prosperity.ProsperityReversalRequestDTO;
 import com.verygana2.dtos.prosperity.ProsperitySummaryResponseDTO;
+import com.verygana2.dtos.prosperity.ProsperityThresholdResponseDTO;
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.models.enums.finance.ProsperityEntryType;
 import com.verygana2.models.finance.Wallet;
 import com.verygana2.models.finance.plans.Investment;
@@ -51,6 +57,24 @@ import com.verygana2.repositories.finance.prosperity.ProsperityAccountRepository
 import com.verygana2.repositories.finance.prosperity.ProsperityLedgerEntryRepository;
 import com.verygana2.repositories.finance.prosperity.ProsperityThresholdRepository;
 import com.verygana2.testsupport.TestEntities;
+import com.verygana2.config.metrics.PayoutMetrics;
+import com.verygana2.config.wompi.WompiPayoutConfig;
+import com.verygana2.mappers.PayoutMapper;
+import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
+import com.verygana2.models.finance.Payout;
+import com.verygana2.models.finance.PayoutItem;
+import com.verygana2.models.marketplace.Product;
+import com.verygana2.repositories.finance.PayoutItemRepository;
+import com.verygana2.repositories.finance.PayoutRepository;
+import com.verygana2.repositories.finance.WompiTransactionRepository;
+import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.services.interfaces.finance.PayoutExecutionService;
+import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.wompi.WompiPayoutClient;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.mockito.ArgumentCaptor;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import jakarta.persistence.EntityManager;
 
@@ -472,8 +496,8 @@ class ProsperityServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("reverso usa el multiplicador histórico aunque la feature del plan cambie después; es idempotente")
-        void reversal_usesHistoricalMultiplier_andIsIdempotent() {
+        @DisplayName("reverso usa el multiplicador histórico aunque la feature del plan cambie después; el segundo intento se rechaza")
+        void reversal_usesHistoricalMultiplier_andCannotBeRepeated() {
             CommercialDetails commercial = standardCommercial();
             Investment investment = invest(commercial, ONE_MILLION); // x4
 
@@ -484,11 +508,40 @@ class ProsperityServiceIntegrationTest {
 
             var request = new ProsperityReversalRequestDTO("Anulación", null);
             ProsperityMovementResponseDTO first = service.reverseThreshold(investment.getId(), request, 99L);
-            ProsperityMovementResponseDTO second = service.reverseThreshold(investment.getId(), request, 99L);
 
             assertThat(first.amountCents()).isEqualTo(4 * ONE_MILLION);
-            assertThat(second.id()).isEqualTo(first.id());
-            assertThat(balance(commercial)).isZero();
+            assertThatThrownBy(() -> service.reverseThreshold(investment.getId(),
+                    new ProsperityReversalRequestDTO("Otra causal", "otro soporte"), 100L))
+                    .isInstanceOf(InvalidStatusException.class)
+                    .hasMessageContaining("ya fue reversado");
+
+            ProsperityAccount account = accountRepository.findByCommercialId(commercial.getId()).orElseThrow();
+            assertThat(account.getBalanceCents()).isZero();
+            assertThat(account.getLastSequence()).isEqualTo(2L); // Umbral + una sola reversión
+        }
+
+        @Test
+        @DisplayName("resumen: marca reversado solo el Umbral que tiene asiento de reversión, con su fecha")
+        void summary_flagsReversedThreshold() {
+            CommercialDetails commercial = standardCommercial();
+            Investment reversed = invest(commercial, ONE_MILLION);
+            Investment active = invest(commercial, 2 * ONE_MILLION);
+
+            ProsperityMovementResponseDTO reversal = service.reverseThreshold(reversed.getId(),
+                    new ProsperityReversalRequestDTO("Anulación", null), 99L);
+
+            List<ProsperityThresholdResponseDTO> thresholds = service.getSummary(commercial.getId()).thresholds();
+            assertThat(thresholds).hasSize(2);
+            ProsperityThresholdResponseDTO reversedDto = thresholds.stream()
+                    .filter(t -> t.investmentId().equals(reversed.getId())).findFirst().orElseThrow();
+            ProsperityThresholdResponseDTO activeDto = thresholds.stream()
+                    .filter(t -> t.investmentId().equals(active.getId())).findFirst().orElseThrow();
+
+            assertThat(reversedDto.reversed()).isTrue();
+            assertThat(reversedDto.reversedAt()).isEqualTo(reversal.effectiveAt());
+            assertThat(reversedDto.generatedCents()).isEqualTo(4 * ONE_MILLION);
+            assertThat(activeDto.reversed()).isFalse();
+            assertThat(activeDto.reversedAt()).isNull();
         }
 
         @Test
@@ -603,6 +656,85 @@ class ProsperityServiceIntegrationTest {
         }
     }
 
+    // ─── Prosperidad → payout ─────────────────────────────────────────────────
+
+    /**
+     * El job de payouts corre real sobre los ítems que liquidó el Motor de Prosperidad;
+     * solo sus repositorios y Wompi son dobles. No pasa por el webhook del copago ni por
+     * la consulta findClaimedWithoutPayout: los tres ítems se le entregan ya reclamados.
+     */
+    @Test
+    @DisplayName("tres ventas (absorbida, parcial, sin saldo): el payout paga la suma de los netos de las tres")
+    void threeSales_payoutEqualsSumOfNetToCommercial() {
+        CommercialDetails commercial = standardCommercial();
+        invest(commercial, ONE_MILLION); // saldo 4M
+
+        PurchaseItem covered = item(commercial, 3 * ONE_MILLION, 10);  // 4M → 1M, sin comisión
+        PurchaseItem partial = item(commercial, 2 * ONE_MILLION, 10);  // absorbe 1M, comisiona 1M
+        PurchaseItem exhausted = item(commercial, ONE_MILLION, 10);    // saldo 0, comisiona todo
+        List<Purchase> purchases = List.of(purchase(covered), purchase(partial), purchase(exhausted));
+        purchases.forEach(service::absorbPurchase);
+
+        assertThat(covered.getProsperityAbsorbedCents()).isEqualTo(3 * ONE_MILLION);
+        assertThat(covered.getCommissionCents()).isZero();
+        assertThat(covered.getNetToCommercialCents()).isEqualTo(3 * ONE_MILLION);
+
+        assertThat(partial.getProsperityAbsorbedCents()).isEqualTo(ONE_MILLION);
+        assertThat(partial.getCommissionBaseCents()).isEqualTo(ONE_MILLION);
+        assertThat(partial.getCommissionCents()).isEqualTo(10_000_000L);
+        assertThat(partial.getNetToCommercialCents()).isEqualTo(190_000_000L);
+
+        assertThat(exhausted.getProsperityAbsorbedCents()).isZero();
+        assertThat(exhausted.getCommissionCents()).isEqualTo(10_000_000L);
+        assertThat(exhausted.getNetToCommercialCents()).isEqualTo(90_000_000L);
+        assertThat(balance(commercial)).isZero();
+
+        // Lo que entra a PAYOUTS_PENDING por compra (total) menos la comisión retenida
+        // es exactamente lo que queda para el comercial.
+        for (Purchase p : purchases) {
+            assertThat(p.getTotalCents() - p.getCommissionCents()).isEqualTo(p.getNetToCommercialsCents());
+        }
+
+        List<PurchaseItem> items = List.of(covered, partial, exhausted);
+        Product product = new Product();
+        product.setCommercial(commercial);
+        for (PurchaseItem i : items) {
+            i.setProduct(product);
+            i.setStatus(PurchaseItemStatus.CLAIMED);
+        }
+
+        PayoutRepository payoutRepository = mock(PayoutRepository.class);
+        PayoutItemRepository payoutItemRepository = mock(PayoutItemRepository.class);
+        PurchaseItemRepository purchaseItemRepository = mock(PurchaseItemRepository.class);
+        when(purchaseItemRepository.findClaimedWithoutPayout()).thenReturn(items);
+        when(payoutRepository.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
+        PayoutServiceImpl payoutService = new PayoutServiceImpl(payoutRepository, payoutItemRepository,
+                purchaseItemRepository, mock(TreasuryService.class), mock(WompiPayoutClient.class),
+                mock(WompiTransactionRepository.class), mock(PayoutMapper.class),
+                mock(PayoutExecutionService.class), mock(WompiPayoutConfig.class),
+                new PayoutMetrics(new SimpleMeterRegistry(), payoutRepository));
+        ReflectionTestUtils.setField(payoutService, "iva", 0.19);
+
+        ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+        payoutService.scheduleDailyPayouts(now.minusDays(1), now);
+
+        long expectedNet = items.stream().mapToLong(PurchaseItem::getNetToCommercialCents).sum();
+        assertThat(expectedNet).isEqualTo(580_000_000L); // 6M vendidos − 200k de comisión
+
+        ArgumentCaptor<Payout> payout = ArgumentCaptor.forClass(Payout.class);
+        verify(payoutRepository).save(payout.capture());
+        assertThat(payout.getValue().getCommercial()).isSameAs(commercial);
+        assertThat(payout.getValue().getNetAmountCents()).isEqualTo(expectedNet);
+        // La tarifa de Wompi se suma al bruto: no se le descuenta al comercial.
+        assertThat(payout.getValue().getGrossAmountCents() - payout.getValue().getCommissionAmountCents())
+                .isEqualTo(expectedNet);
+
+        ArgumentCaptor<PayoutItem> payoutItems = ArgumentCaptor.forClass(PayoutItem.class);
+        verify(payoutItemRepository, times(3)).save(payoutItems.capture());
+        assertThat(payoutItems.getAllValues()).extracting(PayoutItem::getAmountCents)
+                .containsExactly(3 * ONE_MILLION, 190_000_000L, 90_000_000L);
+    }
+
     // ─── Concurrencia ─────────────────────────────────────────────────────────
 
     @Test
@@ -645,6 +777,40 @@ class ProsperityServiceIntegrationTest {
 
         Long balance = tx.execute(status -> balance(commercial));
         assertThat(balance).isZero();
+        List<String> discrepancies = tx.execute(status -> service.reconcile().discrepancies());
+        assertThat(discrepancies).isEmpty();
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    @DisplayName("concurrencia: dos reversiones simultáneas del mismo Umbral — una se registra, la otra se rechaza")
+    void concurrentReversals_onlyOneIsRecorded() throws Exception {
+        TransactionTemplate tx = new TransactionTemplate(txManager);
+        CommercialDetails commercial = tx.execute(status -> standardCommercial());
+        Investment investment = tx.execute(status -> invest(commercial, ONE_MILLION));
+
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        CountDownLatch start = new CountDownLatch(1);
+        Callable<Boolean> reverse = () -> {
+            start.await();
+            try {
+                service.reverseThreshold(investment.getId(), new ProsperityReversalRequestDTO("Anulación", null), 99L);
+                return true;
+            } catch (InvalidStatusException e) {
+                return false;
+            }
+        };
+        Future<Boolean> f1 = pool.submit(reverse);
+        Future<Boolean> f2 = pool.submit(reverse);
+        start.countDown();
+        List<Boolean> outcomes = List.of(f1.get(20, TimeUnit.SECONDS), f2.get(20, TimeUnit.SECONDS));
+        pool.shutdown();
+
+        assertThat(outcomes).containsExactlyInAnyOrder(true, false);
+        ProsperityAccount account = tx.execute(status ->
+                accountRepository.findByCommercialId(commercial.getId()).orElseThrow());
+        assertThat(account.getBalanceCents()).isZero();
+        assertThat(account.getLastSequence()).isEqualTo(2L);
         List<String> discrepancies = tx.execute(status -> service.reconcile().discrepancies());
         assertThat(discrepancies).isEmpty();
     }

@@ -45,6 +45,17 @@ public interface CommercialContractRepository extends JpaRepository<CommercialCo
     List<CommercialContract> findOpenRechargeContracts(@Param("commercialId") Long commercialId);
 
     /**
+     * Ids de las recargas "en curso" (mismo criterio que {@link #findOpenRechargeContracts})
+     * de cualquier comercial, generadas antes de {@code before} — candidatas a vencer.
+     */
+    @Query("SELECT c.id FROM CommercialContract c LEFT JOIN c.investment i WHERE "
+            + "c.purpose = com.verygana2.models.enums.commercial.ContractPurpose.RECHARGE "
+            + "AND c.status NOT IN (com.verygana2.models.enums.commercial.ContractStatus.REJECTED, "
+            + "com.verygana2.models.enums.commercial.ContractStatus.CANCELLED) "
+            + "AND (i IS NULL OR i.confirmed = false) AND c.generatedAt < :before")
+    List<Long> findOpenRechargeContractIdsGeneratedBefore(@Param("before") ZonedDateTime before);
+
+    /**
      * Cuenta contratos de RECHARGE/PLAN_CHANGE generados por un comercial desde
      * {@code since}, sin importar en qué terminaron (firmado, rechazado o cancelado) —
      * cada generación dispara un envío real a firma electrónica y tiene costo, así

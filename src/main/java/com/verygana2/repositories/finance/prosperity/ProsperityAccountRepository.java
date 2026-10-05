@@ -24,4 +24,9 @@ public interface ProsperityAccountRepository extends JpaRepository<ProsperityAcc
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT a FROM ProsperityAccount a WHERE a.commercial.id = :commercialId")
     Optional<ProsperityAccount> findByCommercialIdForUpdate(@Param("commercialId") Long commercialId);
+
+    /** Mismo bloqueo, para quien parte de un Umbral y solo conoce el id de la cuenta. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT a FROM ProsperityAccount a WHERE a.id = :id")
+    Optional<ProsperityAccount> findByIdForUpdate(@Param("id") Long id);
 }

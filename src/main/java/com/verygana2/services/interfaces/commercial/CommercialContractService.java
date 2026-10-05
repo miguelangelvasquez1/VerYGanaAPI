@@ -49,8 +49,19 @@ public interface CommercialContractService {
      * esperar a que el contrato sea rechazado. Solo aplica a RECHARGE: un PLAN_CHANGE
      * se cancela vía {@code PlanChangeRequestService#cancelPlanChangeRequest}, que
      * opera sobre su propia máquina de estados (PlanChangeRequestStatus).
+     *
+     * No concilia con Wompi: si la recarga ya tiene un checkout abierto, quien llama
+     * debe haber verificado antes que no hay un pago aprobado o en proceso — el punto
+     * de entrada del comercial es {@code PlanService#cancelRecharge}, no este método.
      */
     ContractSummaryResponseDTO cancelForCommercial(Long contractId, Long commercialId);
+
+    /**
+     * Cancela una recarga que venció sin pagarse (job de vencimiento). Mismas reglas y
+     * misma advertencia que {@link #cancelForCommercial}: la conciliación con Wompi la
+     * hace {@code PlanService#expireRechargeIfStale} antes de llamar aquí.
+     */
+    void expireRecharge(Long contractId);
 
     /**
      * Cancela el contrato PLAN_CHANGE vinculado a una solicitud de cambio de plan que el

@@ -5,16 +5,20 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
+import com.verygana2.dtos.finance.plans.responses.OpenRechargeResponseDTO;
+import com.verygana2.dtos.finance.plans.responses.OpenRechargeResponseDTO.NextAction;
 import com.verygana2.dtos.finance.plans.responses.PlanCatalogResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.RechargePreviewResponseDTO;
@@ -22,8 +26,10 @@ import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanOptionDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
+import com.verygana2.dtos.wompi.WompiTransactionResponseDTO.WompiTransactionData;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InvalidAmountException;
+import com.verygana2.exceptions.RechargeAlreadyPaidException;
 import com.verygana2.mappers.CommercialOnboardingMapper;
 import com.verygana2.models.commercial.CommercialContract;
 import com.verygana2.models.commercial.PlanChangeRequest;
@@ -84,6 +90,12 @@ public class PlanServiceImpl implements PlanService {
         private final PlanChangeRequestRepository planChangeRequestRepository;
         private final com.verygana2.services.interfaces.finance.PlanChangeRequestService planChangeRequestService;
         private final CommercialOnboardingMapper commercialOnboardingMapper;
+
+        // Una recarga (otrosí generado) que no se paga en este lapso se cancela sola —
+        // ver RechargeExpiryScheduler. Sin esto queda "en curso" para siempre y bloquea
+        // pedir otra recarga o un cambio de plan.
+        @Value("${commercial.contract.recharge-expiry.max-age-hours:24}")
+        private long rechargeMaxAgeHours;
 
         // =========================================================================
         // PASO 1: INICIAR PAGO
@@ -388,6 +400,7 @@ public class PlanServiceImpl implements PlanService {
 
                 boolean eligible;
                 String message;
+                OpenRechargeResponseDTO openRecharge = null;
 
                 if (plan == null || plan.getCode() == PlanCode.BASIC) {
                         eligible = false;
@@ -395,9 +408,10 @@ public class PlanServiceImpl implements PlanService {
                 } else {
                         try {
                                 validateInvestmentAmount(amountCents, plan);
-                                if (!commercialContractRepository.findOpenRechargeContracts(commercial.getId()).isEmpty()) {
+                                openRecharge = findOpenRecharge(commercial.getId()).orElse(null);
+                                if (openRecharge != null) {
                                         eligible = false;
-                                        message = "Ya tiene una recarga en curso — fírmela o espere a que se resuelva antes de pedir otra.";
+                                        message = openRecharge.getMessage();
                                 } else {
                                         List<PlanChangeRequestStatus> terminal = List.of(PlanChangeRequestStatus.APPLIED,
                                                         PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
@@ -438,7 +452,8 @@ public class PlanServiceImpl implements PlanService {
                                 plan != null ? centsToPesos(plan.getMaxInvestmentCents()) : null,
                                 centsToPesos(currentBalance),
                                 centsToPesos(estimatedCreditedAmountCents),
-                                centsToPesos(currentBalance + estimatedCreditedAmountCents));
+                                centsToPesos(currentBalance + estimatedCreditedAmountCents),
+                                openRecharge);
         }
 
         /** Los previews de recarga se muestran al comercial en pesos, no en centavos. */
@@ -462,10 +477,9 @@ public class PlanServiceImpl implements PlanService {
                 }
                 validateInvestmentAmount(amountCents, plan);
 
-                if (!commercialContractRepository.findOpenRechargeContracts(commercial.getId()).isEmpty()) {
-                        throw new BusinessException(
-                                        "Ya tiene una recarga en curso — fírmela o espere a que se resuelva antes de pedir otra.");
-                }
+                findOpenRecharge(commercial.getId()).ifPresent(open -> {
+                        throw new BusinessException(open.getMessage());
+                });
                 List<PlanChangeRequestStatus> terminal = List.of(
                                 PlanChangeRequestStatus.APPLIED, PlanChangeRequestStatus.REJECTED, PlanChangeRequestStatus.CANCELLED);
                 if (!planChangeRequestRepository.findByCommercial_IdAndStatusNotIn(commercial.getId(), terminal).isEmpty()) {
@@ -478,7 +492,10 @@ public class PlanServiceImpl implements PlanService {
         }
 
         @Override
-        @Transactional
+        // noRollbackFor: si la conciliación descubre que la recarga ya estaba pagada, la
+        // acreditación hecha en esta misma transacción tiene que quedar aunque el
+        // checkout se rechace.
+        @Transactional(noRollbackFor = RechargeAlreadyPaidException.class)
         public WompiCheckoutResponseDTO generateRechargeCheckout(Long contractId, CommercialDetails commercial) {
                 CommercialContract contract = commercialContractRepository.findById(contractId)
                                 .orElseThrow(() -> new IllegalArgumentException("Contrato no encontrado: " + contractId));
@@ -492,8 +509,35 @@ public class PlanServiceImpl implements PlanService {
                 if (contract.getStatus() != ContractStatus.SIGNED) {
                         throw new IllegalStateException("El contrato debe estar firmado antes de generar el pago.");
                 }
-                if (contract.getInvestment() != null) {
-                        throw new IllegalStateException("Esta recarga ya generó un pago.");
+
+                // Reintento: la recarga ya tenía un checkout abierto. Antes de dejar pagar
+                // otra vez se concilia con Wompi, para no cobrar dos veces un pago cuyo
+                // webhook nunca llegó.
+                Investment previous = contract.getInvestment();
+                if (previous != null) {
+                        switch (reconcilePendingPayment(previous)) {
+                                case PAID -> throw new RechargeAlreadyPaidException(
+                                                "Esta recarga ya fue pagada — el saldo ya está acreditado en su cuenta.");
+                                case IN_PROCESS -> throw new BusinessException(
+                                                "Su pago anterior todavía se está procesando en la pasarela. "
+                                                                + "Espere a que se resuelva antes de intentar de nuevo.");
+                                case NOT_STARTED -> {
+                                        // Abrió el checkout y lo abandonó sin pagar: Wompi no tiene transacción
+                                        // para esa referencia, así que se reutiliza el mismo Investment. El
+                                        // monto sale de su snapshot, no de un vatPct que pudo haber cambiado.
+                                        long total = previous.getDepositAmountCents() + previous.getVatAmountCents();
+                                        WompiCheckoutResponseDTO resumed = wompiService.resumeCheckoutUrl(
+                                                        rechargeCheckoutRequest(commercial, previous.getWompiReference(), total),
+                                                        WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
+                                        log.info("[PLAN] Checkout de recarga retomado: contractId={}, reference={}, total={}",
+                                                        contractId, previous.getWompiReference(), total);
+                                        return resumed;
+                                }
+                                // Pago rechazado/anulado: esa referencia ya tiene una transacción terminal
+                                // en Wompi, así que el reintento sale con un Investment y referencia nuevos.
+                                case FAILED -> log.info("[PLAN] Reintentando pago de recarga tras un rechazo: "
+                                                + "contractId={}, referenciaAnterior={}", contractId, previous.getWompiReference());
+                        }
                 }
 
                 Plan plan = commercial.getCurrentPlan();
@@ -508,20 +552,236 @@ public class PlanServiceImpl implements PlanService {
                 contract.setInvestment(pending);
                 commercialContractRepository.save(contract);
 
-                WompiCheckoutRequestDTO request = WompiCheckoutRequestDTO.builder()
-                                .reference(reference)
-                                .amountInCents(totalAmountCents)
-                                .customerEmail(commercial.getUser().getEmail())
-                                .redirectUrl("http://verygana.com/empresario/plan/resultado")
-                                .build();
-
                 WompiCheckoutResponseDTO response = wompiService.createCheckoutUrl(
-                                request, WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
+                                rechargeCheckoutRequest(commercial, reference, totalAmountCents),
+                                WompiTransactionType.CHARGE_BUSINESS_DEPOSIT);
 
                 log.info("[PLAN] Checkout de recarga generado: contractId={}, reference={}, base={}, vat={}, total={}",
                                 contractId, reference, amountCents, vatAmountCents, totalAmountCents);
 
                 return response;
+        }
+
+        private WompiCheckoutRequestDTO rechargeCheckoutRequest(
+                        CommercialDetails commercial, String reference, long totalAmountCents) {
+                return WompiCheckoutRequestDTO.builder()
+                                .reference(reference)
+                                .amountInCents(totalAmountCents)
+                                .customerEmail(commercial.getUser().getEmail())
+                                .redirectUrl("http://verygana.com/empresario/plan/resultado")
+                                .build();
+        }
+
+        // =========================================================================
+        // RECARGA INTERRUMPIDA — retomar, conciliar, cancelar, vencer
+        // =========================================================================
+
+        @Override
+        @Transactional(readOnly = true)
+        public Optional<OpenRechargeResponseDTO> getOpenRecharge(CommercialDetails commercial) {
+                return findOpenRecharge(commercial.getId());
+        }
+
+        @Override
+        @Transactional
+        public Optional<OpenRechargeResponseDTO> reconcileRecharge(Long contractId, CommercialDetails commercial) {
+                CommercialContract contract = commercialContractRepository.findById(contractId)
+                                .filter(c -> c.getCommercial().getId().equals(commercial.getId()))
+                                .filter(c -> c.getPurpose() == ContractPurpose.RECHARGE)
+                                .orElseThrow(() -> new IllegalArgumentException("Contrato no encontrado: " + contractId));
+
+                if (!isOpenRecharge(contract)) {
+                        return Optional.empty();
+                }
+                Investment investment = contract.getInvestment();
+                if (investment == null) {
+                        return Optional.of(toOpenRecharge(contract));
+                }
+                return switch (reconcilePendingPayment(investment)) {
+                        case PAID -> Optional.empty();
+                        case IN_PROCESS -> {
+                                OpenRechargeResponseDTO dto = toOpenRecharge(contract);
+                                dto.setNextAction(NextAction.WAIT_PAYMENT);
+                                dto.setMessage("Su pago se está procesando en la pasarela — el saldo se acreditará "
+                                                + "en cuanto se confirme.");
+                                yield Optional.of(dto);
+                        }
+                        case NOT_STARTED, FAILED -> Optional.of(toOpenRecharge(contract));
+                };
+        }
+
+        @Override
+        @Transactional(noRollbackFor = RechargeAlreadyPaidException.class)
+        public ContractSummaryResponseDTO cancelRecharge(Long contractId, CommercialDetails commercial) {
+                // Solo se concilia si el contrato es una recarga propia con checkout abierto;
+                // cualquier otro caso (no existe, es de otro, no es recarga) lo rechaza
+                // cancelForCommercial con sus propios errores.
+                commercialContractRepository.findById(contractId)
+                                .filter(c -> c.getCommercial().getId().equals(commercial.getId()))
+                                .filter(c -> c.getPurpose() == ContractPurpose.RECHARGE)
+                                .map(CommercialContract::getInvestment)
+                                .ifPresent(this::requireNoLivePayment);
+
+                return commercialContractService.cancelForCommercial(contractId, commercial.getId());
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public List<Long> findStaleRechargeContractIds() {
+                return commercialContractRepository.findOpenRechargeContractIdsGeneratedBefore(
+                                ZonedDateTime.now().minusHours(rechargeMaxAgeHours));
+        }
+
+        @Override
+        @Transactional
+        public boolean expireRecharge(Long contractId) {
+                CommercialContract contract = commercialContractRepository.findById(contractId)
+                                .orElseThrow(() -> new IllegalArgumentException("Contrato no encontrado: " + contractId));
+
+                if (!isOpenRecharge(contract)) {
+                        return false;
+                }
+                // Igual que al vencer copagos: antes de dar por abandonada una recarga con
+                // checkout abierto se confirma con Wompi que el pago no se resolvió sin que
+                // llegara el webhook.
+                Investment investment = contract.getInvestment();
+                if (investment != null) {
+                        PendingPaymentState state = reconcilePendingPayment(investment);
+                        if (state == PendingPaymentState.PAID || state == PendingPaymentState.IN_PROCESS) {
+                                log.info("[PLAN JOB] Recarga no vencida, el pago está {}: contractId={}", state, contractId);
+                                return false;
+                        }
+                }
+                commercialContractService.expireRecharge(contractId);
+                return true;
+        }
+
+        private void requireNoLivePayment(Investment investment) {
+                switch (reconcilePendingPayment(investment)) {
+                        case PAID -> throw new RechargeAlreadyPaidException(
+                                        "Esta recarga ya fue pagada, no se puede cancelar — el saldo ya está acreditado en su cuenta.");
+                        case IN_PROCESS -> throw new BusinessException(
+                                        "Hay un pago en proceso para esta recarga. Espere a que se resuelva antes de cancelarla.");
+                        case NOT_STARTED, FAILED -> { }
+                }
+        }
+
+        /** Resultado de conciliar con Wompi el checkout ya abierto de una recarga. */
+        private enum PendingPaymentState {
+                /** Wompi no tiene ninguna transacción: abrió el checkout y no pagó. */
+                NOT_STARTED,
+                /** Hay una transacción todavía sin resolver (p. ej. PSE esperando al banco). */
+                IN_PROCESS,
+                /** Aprobada — el saldo ya quedó acreditado (por el webhook o aquí mismo). */
+                PAID,
+                /** Rechazada, con error o anulada. */
+                FAILED
+        }
+
+        /**
+         * Consulta en Wompi qué pasó con el checkout de un Investment aún sin confirmar
+         * y, si el webhook nunca llegó, aplica aquí el resultado (acreditar el saldo o
+         * marcar el depósito como fallido).
+         *
+         * @throws BusinessException si no se puede hablar con Wompi. No se asume "no hay
+         *         pago": con la pasarela caída no se sabe, y retomar o cancelar a ciegas
+         *         puede terminar en doble cobro o en un pago sin contrato.
+         */
+        private PendingPaymentState reconcilePendingPayment(Investment investment) {
+                if (Boolean.TRUE.equals(investment.getConfirmed())) {
+                        return PendingPaymentState.PAID;
+                }
+                String reference = investment.getWompiReference();
+
+                WompiTransactionData data;
+                try {
+                        data = wompiService.reconcileByReference(reference).orElse(null);
+                } catch (RuntimeException e) {
+                        log.error("[PLAN] No se pudo conciliar la recarga con Wompi: reference={}, error={}",
+                                        reference, e.getMessage());
+                        throw new BusinessException(
+                                        "No pudimos verificar el estado de su pago con la pasarela. Intente de nuevo en unos minutos.");
+                }
+
+                if (data == null) {
+                        return investment.getFailedAt() != null
+                                        ? PendingPaymentState.FAILED : PendingPaymentState.NOT_STARTED;
+                }
+                if (!data.isTerminal()) {
+                        return PendingPaymentState.IN_PROCESS;
+                }
+                if (data.isApproved()) {
+                        log.warn("[PLAN] Wompi reporta APPROVED para reference={} pero el webhook nunca llegó. "
+                                        + "Acreditando ahora.", reference);
+                        WompiTransaction tx = wompiService.updateTransactionFromWebhook(
+                                        data.getId(), reference, data.getStatus(), data.getCreatedAt(),
+                                        Map.of("reconciled_from", "recharge_recovery"));
+                        handleWompiResult(tx.getId());
+                        return PendingPaymentState.PAID;
+                }
+                if (investment.getFailedAt() == null) {
+                        WompiTransaction tx = wompiService.updateTransactionFromWebhook(
+                                        data.getId(), reference, data.getStatus(), data.getCreatedAt(),
+                                        Map.of("reconciled_from", "recharge_recovery"));
+                        investment.fail(tx);
+                        investmentRepository.save(investment);
+                }
+                return PendingPaymentState.FAILED;
+        }
+
+        /** Misma definición de "en curso" que CommercialContractRepository#findOpenRechargeContracts. */
+        private boolean isOpenRecharge(CommercialContract contract) {
+                return contract.getPurpose() == ContractPurpose.RECHARGE
+                                && contract.getStatus() != ContractStatus.REJECTED
+                                && contract.getStatus() != ContractStatus.CANCELLED
+                                && (contract.getInvestment() == null
+                                                || !Boolean.TRUE.equals(contract.getInvestment().getConfirmed()));
+        }
+
+        private Optional<OpenRechargeResponseDTO> findOpenRecharge(Long commercialId) {
+                return commercialContractRepository.findOpenRechargeContracts(commercialId).stream()
+                                .max(Comparator.comparing(CommercialContract::getGeneratedAt))
+                                .map(this::toOpenRecharge);
+        }
+
+        private OpenRechargeResponseDTO toOpenRecharge(CommercialContract contract) {
+                Investment investment = contract.getInvestment();
+
+                NextAction nextAction;
+                String message;
+                if (contract.getStatus() != ContractStatus.SIGNED) {
+                        nextAction = NextAction.SIGN;
+                        message = "Tiene una recarga pendiente de firma — firme el otrosí para continuar, "
+                                        + "o cancélela para solicitar otra.";
+                } else if (investment != null && investment.getFailedAt() != null) {
+                        nextAction = NextAction.RETRY_PAYMENT;
+                        message = "El pago de su recarga fue rechazado — puede intentarlo de nuevo, "
+                                        + "o cancelarla para solicitar otra.";
+                } else {
+                        nextAction = NextAction.PAY;
+                        message = "Tiene una recarga firmada pendiente de pago — complete el pago, "
+                                        + "o cancélela para solicitar otra.";
+                }
+
+                Long amountCents = contract.getAmountCentsSnapshot();
+                Long vatAmountCents = investment != null ? investment.getVatAmountCents()
+                                : amountCents != null ? Long.valueOf(vatFor(amountCents)) : null;
+
+                return OpenRechargeResponseDTO.builder()
+                                .contractId(contract.getId())
+                                .status(contract.getStatus())
+                                .nextAction(nextAction)
+                                .message(message)
+                                .amountPesos(centsToPesos(amountCents))
+                                .vatAmountPesos(centsToPesos(vatAmountCents))
+                                .totalToPayPesos(amountCents != null && vatAmountCents != null
+                                                ? centsToPesos(amountCents + vatAmountCents) : null)
+                                .generatedAt(contract.getGeneratedAt())
+                                .signedAt(contract.getEsignatureSignedAt())
+                                .expiresAt(contract.getGeneratedAt() != null
+                                                ? contract.getGeneratedAt().plusHours(rechargeMaxAgeHours) : null)
+                                .paymentAttempted(investment != null)
+                                .build();
         }
 
         /**
@@ -685,6 +945,13 @@ public class PlanServiceImpl implements PlanService {
                 var contractOpt = investmentId != null
                                 ? commercialContractRepository.findByInvestment_Id(investmentId)
                                 : commercialContractRepository.findBySubscription_Id(subscriptionId);
+
+                // Un checkout abandonado sigue siendo pagable en Wompi después de cancelar o
+                // vencer la recarga. El dinero entró, así que el saldo se acredita igual; se
+                // deja rastro porque el otrosí de esa recarga ya no está vigente.
+                contractOpt.filter(c -> c.getStatus() == ContractStatus.CANCELLED)
+                                .ifPresent(c -> log.warn("[PLAN] Pago confirmado sobre un contrato CANCELLED: "
+                                                + "contractId={}, purpose={}", c.getId(), c.getPurpose()));
 
                 contractOpt.filter(c -> c.getPurpose() == ContractPurpose.PLAN_CHANGE)
                                 .flatMap(c -> planChangeRequestRepository.findByContract_Id(c.getId()))

@@ -49,4 +49,11 @@ public class RechargePreviewResponseDTO {
     private Long estimatedCreditedAmountPesos;
 
     private Long resultingWalletBalancePesos;
+
+    /**
+     * Recarga que ya está en curso y bloquea pedir otra (eligible=false) — trae el
+     * contractId y el paso pendiente para que el frontend ofrezca retomarla o
+     * cancelarla. Null si no hay ninguna.
+     */
+    private OpenRechargeResponseDTO openRecharge;
 }

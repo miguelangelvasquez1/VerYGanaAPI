@@ -8,5 +8,5 @@ public enum ContractStatus {
     PENDING_SIGNATURE,         // Enviado al proveedor de firma electrónica, esperando firma del empresario
     SIGNED,                    // Firmado; el onboarding pasa a PAYMENT_PENDING
     REJECTED,
-    CANCELLED                  // Cancelado por el comercial antes de firmar: RECHARGE (autocancelación) o PLAN_CHANGE (al cancelar su solicitud)
+    CANCELLED                  // Cancelado sin llegar a pagarse: RECHARGE (autocancelación o vencimiento) o PLAN_CHANGE (al cancelar su solicitud)
 }

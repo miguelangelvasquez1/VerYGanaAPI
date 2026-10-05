@@ -253,9 +253,16 @@ commercial:
     # Límite de generación de contratos de RECHARGE/PLAN_CHANGE por comercial: cada
     # generación puede disparar un envío real a firma electrónica (con costo con el
     # proveedor), así que se acota cuántos se pueden generar por ventana.
+    # Son 3 y no 1 para que quien cancela una recarga a medias (o se le vence) pueda
+    # pedir otra el mismo día: los contratos cancelados también cuentan para el límite.
     rate-limit:
-      max-per-window: 1
+      max-per-window: 3
       window-hours: 24
+    # Una recarga generada que no se paga en este plazo se cancela sola (ver
+    # RechargeExpiryScheduler), para que no bloquee pedir otra ni un cambio de plan.
+    recharge-expiry:
+      max-age-hours: 24
+      cron: "0 15 * * * *"
   page-visit:
     # Ventana de deduplicación por (anuncio, consumer) al registrar visitas a la
     # página oficial del empresario ("Remisión"): un clic repetido dentro de este

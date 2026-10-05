@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.verygana2.dtos.finance.plans.requests.PlanPaymentRequestDTO;
 import com.verygana2.dtos.finance.plans.requests.RechargeRequestDTO;
 import com.verygana2.dtos.finance.plans.responses.EffectivePlanStateResponseDTO;
+import com.verygana2.dtos.finance.plans.responses.OpenRechargeResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanCatalogResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.PlanPaymentStatusResponseDTO;
 import com.verygana2.dtos.finance.plans.responses.RechargePreviewResponseDTO;
@@ -121,6 +122,24 @@ public class PlanController {
         }
 
         /**
+         * Recarga en curso del comercial (generada y sin pagar), con el paso que le falta
+         * (firmar, pagar, reintentar el pago). 204 si no tiene ninguna. El frontend lo
+         * llama al entrar a la pantalla de recarga para ofrecer retomarla o cancelarla
+         * aunque no haya guardado el contractId.
+         */
+        @GetMapping("/recharge/current")
+        @PreAuthorize("hasRole('COMMERCIAL')")
+        public ResponseEntity<OpenRechargeResponseDTO> getOpenRecharge(@AuthenticationPrincipal Jwt jwt) {
+
+                Long commercialId = jwt.getClaim("userId");
+                CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+
+                return planService.getOpenRecharge(commercial)
+                                .map(ResponseEntity::ok)
+                                .orElseGet(() -> ResponseEntity.noContent().build());
+        }
+
+        /**
          * Consulta el estado de un contrato de recarga (polling después de volver de la
          * firma electrónica, para saber cuándo llamar a /checkout).
          */
@@ -136,8 +155,9 @@ public class PlanController {
 
         /**
          * Autocancela una recarga en curso (antes de pagarla) — para que el comercial
-         * pueda desbloquear una solicitud de cambio de plan sin esperar a que el
-         * contrato sea rechazado o quede huérfano.
+         * pueda pedir otra recarga o un cambio de plan sin esperar a que venza. Si ya
+         * había abierto el checkout, se concilia antes con Wompi: no se cancela una
+         * recarga con el pago aprobado o en proceso.
          */
         @PostMapping("/recharge/{contractId}/cancel")
         @PreAuthorize("hasRole('COMMERCIAL')")
@@ -146,12 +166,35 @@ public class PlanController {
                         @PathVariable Long contractId) {
 
                 Long commercialId = jwt.getClaim("userId");
-                return ResponseEntity.ok(commercialContractService.cancelForCommercial(contractId, commercialId));
+                CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+
+                return ResponseEntity.ok(planService.cancelRecharge(contractId, commercial));
+        }
+
+        /**
+         * Concilia con Wompi el pago de una recarga en curso ("ya pagué y no se refleja"):
+         * si el pago está aprobado y el webhook nunca llegó, acredita el saldo aquí mismo.
+         * 204 si la recarga ya no está en curso (quedó pagada); si sigue abierta, devuelve
+         * su estado actualizado.
+         */
+        @PostMapping("/recharge/{contractId}/reconcile")
+        @PreAuthorize("hasRole('COMMERCIAL')")
+        public ResponseEntity<OpenRechargeResponseDTO> reconcileRecharge(
+                        @AuthenticationPrincipal Jwt jwt,
+                        @PathVariable Long contractId) {
+
+                Long commercialId = jwt.getClaim("userId");
+                CommercialDetails commercial = commercialDetailsService.getCommercialById(commercialId);
+
+                return planService.reconcileRecharge(contractId, commercial)
+                                .map(ResponseEntity::ok)
+                                .orElseGet(() -> ResponseEntity.noContent().build());
         }
 
         /**
          * Genera el checkout de Wompi para una recarga ya firmada. El frontend lo llama
-         * cuando detecta (por polling del contrato) que el estado pasó a SIGNED.
+         * cuando detecta (por polling del contrato) que el estado pasó a SIGNED, y
+         * también para retomar un pago que quedó a medias o reintentar uno rechazado.
          */
         @PostMapping("/recharge/{contractId}/checkout")
         @PreAuthorize("hasRole('COMMERCIAL')")

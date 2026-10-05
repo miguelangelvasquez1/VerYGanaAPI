@@ -1,5 +1,6 @@
 package com.verygana2.repositories.finance.prosperity;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -20,6 +21,8 @@ public interface ProsperityLedgerEntryRepository extends JpaRepository<Prosperit
     Page<ProsperityLedgerEntry> findByAccountIdOrderBySequenceDesc(Long accountId, Pageable pageable);
 
     Optional<ProsperityLedgerEntry> findTopByAccountIdOrderBySequenceDesc(Long accountId);
+
+    List<ProsperityLedgerEntry> findByAccountIdAndType(Long accountId, ProsperityEntryType type);
 
     /** Σ créditos − Σ débitos del libro de una cuenta (conciliación). */
     @Query("SELECT COALESCE(SUM(CASE WHEN e.type IN :creditTypes THEN e.amountCents ELSE -e.amountCents END), 0) "

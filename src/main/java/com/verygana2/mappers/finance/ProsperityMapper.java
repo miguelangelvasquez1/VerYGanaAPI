@@ -1,5 +1,6 @@
 package com.verygana2.mappers.finance;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,10 +17,17 @@ import com.verygana2.models.finance.prosperity.ProsperityThreshold;
 @Mapper(componentModel = "spring")
 public interface ProsperityMapper {
 
-    @Mapping(target = "investmentId", source = "investment.id")
-    ProsperityThresholdResponseDTO toThresholdResponseDTO(ProsperityThreshold threshold);
-
-    List<ProsperityThresholdResponseDTO> toThresholdResponseDTOs(List<ProsperityThreshold> thresholds);
+    /** {@code reversedAt}: fecha del asiento THRESHOLD_REVERSAL del Umbral, o null si sigue vigente. */
+    @Mapping(target = "id", source = "threshold.id")
+    @Mapping(target = "investmentId", source = "threshold.investment.id")
+    @Mapping(target = "investmentNetCents", source = "threshold.investmentNetCents")
+    @Mapping(target = "multiplier", source = "threshold.multiplier")
+    @Mapping(target = "generatedCents", source = "threshold.generatedCents")
+    @Mapping(target = "planVersion", source = "threshold.planVersion")
+    @Mapping(target = "validatedAt", source = "threshold.validatedAt")
+    @Mapping(target = "reversed", expression = "java(reversedAt != null)")
+    @Mapping(target = "reversedAt", source = "reversedAt")
+    ProsperityThresholdResponseDTO toThresholdResponseDTO(ProsperityThreshold threshold, ZonedDateTime reversedAt);
 
     @Mapping(target = "thresholdId", source = "threshold.id")
     @Mapping(target = "relatedEntryId", source = "relatedEntry.id")
@@ -38,7 +46,7 @@ public interface ProsperityMapper {
     @Mapping(target = "thresholds", source = "thresholds")
     @Mapping(target = "disclaimer", source = "disclaimer")
     ProsperitySummaryResponseDTO toSummaryResponseDTO(ProsperityAccount account, UUID commercialPublicId, String status,
-            List<ProsperityThreshold> thresholds, String disclaimer);
+            List<ProsperityThresholdResponseDTO> thresholds, String disclaimer);
 
     /** Resumen de un comercial que todavía no tiene cuenta de prosperidad: todo en cero. */
     default ProsperitySummaryResponseDTO toEmptySummaryResponseDTO(UUID commercialPublicId, String status,

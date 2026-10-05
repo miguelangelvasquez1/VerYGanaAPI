@@ -117,6 +117,22 @@ app:
     # Edad mínima permitida en minAge/maxAge de ads, surveys, campañas y branding.
     min-age: 18
 
+# ============================================
+# CONTRATOS DE RECARGA / CAMBIO DE PLAN
+# ============================================
+commercial:
+  contract:
+    # Los contratos cancelados también cuentan para este límite (cada generación es un
+    # envío real a firma electrónica).
+    rate-limit:
+      max-per-window: 3
+      window-hours: 24
+    # Una recarga generada que no se paga en este plazo se cancela sola (ver
+    # RechargeExpiryScheduler), para que no bloquee pedir otra ni un cambio de plan.
+    recharge-expiry:
+      max-age-hours: 24
+      cron: "0 15 * * * *"
+
 games:
   # Icono de moneda/llave de los juegos de cali. Lo pone el backend: es el mismo
   # para todas las campanas, no tiene sentido pedirselo al disenador en cada una.

@@ -38,7 +38,10 @@ public interface ProsperityService {
     /** Devuelve al Saldo lo que absorbió un ítem que se reembolsa. Idempotente. */
     void reintegrateRefund(PurchaseItem item);
 
-    /** Reversión del Umbral de una inversión anulada/reembolsada (10.20). Idempotente. */
+    /**
+     * Reversión del Umbral de una inversión anulada/reembolsada (10.20). Un Umbral se
+     * reversa una sola vez: un segundo intento lanza InvalidStatusException (409).
+     */
     ProsperityMovementResponseDTO reverseThreshold(Long investmentId, ProsperityReversalRequestDTO request, Long adminId);
 
     /** Ajuste compensatorio manual con causal (10.27). */
