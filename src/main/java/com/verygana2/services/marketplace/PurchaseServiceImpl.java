@@ -193,7 +193,7 @@ public class PurchaseServiceImpl implements PurchaseService {
 
         // 5. Reservar llaves en KeyWallet (solo si el usuario va a usar alguna)
         if (keysToUse > 0) {
-            KeyWallet keyWallet = keyWalletRepository.findByConsumerId(consumerId)
+            KeyWallet keyWallet = keyWalletRepository.findByConsumerIdForUpdate(consumerId)
                     .orElseThrow(() -> new ObjectNotFoundException(
                             "KeyWallet not found for consumer: " + consumerId, KeyWallet.class));
 

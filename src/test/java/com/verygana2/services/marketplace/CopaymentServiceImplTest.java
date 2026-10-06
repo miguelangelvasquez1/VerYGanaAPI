@@ -150,9 +150,14 @@ class CopaymentServiceImplTest {
             verify(treasuryService, never()).convertKeysToPayoutPending(anyLong(), any());
             verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
             // La comisión definitiva se fija contra el Saldo de Prosperidad ANTES de retenerla.
-            org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(prosperityService, treasuryService);
+            // Y toda la tesorería va después de prosperidad (mismo orden de bloqueo que el
+            // depósito y el reembolso) pero antes de los tickets, que no se revierten.
+            org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(
+                    prosperityService, treasuryService, ticketDeliveryService);
             inOrder.verify(prosperityService).absorbPurchase(purchase);
+            inOrder.verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
             inOrder.verify(treasuryService).retainCommission(10_000L, 0L, copayment.getId(), "COPAYMENT");
+            inOrder.verify(ticketDeliveryService).processTicketEarningForPurchase(any(), any(), any());
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             assertThat(item.getAssignedProductStock().getStatus())
                     .isEqualTo(com.verygana2.models.enums.marketplace.StockStatus.SOLD);
@@ -203,7 +208,7 @@ class CopaymentServiceImplTest {
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
             when(copaymentRepository.findByPurchaseReferenceIdWithDetails(tx.getReference()))
                     .thenReturn(Optional.of(copayment));
-            when(keyWalletRepository.findByConsumerId(1L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(1L)).thenReturn(Optional.of(wallet));
 
             service.handleWompiResult(tx.getId());
 
@@ -295,7 +300,7 @@ class CopaymentServiceImplTest {
             when(wompiTransactionRepository.findById(tx.getId())).thenReturn(Optional.of(tx));
             when(copaymentRepository.findByPurchaseReferenceIdWithDetails(tx.getReference()))
                     .thenReturn(Optional.of(copayment));
-            when(keyWalletRepository.findByConsumerId(1L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(1L)).thenReturn(Optional.of(wallet));
 
             service.handleWompiResult(tx.getId());
 

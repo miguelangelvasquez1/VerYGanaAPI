@@ -1,8 +1,13 @@
 package com.verygana2.services.finance;
 
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +18,8 @@ import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.treasury.TreasuryBalanceResponseDTO;
 import com.verygana2.dtos.treasury.TreasuryMovementResponseDTO;
 import com.verygana2.exceptions.InvalidAmountException;
+import com.verygana2.exceptions.KeysReserveInsufficientException;
+import com.verygana2.exceptions.TreasuryInsufficientFundsException;
 import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
@@ -42,6 +49,18 @@ import lombok.extern.slf4j.Slf4j;
  * 2. Modifica los saldos
  * 3. Registra TreasuryMovement por cada transferencia (libro contable)
  * 4. Todo en una sola transacción de BD — si algo falla, todo revierte
+ *
+ * ORDEN DE BLOQUEO (obligatorio, también entre llamadas de una misma transacción):
+ * KEYS_RESERVE → FORTIFICATION → PAYOUTS_PENDING → OPERATIONS → TAX_RESERVE.
+ * Dos métodos que tomen las mismas cuentas en orden distinto se esperan
+ * mutuamente y MySQL mata a uno (deadlock). Si un método solo necesita una
+ * cuenta según el monto, igual la bloquea en su turno, no cuando la usa.
+ * EXTERNAL_INCOME no se bloquea nunca: es el "afuera" de la partida doble, su
+ * saldo no cambia, y bloquearla ponía en fila depósitos, copagos y payouts sin
+ * motivo. La billetera del consumidor (KeyWallet) y la cuenta de prosperidad
+ * del comercial (ProsperityAccount), si participan, se bloquean antes que
+ * cualquier cuenta de tesorería, en ese orden. Y como estas filas son globales
+ * y el bloqueo dura hasta el commit, tesorería se llama lo más tarde posible.
  */
 @Slf4j
 @Service
@@ -53,6 +72,9 @@ public class TreasuryServiceImpl implements TreasuryService {
         private final KeyWalletRepository keyWalletRepository;
         private final KeyBackingCalculator keyBackingCalculator;
         private final TreasuryConfig treasuryConfig;
+
+        /** Los ids de las cuentas no cambian nunca: se resuelven una vez por code. */
+        private final Map<TreasuryAccountCode, UUID> accountIds = new ConcurrentHashMap<>();
 
         /**
          * Distribuye un depósito de plan ESTÁNDAR o PREMIUM entre los 3 fondos.
@@ -101,7 +123,7 @@ public class TreasuryServiceImpl implements TreasuryService {
 
                 // 2. Obtener cuentas con lock pesimista — previene que dos depósitos
                 // simultáneos modifiquen el mismo saldo con valores desactualizados
-                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                TreasuryAccount external = getAccountReference(TreasuryAccountCode.EXTERNAL_INCOME);
                 TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
                 TreasuryAccount fortification = getAccountForUpdate(TreasuryAccountCode.FORTIFICATION);
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
@@ -161,7 +183,7 @@ public class TreasuryServiceImpl implements TreasuryService {
 
                 validateAmount(baseAmountCents);
 
-                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                TreasuryAccount external = getAccountReference(TreasuryAccountCode.EXTERNAL_INCOME);
 
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
                 operations.setBalanceCents(operations.getBalanceCents() + baseAmountCents);
@@ -204,7 +226,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 long available = keysReserve.getBalanceCents();
 
                 if (available < amountCents) {
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.KEYS_RESERVE,
                                         "[TREASURY] Saldo insuficiente en KEYS_RESERVE. " +
                                                         "disponible=" + available +
                                                         " requerido=" + amountCents);
@@ -219,7 +241,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                         log.error("[TREASURY] KEYS_RESERVE CRÍTICO: saldo tras transacción={} < umbral={}. " +
                                         "Copago con llaves bloqueado. referenceId={}",
                                         balanceAfter, criticalThreshold, referenceId);
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.KEYS_RESERVE,
                                         "[TREASURY] KEYS_RESERVE por debajo del umbral crítico. " +
                                                         "El pago con llaves no está disponible temporalmente.");
                 }
@@ -263,7 +285,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 // El efectivo viene de afuera (Wompi → Bancolombia). EXTERNAL_INCOME actúa
                 // como cuenta de origen virtual para mantener la partida doble sin violar
                 // el constraint nullable=false de from_account_id en TreasuryMovement.
-                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                TreasuryAccount external = getAccountReference(TreasuryAccountCode.EXTERNAL_INCOME);
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
                 payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + amountCents);
                 treasuryAccountRepository.save(payoutsPending);
@@ -299,7 +321,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
 
                 if (payoutsPending.getBalanceCents() < amountCents) {
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.PAYOUTS_PENDING,
                                         "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para retener comisión.");
                 }
 
@@ -366,7 +388,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                                 log.error("[TREASURY] KEYS_RESERVE={} no cubre el sobrante de emisión={}. " +
                                                 "El fondo ya estaba descuadrado antes de esta interacción. reference={}",
                                                 keysReserve.getBalanceCents(), deltaCents, referenceId);
-                                throw new IllegalStateException(
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.KEYS_RESERVE,
                                                 "[TREASURY] Saldo insuficiente en KEYS_RESERVE para liquidar el sobrante de emisión.");
                         }
 
@@ -401,7 +423,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 if (operations.getBalanceCents() < deficitCents) {
                         log.error("[TREASURY] OPERATIONS={} no alcanza para financiar el exceso de emisión={}. " +
                                         "reference={}", operations.getBalanceCents(), deficitCents, referenceId);
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.OPERATIONS,
                                         "[TREASURY] Saldo insuficiente en OPERATIONS para respaldar las llaves emitidas por encima de lo financiado.");
                 }
 
@@ -420,66 +442,59 @@ public class TreasuryServiceImpl implements TreasuryService {
         }
 
         /**
-         * Consumo de llaves en el juego de mascotas: KEYS_RESERVE → OPERATIONS.
+         * Compra en el juego de mascotas: KEYS_RESERVE → OPERATIONS.
          *
          * Mismo criterio que settleKeyIssuance y moveExpiredKeysToFortification: no
-         * bloquea al cruzar el umbral crítico, solo alerta. El pasivo ya bajó cuando
-         * el usuario gastó las llaves; retener el respaldo no mejora la solvencia y
-         * rechazar una compra del juego por un umbral de tesorería sería peor que el
-         * problema.
+         * bloquea al cruzar el umbral crítico. El pasivo ya bajó cuando el usuario
+         * gastó las llaves; retener el respaldo no mejora la solvencia y rechazar una
+         * compra del juego por un umbral de tesorería sería peor que el problema.
+         *
+         * POR QUÉ UPDATE ATÓMICO Y NO LOCK PESIMISTA:
+         * es el movimiento de tesorería más frecuente de la app, y con SELECT … FOR
+         * UPDATE todos los gastos de todos los usuarios hacían fila sobre la fila de
+         * KEYS_RESERVE durante casi toda su transacción (508 ms de espera promedio en
+         * la prueba de carga L-B3). Aquí el bloqueo se toma en el débito, que es lo
+         * penúltimo que se ejecuta: los asientos ya salieron en el flush previo y solo
+         * quedan el crédito y el commit. Por eso tampoco se lee el saldo para avisar
+         * del umbral de alerta — leerlo es volver a bloquear; de eso se encargan los
+         * gauges de TreasuryMetrics.
          */
         @Transactional
         @Override
-        public void registerPetGameSpend(long amountCents, UUID referenceId) {
-                moveReserveToOperations(amountCents, referenceId,
-                                MovementConcept.PET_GAME_KEYS_TO_OPERATIONS, "PET_GAME", "gasto en mascotas");
-        }
-
-        /**
-         * Cobro por uso de un ítem de mascotas: KEYS_RESERVE → OPERATIONS. Mismo criterio de
-         * umbrales que {@link #registerPetGameSpend}.
-         */
-        @Transactional
-        @Override
-        public void registerPetItemCharge(long amountCents, UUID referenceId) {
-                moveReserveToOperations(amountCents, referenceId,
-                                MovementConcept.PET_ITEM_CHARGE_TO_OPERATIONS, "PET_ITEM_CHARGE",
-                                "cobro por uso de ítem de mascotas");
-        }
-
-        private void moveReserveToOperations(long amountCents, UUID referenceId, MovementConcept concept,
-                        String referenceType, String label) {
-                if (amountCents <= 0) {
+        public void registerPetGamePurchase(long spendCents, long itemChargeCents, UUID referenceId) {
+                long spend = Math.max(spendCents, 0L);
+                long itemCharge = Math.max(itemChargeCents, 0L);
+                long totalCents = spend + itemCharge;
+                if (totalCents == 0) {
                         return;
                 }
 
-                TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
-                TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
+                // Referencias sin cargar: una TreasuryAccount cargada quedaría con el saldo
+                // viejo en la sesión después de los UPDATE de abajo.
+                TreasuryAccount keysReserve = getAccountReference(TreasuryAccountCode.KEYS_RESERVE);
+                TreasuryAccount operations = getAccountReference(TreasuryAccountCode.OPERATIONS);
 
-                if (keysReserve.getBalanceCents() < amountCents) {
-                        log.error("[TREASURY] KEYS_RESERVE={} no cubre el {}={}. "
+                if (spend > 0) {
+                        recordMovement(keysReserve, operations, spend,
+                                        MovementConcept.PET_GAME_KEYS_TO_OPERATIONS, referenceId, "PET_GAME");
+                }
+                if (itemCharge > 0) {
+                        recordMovement(keysReserve, operations, itemCharge,
+                                        MovementConcept.PET_ITEM_CHARGE_TO_OPERATIONS, referenceId, "PET_ITEM_CHARGE");
+                }
+
+                ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+
+                if (treasuryAccountRepository.debitIfCovered(TreasuryAccountCode.KEYS_RESERVE, totalCents, now) == 0) {
+                        log.error("[TREASURY] KEYS_RESERVE no cubre la compra de mascotas: gasto={} cobro={}. "
                                         + "El fondo ya estaba descuadrado antes de esta compra. reference={}",
-                                        keysReserve.getBalanceCents(), label, amountCents, referenceId);
-                        throw new IllegalStateException(
-                                        "[TREASURY] Saldo insuficiente en KEYS_RESERVE para registrar el " + label + ".");
+                                        spend, itemCharge, referenceId);
+                        throw new KeysReserveInsufficientException();
                 }
+                treasuryAccountRepository.credit(TreasuryAccountCode.OPERATIONS, totalCents, now);
 
-                keysReserve.setBalanceCents(keysReserve.getBalanceCents() - amountCents);
-                operations.setBalanceCents(operations.getBalanceCents() + amountCents);
-
-                treasuryAccountRepository.save(keysReserve);
-                treasuryAccountRepository.save(operations);
-
-                recordMovement(keysReserve, operations, amountCents, concept, referenceId, referenceType);
-
-                if (keysReserve.getBalanceCents() < treasuryConfig.getKeysReserveWarnThresholdCents()) {
-                        log.warn("[TREASURY] KEYS_RESERVE bajo tras {}: saldo={} < umbral_warn={}. reference={}",
-                                        label, keysReserve.getBalanceCents(),
-                                        treasuryConfig.getKeysReserveWarnThresholdCents(), referenceId);
-                }
-
-                log.debug("[TREASURY] {}: {} centavos KEYS_RESERVE → OPERATIONS. reference={}",
-                                label, amountCents, referenceId);
+                log.debug("[TREASURY] Compra de mascotas: gasto={} cobro={} KEYS_RESERVE → OPERATIONS. reference={}",
+                                spend, itemCharge, referenceId);
         }
 
         /**
@@ -501,7 +516,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
 
                 if (payoutsPending.getBalanceCents() < amountCents) {
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.PAYOUTS_PENDING,
                                         "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para el payout.");
                 }
 
@@ -510,7 +525,7 @@ public class TreasuryServiceImpl implements TreasuryService {
 
                 // El dinero sale hacia el banco del empresario. EXTERNAL_INCOME actúa
                 // como cuenta de destino virtual para satisfacer el constraint not-null.
-                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                TreasuryAccount external = getAccountReference(TreasuryAccountCode.EXTERNAL_INCOME);
                 recordMovement(payoutsPending, external, amountCents,
                                 MovementConcept.PAYOUT_TO_BUSINESS, referenceId, "PAYOUT");
 
@@ -542,13 +557,20 @@ public class TreasuryServiceImpl implements TreasuryService {
                 // reversa desde la cuenta a la que realmente fue a parar.
                 long commissionNet = commission - commissionVat;
 
+                // KEYS_RESERVE va primero aunque se use al final: es el orden de bloqueo
+                // de la clase. Tomarla después de PAYOUTS_PENDING cruzaba este reembolso
+                // con un copago concurrente (KEYS_RESERVE → PAYOUTS_PENDING).
+                TreasuryAccount keysReserve = keysPortion > 0
+                                ? getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE)
+                                : null;
                 TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+                TreasuryAccount operations = commissionNet > 0 || cashPortion > 0
+                                ? getAccountForUpdate(TreasuryAccountCode.OPERATIONS)
+                                : null;
 
                 if (commissionNet > 0) {
-                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
-
                         if (operations.getBalanceCents() < commissionNet) {
-                                throw new IllegalStateException(
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.OPERATIONS,
                                                 "[TREASURY] Saldo insuficiente en OPERATIONS para revertir la comisión.");
                         }
 
@@ -566,7 +588,7 @@ public class TreasuryServiceImpl implements TreasuryService {
                         TreasuryAccount taxReserve = getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE);
 
                         if (taxReserve.getBalanceCents() < commissionVat) {
-                                throw new IllegalStateException(
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.TAX_RESERVE,
                                                 "[TREASURY] Saldo insuficiente en TAX_RESERVE para revertir el IVA de la comisión.");
                         }
 
@@ -580,11 +602,9 @@ public class TreasuryServiceImpl implements TreasuryService {
                                         MovementConcept.COMMISSION_VAT_REVERSAL, referenceId, "PURCHASE_ITEM_REFUND");
                 }
 
-                if (keysPortion > 0) {
-                        TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
-
+                if (keysReserve != null) {
                         if (payoutsPending.getBalanceCents() < keysPortion) {
-                                throw new IllegalStateException(
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.PAYOUTS_PENDING,
                                                 "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para reponer KEYS_RESERVE.");
                         }
 
@@ -599,10 +619,8 @@ public class TreasuryServiceImpl implements TreasuryService {
                 }
 
                 if (cashPortion > 0) {
-                        TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
-
                         if (payoutsPending.getBalanceCents() < cashPortion) {
-                                throw new IllegalStateException(
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.PAYOUTS_PENDING,
                                                 "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para el reembolso en efectivo.");
                         }
 
@@ -634,14 +652,14 @@ public class TreasuryServiceImpl implements TreasuryService {
                 TreasuryAccount operations = getAccountForUpdate(TreasuryAccountCode.OPERATIONS);
 
                 if (operations.getBalanceCents() < amountCents) {
-                        throw new IllegalStateException(
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.OPERATIONS,
                                         "[TREASURY] Saldo insuficiente en OPERATIONS para el reembolso manual.");
                 }
 
                 operations.setBalanceCents(operations.getBalanceCents() - amountCents);
                 treasuryAccountRepository.save(operations);
 
-                TreasuryAccount external = getAccountForUpdate(TreasuryAccountCode.EXTERNAL_INCOME);
+                TreasuryAccount external = getAccountReference(TreasuryAccountCode.EXTERNAL_INCOME);
                 recordMovement(operations, external, amountCents,
                                 MovementConcept.REFUND_TO_BUYER, referenceId, "CASH_REFUND");
 
@@ -655,14 +673,20 @@ public class TreasuryServiceImpl implements TreasuryService {
         @Transactional(readOnly = true)
         @Override
         public TreasurySnapshot getSnapshot() {
-                long keysReserve = getBalance(TreasuryAccountCode.KEYS_RESERVE);
-                long fortification = getBalance(TreasuryAccountCode.FORTIFICATION);
-                long operations = getBalance(TreasuryAccountCode.OPERATIONS);
-                long payouts = getBalance(TreasuryAccountCode.PAYOUTS_PENDING);
-                long taxReserve = getBalance(TreasuryAccountCode.TAX_RESERVE);
-                long connectivity = getBalance(TreasuryAccountCode.CONNECTIVITY);
-                long infrastructure = getBalance(TreasuryAccountCode.INFRASTRUCTURE);
-                long payroll = getBalance(TreasuryAccountCode.PAYROLL);
+                // Una sola consulta para todas las cuentas: TreasuryMetrics llama esto cada minuto.
+                Map<TreasuryAccountCode, Long> balances = new EnumMap<>(TreasuryAccountCode.class);
+                for (TreasuryAccount account : treasuryAccountRepository.findAll()) {
+                        balances.put(account.getCode(), account.getBalanceCents());
+                }
+
+                long keysReserve = balances.getOrDefault(TreasuryAccountCode.KEYS_RESERVE, 0L);
+                long fortification = balances.getOrDefault(TreasuryAccountCode.FORTIFICATION, 0L);
+                long operations = balances.getOrDefault(TreasuryAccountCode.OPERATIONS, 0L);
+                long payouts = balances.getOrDefault(TreasuryAccountCode.PAYOUTS_PENDING, 0L);
+                long taxReserve = balances.getOrDefault(TreasuryAccountCode.TAX_RESERVE, 0L);
+                long connectivity = balances.getOrDefault(TreasuryAccountCode.CONNECTIVITY, 0L);
+                long infrastructure = balances.getOrDefault(TreasuryAccountCode.INFRASTRUCTURE, 0L);
+                long payroll = balances.getOrDefault(TreasuryAccountCode.PAYROLL, 0L);
                 long total = keysReserve + fortification + operations + payouts + taxReserve
                                 + connectivity + infrastructure + payroll;
 
@@ -679,10 +703,13 @@ public class TreasuryServiceImpl implements TreasuryService {
                                                                 ". Verifica que TreasuryDataInitializer corrió correctamente."));
         }
 
-        private long getBalance(TreasuryAccountCode code) {
-                return treasuryAccountRepository.findByCode(code)
-                                .map(TreasuryAccount::getBalanceCents)
-                                .orElse(0L);
+        /** Proxy sin cargar, para usar la cuenta como FK de un movimiento sin leer su saldo. */
+        private TreasuryAccount getAccountReference(TreasuryAccountCode code) {
+                UUID id = accountIds.computeIfAbsent(code, c -> treasuryAccountRepository.findIdByCode(c)
+                                .orElseThrow(() -> new IllegalStateException(
+                                                "Cuenta de tesorería no encontrada: " + c +
+                                                                ". Verifica que TreasuryDataInitializer corrió correctamente.")));
+                return treasuryAccountRepository.getReferenceById(id);
         }
 
         private void recordMovement(
