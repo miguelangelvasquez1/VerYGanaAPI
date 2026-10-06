@@ -21,6 +21,8 @@ import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.interfaces.finance.KeyExpiryService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,6 +34,7 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
     private final KeyTransactionRepository keyTransactionRepository;
     private final KeyWalletRepository keyWalletRepository;
     private final TreasuryService treasuryService;
+    private final EntityManager entityManager;
 
     private static final ZoneId COLOMBIA = ZoneId.of("America/Bogota");
     private static final DateTimeFormatter PERIOD_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm z");
@@ -74,6 +77,11 @@ public class KeyExpiryServiceImpl implements KeyExpiryService {
         for (Map.Entry<KeyWallet, WalletExpiry> entry : groups.entrySet()) {
             KeyWallet wallet = entry.getKey();
             WalletExpiry expiry = entry.getValue();
+
+            // La billetera llegó cargada con los créditos vencidos, sin bloqueo: se
+            // recarga con FOR UPDATE para calcular sobre el saldo de ahora y no pisar
+            // un gasto o una recompensa que haya entrado mientras tanto.
+            entityManager.refresh(wallet, LockModeType.PESSIMISTIC_WRITE);
 
             // Nunca expirar más de lo que hay disponible (las bloqueadas se respetan)
             long actualPurchaseExpiryCents = Math.min(wallet.getPurchaseKeysCents(), expiry.purchaseSumCents);

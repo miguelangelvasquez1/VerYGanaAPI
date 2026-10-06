@@ -2,14 +2,12 @@ package com.verygana2.services.pet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.Optional;
-import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -23,7 +21,6 @@ import com.verygana2.models.pets.CatalogIntegrationRequest;
 import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.pet.CatalogIntegrationRequestRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
-import com.verygana2.services.interfaces.finance.TreasuryService;
 
 /**
  * Cobro por uso de los ítems de mascotas: la bolsa que reservó el comercial baja $150 por
@@ -37,15 +34,13 @@ class PetItemChargeServiceTest {
 
     @Mock private CatalogIntegrationRequestRepository requestRepository;
     @Mock private PetCatalogItemRepository catalogItemRepository;
-    @Mock private TreasuryService treasuryService;
 
     private PetItemChargeService service;
     private PetCatalogItem item;
-    private final UUID purchaseId = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
-        service = new PetItemChargeService(requestRepository, catalogItemRepository, treasuryService);
+        service = new PetItemChargeService(requestRepository, catalogItemRepository);
         ReflectionTestUtils.setField(service, "chargePerUseCents", CHARGE_PER_USE);
 
         item = new PetCatalogItem();
@@ -63,16 +58,15 @@ class PetItemChargeServiceTest {
     }
 
     @Test
-    @DisplayName("cobra $150 por unidad a la bolsa y los pasa a OPERATIONS con la compra como referencia")
+    @DisplayName("cobra $150 por unidad a la bolsa y devuelve lo cobrado para que la compra lo lleve a tesorería")
     void chargesPerUnit() {
         CatalogIntegrationRequest request = requestWithBudget(10 * CHARGE_PER_USE, 0L);
 
-        long charged = service.chargeForPurchase(item, 2L, purchaseId);
+        long charged = service.chargeForPurchase(item, 2L);
 
         assertThat(charged).isEqualTo(2 * CHARGE_PER_USE);
         assertThat(request.getSpentCents()).isEqualTo(2 * CHARGE_PER_USE);
         verify(requestRepository).save(request);
-        verify(treasuryService).registerPetItemCharge(2 * CHARGE_PER_USE, purchaseId);
         assertThat(item.getActive()).isTrue();
     }
 
@@ -81,25 +75,23 @@ class PetItemChargeServiceTest {
     void lastPurchaseIsClippedAndDeactivatesTheItem() {
         CatalogIntegrationRequest request = requestWithBudget(10 * CHARGE_PER_USE, 10 * CHARGE_PER_USE - 5_000L);
 
-        long charged = service.chargeForPurchase(item, 1L, purchaseId);
+        long charged = service.chargeForPurchase(item, 1L);
 
         assertThat(charged).isEqualTo(5_000L);
         assertThat(request.getRemainingBudgetCents()).isZero();
-        verify(treasuryService).registerPetItemCharge(5_000L, purchaseId);
         assertThat(item.getActive()).isFalse();
         verify(catalogItemRepository).save(item);
     }
 
     @Test
-    @DisplayName("bolsa ya agotada: no cobra ni mueve tesorería")
+    @DisplayName("bolsa ya agotada: no cobra nada")
     void exhaustedBudgetChargesNothing() {
         item.setActive(false);
         requestWithBudget(CHARGE_PER_USE, CHARGE_PER_USE);
 
-        long charged = service.chargeForPurchase(item, 1L, purchaseId);
+        long charged = service.chargeForPurchase(item, 1L);
 
         assertThat(charged).isZero();
-        verify(treasuryService, never()).registerPetItemCharge(anyLong(), any());
         verify(requestRepository, never()).save(any());
         verify(catalogItemRepository, never()).save(any());
     }
@@ -109,8 +101,7 @@ class PetItemChargeServiceTest {
     void bakedItemHasNoCommercial() {
         when(requestRepository.findByResultCatalogItemIdForUpdate(5L)).thenReturn(Optional.empty());
 
-        assertThat(service.chargeForPurchase(item, 1L, purchaseId)).isZero();
-        verify(treasuryService, never()).registerPetItemCharge(anyLong(), any());
+        assertThat(service.chargeForPurchase(item, 1L)).isZero();
     }
 
     @Test
@@ -118,8 +109,7 @@ class PetItemChargeServiceTest {
     void legacyRequestWithoutBudget() {
         requestWithBudget(null, 0L);
 
-        assertThat(service.chargeForPurchase(item, 1L, purchaseId)).isZero();
-        verify(treasuryService, never()).registerPetItemCharge(anyLong(), any());
+        assertThat(service.chargeForPurchase(item, 1L)).isZero();
         assertThat(item.getActive()).isTrue();
     }
 
@@ -165,7 +155,7 @@ class PetItemChargeServiceTest {
     @Test
     @DisplayName("compra de un ítem que no está en el catálogo: no busca solicitud")
     void unknownItem() {
-        assertThat(service.chargeForPurchase(null, 1L, purchaseId)).isZero();
+        assertThat(service.chargeForPurchase(null, 1L)).isZero();
         verify(requestRepository, never()).findByResultCatalogItemIdForUpdate(eq(5L));
     }
 }

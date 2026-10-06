@@ -1,5 +1,6 @@
 package com.verygana2.services.finance;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,6 +21,7 @@ import org.slf4j.LoggerFactory;
 import com.verygana2.config.TreasuryConfig;
 import com.verygana2.models.enums.finance.MovementConcept;
 import com.verygana2.exceptions.InvalidAmountException;
+import com.verygana2.exceptions.KeysReserveInsufficientException;
 import com.verygana2.models.enums.finance.TreasuryAccountCode;
 import com.verygana2.models.finance.TreasuryAccount;
 import com.verygana2.models.finance.TreasuryMovement;
@@ -33,6 +35,8 @@ import com.verygana2.repositories.finance.TreasuryMovementRepository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -70,6 +74,15 @@ class TreasuryServiceImplTest {
         when(treasuryAccountRepository.findByCodeForUpdate(code)).thenReturn(Optional.of(account(code, balance)));
     }
 
+    /** EXTERNAL_INCOME solo se usa como FK del movimiento: llega por referencia, sin lock. */
+    private void stubExternalReference() {
+        UUID externalId = UUID.randomUUID();
+        when(treasuryAccountRepository.findIdByCode(TreasuryAccountCode.EXTERNAL_INCOME))
+                .thenReturn(Optional.of(externalId));
+        when(treasuryAccountRepository.getReferenceById(externalId))
+                .thenReturn(account(TreasuryAccountCode.EXTERNAL_INCOME, 0L));
+    }
+
     private CommercialDetails commercial(Long id) {
         CommercialDetails c = new CommercialDetails();
         c.setId(id);
@@ -85,7 +98,7 @@ class TreasuryServiceImplTest {
         void splitsIntoThreeAccountsSummingExactTotal() {
             when(treasuryConfig.getKeysReservePct()).thenReturn(60);
             when(treasuryConfig.getFortificationPct()).thenReturn(10);
-            stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0);
+            stubExternalReference();
             stubAccount(TreasuryAccountCode.KEYS_RESERVE, 0);
             stubAccount(TreasuryAccountCode.FORTIFICATION, 0);
             stubAccount(TreasuryAccountCode.OPERATIONS, 0);
@@ -111,7 +124,7 @@ class TreasuryServiceImplTest {
     @Test
     @DisplayName("distributeSubscription: todo el monto va a OPERATIONS, ninguna otra cuenta se toca")
     void distributeSubscription_allGoesToOperations() {
-        stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0);
+        stubExternalReference();
         stubAccount(TreasuryAccountCode.OPERATIONS, 500_000L);
 
         service.distributeSubscription(200_000L, 0L, commercial(1L), UUID.randomUUID());
@@ -164,7 +177,7 @@ class TreasuryServiceImplTest {
     @Test
     @DisplayName("moveCashToPayoutPending: acredita PAYOUTS_PENDING desde la cuenta externa virtual")
     void moveCashToPayoutPending_creditsPayoutsPending() {
-        stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0L);
+        stubExternalReference();
         stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 100_000L);
 
         service.moveCashToPayoutPending(50_000L, UUID.randomUUID());
@@ -213,7 +226,7 @@ class TreasuryServiceImplTest {
     @DisplayName("registerPayoutSent: debita PAYOUTS_PENDING; sin saldo lanza IllegalStateException")
     void registerPayoutSent_debitsPayoutsPending() {
         stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 100_000L);
-        stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0L);
+        stubExternalReference();
 
         service.registerPayoutSent(60_000L, UUID.randomUUID());
 
@@ -252,6 +265,28 @@ class TreasuryServiceImplTest {
             verify(treasuryMovementRepository, org.mockito.Mockito.times(1)).save(any(TreasuryMovement.class));
         }
 
+        /**
+         * El copago bloquea KEYS_RESERVE → PAYOUTS_PENDING → OPERATIONS. Si el reembolso
+         * toma las mismas cuentas en otro orden, los dos se esperan mutuamente y MySQL
+         * mata a uno.
+         */
+        @Test
+        @DisplayName("bloquea las cuentas en el orden de la clase: KEYS_RESERVE, PAYOUTS_PENDING, OPERATIONS, TAX_RESERVE")
+        void locksAccountsInCanonicalOrder() {
+            stubAccount(TreasuryAccountCode.KEYS_RESERVE, 0L);
+            stubAccount(TreasuryAccountCode.PAYOUTS_PENDING, 200_000L);
+            stubAccount(TreasuryAccountCode.OPERATIONS, 50_000L);
+            stubAccount(TreasuryAccountCode.TAX_RESERVE, 50_000L);
+
+            service.reversePurchaseItemForRefund(10_000L, 1_900L, 30_000L, 60_000L, UUID.randomUUID());
+
+            org.mockito.InOrder order = org.mockito.Mockito.inOrder(treasuryAccountRepository);
+            order.verify(treasuryAccountRepository).findByCodeForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+            order.verify(treasuryAccountRepository).findByCodeForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+            order.verify(treasuryAccountRepository).findByCodeForUpdate(TreasuryAccountCode.OPERATIONS);
+            order.verify(treasuryAccountRepository).findByCodeForUpdate(TreasuryAccountCode.TAX_RESERVE);
+        }
+
         @Test
         @DisplayName("OPERATIONS sin saldo suficiente para revertir la comisión: lanza IllegalStateException")
         void insufficientOperations_throws() {
@@ -281,7 +316,7 @@ class TreasuryServiceImplTest {
         @DisplayName("saldo suficiente: debita OPERATIONS y lo registra hacia la cuenta externa")
         void sufficientBalance_debitsOperations() {
             stubAccount(TreasuryAccountCode.OPERATIONS, 100_000L);
-            stubAccount(TreasuryAccountCode.EXTERNAL_INCOME, 0L);
+            stubExternalReference();
 
             service.registerManualCashRefundPaid(60_000L, UUID.randomUUID());
 
@@ -303,15 +338,11 @@ class TreasuryServiceImplTest {
     @Test
     @DisplayName("getSnapshot: suma los saldos y calcula el total")
     void getSnapshot_sumsAllBalances() {
-        when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
-                .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, 100L)));
-        when(treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION))
-                .thenReturn(Optional.of(account(TreasuryAccountCode.FORTIFICATION, 50L)));
-        when(treasuryAccountRepository.findByCode(TreasuryAccountCode.OPERATIONS))
-                .thenReturn(Optional.of(account(TreasuryAccountCode.OPERATIONS, 30L)));
-        when(treasuryAccountRepository.findByCode(TreasuryAccountCode.PAYOUTS_PENDING))
-                .thenReturn(Optional.of(account(TreasuryAccountCode.PAYOUTS_PENDING, 20L)));
-
+        when(treasuryAccountRepository.findAll()).thenReturn(List.of(
+                account(TreasuryAccountCode.KEYS_RESERVE, 100L),
+                account(TreasuryAccountCode.FORTIFICATION, 50L),
+                account(TreasuryAccountCode.OPERATIONS, 30L),
+                account(TreasuryAccountCode.PAYOUTS_PENDING, 20L)));
         TreasurySnapshot snapshot = service.getSnapshot();
 
         assertThat(snapshot.totalCents()).isEqualTo(200L);
@@ -353,14 +384,11 @@ class TreasuryServiceImplTest {
 
         /** Deja los 4 saldos listos para getSnapshot() y sin cuentas en negativo. */
         private void stubSnapshot(long keysReserve) {
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, keysReserve)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.FORTIFICATION, 0L)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.OPERATIONS))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.OPERATIONS, 0L)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.PAYOUTS_PENDING))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.PAYOUTS_PENDING, 0L)));
+            when(treasuryAccountRepository.findAll()).thenReturn(List.of(
+                    account(TreasuryAccountCode.KEYS_RESERVE, keysReserve),
+                    account(TreasuryAccountCode.FORTIFICATION, 0L),
+                    account(TreasuryAccountCode.OPERATIONS, 0L),
+                    account(TreasuryAccountCode.PAYOUTS_PENDING, 0L)));
             when(treasuryAccountRepository.countNegativeBalances()).thenReturn(0L);
         }
 
@@ -554,15 +582,11 @@ class TreasuryServiceImplTest {
     class BalanceReportBacking {
 
         private void stubAllAccounts(long keysReserve) {
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, keysReserve)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.FORTIFICATION, 0L)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.OPERATIONS))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.OPERATIONS, 0L)));
-            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.PAYOUTS_PENDING))
-                    .thenReturn(Optional.of(account(TreasuryAccountCode.PAYOUTS_PENDING, 0L)));
-            when(treasuryAccountRepository.findAll()).thenReturn(java.util.List.of());
+            when(treasuryAccountRepository.findAll()).thenReturn(List.of(
+                    account(TreasuryAccountCode.KEYS_RESERVE, keysReserve),
+                    account(TreasuryAccountCode.FORTIFICATION, 0L),
+                    account(TreasuryAccountCode.OPERATIONS, 0L),
+                    account(TreasuryAccountCode.PAYOUTS_PENDING, 0L)));
         }
 
         @Test
@@ -610,84 +634,109 @@ class TreasuryServiceImplTest {
     }
 
     @Nested
-    @DisplayName("registerPetGameSpend")
-    class RegisterPetGameSpend {
+    @DisplayName("registerPetGamePurchase")
+    class RegisterPetGamePurchase {
 
-        @Test
-        @DisplayName("mueve el valor de las llaves consumidas de KEYS_RESERVE a OPERATIONS")
-        void movesSpentKeysToOperations() {
-            when(treasuryConfig.getKeysReserveWarnThresholdCents()).thenReturn(0L);
-            stubAccount(TreasuryAccountCode.KEYS_RESERVE, 100_000L);
-            stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
+        private final UUID reserveId = UUID.randomUUID();
+        private final UUID operationsId = UUID.randomUUID();
 
-            service.registerPetGameSpend(30_000L, UUID.randomUUID());
-
-            var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
-            verify(treasuryAccountRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-            assertThat(captor.getAllValues().get(0).getBalanceCents()).isEqualTo(70_000L);
-            assertThat(captor.getAllValues().get(1).getBalanceCents()).isEqualTo(30_000L);
-
-            var mov = org.mockito.ArgumentCaptor.forClass(TreasuryMovement.class);
-            verify(treasuryMovementRepository).save(mov.capture());
-            assertThat(mov.getValue().getConcept())
-                    .isEqualTo(MovementConcept.PET_GAME_KEYS_TO_OPERATIONS);
-            // No va a PAYOUTS_PENDING: esas ventas no generan payout al comercial.
-            assertThat(mov.getValue().getToAccount().getCode()).isEqualTo(TreasuryAccountCode.OPERATIONS);
+        private void stubReferences() {
+            when(treasuryAccountRepository.findIdByCode(TreasuryAccountCode.KEYS_RESERVE))
+                    .thenReturn(Optional.of(reserveId));
+            when(treasuryAccountRepository.findIdByCode(TreasuryAccountCode.OPERATIONS))
+                    .thenReturn(Optional.of(operationsId));
+            when(treasuryAccountRepository.getReferenceById(reserveId))
+                    .thenReturn(account(TreasuryAccountCode.KEYS_RESERVE, 0L));
+            when(treasuryAccountRepository.getReferenceById(operationsId))
+                    .thenReturn(account(TreasuryAccountCode.OPERATIONS, 0L));
         }
 
         @Test
-        @DisplayName("KEYS_RESERVE insuficiente: falla en vez de dejar el fondo en negativo")
-        void insufficientReserve_throws() {
-            stubAccount(TreasuryAccountCode.KEYS_RESERVE, 100L);
-            stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
+        @DisplayName("gasto y cobro salen de KEYS_RESERVE en un solo débito y entran a OPERATIONS en un solo crédito")
+        void movesSpendAndChargeInOneDebit() {
+            stubReferences();
+            when(treasuryAccountRepository.debitIfCovered(eq(TreasuryAccountCode.KEYS_RESERVE), eq(45_000L), any()))
+                    .thenReturn(1);
 
-            assertThatThrownBy(() -> service.registerPetGameSpend(30_000L, UUID.randomUUID()))
-                    .isInstanceOf(IllegalStateException.class);
+            service.registerPetGamePurchase(30_000L, 15_000L, UUID.randomUUID());
 
-            verify(treasuryAccountRepository, org.mockito.Mockito.never()).save(any(TreasuryAccount.class));
+            verify(treasuryAccountRepository).credit(eq(TreasuryAccountCode.OPERATIONS), eq(45_000L), any());
         }
 
         @Test
-        @DisplayName("monto no positivo: no-op")
-        void nonPositive_isNoOp() {
-            service.registerPetGameSpend(0L, UUID.randomUUID());
-            org.mockito.Mockito.verifyNoInteractions(treasuryAccountRepository);
-        }
-    }
-
-    @Nested
-    @DisplayName("registerPetItemCharge")
-    class RegisterPetItemCharge {
-
-        @Test
-        @DisplayName("el cobro por uso pasa de KEYS_RESERVE a OPERATIONS con su propio concepto")
-        void movesChargeToOperations() {
-            when(treasuryConfig.getKeysReserveWarnThresholdCents()).thenReturn(0L);
-            stubAccount(TreasuryAccountCode.KEYS_RESERVE, 100_000L);
-            stubAccount(TreasuryAccountCode.OPERATIONS, 0L);
+        @DisplayName("cada concepto deja su propio movimiento, los dos hacia OPERATIONS")
+        void recordsOneMovementPerConcept() {
+            stubReferences();
+            when(treasuryAccountRepository.debitIfCovered(any(), anyLong(), any())).thenReturn(1);
             UUID purchaseId = UUID.randomUUID();
 
-            service.registerPetItemCharge(15_000L, purchaseId);
-
-            var captor = org.mockito.ArgumentCaptor.forClass(TreasuryAccount.class);
-            verify(treasuryAccountRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-            assertThat(captor.getAllValues().get(0).getBalanceCents()).isEqualTo(85_000L);
-            assertThat(captor.getAllValues().get(1).getBalanceCents()).isEqualTo(15_000L);
+            service.registerPetGamePurchase(30_000L, 15_000L, purchaseId);
 
             // Concepto propio para que el reporte distinga el ingreso por cobro al comercial
             // del gasto de llaves del consumidor.
             var mov = org.mockito.ArgumentCaptor.forClass(TreasuryMovement.class);
-            verify(treasuryMovementRepository).save(mov.capture());
-            assertThat(mov.getValue().getConcept())
-                    .isEqualTo(MovementConcept.PET_ITEM_CHARGE_TO_OPERATIONS);
-            assertThat(mov.getValue().getToAccount().getCode()).isEqualTo(TreasuryAccountCode.OPERATIONS);
+            verify(treasuryMovementRepository, org.mockito.Mockito.times(2)).save(mov.capture());
+            TreasuryMovement spend = mov.getAllValues().get(0);
+            TreasuryMovement charge = mov.getAllValues().get(1);
+
+            assertThat(spend.getConcept()).isEqualTo(MovementConcept.PET_GAME_KEYS_TO_OPERATIONS);
+            assertThat(spend.getAmountCents()).isEqualTo(30_000L);
+            assertThat(charge.getConcept()).isEqualTo(MovementConcept.PET_ITEM_CHARGE_TO_OPERATIONS);
+            assertThat(charge.getAmountCents()).isEqualTo(15_000L);
+            // No va a PAYOUTS_PENDING: esas ventas no generan payout al comercial.
+            assertThat(mov.getAllValues()).allSatisfy(m -> {
+                assertThat(m.getFromAccount().getCode()).isEqualTo(TreasuryAccountCode.KEYS_RESERVE);
+                assertThat(m.getToAccount().getCode()).isEqualTo(TreasuryAccountCode.OPERATIONS);
+                assertThat(m.getReferenceId()).isEqualTo(purchaseId);
+            });
         }
 
         @Test
-        @DisplayName("monto no positivo: no-op")
+        @DisplayName("sin cobro al comercial: un solo movimiento, por el gasto")
+        void spendOnly_recordsOneMovement() {
+            stubReferences();
+            when(treasuryAccountRepository.debitIfCovered(eq(TreasuryAccountCode.KEYS_RESERVE), eq(30_000L), any()))
+                    .thenReturn(1);
+
+            service.registerPetGamePurchase(30_000L, 0L, UUID.randomUUID());
+
+            var mov = org.mockito.ArgumentCaptor.forClass(TreasuryMovement.class);
+            verify(treasuryMovementRepository).save(mov.capture());
+            assertThat(mov.getValue().getConcept()).isEqualTo(MovementConcept.PET_GAME_KEYS_TO_OPERATIONS);
+        }
+
+        @Test
+        @DisplayName("KEYS_RESERVE insuficiente: error de negocio y OPERATIONS no recibe nada")
+        void insufficientReserve_throwsBusinessError() {
+            stubReferences();
+            when(treasuryAccountRepository.debitIfCovered(any(), anyLong(), any())).thenReturn(0);
+
+            assertThatThrownBy(() -> service.registerPetGamePurchase(30_000L, 0L, UUID.randomUUID()))
+                    .isInstanceOf(KeysReserveInsufficientException.class);
+
+            verify(treasuryAccountRepository, org.mockito.Mockito.never()).credit(any(), anyLong(), any());
+        }
+
+        /**
+         * El punto del cambio: con SELECT … FOR UPDATE todos los gastos hacían fila
+         * sobre KEYS_RESERVE durante toda la transacción.
+         */
+        @Test
+        @DisplayName("no toma lock pesimista sobre ninguna cuenta")
+        void neverTakesPessimisticLock() {
+            stubReferences();
+            when(treasuryAccountRepository.debitIfCovered(any(), anyLong(), any())).thenReturn(1);
+
+            service.registerPetGamePurchase(30_000L, 15_000L, UUID.randomUUID());
+
+            verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
+        }
+
+        @Test
+        @DisplayName("montos no positivos: no-op")
         void nonPositive_isNoOp() {
-            service.registerPetItemCharge(0L, UUID.randomUUID());
-            org.mockito.Mockito.verifyNoInteractions(treasuryAccountRepository);
+            service.registerPetGamePurchase(0L, 0L, UUID.randomUUID());
+            org.mockito.Mockito.verifyNoInteractions(treasuryAccountRepository, treasuryMovementRepository);
         }
     }
 }

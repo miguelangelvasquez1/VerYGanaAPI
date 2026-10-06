@@ -37,12 +37,13 @@ class KeyExpiryServiceImplTest {
     @Mock private KeyTransactionRepository keyTransactionRepository;
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private TreasuryService treasuryService;
+    @Mock private jakarta.persistence.EntityManager entityManager;
 
     private KeyExpiryServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new KeyExpiryServiceImpl(keyTransactionRepository, keyWalletRepository, treasuryService);
+        service = new KeyExpiryServiceImpl(keyTransactionRepository, keyWalletRepository, treasuryService, entityManager);
     }
 
     private KeyTransaction expiredCredit(KeyWallet wallet, long purchaseDeltaCents, long connectivityDeltaCents) {
