@@ -72,7 +72,7 @@ class RewardServiceTest {
 
         // Stubs comunes a grantReward. lenient() porque los tests de solo lectura
         // (getUserRewardsSummary) no pasan por el camino de crédito.
-        lenient().when(keyWalletService.getByConsumerId(CONSUMER_ID)).thenReturn(wallet);
+        lenient().when(keyWalletService.getByConsumerIdForUpdate(CONSUMER_ID)).thenReturn(wallet);
         lenient().when(keyWalletService.calculatePurchaseExpiry()).thenReturn(java.time.ZonedDateTime.now());
         lenient().when(keyWalletService.calculateConnectivityExpiry()).thenReturn(java.time.ZonedDateTime.now());
         lenient().when(rewardRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));

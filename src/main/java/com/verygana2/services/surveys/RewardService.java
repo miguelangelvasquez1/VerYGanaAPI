@@ -127,7 +127,7 @@ public class RewardService {
     /** @return lo realmente acreditado en la billetera, en centavos. */
     private long creditPoints(SurveySession session, long amountCents) {
         Long consumerId = session.getConsumer().getId();
-        KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
+        KeyWallet keyWallet = keyWalletService.getByConsumerIdForUpdate(consumerId);
         long adjustedCents = Math.round(amountCents * levelService.getMultiplier(consumerId));
         RewardSplit split = keyWalletService.calculate(adjustedCents);
 

@@ -247,6 +247,8 @@ function plans(session, me) {
   // El monto mínimo de recarga depende del plan: sale de la vista previa (en pesos).
   let rechargeCents = 0;
   if (me.caps.recharge) {
+    // Recarga en curso: 204 si no hay ninguna.
+    call('GET /plans/recharge/current', { session, ok: [200, 204], reject: REJ });
     const preview = call('GET /plans/recharge/preview', { session, query: { amountCents: 5000000 }, json: true, reject: REJ });
     rechargeCents = ((preview.body && preview.body.minInvestmentPesos) || 1000000) * 100;
   }
@@ -261,11 +263,14 @@ function plans(session, me) {
     // Antes del checkout la recarga aún no tiene inversión: la conciliación no llega a Wompi ni acredita saldo.
     call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: rid }, reject: REJ_ILLEGAL_STATE });
+    // Conciliación con Wompi: 204 si la recarga ya no está en curso.
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
   } else if (SMOKE) {
     call('GET /plans/recharge/{contractId}', { session, path: { contractId: 1 }, reject: REJ });
     call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: 1 }, reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: 1 }, reject: REJ_ILLEGAL_STATE });
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: 1 }, ok: [200, 204], reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: 1 }, reject: REJ });
   }
   // Checkout de suscripción: con un plan activo no aplica (IllegalStateException sin mapear -> 500, solo tolerado en smoke).

@@ -41,8 +41,8 @@ public class TreasuryAccount {
     private UUID id;
 
     /**
-     * Identificador funcional fijo. Solo existen 4 registros en toda la vida
-     * de la aplicación: KEYS_RESERVE, FORTIFICATION, OPERATIONS, PAYOUTS_PENDING.
+     * Identificador funcional fijo. Existe un registro por cada
+     * {@link TreasuryAccountCode} en toda la vida de la aplicación.
      * Es UNIQUE para evitar duplicados y se usa en código en lugar del id numérico.
      */
     @Enumerated(EnumType.STRING)

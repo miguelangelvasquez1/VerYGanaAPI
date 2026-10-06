@@ -1,7 +1,5 @@
 package com.verygana2.services.pet;
 
-import java.util.UUID;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,7 +8,6 @@ import com.verygana2.models.pets.CatalogIntegrationRequest;
 import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.pet.CatalogIntegrationRequestRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
-import com.verygana2.services.interfaces.finance.TreasuryService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +34,6 @@ public class PetItemChargeService {
 
     private final CatalogIntegrationRequestRepository requestRepository;
     private final PetCatalogItemRepository catalogItemRepository;
-    private final TreasuryService treasuryService;
 
     /**
      * Cobra a la bolsa del comercial las unidades compradas de su ítem. No hace nada si el
@@ -47,11 +43,14 @@ public class PetItemChargeService {
      * Al agotarse la bolsa el ítem se desactiva: deja de listarse en el catálogo del juego.
      * La compra que la agota se cobra recortada a lo que quedaba, nunca sobregira.
      *
-     * @param referenceId id de la KeyTransaction de la compra
+     * No toca tesorería: quien llama pasa lo cobrado a
+     * {@code TreasuryService#registerPetGamePurchase} junto con el gasto del consumidor,
+     * para bloquear las cuentas globales una sola vez y al final de la compra.
+     *
      * @return centavos cobrados a la bolsa
      */
     @Transactional
-    public long chargeForPurchase(PetCatalogItem item, long quantity, UUID referenceId) {
+    public long chargeForPurchase(PetCatalogItem item, long quantity) {
         if (item == null || item.getId() == null || quantity <= 0) {
             return 0L;
         }
@@ -65,7 +64,6 @@ public class PetItemChargeService {
         long charged = request.chargeUse(chargePerUseCents * quantity);
         if (charged > 0) {
             requestRepository.save(request);
-            treasuryService.registerPetItemCharge(charged, referenceId);
         }
 
         if (request.getRemainingBudgetCents() == 0L && Boolean.TRUE.equals(item.getActive())) {

@@ -97,27 +97,27 @@ public interface TreasuryService {
     void settleKeyIssuance(long fundedCents, long issuedCents, UUID referenceId, String referenceType);
 
     /**
-     * Registra el consumo de llaves en el juego de mascotas: KEYS_RESERVE → OPERATIONS.
+     * Registra una compra del juego de mascotas: KEYS_RESERVE → OPERATIONS, por dos
+     * conceptos que quedan como movimientos separados en el libro.
      *
-     * El usuario gastó sus llaves, así que el pasivo baja; sin este movimiento el
-     * respaldo se quedaría en KEYS_RESERVE sin nada detrás.
+     * <ul>
+     *   <li>Gasto del consumidor: gastó sus llaves, así que el pasivo baja; sin este
+     *       movimiento el respaldo se quedaría en KEYS_RESERVE sin nada detrás.</li>
+     *   <li>Cobro por uso al comercial: sale de la bolsa que reservó de su wallet, y
+     *       ese dinero tiene su respaldo en KEYS_RESERVE. Como el cobro no emite
+     *       llaves, el respaldo pasa a ser ingreso de la plataforma.</li>
+     * </ul>
      *
-     * @param amountCents valor en centavos de las llaves consumidas
-     * @param referenceId id de la KeyTransaction del gasto
+     * Debe ser lo último que haga la transacción de la compra: aquí se toma el
+     * bloqueo de las dos cuentas globales y se retiene hasta el commit.
+     *
+     * @param spendCents      valor en centavos de las llaves consumidas (0 = sin gasto)
+     * @param itemChargeCents lo cobrado a la bolsa del comercial (0 = sin cobro)
+     * @param referenceId     id de la KeyTransaction de la compra
+     * @throws com.verygana2.exceptions.KeysReserveInsufficientException si la reserva
+     *         no cubre el total; no se mueve nada
      */
-    void registerPetGameSpend(long amountCents, UUID referenceId);
-
-    /**
-     * Cobro por uso de un ítem de mascotas: KEYS_RESERVE → OPERATIONS.
-     *
-     * El cobro sale de la bolsa que el comercial reservó de su wallet, y ese dinero
-     * tiene su respaldo en KEYS_RESERVE. Como el cobro no emite llaves, el respaldo
-     * pasa a ser ingreso de la plataforma.
-     *
-     * @param amountCents lo cobrado a la bolsa
-     * @param referenceId id de la KeyTransaction de la compra que originó el cobro
-     */
-    void registerPetItemCharge(long amountCents, UUID referenceId);
+    void registerPetGamePurchase(long spendCents, long itemChargeCents, UUID referenceId);
 
     TreasurySnapshot getSnapshot();
 

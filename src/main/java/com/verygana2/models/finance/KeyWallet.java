@@ -16,6 +16,7 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
@@ -38,6 +39,15 @@ public class KeyWallet {
     @GeneratedValue(strategy = GenerationType.UUID)
     @Column(updatable = false, nullable = false)
     private UUID id;
+
+    /**
+     * Red de seguridad, no el mecanismo principal: toda ruta que modifique el saldo
+     * debe leer la billetera con {@code KeyWalletRepository#findByConsumerIdForUpdate}.
+     * Si alguna se salta el bloqueo, la escritura con datos viejos falla aquí con un
+     * conflicto optimista en vez de pisar en silencio el cambio de otra transacción.
+     */
+    @Version
+    private long version;
 
     /**
      * Relación 1-a-1 con el consumidor. Se crea automáticamente cuando

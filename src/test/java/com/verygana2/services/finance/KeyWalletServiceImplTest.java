@@ -179,7 +179,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("saldo suficiente: gasta las llaves y retorna el nuevo balance")
         void sufficientBalance_spendsKeys() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
                     new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
@@ -193,21 +193,21 @@ class KeyWalletServiceImplTest {
         @DisplayName("el gasto debita KEYS_RESERVE: el pasivo baja, el respaldo tiene que bajar con él")
         void spendRegistersTreasuryMovement() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
 
             // Sin esta llamada, las llaves salen de circulación y su respaldo se queda
             // atrapado en KEYS_RESERVE sin nada detrás.
-            verify(treasuryService).registerPetGameSpend(org.mockito.ArgumentMatchers.eq(30L * KEY_VALUE_CENTS),
-                    org.mockito.ArgumentMatchers.any());
+            verify(treasuryService).registerPetGamePurchase(org.mockito.ArgumentMatchers.eq(30L * KEY_VALUE_CENTS),
+                    org.mockito.ArgumentMatchers.eq(0L), org.mockito.ArgumentMatchers.any());
         }
 
         @Test
         @DisplayName("saldo insuficiente: no toca tesorería")
         void insufficientBalance_doesNotTouchTreasury() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(10L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
 
@@ -218,7 +218,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("saldo insuficiente: retorna fallo sin gastar ni registrar transacción")
         void insufficientBalance_returnsFailureWithoutSpending() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(10L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
                     new SpendKeysRequestDTO(30L * KEY_VALUE_CENTS, 1, "Sombrero"));
@@ -240,7 +240,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("cobra el precio del catálogo, no el monto que manda el cliente")
         void chargesCatalogPrice_notClientAmount() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
 
             SpendKeysResponseDTO response = service.spendKeysForPetGame(9L,
@@ -254,7 +254,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("multiplica el precio del catálogo por la cantidad")
         void multipliesCatalogPriceByQuantity() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 3L, 0, "1005"));
@@ -271,7 +271,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("ítem que no está en el catálogo: cae al monto del cliente")
         void unknownItem_fallsBackToClientAmount() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "monoculo"));
 
@@ -287,7 +287,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("la transacción guarda el id del ítem del catálogo")
         void transactionKeepsCatalogItemId() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
@@ -302,7 +302,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("un ítem sin registrar deja el id nulo, no inventa uno")
         void unknownItem_leavesCatalogItemIdNull() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "no_existe"));
 
@@ -321,7 +321,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("ropa: cobra el precio del catálogo buscando por nombre")
         void clothing_chargesCatalogPriceByName() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
                     .thenReturn(Optional.of(monoculo()));
 
@@ -335,7 +335,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("ropa: multiplica por la cantidad")
         void clothing_multipliesByQuantity() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
                     .thenReturn(Optional.of(monoculo()));
 
@@ -351,7 +351,7 @@ class KeyWalletServiceImplTest {
             // 'camita ' ya venía así); sin recortar, la búsqueda falla y se vuelve a
             // cobrar el precio del cliente sin que nadie lo note.
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByNameIgnoreCase("monoculo"))
                     .thenReturn(Optional.of(monoculo()));
 
@@ -364,7 +364,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("un id numérico sigue resolviéndose por externalId, no por nombre")
         void numericName_stillUsesExternalId() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
@@ -378,27 +378,51 @@ class KeyWalletServiceImplTest {
         @DisplayName("cada compra le cobra al comercial dueño del ítem, por unidad comprada")
         void purchaseChargesTheCommercialPerUnit() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             PetCatalogItem pizza = pizza();
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 2L, 0, "1005"));
 
             verify(petItemChargeService).chargeForPurchase(
-                    org.mockito.ArgumentMatchers.eq(pizza), org.mockito.ArgumentMatchers.eq(2L), any());
+                    org.mockito.ArgumentMatchers.eq(pizza), org.mockito.ArgumentMatchers.eq(2L));
+        }
+
+        /**
+         * Tesorería bloquea KEYS_RESERVE y OPERATIONS hasta el commit: si se llama antes
+         * del cobro al comercial, todos los gastos de la plataforma esperan mientras
+         * tanto. Una sola llamada, con los dos montos, y después de todo lo demás.
+         */
+        @Test
+        @DisplayName("tesorería se llama una sola vez, al final, con el gasto y el cobro al comercial")
+        void treasuryIsCalledOnceAndLast() {
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
+            PetCatalogItem pizza = pizza();
+            when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza));
+            when(petItemChargeService.chargeForPurchase(pizza, 2L)).thenReturn(30_000L);
+
+            service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 2L, 0, "1005"));
+
+            org.mockito.InOrder order = org.mockito.Mockito.inOrder(petItemChargeService, treasuryService);
+            order.verify(petItemChargeService).chargeForPurchase(pizza, 2L);
+            order.verify(treasuryService).registerPetGamePurchase(
+                    org.mockito.ArgumentMatchers.eq(50L * KEY_VALUE_CENTS),
+                    org.mockito.ArgumentMatchers.eq(30_000L), any());
+            org.mockito.Mockito.verifyNoMoreInteractions(treasuryService);
         }
 
         @Test
         @DisplayName("sin saldo no hay compra, así que tampoco cobro al comercial")
         void failedPurchaseDoesNotChargeTheCommercial() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza()));
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
 
             verify(petItemChargeService, org.mockito.Mockito.never())
-                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong(), any());
+                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong());
         }
 
         /**
@@ -410,7 +434,7 @@ class KeyWalletServiceImplTest {
         @DisplayName("ítem con la bolsa del comercial agotada: rechaza la compra sin tocar el saldo")
         void exhaustedCommercialItem_rejectsPurchase() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             PetCatalogItem pizza = pizza();
             pizza.setActive(false);
             when(petCatalogItemRepository.findByExternalId(1005)).thenReturn(Optional.of(pizza));
@@ -424,16 +448,16 @@ class KeyWalletServiceImplTest {
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(100L * KEY_VALUE_CENTS);
             verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
             verify(treasuryService, org.mockito.Mockito.never())
-                    .registerPetGameSpend(org.mockito.ArgumentMatchers.anyLong(), any());
+                    .registerPetGamePurchase(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), any());
             verify(petItemChargeService, org.mockito.Mockito.never())
-                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong(), any());
+                    .chargeForPurchase(any(), org.mockito.ArgumentMatchers.anyLong());
         }
 
         @Test
         @DisplayName("ítem horneado inactivo: se sigue cobrando al precio del catálogo")
         void bakedInactiveItem_stillSells() {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(100L * KEY_VALUE_CENTS).build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             PetCatalogItem monoculo = monoculo();
             monoculo.setActive(false);
             when(petCatalogItemRepository.findByNameIgnoreCase("monoculo")).thenReturn(Optional.of(monoculo));

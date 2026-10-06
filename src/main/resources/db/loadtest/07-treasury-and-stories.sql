@@ -2,7 +2,7 @@
 -- Sembrado de la prueba de carga · 07 · tesorería e historias de impacto
 --
 -- Tesorería: el flujo de gasto de llaves (POST /consumer/wallet/keys/spend) mueve KEYS_RESERVE a
--- OPERATIONS y el de payouts sale de PAYOUTS_PENDING; con saldo 0 el primero responde 500. Los
+-- OPERATIONS y el de payouts sale de PAYOUTS_PENDING; con saldo 0 el primero responde 409. Los
 -- saldos salen de los conteos del plan (proporcionales entre A y B) y van en centavos. Si
 -- TreasuryDataInitializer aún no corrió, las cuentas se crean aquí con sus mismos nombres y él las
 -- respeta (busca por code). GREATEST hace idempotente el fondeo: repetir no acumula y crecer de A a B

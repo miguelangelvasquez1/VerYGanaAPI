@@ -112,16 +112,23 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         long keysPortionCents = computeItemKeysShareCents(item, copayment);
         long cashPortionCents = itemTotalCents - keysPortionCents;
 
+        // La billetera se bloquea antes que tesorería, igual que en el gasto y en el
+        // copago. Al revés, un reembolso y un gasto simultáneos del mismo usuario se
+        // esperan mutuamente (deadlock).
+        KeyWallet wallet = keysPortionCents > 0 ? lockWallet(copayment) : null;
+
+        // La venta no se perfeccionó: lo que absorbió el Saldo de Prosperidad vuelve a él.
+        // Va antes que tesorería por el mismo motivo que la billetera: el depósito y el
+        // copago bloquean prosperidad → tesorería, y este debe seguir ese orden.
+        prosperityService.reintegrateRefund(item);
+
+        // La comisión que se revierte ya es solo la de la porción no absorbida.
         treasuryService.reversePurchaseItemForRefund(
                 item.getCommissionCents(), item.getCommissionVatCents(),
                 keysPortionCents, cashPortionCents, copayment.getId());
 
-        // La venta no se perfeccionó: lo que absorbió el Saldo de Prosperidad vuelve a él.
-        // La comisión revertida arriba ya es solo la de la porción no absorbida.
-        prosperityService.reintegrateRefund(item);
-
-        if (keysPortionCents > 0) {
-            creditBackKeys(item, copayment, keysPortionCents);
+        if (wallet != null) {
+            creditBackKeys(wallet, item, copayment, keysPortionCents);
         }
 
         if (cashPortionCents > 0) {
@@ -159,11 +166,13 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         return Math.round(copayment.getKeysValueCents() * (item.getSubtotalCents() / (double) purchaseTotal));
     }
 
-    private void creditBackKeys(PurchaseItem item, Copayment copayment, long keysPortionCents) {
-        KeyWallet wallet = keyWalletRepository.findByConsumerId(copayment.getConsumer().getId())
+    private KeyWallet lockWallet(Copayment copayment) {
+        return keyWalletRepository.findByConsumerIdForUpdate(copayment.getConsumer().getId())
                 .orElseThrow(() -> new IllegalStateException(
                         "[REFUND] KeyWallet no encontrado: consumerId=" + copayment.getConsumer().getId()));
+    }
 
+    private void creditBackKeys(KeyWallet wallet, PurchaseItem item, Copayment copayment, long keysPortionCents) {
         wallet.creditKeysCents(keysPortionCents, 0);
         keyWalletRepository.save(wallet);
 

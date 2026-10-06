@@ -181,7 +181,10 @@ public class AdLikeServiceImpl implements AdLikeService {
             throw new InvalidAdStateException("Este anuncio ya no está disponible para recibir likes");
         }
 
-        KeyWallet keyWallet = consumer.getKeyWallet();
+        // Con bloqueo, no por consumer.getKeyWallet(): esa relación trae la billetera
+        // tal como estaba al cargar el consumidor, y acreditar sobre ese saldo pisa
+        // un gasto que haya entrado en medio.
+        KeyWallet keyWallet = keyWalletService.getByConsumerIdForUpdate(consumerId);
         creditRewardToUser(keyWallet, userRewardKeysCents, adId, sessionId);
 
         // 6. Actualizar la sesión de visualización
