@@ -124,7 +124,11 @@ services:
       - APP_CLAIM_CODE_ENCRYPTION_KEY=${APP_CLAIM_CODE_ENCRYPTION_KEY:?APP_CLAIM_CODE_ENCRYPTION_KEY falta en Infisical beta}
       - APP_PRODUCT_CODE_ENCRYPTION_KEY=${APP_PRODUCT_CODE_ENCRYPTION_KEY:?APP_PRODUCT_CODE_ENCRYPTION_KEY falta en Infisical beta}
       - APP_PRODUCT_CODE_HMAC_SECRET=${APP_PRODUCT_CODE_HMAC_SECRET:?APP_PRODUCT_CODE_HMAC_SECRET falta en Infisical beta}
+      # La imagen nueva lee RANDOM_ORG_BETA_API_KEY (application-beta.yml). Se
+      # conserva RANDOM_ORG_API_KEY para poder volver a verygana-api:0e5a906, que
+      # todavía la lee.
       - RANDOM_ORG_API_KEY=${RANDOM_ORG_API_KEY:?RANDOM_ORG_API_KEY falta (la de desarrollo)}
+      - RANDOM_ORG_BETA_API_KEY=${RANDOM_ORG_BETA_API_KEY:?RANDOM_ORG_BETA_API_KEY falta en Infisical beta (la llave de desarrollo de Random.org)}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:?TWILIO_ACCOUNT_SID falta en Infisical beta}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:?TWILIO_AUTH_TOKEN falta en Infisical beta}
       - TWILIO_VERIFY_SERVICE_SID=${TWILIO_VERIFY_SERVICE_SID:?TWILIO_VERIFY_SERVICE_SID falta en Infisical beta}
