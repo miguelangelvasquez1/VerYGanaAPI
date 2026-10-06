@@ -532,7 +532,7 @@ public class GameServiceImpl implements GameService {
         }
 
         Long consumerId = session.getConsumer().getId();
-        KeyWallet keyWallet = keyWalletService.getByConsumerId(consumerId);
+        KeyWallet keyWallet = keyWalletService.getByConsumerIdForUpdate(consumerId);
         long adjustedCents = Math.round(chargedCents * levelService.getMultiplier(consumerId));
         // Lo financiado (coinsEarned) y lo acreditado quedan en la misma fila: el diferencial
         // que abre el multiplicador lo liquida KeyIssuanceSettlementService por lotes.

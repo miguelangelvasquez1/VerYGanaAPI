@@ -314,6 +314,28 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(KeysReserveInsufficientException.class)
+    public ResponseEntity<ErrorResponse> handleKeysReserveInsufficientException(
+            KeysReserveInsufficientException ex, WebRequest request) {
+        log.warn("Keys reserve insufficient: {}", ex.getMessage());
+        return buildError(HttpStatus.CONFLICT, ex.getMessage(), request);
+    }
+
+    /**
+     * 409, no 500: una cuenta de tesorería no cubre el movimiento. El detalle (que
+     * puede llevar saldos) queda en el log; al cliente solo le llega qué cuenta fue.
+     * Es una anomalía contable, no un error del usuario: por eso se registra como error.
+     */
+    @ExceptionHandler(TreasuryInsufficientFundsException.class)
+    public ResponseEntity<ErrorResponse> handleTreasuryInsufficientFundsException(
+            TreasuryInsufficientFundsException ex, WebRequest request) {
+        log.error("Treasury insufficient funds ({}): {}", ex.getAccount(), ex.getMessage());
+        return buildError(HttpStatus.CONFLICT,
+                "No hay saldo suficiente en la cuenta de tesorería " + ex.getAccount()
+                        + " para completar la operación.",
+                request);
+    }
+
     @ExceptionHandler(DuplicateLikeException.class)
     public ResponseEntity<ErrorResponse> handleDuplicateLikeException(
             DuplicateLikeException ex, WebRequest request) {

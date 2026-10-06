@@ -117,8 +117,10 @@ class PurchaseItemRefundServiceImplTest {
 
             PurchaseItemCashRefund result = service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
-            verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 0L, 100_000L, copayment.getId());
-            verify(prosperityService).reintegrateRefund(item);
+            // Prosperidad antes que tesorería: es el orden de bloqueo del depósito y del copago.
+            org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(prosperityService, treasuryService);
+            inOrder.verify(prosperityService).reintegrateRefund(item);
+            inOrder.verify(treasuryService).reversePurchaseItemForRefund(10_000L, 0L, 0L, 100_000L, copayment.getId());
             // Hay porción en efectivo pendiente de pago manual: el ítem NO pasa a
             // REFUNDED todavía — eso solo ocurre en CashRefundServiceImpl.markPaid.
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.IN_REVIEW);
@@ -172,7 +174,7 @@ class PurchaseItemRefundServiceImplTest {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
 
             when(copaymentRepository.findByPurchaseId(50L)).thenReturn(Optional.of(copayment));
-            when(keyWalletRepository.findByConsumerId(1L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(1L)).thenReturn(Optional.of(wallet));
 
             service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 
@@ -195,7 +197,7 @@ class PurchaseItemRefundServiceImplTest {
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).build();
 
             when(copaymentRepository.findByPurchaseId(50L)).thenReturn(Optional.of(copayment));
-            when(keyWalletRepository.findByConsumerId(1L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(1L)).thenReturn(Optional.of(wallet));
 
             service.refund(item, MarketplaceIssueReason.NOT_DELIVERED, null);
 

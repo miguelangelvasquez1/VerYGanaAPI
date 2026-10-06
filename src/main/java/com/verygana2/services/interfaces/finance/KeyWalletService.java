@@ -10,7 +10,14 @@ import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 
 public interface KeyWalletService {
     void createFor (Long consumerId);
+    /** Solo lectura. Para modificar el saldo, {@link #getByConsumerIdForUpdate}. */
     KeyWallet getByConsumerId (Long consumerId);
+
+    /**
+     * La billetera bloqueada hasta el fin de la transacción. Úsese en toda ruta que
+     * cambie el saldo; requiere una transacción abierta.
+     */
+    KeyWallet getByConsumerIdForUpdate(Long consumerId);
     RewardSplit calculate(long totalRewardKeysCents);
     ZonedDateTime calculatePurchaseExpiry();
     ZonedDateTime calculateConnectivityExpiry();

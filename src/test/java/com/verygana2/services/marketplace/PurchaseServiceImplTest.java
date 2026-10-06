@@ -195,7 +195,7 @@ class PurchaseServiceImplTest {
                     .purchaseKeysCents(500L * KEY_VALUE_CENTS)
                     .blockedPurchaseKeysCents(0L)
                     .build();
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
             when(keyWalletRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             var response = service.createPurchase(9L, requestFor(100L, 1));
@@ -261,7 +261,7 @@ class PurchaseServiceImplTest {
             stubUpToStockReservation(product);
 
             KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(10L * KEY_VALUE_CENTS).build(); // insuficientes para pedir 100
-            when(keyWalletRepository.findByConsumerId(9L)).thenReturn(Optional.of(wallet));
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
 
             assertThatThrownBy(() -> service.createPurchase(9L, requestFor(100L, 1)))
                     .isInstanceOf(InsufficientFundsException.class);

@@ -189,7 +189,7 @@ class GameServiceCompleteSessionTest {
      */
     private KeyWallet givenKeyWalletAndMultiplier(double multiplier) {
         KeyWallet keyWallet = KeyWallet.builder().purchaseKeysCents(0L).connectivityKeysCents(0L).build();
-        when(keyWalletService.getByConsumerId(42L)).thenReturn(keyWallet);
+        when(keyWalletService.getByConsumerIdForUpdate(42L)).thenReturn(keyWallet);
         when(levelService.getMultiplier(42L)).thenReturn(multiplier);
         when(keyWalletService.calculate(anyLong())).thenAnswer(inv -> {
             long total = inv.getArgument(0);

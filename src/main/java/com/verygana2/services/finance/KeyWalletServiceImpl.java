@@ -70,6 +70,17 @@ public class KeyWalletServiceImpl implements KeyWalletService {
                 .orElseThrow(() -> new EntityNotFoundException("Consumer with id: " + consumerId + " not found "));
     }
 
+    @Override
+    public KeyWallet getByConsumerIdForUpdate(Long consumerId) {
+
+        if (consumerId == null || consumerId <= 0) {
+            throw new IllegalArgumentException("Consumer id must be positive");
+        }
+
+        return keyWalletRepository.findByConsumerIdForUpdate(consumerId)
+                .orElseThrow(() -> new EntityNotFoundException("Consumer with id: " + consumerId + " not found "));
+    }
+
     // Calcula las dos recomepnsas a partir de la cantidad total de llaves
     @Override
     public RewardSplit calculate(long totalRewardKeysCents) {
@@ -120,7 +131,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     @Override
     @Transactional
     public SpendKeysResponseDTO spendKeysForPetGame(Long consumerId, SpendKeysRequestDTO request) {
-        KeyWallet wallet = getByConsumerId(consumerId);
+        KeyWallet wallet = getByConsumerIdForUpdate(consumerId);
 
         PetCatalogItem item = resolveCatalogItem(request);
 
@@ -145,17 +156,19 @@ public class KeyWalletServiceImpl implements KeyWalletService {
                 KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName(),
                         item != null ? item.getId() : null));
 
+        // Cobro por uso al comercial dueño del ítem, de la bolsa que reservó al pedir la
+        // integración. Va aparte del gasto del consumidor: aquel es plata del jugador,
+        // este es del comercial, y los dos terminan en OPERATIONS.
+        long itemChargeCents = petItemChargeService.chargeForPurchase(item, request.quantityOrOne());
+
         // El usuario consumió sus llaves: el pasivo baja, así que el respaldo tiene
         // que salir de KEYS_RESERVE. Sin esto, la plata se quedaba en el fondo sin
         // nada detrás — el mismo error del multiplicador, en otro sitio.
         // Va a OPERATIONS y no a PAYOUTS_PENDING: PayoutItem solo se construye desde
         // Copayment, así que esas ventas nunca generan un pago al comercial.
-        treasuryService.registerPetGameSpend(amountCents, spend.getId());
-
-        // Cobro por uso al comercial dueño del ítem, de la bolsa que reservó al pedir la
-        // integración. Va aparte del gasto del consumidor: aquel es plata del jugador,
-        // este es del comercial, y los dos terminan en OPERATIONS.
-        petItemChargeService.chargeForPurchase(item, request.quantityOrOne(), spend.getId());
+        // Va de último a propósito: bloquea las cuentas globales de tesorería hasta
+        // el commit, y todo lo que se haga después alarga la fila de los demás gastos.
+        treasuryService.registerPetGamePurchase(amountCents, itemChargeCents, spend.getId());
 
         // Mismo criterio que getBalance, para que el saldo que devuelve la compra
         // coincida con el que el juego consulta después.

@@ -135,7 +135,7 @@ public class CopaymentServiceImpl implements CopaymentService {
         // gastadas)
         if (keysUsed > 0) {
             KeyWallet keyWallet = keyWalletRepository
-                    .findByConsumerId(copayment.getConsumer().getId())
+                    .findByConsumerIdForUpdate(copayment.getConsumer().getId())
                     .orElseThrow(() -> new IllegalStateException(
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
@@ -149,44 +149,39 @@ public class CopaymentServiceImpl implements CopaymentService {
             keyTransactionRepository.save(Objects.requireNonNull(
                     KeyTransaction.forCopaymentConfirm(
                             keyWallet, keysValueCents, copayment.getId(), buildProductNames(purchase))));
-
-            // Tesorería: KEYS_RESERVE → PAYOUTS_PENDING por el valor de las llaves
-            treasuryService.convertKeysToPayoutPending(keysValueCents, copayment.getId());
         }
 
-        // 2. Tesorería: efectivo (ya en Bancolombia vía Wompi) → PAYOUTS_PENDING
-        treasuryService.moveCashToPayoutPending(cashAmountCents, copayment.getId());
-
-        // 3a. Imputar la venta contra el Saldo de Prosperidad de cada comercial STANDARD
+        // 2. Imputar la venta contra el Saldo de Prosperidad de cada comercial STANDARD
         // y fijar la comisión definitiva solo sobre la porción no absorbida (MP-05).
         // Recalcula commissionCents/commissionVatCents/netToCommercials de la compra.
         prosperityService.absorbPurchase(purchase);
 
-        // 3b. Retener comisión inmediatamente: PAYOUTS_PENDING → OPERATIONS
-        // La venta está confirmada — el ingreso está ganado en este momento.
-        // PAYOUTS_PENDING queda con el neto real del empresario (precio - comisión).
-        long commissionCents = purchase.getCommissionCents();
-        if (commissionCents > 0) {
-            treasuryService.retainCommission(
-                    commissionCents, purchase.getCommissionVatCents(), copayment.getId(), "COPAYMENT");
-        }
-
-        // 4. Entregar códigos de producto al comprador
+        // 3. Entregar códigos de producto al comprador
         deliverProducts(purchase);
 
-        // 5. Completar compra y copago
+        // 4. Completar compra y copago
         purchase.markAsCompleted();
         copayment.setWompiTransaction(wompiTx);
         copayment.setStatus(CopaymentStatus.COMPLETED);
 
-        // 5. Solicitar XP por compra confirmada. El listener lo aplica AFTER_COMMIT,
+        // 5. Tesorería, toda junta y después del trabajo propio de la compra. Sus
+        // cuentas son filas globales que quedan bloqueadas hasta el commit: tomarlas al
+        // principio dejaba en fila a todos los copagos y gastos de llaves de la
+        // plataforma mientras este absorbía prosperidad y cifraba los PIN de reclamo.
+        // Va antes de los pasos que no se revierten (tickets, correos): si tesorería
+        // rechaza el movimiento, la compra entera hace rollback sin haberlos disparado.
+        // El orden billetera → prosperidad → tesorería es el mismo del depósito y del
+        // reembolso; cruzarlo produce deadlocks entre ellos.
+        settleTreasury(copayment, purchase, keysUsed > 0 ? keysValueCents : 0L, cashAmountCents);
+
+        // 6. Solicitar XP por compra confirmada. El listener lo aplica AFTER_COMMIT,
         // así que si esta transacción hace rollback no se otorga XP, y si la
         // concesión de XP falla no impacta este copago.
         Long consumerId = copayment.getConsumer().getId();
         eventPublisher.publishEvent(
                 new XpAwardRequestedEvent(this, consumerId, ActivityType.PURCHASE));
 
-        // 6. Emitir tickets de rifa (transacción independiente — fallo no revierte el
+        // 7. Emitir tickets de rifa (transacción independiente — fallo no revierte el
         // pago)
         try {
             ticketDeliveryService.processTicketEarningForPurchase(
@@ -199,7 +194,7 @@ public class CopaymentServiceImpl implements CopaymentService {
                     e);
         }
 
-        // 7. Notificar al comprador por email con sus códigos (async — fallo no
+        // 8. Notificar al comprador por email con sus códigos (async — fallo no
         // revierte el pago)
         try {
             emailService.sendPurchaseConfirmation(purchase, purchase.getDeliveryEmail());
@@ -208,7 +203,7 @@ public class CopaymentServiceImpl implements CopaymentService {
                     purchase.getId(), e.getMessage(), e);
         }
 
-        // 8. Notificar a cada commercial involucrado de su nueva venta (fallo no
+        // 9. Notificar a cada commercial involucrado de su nueva venta (fallo no
         // revierte el pago)
         try {
             emailService.sendCommercialSaleNotification(purchase);
@@ -232,7 +227,7 @@ public class CopaymentServiceImpl implements CopaymentService {
         // 1. Devolver llaves reservadas al saldo disponible del usuario
         if (keysUsed > 0) {
             KeyWallet keyWallet = keyWalletRepository
-                    .findByConsumerId(copayment.getConsumer().getId())
+                    .findByConsumerIdForUpdate(copayment.getConsumer().getId())
                     .orElseThrow(() -> new IllegalStateException(
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
@@ -268,6 +263,25 @@ public class CopaymentServiceImpl implements CopaymentService {
      * generan un PIN de reclamación que va, junto con el código, en el mismo
      * correo de confirmación de compra (ver SendGridEmailService.buildItemsHtml).
      */
+    private void settleTreasury(Copayment copayment, Purchase purchase, long keysValueCents, long cashAmountCents) {
+        // KEYS_RESERVE → PAYOUTS_PENDING por el valor de las llaves
+        if (keysValueCents > 0) {
+            treasuryService.convertKeysToPayoutPending(keysValueCents, copayment.getId());
+        }
+
+        // Efectivo (ya en Bancolombia vía Wompi) → PAYOUTS_PENDING
+        treasuryService.moveCashToPayoutPending(cashAmountCents, copayment.getId());
+
+        // Retener comisión inmediatamente: PAYOUTS_PENDING → OPERATIONS
+        // La venta está confirmada — el ingreso está ganado en este momento.
+        // PAYOUTS_PENDING queda con el neto real del empresario (precio - comisión).
+        long commissionCents = purchase.getCommissionCents();
+        if (commissionCents > 0) {
+            treasuryService.retainCommission(
+                    commissionCents, purchase.getCommissionVatCents(), copayment.getId(), "COPAYMENT");
+        }
+    }
+
     private void deliverProducts(Purchase purchase) {
         List<PurchaseItem> items = purchase.getItems();
         ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
