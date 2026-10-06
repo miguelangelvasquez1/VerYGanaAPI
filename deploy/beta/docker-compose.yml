@@ -1,25 +1,26 @@
 # Despliegue de la beta (spec 006). Una EC2 t4g.medium (ARM64) con la API, el
 # front, el proxy TLS y Alloy. La base es la de DigitalOcean (no va aquí).
 #
-# El despliegue es por ETAPAS, en el orden del runbook, y cada etapa suma un
-# archivo de compose. Compose interpola todos los archivos que se le dan, así
-# que una variable obligatoria (`:?`) solo se exige si su archivo está en el
-# comando: al levantar una etapa, lo que le falte hace fallar `up` con el
-# nombre de la variable, y lo de las etapas siguientes no estorba.
+# El despliegue es por ETAPAS, en el orden del runbook. Compose interpola todos
+# los archivos de un comando, así que una variable obligatoria (`:?`) solo se
+# exige si su archivo está en el comando. Los secretos de la API y los del front
+# viven en proyectos de Infisical distintos y NO se mezclan: el front va en un
+# proyecto de Compose propio (`verygana-front-beta`), se levanta SOLO, y entra a
+# la red `internal` de este archivo (que por eso tiene que estar levantado antes).
 #
-#   etapa 1 (T10)  api + proxy   docker-compose.yml
-#   etapa 2 (T11)  + front       docker-compose.front.yml
-#   etapa 3 (T17)  + alloy       docker-compose.alloy.yml
+#   etapa 1 (T10)  api + proxy   docker-compose.yml        (proyecto de Infisical de la API)
+#   etapa 2 (T11)  front         docker-compose.front.yml   (proyecto de Infisical del front)
+#   etapa 3 (T17)  + alloy       docker-compose.alloy.yml   (se suma a ESTE archivo)
 #
-# Desde esta carpeta, con los secretos de la identidad de máquina de Infisical
-# (siempre se repiten los archivos de las etapas anteriores):
+# Desde esta carpeta (ids de proyecto: API f3bc4a5e-6c7f-4b06-9a26-37081a099dbb,
+# front dd290240-7a5f-43f3-b193-4c5f1a4a4cfe; entorno `beta` en los dos):
 #
-#   infisical run --env=beta -- docker compose up -d
-#   infisical run --env=beta -- docker compose -f docker-compose.yml -f docker-compose.front.yml up -d
-#   infisical run --env=beta -- docker compose -f docker-compose.yml -f docker-compose.front.yml -f docker-compose.alloy.yml up -d
+#   API_IMAGE=verygana-api:<sha> infisical run --projectId=f3bc4a5e-6c7f-4b06-9a26-37081a099dbb --env=beta -- docker compose up -d
+#   FRONT_IMAGE=verygana-front:<sha> infisical run --projectId=dd290240-7a5f-43f3-b193-4c5f1a4a4cfe --env=beta -- docker compose -f docker-compose.front.yml up -d
+#   API_IMAGE=verygana-api:<sha> infisical run --projectId=f3bc4a5e-6c7f-4b06-9a26-37081a099dbb --env=beta -- docker compose -f docker-compose.yml -f docker-compose.alloy.yml up -d
 #
-# Si se levanta una etapa con menos archivos que la anterior, Compose avisa de
-# "orphan containers" y no los toca (no pasa nada, pero no es lo que se quiere).
+# Cada `up -d` solo toca su propio proyecto: no recrea, detiene ni da por
+# huérfanos los contenedores del otro. Nunca `--remove-orphans`.
 #
 # NUNCA `docker compose down -v` ni `docker volume rm`: borran el volumen
 # `caddy-data` con los certificados y Let's Encrypt limita las emisiones por

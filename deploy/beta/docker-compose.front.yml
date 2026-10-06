@@ -1,17 +1,71 @@
-# Etapa 2 (T11): suma el front a docker-compose.yml. Ver el uso en ese archivo.
-# Requiere FRONT_IMAGE en el entorno. No lleva `name:`, `networks` ni `volumes`:
-# los hereda del archivo base, que siempre va primero en el comando.
+# Etapa 2 (T11): el front, en su PROPIO proyecto de Compose, independiente del
+# archivo base. Se levanta SOLO, con los secretos del proyecto de Infisical del
+# front (id dd290240-7a5f-43f3-b193-4c5f1a4a4cfe), entorno `beta`. Los de la API
+# viven en otro proyecto y nunca se mezclan con estos en un mismo proceso:
+#
+#   cd ~/verygana/deploy/beta
+#   FRONT_IMAGE=verygana-front:<sha> infisical run \
+#     --projectId=dd290240-7a5f-43f3-b193-4c5f1a4a4cfe --env=beta -- \
+#     docker compose -f docker-compose.front.yml up -d
+#
+# Por qué va separado: Compose interpola TODOS los archivos de un comando, así
+# que sumarlo al base (`-f docker-compose.yml -f docker-compose.front.yml`)
+# obligaba a tener los secretos de la API y los del front en un mismo proceso.
+#
+# Cómo convive con el base:
+#   - `name: verygana-front-beta` es un proyecto distinto de `verygana-beta`:
+#     un `up -d` de un archivo no ve (ni recrea, ni da por huérfanos) los
+#     contenedores del otro.
+#   - Caddy alcanza al front como `front:3000` por la red `internal` que crea el
+#     archivo base. Aquí se declara `external` con su nombre real
+#     (`<proyecto-base>_<red>` = verygana-beta_internal). Por eso el base (etapa
+#     1) tiene que estar levantado antes: si la red no existe, `up` falla.
+#   - Variables que lee (las cinco obligatorias, `${VAR:?}`, se pasan al
+#     contenedor con el mismo nombre; FRONT_IMAGE no es un secreto y la pone
+#     quien despliega). Ninguna otra variable del entorno entra al contenedor.
+#   - Para parar o mirar: `docker stop|start|logs|restart verygana-front`
+#     (Docker directo, sin variables). Nunca `down -v` ni `--remove-orphans`.
+
+name: verygana-front-beta
 
 services:
-  # SUPUESTOS sobre el front (repo aparte, no se pudo leer; confirmar en T4/T11):
-  #   - La imagen escucha en el 3000 (`next start`) y NO necesita variables en
-  #     ejecución: las NEXT_PUBLIC_* ya van horneadas en `next build`.
-  #   - Sirve también los rewrites /pet-game y /pet-assets (D-9).
-  #   - Si la imagen necesita variables de servidor, agregarlas aquí.
+  # SUPUESTOS sobre el front (imagen del repo del front, comprobada en T4):
+  #   - La imagen escucha en el 3000 (`node server.js`, salida standalone de
+  #     Next) con HOSTNAME=0.0.0.0, y corre como usuario `node`.
+  #   - Las NEXT_PUBLIC_* ya van horneadas en el build (--build-arg): aquí NO se
+  #     pasan, y cambiar una obliga a reconstruir la imagen.
+  #   - En ejecución necesita cinco variables, que NO se leen en el build.
+  #     Llegan del `infisical run` del proyecto del front, entorno `beta`, con
+  #     los nombres que el front lee (sin prefijo).
+  #       NEXTAUTH_SECRET           SECRETA (firma de la sesión).
+  #                                 Distinta de cualquier secreto de la API.
+  #       NEXTAUTH_URL              https://beta.verygana.com
+  #                                 (con https las cookies de sesión salen
+  #                                 `Secure` aunque Caddy entregue HTTP).
+  #       API_URL                   http://api:8080 (la API por la red
+  #                                 de Docker; no sale a internet ni pasa por Caddy).
+  #       MIDDLEWARE                ACTIVE. Cualquier otro valor
+  #                                 (o vacío) APAGA la protección de rutas por rol
+  #                                 del front. `:?` rechaza falta o vacío, pero
+  #                                 acepta cualquier otro valor (`active` pasa).
+  #       PROXY_DOWNLOAD_ALLOWED_HOSTS
+  #                                 Hosts (separados por comas, sin esquema ni puerto)
+  #                                 desde los que /api/proxy-download puede descargar:
+  #                                 el host de R2 del bucket de beta, estilo
+  #                                 <bucket>.<account-id>.r2.cloudflarestorage.com.
+  #                                 Vacía, la ruta rechaza todo (por eso es obligatoria).
+  #   - Sirve también los rewrites /pet-game y /pet-assets (D-9): el contenedor
+  #     necesita salida a internet hacia el bucket de mascotas (r2.dev).
   front:
     image: ${FRONT_IMAGE:?FRONT_IMAGE - imagen del front con etiqueta por commit}
     container_name: verygana-front
     restart: unless-stopped
+    environment:
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET - secreto de next-auth del front}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:?NEXTAUTH_URL - URL pública del front (https://beta...)}
+      API_URL: ${API_URL:?API_URL - URL de la API vista desde el contenedor del front}
+      MIDDLEWARE: ${MIDDLEWARE:?MIDDLEWARE - ACTIVE para proteger rutas por rol}
+      PROXY_DOWNLOAD_ALLOWED_HOSTS: ${PROXY_DOWNLOAD_ALLOWED_HOSTS:?PROXY_DOWNLOAD_ALLOWED_HOSTS - host de R2 del bucket de beta (<bucket>.<account-id>.r2.cloudflarestorage.com)}
     expose:
       - "3000"
     # Misma rotación que en docker-compose.yml (los anchors no cruzan archivos).
@@ -22,3 +76,10 @@ services:
         max-file: "5"
     networks:
       - internal
+
+# Red creada por el archivo base (proyecto verygana-beta); este archivo no la
+# crea ni la borra.
+networks:
+  internal:
+    external: true
+    name: verygana-beta_internal
