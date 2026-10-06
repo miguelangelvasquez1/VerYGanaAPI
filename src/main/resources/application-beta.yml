@@ -56,5 +56,6 @@ zapsign:
 # ============================================
 # SORTEOS — Random.org de prueba
 # ============================================
-# RANDOM_ORG_API_KEY en Infisical staging debe ser la llave de desarrollo de
-# Random.org: los resultados firmados de beta no pueden confundirse con los reales.
+# La variable separada evita que beta herede por accidente la llave productiva.
+randomOrg:
+  api-key: ${RANDOM_ORG_BETA_API_KEY}

@@ -13,6 +13,9 @@ import java.util.List;
  */
 public final class ReferenceSeedScripts {
 
+    /** Requiere al comercial y la wallet de demo creados por los seeds beta. */
+    public static final String PET_COMMERCIAL_ITEMS = "db/seed/beta/pet-commercial-items.sql";
+
     /** Datos base. El orden importa: primero las tablas sin dependencias externas. */
     public static final List<String> BASE_DATA = List.of(
             "db/seed/categories.sql",
@@ -27,7 +30,7 @@ public final class ReferenceSeedScripts {
             "db/seed/beta/pet-catalog-baked.sql",
             "db/seed/beta/pet-scenes.sql",
             // En dev no inserta nada: el comercial que busca solo existe en beta.
-            "db/seed/beta/pet-commercial-items.sql");
+            PET_COMMERCIAL_ITEMS);
 
     /** Juegos de Cali y Bogotá, con sus versiones v2 (el orden de cada v2 va tras su v1). */
     public static final List<String> GAMES = List.of(
