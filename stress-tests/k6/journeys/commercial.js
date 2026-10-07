@@ -139,6 +139,21 @@ function wallet(session, me) {
     call('PATCH /commercial/allies/promotions/{productId}', { session, path: { productId }, ok: [200, 204], reject: REJ });
     call('PATCH /commercial/allies/promotions/{productId}', { session, path: { productId }, ok: [200, 204], reject: REJ });
   }
+  // Invitaciones a promociones especiales de llaves. Con la siembra normal no hay ninguna, así que las
+  // respuestas a una invitación solo corren si un admin creó y autorizó una promoción para la prueba.
+  const keyOffers = call('GET /commercial/key-promotions/offers', { session, json: true, reject: REJ });
+  const pendingOffer = rows(keyOffers.body).find((o) => o.status === 'PENDING_ACCEPTANCE');
+  if (pendingOffer) {
+    const path = { offerId: pendingOffer.offerId };
+    if (often(0.8)) {
+      call('POST /commercial/key-promotions/offers/{offerId}/accept', { session, path, reject: REJ });
+      if (often(0.05)) {
+        call('POST /commercial/key-promotions/offers/{offerId}/withdraw', { session, path, reject: REJ });
+      }
+    } else {
+      call('POST /commercial/key-promotions/offers/{offerId}/reject', { session, path, reject: REJ });
+    }
+  }
 }
 
 function sales(session) {
@@ -256,14 +271,19 @@ function plans(session, me) {
     ? call('POST /plans/recharge/request', { session, body: { amountCents: rechargeCents }, ok: [200, 201], json: true, reject: REJ_ILLEGAL_STATE })
     : { body: null };
   const rid = recharge.body && (recharge.body.contractId || recharge.body.id);
+  // Recarga en curso (204 si no hay ninguna): lectura pura.
+  call('GET /plans/recharge/current', { session, ok: [200, 204], reject: REJ });
   if (rid) {
     call('GET /plans/recharge/{contractId}', { session, path: { contractId: rid }, reject: REJ });
+    // Antes del checkout la recarga aún no tiene inversión: la conciliación no llega a Wompi ni acredita saldo.
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: rid }, reject: REJ_ILLEGAL_STATE });
     // Conciliación con Wompi: 204 si la recarga ya no está en curso.
     call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: rid }, ok: [200, 204], reject: REJ });
   } else if (SMOKE) {
     call('GET /plans/recharge/{contractId}', { session, path: { contractId: 1 }, reject: REJ });
+    call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: 1 }, reject: REJ });
     call('POST /plans/recharge/{contractId}/checkout', { session, path: { contractId: 1 }, reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/reconcile', { session, path: { contractId: 1 }, ok: [200, 204], reject: REJ_ILLEGAL_STATE });
     call('POST /plans/recharge/{contractId}/cancel', { session, path: { contractId: 1 }, reject: REJ });

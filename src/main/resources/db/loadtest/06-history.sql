@@ -65,7 +65,8 @@ JOIN adr a ON a.rn = MOD(c.n + q.s, @lt_ads);
 -- Llaves: 80 % créditos por interacción, 10 % bono de referido y 10 % débitos de copago.
 -- Los créditos vencen a los 90 días (en el futuro: el job de expiración no los toca todavía).
 -- ---------------------------------------------------------------------------
-INSERT INTO key_transactions (id, connectivity_keys_delta_cents, created_at, expires_at, expiry_processed,
+-- Son historial de relleno: quedan como origin_type LEGACY (el default), sin secuencia ni saldos.
+INSERT INTO key_transactions (id, connectivity_keys_delta_cents, created_at, expires_at, idempotency_key,
                               purchase_keys_delta_cents, reason, reference_id, type, key_wallet_id)
 WITH RECURSIVE seq (s) AS (SELECT 0 UNION ALL SELECT s + 1 FROM seq WHERE s < @lt_m_key_transactions - 1),
 cons AS (
@@ -79,7 +80,7 @@ SELECT UUID_TO_BIN(UUID()),
        IF(MOD(q.s, 10) = 9, 0, 200 + MOD(c.n + q.s * 13, 600)),
        TIMESTAMPADD(SECOND, -MOD(c.n * 7919 + q.s * 104729, 7776000), NOW()),
        IF(MOD(q.s, 10) = 9, NULL, TIMESTAMPADD(DAY, 90, TIMESTAMPADD(SECOND, -MOD(c.n * 7919 + q.s * 104729, 7776000), NOW()))),
-       IF(MOD(q.s, 10) = 9, 1, 0),
+       CONCAT('LOADTEST:', UUID()),
        IF(MOD(q.s, 10) = 9, -(500 + MOD(c.n + q.s * 17, 1500)), 300 + MOD(c.n + q.s * 11, 1200)),
        'Movimiento ficticio de la prueba de carga',
        UUID_TO_BIN(UUID()),

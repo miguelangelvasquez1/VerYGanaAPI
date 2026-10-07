@@ -49,6 +49,11 @@ public class KeyWallet {
     @Version
     private long version;
 
+    /** Secuencia del último asiento de esta billetera en el Libro Mayor de Llaves. */
+    @Column(name = "last_sequence", nullable = false)
+    @Builder.Default
+    private long ledgerSequence = 0L;
+
     /**
      * Relación 1-a-1 con el consumidor. Se crea automáticamente cuando
      * el usuario se registra. La relación inversa se accede vía consumer.getKeyWallet().
@@ -66,12 +71,10 @@ public class KeyWallet {
      * Representan el 75% de las llaves promocionales distribuidas al usuario.
      *
      * VENCIMIENTO: todas las purchase_keys vencen a las 00:00 (medianoche Colombia)
-     * del día siguiente a la fecha de corte mensual definida por la app.
-     * El job nocturno calcula la suma de los KeyTransaction con tipo
-     * CREDIT_INTERACTION/CREDIT_BUSINESS_DEPOSIT cuyo expires_at < NOW() y
-     * aún no están procesados (expiry_processed = false), luego debita ese
-     * total del saldo aquí y mueve el valor equivalente en COP al fondo
-     * de fortalecimiento en TreasuryAccount(FORTIFICATION).
+     * del día 1 del mes siguiente. El remanente por fecha de vencimiento se lleva
+     * en KeyLot: el job nocturno extingue lo que queda de cada lote vencido, lo
+     * debita de aquí y mueve el valor equivalente en COP al fondo de
+     * fortalecimiento en TreasuryAccount(FORTIFICATION).
      */
     @Column(name = "purchase_keys_cents", nullable = false)
     @PositiveOrZero
@@ -225,8 +228,23 @@ public class KeyWallet {
         this.purchaseKeysCents += amountCents;
     }
  
+    /**
+     * Gasto directo de llaves de compra, sin reserva previa (juego de mascotas).
+     */
+    public void spendPurchaseKeysCents(long amountCents) {
+        validatePositive(amountCents, "amountCents");
+        if (!hasSufficientPurchaseKeysCents(amountCents))
+            throw new IllegalStateException("Cannot spend more purchase keys than availables");
+        this.purchaseKeysCents -= amountCents;
+    }
+
+    /** Siguiente posición en el Libro Mayor. La billetera debe estar bloqueada. */
+    public long nextLedgerSequence() {
+        return ++this.ledgerSequence;
+    }
+
     // ─── OPERACIONES DE CONECTIVIDAD ──────────────────────────────────────────
- 
+
     /**
      * Reserva llaves de conectividad cuando inicia una recarga.
      */

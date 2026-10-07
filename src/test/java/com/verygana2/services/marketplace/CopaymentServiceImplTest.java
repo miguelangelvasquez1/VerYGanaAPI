@@ -14,6 +14,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.marketplace.ProductType;
@@ -28,7 +30,6 @@ import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
@@ -65,7 +66,8 @@ class CopaymentServiceImplTest {
     @Mock private WompiTransactionRepository wompiTransactionRepository;
     @Mock private PurchaseRepository purchaseRepository;
     @Mock private KeyWalletRepository keyWalletRepository;
-    @Mock private KeyTransactionRepository keyTransactionRepository;
+    @Mock private KeyLedgerService keyLedgerService;
+    @Mock private com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService keyCoveragePromotionService;
     @Mock private ProductStockRepository productStockRepository;
     @Mock private ProductRepository productRepository;
     @Mock private TreasuryService treasuryService;
@@ -80,8 +82,9 @@ class CopaymentServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CopaymentServiceImpl(copaymentRepository, ticketDeliveryService, wompiTransactionRepository,
-                purchaseRepository, keyWalletRepository, keyTransactionRepository, productStockRepository,
+                purchaseRepository, keyWalletRepository, keyLedgerService, keyCoveragePromotionService, productStockRepository,
                 productRepository, treasuryService, prosperityService, emailService, eventPublisher, wompiService, passwordEncoder);
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
     }
 
     private PurchaseItem itemWithStock(Product product) {
@@ -213,8 +216,12 @@ class CopaymentServiceImplTest {
             service.handleWompiResult(tx.getId());
 
             assertThat(wallet.getBlockedPurchaseKeysCents()).isZero(); // confirmado, ya no bloqueado
-            verify(keyTransactionRepository).save(any());
+            verify(keyLedgerService).confirmCopayment(
+                    org.mockito.ArgumentMatchers.eq(wallet), org.mockito.ArgumentMatchers.eq(50_000L),
+                    org.mockito.ArgumentMatchers.eq(copayment.getId()), any());
             verify(treasuryService).convertKeysToPayoutPending(50_000L, copayment.getId());
+            // El presupuesto de promoción comprometido por la compra se consume al aprobarse.
+            verify(keyCoveragePromotionService).confirmForPurchase(any(), org.mockito.ArgumentMatchers.eq(50_000L));
             verify(treasuryService).moveCashToPayoutPending(50_000L, copayment.getId());
         }
 
@@ -307,6 +314,11 @@ class CopaymentServiceImplTest {
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(50_000L);
             assertThat(wallet.getBlockedPurchaseKeysCents()).isZero();
             assertThat(copayment.getKeysRefundedAt()).isNotNull();
+            verify(keyLedgerService).releaseCopayment(wallet, 50_000L, copayment.getId());
+            // ...y se libera si el pago falla.
+            verify(keyCoveragePromotionService).releaseForPurchase(any());
+            verify(keyCoveragePromotionService, org.mockito.Mockito.never())
+                    .confirmForPurchase(any(), org.mockito.ArgumentMatchers.anyLong());
         }
     }
 

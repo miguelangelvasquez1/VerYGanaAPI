@@ -129,4 +129,28 @@ public interface TreasuryService {
 
     /** Verifica integridad de saldos: ninguna cuenta puede tener saldo negativo. */
     void runReconciliation();
+
+    // ─── Garantía de promociones especiales de llaves (MP-12) ─────────────────
+
+    /**
+     * Aparta el presupuesto de una promoción: FORTIFICATION → PROMOTIONS_RESERVE.
+     *
+     * @throws com.verygana2.exceptions.TreasuryInsufficientFundsException si
+     *         FORTIFICATION no alcanza: sin fondos la promoción no se autoriza.
+     */
+    void reservePromotionGuarantee(long amountCents, UUID referenceId);
+
+    /**
+     * Repone KEYS_RESERVE desde la garantía, solo si pagar {@code keysOutflowCents} lo
+     * dejaría bajo el umbral crítico y nunca más que {@code maxCents}.
+     *
+     * @return lo efectivamente movido (0 si KEYS_RESERVE aguanta el pago por sí solo).
+     */
+    long drawPromotionGuarantee(long maxCents, long keysOutflowCents, UUID referenceId);
+
+    /** Devuelve la garantía no usada al cierre: PROMOTIONS_RESERVE → FORTIFICATION. */
+    void returnPromotionGuarantee(long amountCents, UUID referenceId);
+
+    /** Cuánto puede salir hoy de KEYS_RESERVE sin cruzar el umbral crítico. Solo lectura. */
+    long keysReserveHeadroomCents();
 }

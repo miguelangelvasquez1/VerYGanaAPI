@@ -17,15 +17,14 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.dtos.survey.submission.RewardInfo;
 import com.verygana2.dtos.survey.submission.UserRewardsSummary;
-import com.verygana2.models.finance.KeyTransaction;
+import com.verygana2.models.enums.finance.KeyOriginType;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.surveys.SurveyReward;
 import com.verygana2.models.surveys.SurveySession;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.repositories.surveys.SurveySessionRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.levels.LevelService;
 
@@ -39,9 +38,8 @@ public class RewardService {
 
     private final SurveyRewardRepository rewardRepository;
     private final SurveySessionRepository sessionRepository;
-    private final KeyWalletRepository keyWalletRepository;
     private final KeyWalletService keyWalletService;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
     private final ApplicationEventPublisher eventPublisher;
     private final LevelService levelService;
 
@@ -138,14 +136,10 @@ public class RewardService {
         ZonedDateTime purchaseExpiry     = keyWalletService.calculatePurchaseExpiry();
         ZonedDateTime connectivityExpiry = keyWalletService.calculateConnectivityExpiry();
 
-        keyTransactionRepository.saveAll(List.of(
-                KeyTransaction.forInteractionPurchaseKeys(
-                        keyWallet, split.purchaseKeysReward(), reason, referenceId, purchaseExpiry),
-                KeyTransaction.forInteractionConnectivityKeys(
-                        keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
-
-        keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
-        keyWalletRepository.save(keyWallet);
+        keyLedgerService.issue(keyWallet, new KeyLedgerService.Issuance(
+                KeyOriginType.SURVEY, referenceId, reason,
+                split.purchaseKeysReward(), purchaseExpiry,
+                split.connectivityKeysReward(), connectivityExpiry));
 
         // El diferencial (amountCents − adjustedCents) lo liquida en tesorería
         // KeyIssuanceSettlementService por lotes, leyendo las dos cifras que esta

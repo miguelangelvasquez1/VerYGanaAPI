@@ -252,7 +252,15 @@ function c5(session) {
   // Compra con dinero real simulado: Wompi (WireMock) crea el checkout y el webhook firmado la aprueba.
   const buyable = products.filter((p) => p.status === 'ACTIVE' && p.stock > 0);
   const target = pick(buyable);
+  // Productos con cobertura especial en llaves vigente (lo que el catálogo anuncia).
+  call('GET /key-promotions/active', { session });
   if (target) {
+    // Cotización previa: cuánto puede cubrir con llaves y cuánto dinero pagaría. No reserva nada.
+    call('POST /purchases/quote', {
+      session,
+      body: { items: [{ productId: target.id, quantity: 1 }] },
+      reject: BUSINESS,
+    });
     const buy = call('POST /purchases/buy', {
       session,
       body: { items: [{ productId: target.id, quantity: 1 }], keysToUse: 0 },

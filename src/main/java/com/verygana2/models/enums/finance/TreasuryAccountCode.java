@@ -72,5 +72,13 @@ public enum TreasuryAccountCode {
      * del reparto de depósitos empresariales — se nutre de otras
      * operaciones, aún no implementadas.
      */
-    PAYROLL
+    PAYROLL,
+
+    /**
+     * Garantía de las promociones especiales de cobertura con llaves (MP-12). Al
+     * autorizar una promoción su presupuesto se aparta aquí desde FORTIFICATION; solo
+     * repone KEYS_RESERVE si un copago de la promoción lo dejaría bajo el umbral crítico,
+     * y lo no usado vuelve a FORTIFICATION al cierre.
+     */
+    PROMOTIONS_RESERVE
 }

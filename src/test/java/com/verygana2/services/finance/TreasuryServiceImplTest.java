@@ -739,4 +739,111 @@ class TreasuryServiceImplTest {
             org.mockito.Mockito.verifyNoInteractions(treasuryAccountRepository, treasuryMovementRepository);
         }
     }
+
+    @Nested
+    @DisplayName("garantía de promociones especiales de llaves (MP-12)")
+    class PromotionGuarantee {
+
+        private TreasuryAccount stub(TreasuryAccountCode code, long balance) {
+            TreasuryAccount account = account(code, balance);
+            when(treasuryAccountRepository.findByCodeForUpdate(code)).thenReturn(Optional.of(account));
+            return account;
+        }
+
+        @Test
+        @DisplayName("autorizar aparta el presupuesto: FORTIFICATION → PROMOTIONS_RESERVE")
+        void reserveMovesBudgetOutOfFortification() {
+            TreasuryAccount fortification = stub(TreasuryAccountCode.FORTIFICATION, 8_000_000L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 0L);
+
+            service.reservePromotionGuarantee(5_000_000L, UUID.randomUUID());
+
+            assertThat(fortification.getBalanceCents()).isEqualTo(3_000_000L);
+            assertThat(promotions.getBalanceCents()).isEqualTo(5_000_000L);
+            verify(treasuryMovementRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                    m.getConcept() == com.verygana2.models.enums.finance.MovementConcept.PROMOTION_GUARANTEE_FROM_FORTIFICATION
+                            && m.getAmountCents() == 5_000_000L));
+        }
+
+        @Test
+        @DisplayName("sin fondos en FORTIFICATION no se aparta nada: la promoción no se puede autorizar")
+        void reserveWithoutFunds_throwsAndMovesNothing() {
+            TreasuryAccount fortification = stub(TreasuryAccountCode.FORTIFICATION, 4_999_999L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 0L);
+
+            assertThatThrownBy(() -> service.reservePromotionGuarantee(5_000_000L, UUID.randomUUID()))
+                    .isInstanceOf(com.verygana2.exceptions.TreasuryInsufficientFundsException.class);
+
+            assertThat(fortification.getBalanceCents()).isEqualTo(4_999_999L);
+            assertThat(promotions.getBalanceCents()).isZero();
+            verify(treasuryMovementRepository, org.mockito.Mockito.never()).save(any());
+        }
+
+        @Test
+        @DisplayName("KEYS_RESERVE aguanta el pago: la garantía no se toca")
+        void drawDoesNothingWhenKeysReserveCanPay() {
+            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 10_000_000L);
+
+            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+
+            assertThat(drawn).isZero();
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(10_000_000L);
+            verify(treasuryMovementRepository, org.mockito.Mockito.never()).save(any());
+        }
+
+        @Test
+        @DisplayName("el pago dejaría KEYS_RESERVE bajo el umbral crítico: la garantía repone solo el faltante")
+        void drawCoversOnlyTheShortfall() {
+            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
+            // 7.500.000 − 7.000.000 = 500.000, medio millón por debajo del umbral.
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 7_500_000L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 5_000_000L);
+
+            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+
+            assertThat(drawn).isEqualTo(500_000L);
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(8_000_000L);
+            assertThat(promotions.getBalanceCents()).isEqualTo(4_500_000L);
+        }
+
+        @Test
+        @DisplayName("la garantía nunca repone más que el exceso de esa compra")
+        void drawIsCappedByThePurchaseExcess() {
+            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 0L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 5_000_000L);
+
+            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+
+            assertThat(drawn).isEqualTo(2_000_000L);
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(2_000_000L);
+            assertThat(promotions.getBalanceCents()).isEqualTo(3_000_000L);
+        }
+
+        @Test
+        @DisplayName("al cierre lo no usado vuelve: PROMOTIONS_RESERVE → FORTIFICATION")
+        void returnMovesBackToFortification() {
+            TreasuryAccount fortification = stub(TreasuryAccountCode.FORTIFICATION, 3_000_000L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 4_500_000L);
+
+            service.returnPromotionGuarantee(4_500_000L, UUID.randomUUID());
+
+            assertThat(fortification.getBalanceCents()).isEqualTo(7_500_000L);
+            assertThat(promotions.getBalanceCents()).isZero();
+        }
+
+        @Test
+        @DisplayName("el margen de KEYS_RESERVE es su saldo por encima del umbral crítico, nunca negativo")
+        void headroomIsBalanceAboveCriticalThreshold() {
+            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
+            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
+                    .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, 3_500_000L)));
+            assertThat(service.keysReserveHeadroomCents()).isEqualTo(2_500_000L);
+
+            when(treasuryAccountRepository.findByCode(TreasuryAccountCode.KEYS_RESERVE))
+                    .thenReturn(Optional.of(account(TreasuryAccountCode.KEYS_RESERVE, 400_000L)));
+            assertThat(service.keysReserveHeadroomCents()).isZero();
+        }
+    }
 }

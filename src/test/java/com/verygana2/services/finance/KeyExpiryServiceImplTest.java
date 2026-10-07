@@ -1,5 +1,8 @@
 package com.verygana2.services.finance;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -7,17 +10,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.verygana2.models.finance.KeyTransaction;
-import com.verygana2.models.finance.KeyWallet;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
-import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.repositories.finance.KeyLotRepository;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
@@ -25,96 +24,59 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * Tests de {@link KeyExpiryServiceImpl}: el job nocturno que debita las
- * llaves vencidas. Agrupa por wallet, nunca expira más de lo disponible
- * (respeta lo bloqueado), y mueve el valor total a FORTIFICATION solo si
- * algo se expiró de verdad.
+ * Tests de {@link KeyExpiryServiceImpl}: el job nocturno que recorre las billeteras con
+ * lotes vencidos. Lo que vence en cada una, y cuánto, lo cubre
+ * KeyLedgerServiceIntegrationTest; aquí solo importa que cada billetera se procese por
+ * separado y que el fallo de una no detenga a las demás.
  */
 @ExtendWith(MockitoExtension.class)
 @DisplayName("KeyExpiryServiceImpl")
 class KeyExpiryServiceImplTest {
 
-    @Mock private KeyTransactionRepository keyTransactionRepository;
-    @Mock private KeyWalletRepository keyWalletRepository;
-    @Mock private TreasuryService treasuryService;
-    @Mock private jakarta.persistence.EntityManager entityManager;
+    @Mock private KeyLotRepository keyLotRepository;
+    @Mock private KeyLedgerService keyLedgerService;
 
     private KeyExpiryServiceImpl service;
 
     @BeforeEach
     void setUp() {
-        service = new KeyExpiryServiceImpl(keyTransactionRepository, keyWalletRepository, treasuryService, entityManager);
-    }
-
-    private KeyTransaction expiredCredit(KeyWallet wallet, long purchaseDeltaCents, long connectivityDeltaCents) {
-        return KeyTransaction.builder()
-                .id(UUID.randomUUID())
-                .keyWallet(wallet)
-                .purchaseKeysDeltaCents(purchaseDeltaCents > 0 ? purchaseDeltaCents : null)
-                .connectivityKeysDeltaCents(connectivityDeltaCents > 0 ? connectivityDeltaCents : null)
-                .build();
+        Clock clock = Clock.fixed(Instant.parse("2026-11-01T10:05:00Z"), ZoneOffset.UTC);
+        service = new KeyExpiryServiceImpl(keyLotRepository, keyLedgerService, clock);
     }
 
     @Test
-    @DisplayName("sin créditos vencidos: no hace nada, no mueve tesorería")
-    void noExpiredCredits_doesNothing() {
-        when(keyTransactionRepository.findExpiredNotProcessed(any())).thenReturn(List.of());
+    @DisplayName("sin lotes vencidos: no toca ninguna billetera")
+    void noDueLots_doesNothing() {
+        when(keyLotRepository.findWalletIdsWithDueLots(any())).thenReturn(List.of());
 
         service.processExpiredKeys();
 
-        verify(keyWalletRepository, never()).save(any());
-        verify(treasuryService, never()).moveExpiredKeysToFortification(any(), any());
+        verify(keyLedgerService, never()).expireDueLots(any(), any());
     }
 
     @Test
-    @DisplayName("expira lo disponible del wallet y mueve el valor total a FORTIFICATION")
-    void expiresAvailableKeysAndMovesToFortification() {
-        KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(50_000L).connectivityKeysCents(20_000L).build();
-        KeyTransaction credit1 = expiredCredit(wallet, 30_000L, 0L);
-        KeyTransaction credit2 = expiredCredit(wallet, 0L, 10_000L);
-
-        when(keyTransactionRepository.findExpiredNotProcessed(any())).thenReturn(List.of(credit1, credit2));
+    @DisplayName("vence cada billetera con lotes vencidos, una por una")
+    void expiresEachWalletWithDueLots() {
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        when(keyLotRepository.findWalletIdsWithDueLots(any())).thenReturn(List.of(first, second));
 
         service.processExpiredKeys();
 
-        assertThat(wallet.getPurchaseKeysCents()).isEqualTo(20_000L); // 50 - 30
-        assertThat(wallet.getConnectivityKeysCents()).isEqualTo(10_000L); // 20 - 10
-        verify(keyWalletRepository).save(wallet);
-        verify(keyTransactionRepository).save(any(KeyTransaction.class));
-        // 30.000 + 10.000 centavos = 40.000
-        verify(treasuryService).moveExpiredKeysToFortification(eq(40_000L), any());
+        verify(keyLedgerService).expireDueLots(eq(first), any());
+        verify(keyLedgerService).expireDueLots(eq(second), any());
     }
 
     @Test
-    @DisplayName("nunca expira más de lo que hay disponible en el wallet (respeta lo ya gastado)")
-    void neverExpiresMoreThanAvailable() {
-        // El wallet ya gastó la mayoría de sus llaves; el crédito vencido dice 100 pero solo quedan 5.
-        KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(5_000L).connectivityKeysCents(0L).build();
-        KeyTransaction credit = expiredCredit(wallet, 100_000L, 0L);
+    @DisplayName("si una billetera falla, las demás se procesan igual y el job no revienta")
+    void failureInOneWallet_doesNotStopTheOthers() {
+        UUID broken = UUID.randomUUID();
+        UUID healthy = UUID.randomUUID();
+        when(keyLotRepository.findWalletIdsWithDueLots(any())).thenReturn(List.of(broken, healthy));
+        when(keyLedgerService.expireDueLots(eq(broken), any())).thenThrow(new IllegalStateException("boom"));
 
-        when(keyTransactionRepository.findExpiredNotProcessed(any())).thenReturn(List.of(credit));
+        assertThatCode(() -> service.processExpiredKeys()).doesNotThrowAnyException();
 
-        service.processExpiredKeys();
-
-        assertThat(wallet.getPurchaseKeysCents()).isZero(); // solo expiró lo disponible (5.000), no los 100.000 nominales
-        verify(treasuryService).moveExpiredKeysToFortification(eq(5_000L), any());
-    }
-
-    @Test
-    @DisplayName("wallet sin saldo disponible para expirar: se marca como procesado sin tocar tesorería para ese wallet")
-    void walletWithNothingAvailable_marksProcessedWithoutTreasuryMove() {
-        KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(0L).connectivityKeysCents(0L).build();
-        KeyTransaction credit = expiredCredit(wallet, 50_000L, 0L); // ya no queda nada disponible
-
-        when(keyTransactionRepository.findExpiredNotProcessed(any())).thenReturn(List.of(credit));
-
-        service.processExpiredKeys();
-
-        @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<UUID>> captor = ArgumentCaptor.forClass(List.class);
-        verify(keyTransactionRepository).markAllAsProcessed(captor.capture());
-        assertThat(captor.getValue()).containsExactly(credit.getId());
-        verify(keyWalletRepository, never()).save(any());
-        verify(treasuryService, never()).moveExpiredKeysToFortification(any(), any());
+        verify(keyLedgerService).expireDueLots(eq(healthy), any());
     }
 }

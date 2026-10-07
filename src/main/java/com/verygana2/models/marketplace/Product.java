@@ -94,8 +94,11 @@ public class Product {
      *
      * Valores según plan:
      *   BASIC    → 20
-     *   STANDARD → 35
-     *   PREMIUM  → 50
+     *   STANDARD → 50
+     *   PREMIUM  → 0 (no vende)
+     *
+     * Es el tope ORDINARIO. Una promoción especial vigente puede subirlo hasta 70
+     * para una compra concreta (ver KeyCoverageServiceImpl); este campo no cambia.
      *
      * Ejemplo con priceCents = 1_500_000 y maxKeysPct = 40:
      *   maxKeysValue = 1_500_000 × 40 / 100 = 600_000 centavos = $6.000 COP
