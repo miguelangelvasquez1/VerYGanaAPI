@@ -51,10 +51,10 @@ public class BetaPlaceholderAssetSeeder implements CommandLineRunner {
     }
 
     private static final List<PlaceholderAsset> ASSETS = List.of(
-            new PlaceholderAsset("ads/beta/desayunos-con-sabor-a-hogar.jpg",
-                    "Desayunos con sabor a hogar\nTrigo Dorado", new Color(0xB5651D)),
-            new PlaceholderAsset("ads/beta/pan-artesanal-para-compartir.jpg",
-                    "Pan artesanal para compartir\nTrigo Dorado", new Color(0xA85C2E)),
+            new PlaceholderAsset("ads/beta/energia-solar-para-tu-hogar.jpg",
+                    "Energía solar para tu hogar\nEcosistema Andino", new Color(0x2E7D5C)),
+            new PlaceholderAsset("ads/beta/conectividad-rural-sin-interrupciones.jpg",
+                    "Conectividad rural sin interrupciones\nEcosistema Andino", new Color(0x256B4E)),
             new PlaceholderAsset("ads/beta/estilo-urbano-para-todos-los-dias.jpg",
                     "Estilo urbano para todos los días\nModa Urbana", new Color(0xB23A6B)),
             new PlaceholderAsset("ads/beta/renueva-tus-basicos-con-moda-urbana.jpg",
