@@ -2,12 +2,12 @@ package com.verygana2.repositories.finance;
 
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -17,6 +17,8 @@ import com.verygana2.models.finance.KeyTransaction;
 
 @Repository
 public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, UUID> {
+
+    Optional<KeyTransaction> findByIdempotencyKey(String idempotencyKey);
 
     /**
      * Lo acreditado por una interacción concreta, en centavos. Es la única fuente
@@ -54,8 +56,14 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
             """)
     Long sumTotalEarnedKeysCents(@Param("consumerId") Long consumerId);
 
+    /**
+     * Incluye el delta bloqueado porque la confirmación de un copago ya no mueve el
+     * disponible (eso lo hizo la reserva): su monto está en blockedPurchaseDeltaCents.
+     * En las filas anteriores a MP-12 está en purchaseKeysDeltaCents y el bloqueado es null.
+     */
     @Query("""
-            SELECT COALESCE(SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0)), 0)
+            SELECT COALESCE(SUM(COALESCE(kt.purchaseKeysDeltaCents, 0) + COALESCE(kt.connectivityKeysDeltaCents, 0)
+                              + COALESCE(kt.blockedPurchaseDeltaCents, 0)), 0)
             FROM KeyTransaction kt
             JOIN kt.keyWallet kw
             WHERE kw.consumer.id = :consumerId
@@ -75,21 +83,6 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
             AND kt.type = com.verygana2.models.enums.finance.KeyTransactionType.EXPIRED
             """)
     Long sumTotalExpiredKeysCents(@Param("consumerId") Long consumerId);
-
-    /**
-     * Devuelve todos los créditos de llaves que ya vencieron y aún no se procesaron.
-     * Solo créditos (delta > 0) para evitar contar débitos y reservas.
-     */
-    @Query("""
-            SELECT kt FROM KeyTransaction kt
-            JOIN FETCH kt.keyWallet kw
-            WHERE kt.expiredAt IS NOT NULL
-            AND kt.expiredAt < :now
-            AND kt.expiryProcessed = false
-            AND (kt.purchaseKeysDeltaCents > 0 OR kt.connectivityKeysDeltaCents > 0)
-            ORDER BY kt.keyWallet.id
-            """)
-    List<KeyTransaction> findExpiredNotProcessed(@Param("now") ZonedDateTime now);
 
     /**
      * Ventas por producto de un comercial en el juego de mascotas.
@@ -196,9 +189,4 @@ public interface KeyTransactionRepository extends JpaRepository<KeyTransaction, 
         java.sql.Timestamp getFirstSale();
         java.sql.Timestamp getLastSale();
     }
-
-    /** Marca en bulk como procesadas todas las transacciones del lote. */
-    @Modifying
-    @Query("UPDATE KeyTransaction kt SET kt.expiryProcessed = true WHERE kt.id IN :ids")
-    void markAllAsProcessed(@Param("ids") List<UUID> ids);
 }

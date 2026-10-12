@@ -30,8 +30,7 @@ import jakarta.persistence.EntityManager;
  * Tests de integración H2 (modo MySQL) para KeyTransactionRepository — el
  * repositorio más grande del dominio finance. Cubre el historial paginado
  * filtrado, las 3 sumas agregadas (con COALESCE: SUM sobre vacío = 0, nunca
- * null), el vencimiento no procesado (con su JOIN FETCH y exclusión de débitos
- * y reservas), el marcado masivo como procesado, y las 3 queries nativas de
+ * null), la búsqueda por clave de idempotencia y las 3 queries nativas de
  * ventas de mascotas.
  *
  * Las 3 queries nativas usan sintaxis estándar (JOIN/LEFT JOIN, HAVING,
@@ -72,8 +71,7 @@ class KeyTransactionRepositoryTest {
     }
 
     private KeyTransaction persistTransaction(KeyWallet wallet, KeyTransactionType type,
-            Long purchaseDeltaCents, Long connectivityDeltaCents, ZonedDateTime expiredAt,
-            boolean expiryProcessed) {
+            Long purchaseDeltaCents, Long connectivityDeltaCents, ZonedDateTime expiredAt) {
         KeyTransaction kt = KeyTransaction.builder()
                 .keyWallet(wallet)
                 .type(type)
@@ -82,7 +80,7 @@ class KeyTransactionRepositoryTest {
                 .reason("Movimiento de prueba")
                 .referenceId(UUID.randomUUID())
                 .expiredAt(expiredAt)
-                .expiryProcessed(expiryProcessed)
+                .idempotencyKey("TEST:" + UUID.randomUUID())
                 .build();
         em.persist(kt);
         em.flush();
@@ -97,6 +95,7 @@ class KeyTransactionRepositoryTest {
                 .petCatalogItemId(petCatalogItemId)
                 .reason("Mascota virtual: prueba")
                 .referenceId(UUID.randomUUID())
+                .idempotencyKey("TEST:" + UUID.randomUUID())
                 .build();
         em.persist(kt);
         em.flush();
@@ -138,10 +137,8 @@ class KeyTransactionRepositoryTest {
         void noFiltersReturnsAllOrderedDesc() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            KeyTransaction t1 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null,
-                    false);
-            KeyTransaction t2 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 200L, null, null,
-                    false);
+            KeyTransaction t1 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null);
+            KeyTransaction t2 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 200L, null, null);
             // KeyTransaction.onCreate() fuerza createdAt = now() en el @PrePersist: dos
             // inserts consecutivos pueden empatar en el mismo instante y volver el orden
             // no determinístico. Se fuerza una separación clara vía UPDATE JPQL para que
@@ -165,9 +162,8 @@ class KeyTransactionRepositoryTest {
         void filtersByType() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null, false);
-            KeyTransaction debit = persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -50L, null, null,
-                    false);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null);
+            KeyTransaction debit = persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -50L, null, null);
 
             Page<KeyTransaction> page = keyTransactionRepository.findByConsumerId(
                     consumer.getId(), null, null, KeyTransactionType.DEBIT_COPAYMENT, PageRequest.of(0, 10));
@@ -180,7 +176,7 @@ class KeyTransactionRepositoryTest {
         void filtersByDateRange() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null);
 
             Page<KeyTransaction> future = keyTransactionRepository.findByConsumerId(
                     consumer.getId(), now().plusDays(1), null, null, PageRequest.of(0, 10));
@@ -201,7 +197,7 @@ class KeyTransactionRepositoryTest {
             ConsumerDetails other = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
             persistKeyWallet(other);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null);
 
             Page<KeyTransaction> page = keyTransactionRepository.findByConsumerId(
                     other.getId(), null, null, null, PageRequest.of(0, 10));
@@ -230,11 +226,11 @@ class KeyTransactionRepositoryTest {
         void sumEarnedSumsCreditTypes() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 1000L, 200L, null, false);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_REFERRAL_BONUS, 500L, null, null, false);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_ADMIN_ADJUSTMENT, null, 100L, null, false);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 1000L, 200L, null);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_REFERRAL_BONUS, 500L, null, null);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_ADMIN_ADJUSTMENT, null, 100L, null);
             // No debe contarse: no es un tipo de crédito.
-            persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -300L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -300L, null, null);
 
             assertThat(keyTransactionRepository.sumTotalEarnedKeysCents(consumer.getId())).isEqualTo(1800L);
         }
@@ -244,7 +240,7 @@ class KeyTransactionRepositoryTest {
         void sumUsedReturnsZeroWhenNoRows() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 1000L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 1000L, null, null);
 
             assertThat(keyTransactionRepository.sumTotalUsedKeysCents(consumer.getId())).isZero();
         }
@@ -254,13 +250,46 @@ class KeyTransactionRepositoryTest {
         void sumUsedSumsDebitTypes() {
             ConsumerDetails consumer = TestEntities.persistConsumer(em);
             KeyWallet wallet = persistKeyWallet(consumer);
-            persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -300L, null, null, false);
-            persistTransaction(wallet, KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE, null, -150L, null, false);
-            persistTransaction(wallet, KeyTransactionType.DEBIT_ADMIN_ADJUSTMENT, -50L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -300L, null, null);
+            persistTransaction(wallet, KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE, null, -150L, null);
+            persistTransaction(wallet, KeyTransactionType.DEBIT_ADMIN_ADJUSTMENT, -50L, null, null);
             // No debe contarse: no es un tipo de débito de esta suma (es DEBIT_PET_GAME).
-            persistTransaction(wallet, KeyTransactionType.DEBIT_PET_GAME, -1000L, null, null, false);
+            persistTransaction(wallet, KeyTransactionType.DEBIT_PET_GAME, -1000L, null, null);
 
             assertThat(keyTransactionRepository.sumTotalUsedKeysCents(consumer.getId())).isEqualTo(-500L);
+        }
+
+        @Test
+        @DisplayName("sumTotalUsedKeysCents cuenta la confirmación de un copago, cuyo monto va en el delta bloqueado")
+        void sumUsedCountsBlockedDeltaOfConfirmedCopayment() {
+            ConsumerDetails consumer = TestEntities.persistConsumer(em);
+            KeyWallet wallet = persistKeyWallet(consumer);
+            // La reserva baja el disponible pero no es un uso todavía: no debe contarse.
+            persistTransaction(wallet, KeyTransactionType.RESERVE_COPAYMENT_PENDING, -300L, null, null);
+            KeyTransaction confirm = KeyTransaction.builder()
+                    .keyWallet(wallet)
+                    .type(KeyTransactionType.DEBIT_COPAYMENT)
+                    .blockedPurchaseDeltaCents(-300L)
+                    .reason("Pago con llaves: prueba")
+                    .referenceId(UUID.randomUUID())
+                    .idempotencyKey("TEST:" + UUID.randomUUID())
+                    .build();
+            em.persist(confirm);
+            em.flush();
+
+            assertThat(keyTransactionRepository.sumTotalUsedKeysCents(consumer.getId())).isEqualTo(-300L);
+        }
+
+        @Test
+        @DisplayName("findByIdempotencyKey encuentra el asiento por su clave y nada con una clave desconocida")
+        void findsByIdempotencyKey() {
+            ConsumerDetails consumer = TestEntities.persistConsumer(em);
+            KeyWallet wallet = persistKeyWallet(consumer);
+            KeyTransaction kt = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null, null);
+
+            assertThat(keyTransactionRepository.findByIdempotencyKey(kt.getIdempotencyKey()))
+                    .get().extracting(KeyTransaction::getId).isEqualTo(kt.getId());
+            assertThat(keyTransactionRepository.findByIdempotencyKey("NO-EXISTE")).isEmpty();
         }
 
         @Test
@@ -271,77 +300,9 @@ class KeyTransactionRepositoryTest {
 
             assertThat(keyTransactionRepository.sumTotalExpiredKeysCents(consumer.getId())).isZero();
 
-            persistTransaction(wallet, KeyTransactionType.EXPIRED, -700L, -100L, null, true);
+            persistTransaction(wallet, KeyTransactionType.EXPIRED, -700L, -100L, null);
 
             assertThat(keyTransactionRepository.sumTotalExpiredKeysCents(consumer.getId())).isEqualTo(-800L);
-        }
-    }
-
-    // ==================== findExpiredNotProcessed ====================
-
-    @Nested
-    @DisplayName("findExpiredNotProcessed")
-    class FindExpiredNotProcessed {
-
-        @Test
-        @DisplayName("trae créditos vencidos y no procesados, con keyWallet fetch-eado, excluyendo débitos/reservas y ya procesados")
-        void returnsOnlyExpiredUnprocessedCreditsWithWalletFetched() {
-            ConsumerDetails consumer = TestEntities.persistConsumer(em);
-            KeyWallet wallet = persistKeyWallet(consumer);
-
-            KeyTransaction eligiblePurchase = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION,
-                    1000L, null, now().minusDays(1), false);
-            KeyTransaction eligibleConnectivity = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION,
-                    null, 500L, now().minusDays(1), false);
-            // Débito (delta negativo): no debe incluirse aunque esté vencido y sin procesar.
-            persistTransaction(wallet, KeyTransactionType.DEBIT_COPAYMENT, -300L, null, now().minusDays(1), false);
-            // Reserva con delta 0 (ninguno de los dos deltas es positivo): no debe incluirse.
-            persistTransaction(wallet, KeyTransactionType.RESERVE_COPAYMENT_PENDING, null, null, now().minusDays(1),
-                    false);
-            // Ya procesado: no debe incluirse aunque esté vencido y con delta positivo.
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 200L, null, now().minusDays(1), true);
-            // Aún no vence: no debe incluirse.
-            persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 400L, null, now().plusDays(1), false);
-            // Sin fecha de vencimiento: no debe incluirse.
-            persistTransaction(wallet, KeyTransactionType.CREDIT_REFERRAL_BONUS, 600L, null, null, false);
-
-            em.clear();
-
-            List<KeyTransaction> result = keyTransactionRepository.findExpiredNotProcessed(now());
-
-            assertThat(result).extracting(KeyTransaction::getId)
-                    .containsExactlyInAnyOrder(eligiblePurchase.getId(), eligibleConnectivity.getId());
-            // El JOIN FETCH permite acceder al keyWallet sin lazy-loading fuera de sesión.
-            assertThat(result.get(0).getKeyWallet().getConsumer().getId()).isEqualTo(consumer.getId());
-        }
-    }
-
-    // ==================== markAllAsProcessed ====================
-
-    @Nested
-    @DisplayName("markAllAsProcessed")
-    class MarkAllAsProcessed {
-
-        @Test
-        @DisplayName("marca en bulk expiryProcessed=true para los ids indicados, confirmado releyendo de BD")
-        void bulkMarksAsProcessedConfirmedFromDb() {
-            ConsumerDetails consumer = TestEntities.persistConsumer(em);
-            KeyWallet wallet = persistKeyWallet(consumer);
-            KeyTransaction t1 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 100L, null,
-                    now().minusDays(1), false);
-            KeyTransaction t2 = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 200L, null,
-                    now().minusDays(1), false);
-            KeyTransaction untouched = persistTransaction(wallet, KeyTransactionType.CREDIT_INTERACTION, 300L, null,
-                    now().minusDays(1), false);
-
-            keyTransactionRepository.markAllAsProcessed(List.of(t1.getId(), t2.getId()));
-
-            em.clear();
-
-            assertThat(keyTransactionRepository.findById(t1.getId()).orElseThrow().getExpiryProcessed()).isTrue();
-            assertThat(keyTransactionRepository.findById(t2.getId()).orElseThrow().getExpiryProcessed()).isTrue();
-            assertThat(keyTransactionRepository.findById(untouched.getId()).orElseThrow().getExpiryProcessed())
-                    .isFalse();
         }
     }
 

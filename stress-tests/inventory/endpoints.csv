@@ -8,6 +8,18 @@ GET,/admin/audit-logs/critical,A,
 GET,/admin/cash-refunds,A,
 GET,/admin/cash-refunds/by-purchase-item/{purchaseItemId},A,
 PATCH,/admin/cash-refunds/{id}/mark-paid,,admin
+POST,/admin/key-ledger/expiry,,admin
+POST,/admin/key-ledger/reconciliation,,admin
+GET,/admin/key-promotions,,admin
+POST,/admin/key-promotions,,admin
+GET,/admin/key-promotions/{id},,admin
+PUT,/admin/key-promotions/{id},,admin
+POST,/admin/key-promotions/{id}/authorize,,admin
+POST,/admin/key-promotions/{id}/end,,admin
+POST,/admin/key-promotions/{id}/offers,,admin
+DELETE,/admin/key-promotions/{id}/offers/{offerId},,admin
+POST,/admin/key-promotions/{id}/pause,,admin
+POST,/admin/key-promotions/{id}/resume,,admin
 POST,/admin/legal-documents/discard,,admin
 POST,/admin/legal-documents/prepare-upload,,admin
 POST,/admin/legal-documents/{documentId}/confirm,,admin
@@ -179,6 +191,10 @@ GET,/commercial/allies/promoters,M,
 GET,/commercial/allies/promotions,M,
 PATCH,/commercial/allies/promotions/{productId},M,
 GET,/commercial/dashboard/summary,M,
+GET,/commercial/key-promotions/offers,M,
+POST,/commercial/key-promotions/offers/{offerId}/accept,M,
+POST,/commercial/key-promotions/offers/{offerId}/reject,M,
+POST,/commercial/key-promotions/offers/{offerId}/withdraw,M,
 GET,/commercial/payout-methods,M,
 POST,/commercial/payout-methods,M,
 GET,/commercial/payout-methods/banks,M,
@@ -308,6 +324,7 @@ POST,/impact-stories/media/prepare-upload,,admin
 DELETE,/impact-stories/{id},,admin
 GET,/impact-stories/{id},C7,
 PUT,/impact-stories/{id},,admin
+GET,/key-promotions/active,C5,
 GET,/key-transactions,C1,
 GET,/key-transactions/total-earned-keys,C1,
 GET,/key-transactions/total-expired-keys,C1,
@@ -391,6 +408,7 @@ GET,/purchaseItems/{purchaseItemId}/delivered-code,C5,
 POST,/purchaseItems/{purchaseItemId}/report,C5,
 GET,/purchases,C5,
 POST,/purchases/buy,C5,
+POST,/purchases/quote,C5,
 GET,/purchases/{purchaseId},C5,
 GET,/referrals/my-code,C7,
 GET,/referrals/my-referrals,C7,

@@ -23,6 +23,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.surveys.Survey;
 import com.verygana2.models.surveys.SurveyQuestion;
@@ -31,8 +33,6 @@ import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.surveys.SurveyReward;
 import com.verygana2.models.surveys.SurveySession;
 import com.verygana2.models.userDetails.ConsumerDetails;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.surveys.SurveyRewardRepository;
 import com.verygana2.repositories.surveys.SurveySessionRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
@@ -54,13 +54,17 @@ class RewardServiceTest {
 
     @Mock SurveyRewardRepository rewardRepository;
     @Mock SurveySessionRepository sessionRepository;
-    @Mock KeyWalletRepository keyWalletRepository;
     @Mock KeyWalletService keyWalletService;
-    @Mock KeyTransactionRepository keyTransactionRepository;
+    @Mock KeyLedgerService keyLedgerService;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock LevelService levelService;
 
     @InjectMocks RewardService service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubKeyLedger() {
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
+    }
 
     private KeyWallet wallet;
 
@@ -169,8 +173,8 @@ class RewardServiceTest {
             SurveySession session = sessionWith(4, 500);
             when(levelService.getMultiplier(CONSUMER_ID)).thenReturn(0.7);
             when(keyWalletService.calculate(1400L)).thenReturn(new RewardSplit(1050, 350));
-            when(keyWalletRepository.save(any()))
-                    .thenThrow(new IllegalStateException("fallo al persistir la billetera"));
+            org.mockito.Mockito.doThrow(new IllegalStateException("fallo al persistir la billetera"))
+                    .when(keyLedgerService).issue(any(), any());
 
             // Antes esto se tragaba la excepción y commiteaba: encuesta consumida,
             // reward FAILED y llaves acreditadas igual.

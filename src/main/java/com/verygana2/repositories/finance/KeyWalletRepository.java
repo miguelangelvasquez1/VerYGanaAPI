@@ -1,5 +1,6 @@
 package com.verygana2.repositories.finance;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -33,7 +34,25 @@ public interface KeyWalletRepository extends JpaRepository<KeyWallet, UUID> {
     @Query("SELECT w FROM KeyWallet w WHERE w.consumer.id = :consumerId")
     Optional<KeyWallet> findByConsumerIdForUpdate(@Param("consumerId") Long consumerId);
 
+    /** Mismo bloqueo que {@link #findByConsumerIdForUpdate}, para quien parte del id de la billetera. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT w FROM KeyWallet w WHERE w.id = :id")
+    Optional<KeyWallet> findByIdForUpdate(@Param("id") UUID id);
+
     boolean existsByConsumerId (Long consumerId);
+
+    /**
+     * Billeteras cuyo saldo no coincide con el saldo posterior de su último asiento.
+     * Solo mira las que ya tienen asientos con secuencia (posteriores a MP-12).
+     */
+    @Query("""
+            SELECT w.id FROM KeyWallet w, KeyTransaction t
+            WHERE t.keyWallet = w
+              AND t.sequence = w.ledgerSequence
+              AND (w.purchaseKeysCents <> t.purchaseBalanceAfterCents
+                   OR w.connectivityKeysCents <> t.connectivityBalanceAfterCents)
+            """)
+    List<UUID> findIdsOutOfSyncWithLedger();
 
     /**
      * Pasivo total de llaves vivas, en centavos de COP.

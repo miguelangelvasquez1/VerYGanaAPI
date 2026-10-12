@@ -24,6 +24,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.dtos.ad.responses.AdLikedResponse;
 import com.verygana2.mappers.AdMapper;
 import com.verygana2.models.ads.Ad;
@@ -38,8 +40,6 @@ import com.verygana2.repositories.AdLikeRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -67,9 +67,8 @@ class AdLikeServiceImplTest {
 
     @Mock AdLikeRepository adLikeRepository;
     @Mock ConsumerDetailsService consumerDetailsService;
-    @Mock KeyWalletRepository keyWalletRepository;
     @Mock KeyWalletService keyWalletService;
-    @Mock KeyTransactionRepository keyTransactionRepository;
+    @Mock KeyLedgerService keyLedgerService;
     @Mock AdRepository adRepository;
     @Mock AdService adService;
     @Mock AdWatchSessionRepository adWatchSessionRepository;
@@ -83,6 +82,11 @@ class AdLikeServiceImplTest {
     @Mock LevelService levelService;
 
     @InjectMocks AdLikeServiceImpl service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubKeyLedger() {
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
+    }
 
     private KeyWallet wallet;
     private ConsumerDetails consumer;

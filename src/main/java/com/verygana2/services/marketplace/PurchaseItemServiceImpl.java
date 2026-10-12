@@ -39,6 +39,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final PurchaseMapper purchaseMapper;
     private final ProductCodeEncryptor codeEncryptor;
     private final PasswordEncoder passwordEncoder;
+    private final ProductKeyPromotionResolver keyPromotionResolver;
     private static final String domain = "https://cdn.verygana.com/public/";
     private static final int MAX_CLAIM_ATTEMPTS = 5;
 
@@ -51,11 +52,12 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private static final LocalTime PAYOUT_CUTOFF_TIME = LocalTime.of(23, 0);
 
     public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, @Lazy PurchaseMapper purchaseMapper, ProductCodeEncryptor codeEncryptor,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder, ProductKeyPromotionResolver keyPromotionResolver) {
         this.purchaseItemRepository = purchaseItemRepository;
         this.purchaseMapper = purchaseMapper;
         this.codeEncryptor = codeEncryptor;
         this.passwordEncoder = passwordEncoder;
+        this.keyPromotionResolver = keyPromotionResolver;
     }
 
     @Override
@@ -117,7 +119,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
 
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(commercialId, pageable);
         topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
-        return PagedResponse.from(topSellingProducts);
+        return withKeyPromotions(PagedResponse.from(topSellingProducts));
+    }
+
+    /** Marca los más vendidos que hoy tienen promoción especial de llaves (una consulta por página). */
+    private PagedResponse<FeaturedProductResponseDTO> withKeyPromotions(PagedResponse<FeaturedProductResponseDTO> page) {
+        keyPromotionResolver.decorate(page.getData(), FeaturedProductResponseDTO::getId,
+                FeaturedProductResponseDTO::getPrice, FeaturedProductResponseDTO::setSpecialKeyPromotion);
+        return page;
     }
 
     @Override
@@ -145,7 +154,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository
                 .findTopSellingProductsByDateRange(commercialId, startDate, endDate, pageable);
         topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
-        return PagedResponse.from(topSellingProducts);
+        return withKeyPromotions(PagedResponse.from(topSellingProducts));
     }
 
     @Override

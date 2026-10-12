@@ -13,6 +13,7 @@ package com.verygana2.models.records;
             long connectivityCents,
             long infrastructureCents,
             long payrollCents,
+            long promotionsReserveCents,
             long totalCents
     ) {
         /** Porcentaje que representa KEYS_RESERVE sobre el total. Útil para monitorear salud del fondo. */

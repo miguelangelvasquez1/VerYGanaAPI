@@ -354,6 +354,17 @@ public class ProsperityServiceImpl implements ProsperityService {
 
     @Override
     @Transactional(readOnly = true)
+    public long absorbableBalanceCents(CommercialDetails commercial) {
+        if (!isStandard(commercial)) {
+            return 0L;
+        }
+        return accountRepository.findByCommercialId(commercial.getId())
+                .map(ProsperityAccount::getBalanceCents)
+                .orElse(0L);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<ProsperityMovementResponseDTO> getMovements(Long commercialId, Pageable pageable) {
         return accountRepository.findByCommercialId(commercialId)
                 .map(account -> ledgerRepository.findByAccountIdOrderBySequenceDesc(account.getId(), pageable)

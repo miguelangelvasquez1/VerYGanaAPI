@@ -47,6 +47,9 @@ public class SendGridEmailService implements EmailService {
     @Value("${app.frontend-url:http://localhost:3000}")
     private String frontendUrl;
 
+    @Value("${financial.key-value-cents:1000}")
+    private long keyValueCents;
+
     private final SendGrid sendGrid;
     private final MoneyMapper moneyMapper;
     private final EmailTemplateLoader templateLoader;
@@ -86,6 +89,10 @@ public class SendGridEmailService implements EmailService {
                     "orderId", String.valueOf(purchase.getId()),
                     "date", purchase.getCreatedAt().format(DATE_FORMATTER),
                     "total", String.format("%,.0f", moneyMapper.fromCents(purchase.getTotalCents())),
+                    // Las llaves no son dinero recibido del usuario (Contrato B 7.10): van
+                    // en su propio renglón, en cantidad de llaves y no en pesos.
+                    "keysApplied", String.format("%,d", purchase.getKeysValueCents() / keyValueCents),
+                    "cashPaid", String.format("%,.0f", moneyMapper.fromCents(purchase.getCashCents())),
                     "itemsHtml", buildItemsHtml(purchase),
                     "supportEmail", supportEmail,
                     "sloganSection", SLOGAN_CONSUMER));

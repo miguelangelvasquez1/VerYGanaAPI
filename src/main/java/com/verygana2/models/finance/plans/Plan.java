@@ -125,8 +125,9 @@ public class Plan {
     @Column(name = "services_commission_pct", nullable = false)
     private int servicesCommissionPct;
 
-    /* Porcentaje maximo de llaves que pueden usar los usuarios al realizar una compra
-    de un producto de un empresario (20%, 35% o 50%)
+    /* Porcentaje maximo ordinario de llaves que pueden usar los usuarios al realizar una
+    compra de un producto de un empresario: BASIC 20, STANDARD 50, PREMIUM 0 (no vende).
+    Nunca pasa de 50 sin una promocion especial (ver KeyCoverageServiceImpl).
      */
     @Column(name = "max_keys_pct", nullable = false)
     private int maxKeysPct;

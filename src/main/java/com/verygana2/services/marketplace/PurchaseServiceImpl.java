@@ -3,6 +3,7 @@ package com.verygana2.services.marketplace;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.ObjectNotFoundException;
@@ -27,17 +28,15 @@ import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
 import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.InvalidAmountException;
+import com.verygana2.exceptions.KeysReserveInsufficientException;
 import com.verygana2.exceptions.ProductNotAvailableException;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.WompiTransaction;
-import com.verygana2.models.enums.CommercialActivityType;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
 import com.verygana2.models.enums.marketplace.ProductStatus;
-import com.verygana2.models.finance.plans.Plan;
-import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.marketplace.Product;
@@ -48,11 +47,14 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
+import com.verygana2.services.interfaces.marketplace.KeyCoverageService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseService;
 import com.verygana2.services.wompi.WompiService;
@@ -75,6 +77,10 @@ public class PurchaseServiceImpl implements PurchaseService {
     private final ProductStockRepository productStockRepository;
     private final ConsumerDetailsService consumerDetailsService;
     private final KeyWalletRepository keyWalletRepository;
+    private final KeyLedgerService keyLedgerService;
+    private final KeyCoverageService keyCoverageService;
+    private final KeyCoveragePromotionService keyCoveragePromotionService;
+    private final CommissionPolicy commissionPolicy;
     private final CopaymentRepository copaymentRepository;
     private final WompiService wompiService;
     private final WompiTransactionRepository wompiTransactionRepository;
@@ -133,8 +139,9 @@ public class PurchaseServiceImpl implements PurchaseService {
      * Flujo:
      * 1. Validar ítems y reservar stock (no marcar como vendido todavía).
      * 2. Calcular comisiones por ítem según plan del empresario
-     * 3. Validar que keysToUse no supera el máximo permitido por los productos.
-     * 4. Reservar las llaves en el KeyWallet del consumidor.
+     * 3. Validar que keysToUse no supera la cobertura máxima (50 % ordinario, o el
+     *    tope de una promoción especial vigente), ni el saldo, ni el respaldo.
+     * 4. Reservar las llaves en el Libro Mayor y el presupuesto de la promoción.
      * 5. Crear Copayment (PENDING) con la parte en efectivo para Wompi.
      * 6. Revisar si el usuario es apto para brindarle tickets
      * La compra se completa cuando el webhook de Wompi confirma el pago.
@@ -166,45 +173,55 @@ public class PurchaseServiceImpl implements PurchaseService {
         purchase = purchaseRepository.save(purchase);
 
         // 2. Agregar ítems: reserva stock + calcula comisiones
-        long totalMaxKeysAllowed = addPurchaseItems(purchase, request);
+        addPurchaseItems(purchase, request);
 
         // 3. Calcular totales financieros (totalCents, commissionCents,
         // netToCommercialsCents)
         purchase.calculateFinancials();
 
-        // 4. Validar llaves solicitadas
-        if (keysToUse > totalMaxKeysAllowed) {
-            throw new InvalidAmountException(String.format(
-                    "keysToUse (%d) exceeds the maximum allowed (%d) for this purchase",
-                    keysToUse, totalMaxKeysAllowed));
-        }
+        // 4. Porción en Llaves (Contrato B 2.26): tope de cada unidad, ordinario o de
+        // promoción especial. Pedir más de lo permitido se rechaza en vez de recortarse:
+        // recortar cambiaría el dinero que se le cobra al usuario sin que lo sepa. Lo
+        // que sí puede aplicar se lo dice antes POST /purchases/quote.
+        KeyCoveragePlan coverage = keyCoverageService.planFor(consumerId,
+                purchase.getItems().stream().map(PurchaseItem::getProduct).toList());
 
         long keysValueCents = keysToUse * KEY_VALUE;
+        long maxKeysAllowed = coverage.maxCoverageCents() / KEY_VALUE;
+        if (keysToUse > maxKeysAllowed) {
+            throw new InvalidAmountException(String.format(
+                    "keysToUse (%d) exceeds the maximum allowed (%d) for this purchase",
+                    keysToUse, maxKeysAllowed));
+        }
         long cashAmountCents = purchase.getTotalCents() - keysValueCents;
 
-        // minCashRequired is the cash floor: total minus the maximum keys value usable.
-        // Mathematically this is always >= sum(product.minCashCents) across items.
-        long minCashRequired = purchase.getTotalCents() - (totalMaxKeysAllowed * KEY_VALUE);
-        if (cashAmountCents < minCashRequired) {
-            throw new BusinessException(String.format(
-                    "Cash payment (%d cents) is below the minimum required (%d cents) for this purchase",
-                    cashAmountCents, minCashRequired));
-        }
-
-        // 5. Reservar llaves en KeyWallet (solo si el usuario va a usar alguna)
+        // 5. Bloquear la billetera y validar saldo y respaldo (solo si el usuario va a
+        // usar llaves). Las llaves ya vencidas que el job aún no extinguió no cuentan.
+        KeyWallet keyWallet = null;
         if (keysToUse > 0) {
-            KeyWallet keyWallet = keyWalletRepository.findByConsumerIdForUpdate(consumerId)
+            keyWallet = keyWalletRepository.findByConsumerIdForUpdate(consumerId)
                     .orElseThrow(() -> new ObjectNotFoundException(
                             "KeyWallet not found for consumer: " + consumerId, KeyWallet.class));
 
-            if (!keyWallet.hasSufficientPurchaseKeysCents(keysValueCents)) {
+            long spendableCents = keyLedgerService.spendablePurchaseCents(keyWallet);
+            if (spendableCents < keysValueCents) {
                 throw new InsufficientFundsException(
-                        "Insufficients purchase keys. Available: " + keyWallet.getPurchaseKeysCents() / KEY_VALUE);
+                        "Insufficients purchase keys. Available: " + spendableCents / KEY_VALUE);
             }
 
-            keyWallet.reservePurchaseKeysCents(keysValueCents);
-            keyWalletRepository.save(keyWallet);
+            // El respaldo se mira aquí, antes de que Wompi cobre. Tesorería lo vuelve a
+            // comprobar al aprobar, pero rechazar en ese punto deja al usuario cobrado
+            // y sin compra.
+            if (keysValueCents > keyCoverageService.backingAvailableCents(coverage)) {
+                throw new KeysReserveInsufficientException();
+            }
         }
+
+        applyCoverage(purchase, coverage, keysValueCents);
+
+        // La promoción especial compromete su presupuesto junto con las llaves. Va
+        // después de la billetera: es el orden de bloqueo de todos los flujos.
+        keyCoveragePromotionService.reserveForPurchase(purchase);
 
         // 6. Persistir snapshot financiero en Purchase
         purchase.setKeysValueCents(keysValueCents);
@@ -222,6 +239,13 @@ public class PurchaseServiceImpl implements PurchaseService {
                 .status(CopaymentStatus.PENDING)
                 .build();
         copayment = copaymentRepository.save(copayment);
+
+        // Reservar las llaves en el Libro Mayor. Va después de crear el copago porque
+        // el asiento de reserva lo referencia: es lo que luego permite confirmarlo o
+        // liberarlo una sola vez.
+        if (keyWallet != null) {
+            keyLedgerService.reserveForCopayment(keyWallet, keysValueCents, copayment.getId());
+        }
 
         // 8. Generar URL de checkout de Wompi y vincular el WompiTransaction al Copayment
         String redirectUrl = request.getRedirectUrl() != null && !request.getRedirectUrl().isBlank()
@@ -262,12 +286,9 @@ public class PurchaseServiceImpl implements PurchaseService {
 
     /**
      * Agrega ítems a la compra reservando stock y calculando comisiones.
-     *
-     * @return suma de llaves máximas permitidas en todos los ítems.
      */
     @SuppressWarnings("null")
-    private long addPurchaseItems(Purchase purchase, CreatePurchaseRequestDTO request) {
-        long totalMaxKeysAllowed = 0;
+    private void addPurchaseItems(Purchase purchase, CreatePurchaseRequestDTO request) {
 
         for (CreatePurchaseItemRequestDTO itemRequest : request.getItems()) {
             Product product = productService.getById(itemRequest.getProductId());
@@ -280,7 +301,7 @@ public class PurchaseServiceImpl implements PurchaseService {
             }
 
             CommercialDetails commercial = product.getCommercial();
-            int commissionPct = calculateCommissionPct(commercial);
+            int commissionPct = commissionPolicy.commissionPctFor(commercial);
 
             for (int i = 0; i < itemRequest.getQuantity(); i++) {
                 ProductStock stock = productStockRepository
@@ -311,7 +332,6 @@ public class PurchaseServiceImpl implements PurchaseService {
                 item.applyCommission(unitPriceCents, treasuryConfig.getVatPct());
 
                 purchase.addItem(item);
-                totalMaxKeysAllowed += product.getMaxKeysAllowed();
             }
 
             product.updateStockCount();
@@ -336,38 +356,27 @@ public class PurchaseServiceImpl implements PurchaseService {
         }
 
         purchaseRepository.save(purchase);
-        return totalMaxKeysAllowed;
     }
 
     /**
-     * Calcula el porcentaje de comisión que aplica para un comercial concreto.
-     *
-     * Reglas (Contrato Tipo B, cláusula 11.2 / MP-02):
-     * - STANDARD (Empresa Tipo B) → depende de su Vocación Empresarial Principal:
-     *     PRODUCTS → plan.saleCommissionPct (10% por defecto)
-     *     SERVICES → plan.servicesCommissionPct (15% por defecto)
-     * - BASIC y PREMIUM → sin cambios, comisión plana de plan.saleCommissionPct
-     *   (la vocación aún no tiene efecto tarifario fuera de Tipo B).
-     *
-     * Los porcentajes NUNCA se hardcodean aquí: viven en Plan (mismo campo
-     * directo admin-editable que saleCommissionPct) para poder ajustarse desde
-     * un futuro endpoint de administración sin tocar código.
+     * Deja en cada ítem su Porción en Llaves, el tope que le rigió y, si lo hubo, el
+     * exceso que tomó de una promoción especial. Con esto el reparto llaves/dinero deja
+     * de existir solo a nivel de copago: un reembolso devuelve exactamente lo de su ítem.
      */
-    private int calculateCommissionPct(CommercialDetails commercial) {
-        Plan plan = commercial.getCurrentPlan();
-        if (plan.getCode() != PlanCode.STANDARD) {
-            return plan.getSaleCommissionPct();
-        }
+    private void applyCoverage(Purchase purchase, KeyCoveragePlan coverage, long keysValueCents) {
+        List<KeyCoveragePlan.Allocation> allocations = coverage.allocate(keysValueCents);
+        for (int i = 0; i < purchase.getItems().size(); i++) {
+            PurchaseItem item = purchase.getItems().get(i);
+            KeyCoveragePlan.Unit unit = coverage.units().get(i);
+            KeyCoveragePlan.Allocation allocation = allocations.get(i);
 
-        CommercialActivityType vocacion = commercial.getCommercialActivityType();
-        if (vocacion == null) {
-            throw new BusinessException(
-                    "El comercial Tipo B (STANDARD) no tiene Vocación Empresarial Principal asignada");
+            item.setMaxKeysPctAtPurchase(unit.pctApplied());
+            item.setKeysPctApplied(unit.pctApplied());
+            item.setKeysValueCents(allocation.keysCents());
+            item.setPromotionExcessCents(allocation.promotionExcessCents());
+            // La promoción queda en el ítem solo si de verdad se usó su margen.
+            item.setKeyCoveragePromotionId(allocation.promotionExcessCents() > 0 ? unit.promotionId() : null);
         }
-
-        return vocacion == CommercialActivityType.SERVICES
-                ? plan.getServicesCommissionPct()
-                : plan.getSaleCommissionPct();
     }
 
     private String resolveDeliveryEmail(CreatePurchaseRequestDTO request, ConsumerDetails consumer) {
