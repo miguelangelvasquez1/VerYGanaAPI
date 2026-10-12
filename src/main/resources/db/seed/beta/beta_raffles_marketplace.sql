@@ -452,9 +452,9 @@ FROM (
         'Tecnología para un hogar más eficiente',
         'Próximo sorteo beta por un kit solar para espacios pequeños.',
         'DRAFT',
-        DATE_ADD(NOW(), INTERVAL 3 DAY),
-        DATE_ADD(NOW(), INTERVAL 33 DAY),
-        DATE_ADD(NOW(), INTERVAL 34 DAY)
+        DATE_ADD(NOW(), INTERVAL 60 DAY),
+        DATE_ADD(NOW(), INTERVAL 90 DAY),
+        DATE_ADD(NOW(), INTERVAL 91 DAY)
     UNION ALL SELECT
         'Experiencia de café de altura',
         'Sorteo de demostración ya finalizado con un ganador registrado.',
