@@ -107,14 +107,14 @@ FROM (
         8500000 AS price_cents,
         35 AS max_keys_pct,
         'DIGITAL' AS product_type
-    UNION ALL SELECT
-        '0be7a000-0004-0000-0000-000000000003',
-        'Hogar y tecnología',
-        'Kit de iluminación solar Andina - 2 unidades',
-        'Dos lámparas solares compactas para balcón o terraza, con garantía de la tienda.',
-        11990000,
-        50,
-        'PHYSICAL'
+    -- No hay producto de Ecosistema Andino (PREMIUM) aquí a propósito:
+    -- CAN_SELL_DIRECTLY=false para ese plan (PlanDataInitializer, "Premium no
+    -- vende"). Un producto suyo pasaba la validación NOT EXISTS del INSERT
+    -- porque el seed es SQL crudo y no pasa por ProductServiceImpl.create
+    -- (ahí sí está el @RequirePlanCapability), pero el front bloquea "mis
+    -- productos" para ese plan — correctamente. Antes había un "Kit de
+    -- iluminación solar Andina" aquí; se quitó y su compra pendiente de PIN
+    -- se reasignó a Trigo Dorado (BASIC) más abajo.
     UNION ALL SELECT
         '0be7a000-0004-0000-0000-000000000001',
         'Supermercados',
@@ -165,9 +165,6 @@ FROM (
     SELECT
         'Tarjeta digital Moda Urbana - $85.000 COP' AS product_name,
         'products/beta/tarjeta-digital-moda-urbana.jpg' AS object_key
-    UNION ALL SELECT
-        'Kit de iluminación solar Andina - 2 unidades',
-        'products/beta/kit-iluminacion-solar-andina.jpg'
     UNION ALL SELECT
         'Caja de panadería artesanal Trigo Dorado - 12 piezas',
         'products/beta/caja-panaderia-trigo-dorado.jpg'
@@ -223,8 +220,8 @@ FROM (
     UNION ALL SELECT
         'BETA-MARKETPLACE-PHYSICAL-001',
         '0be7a000-0005-0000-0000-000000000005',
-        11990000,
-        1199000,
+        4850000,
+        485000,
         2
 ) seed
 JOIN users consumer_user
@@ -266,9 +263,11 @@ FROM (
         'SOLD' AS stock_status,
         4 AS days_ago
     UNION ALL SELECT
-        'Kit de iluminación solar Andina - 2 unidades',
+        -- Segunda unidad de la caja de Trigo Dorado, distinta de la que queda
+        -- AVAILABLE más abajo (esa se reserva para una compra nueva en vivo).
+        'Caja de panadería artesanal Trigo Dorado - 12 piezas',
         'BETA-MARKETPLACE-PHYSICAL-001',
-        'BETA-ECOSISTEMA-KIT-SOLAR-2026-001',
+        'BETA-TRIGO-DORADO-CAJA-2026-002',
         'SOLD',
         2
 ) seed
@@ -382,13 +381,13 @@ FROM (
         4 AS days_ago
     UNION ALL SELECT
         'BETA-MARKETPLACE-PHYSICAL-001',
-        'Kit de iluminación solar Andina - 2 unidades',
-        'BETA-ECOSISTEMA-KIT-SOLAR-2026-001',
-        'BETA-ECOSISTEMA-KIT-SOLAR-2026-001',
+        'Caja de panadería artesanal Trigo Dorado - 12 piezas',
+        'BETA-TRIGO-DORADO-CAJA-2026-002',
+        'BETA-TRIGO-DORADO-CAJA-2026-002',
         '246810',
         'PENDING',
-        11990000,
-        1199000,
+        4850000,
+        485000,
         2
 ) seed
 JOIN purchases purchase
@@ -767,9 +766,17 @@ FROM (
         FALSE,
         10
     UNION ALL SELECT
+        -- El ticket ganador queda a nombre de Helen (consumer2), no de Andrés
+        -- (consumer5): reclamar el premio dispara un correo real a
+        -- user.getEmail() (RaffleWinnerServiceImpl.deliver) y el dominio de
+        -- Andrés (@verygana.com) no existe, así que ese envío falla y tumba
+        -- el reclamo completo. consumer_public_id es independiente de
+        -- purchase_reference (solo decide de quién es el ticket, no quién
+        -- hizo la compra que lo originó), así que este cambio no rompe nada
+        -- más del fixture.
         'Experiencia de café de altura',
         'BETA-MARKETPLACE-PHYSICAL-001',
-        '0be7a000-0005-0000-0000-000000000005',
+        '0be7a000-0005-0000-0000-000000000002',
         'BETA-CAFE-0002',
         TRUE,
         9

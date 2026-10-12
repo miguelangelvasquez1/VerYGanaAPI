@@ -69,6 +69,7 @@ public class BetaDataSeeder implements CommandLineRunner {
         scripts.addAll(List.of(
                 "db/seed/beta/beta_users.sql",
                 "db/seed/beta/beta_campaigns_surveys.sql",
+                "db/seed/beta/beta_games_branding.sql",
                 "db/seed/beta/beta_raffles_marketplace.sql",
                 "db/seed/beta/beta_finance.sql",
                 ReferenceSeedScripts.PET_COMMERCIAL_ITEMS,
