@@ -625,7 +625,16 @@ WHERE s.title IN (
 -- a pedir ver/descargar "su contrato firmado" para alguno de estos 3, no
 -- va a encontrar nada.
 --
--- Idempotente vía la UNIQUE KEY real de la tabla (commercial_details_id).
+-- person_type sí se fija explícitamente (JURIDICA: las 3 empresas son S.A.S.)
+-- porque al saltarse el paso de identificación jurídica quedaba NULL, y el
+-- front interpreta ese NULL como "persona natural" / "plan personal" — con
+-- eso bloqueaba el dashboard del comercial aunque current_step ya estuviera
+-- en COMPLETED y el plan fuera el correcto. Ver CommercialDocumentServiceImpl
+-- (CAMARA_COMERCIO solo aplica a JURIDICA).
+--
+-- Idempotente vía la UNIQUE KEY real de la tabla (commercial_details_id): el
+-- ON DUPLICATE actualiza person_type para que una fila vieja con NULL (de
+-- antes de este fix) también quede corregida en el próximo arranque.
 INSERT INTO commercial_onboarding (
     commercial_details_id,
     current_step,
@@ -634,6 +643,7 @@ INSERT INTO commercial_onboarding (
     terms_accepted_at,
     legal_identification_completed_at,
     diagnostic_completed_at,
+    person_type,
     route,
     route_preliminary,
     verification_required,
@@ -652,6 +662,7 @@ SELECT
     NOW(),
     NOW(),
     NOW(),
+    'JURIDICA',
     'A',
     0,
     0,
@@ -669,7 +680,7 @@ FROM (
 JOIN users u ON u.public_id = UUID_TO_BIN(seed.commercial_public_id)
 JOIN commercial_details cd ON cd.user_id = u.id
 JOIN plans p ON p.code = seed.plan_code AND p.active = 1
-ON DUPLICATE KEY UPDATE current_step = current_step;
+ON DUPLICATE KEY UPDATE person_type = VALUES(person_type);
 
 -- El saldo de wallet de estos comerciales (y de cualquier otro que se
 -- agregue) se maneja en beta_finance.sql con montos por plan — no
