@@ -65,7 +65,7 @@ class TreasuryMetricNamesTest {
         GameSessionRepository gameSessionRepository = Mockito.mock(GameSessionRepository.class);
 
         when(treasuryService.getSnapshot())
-                .thenReturn(new TreasurySnapshot(10_000L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 10_000L));
+                .thenReturn(new TreasurySnapshot(10_000L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 0L, 10_000L));
         when(calculator.compute(anyLong()))
                 .thenReturn(new KeyBacking(10_000L, 8_000L, 1_000L, 500L, 200L, 200L, 100L, 0L));
         when(adLikeRepository.sumUnsettledIssuance(any())).thenReturn(new IssuanceTotals(1_000L, 700L));

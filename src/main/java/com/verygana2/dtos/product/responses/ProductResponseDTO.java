@@ -26,4 +26,9 @@ public class ProductResponseDTO {
     private List<ProductReviewResponseDTO> reviews;
     private Boolean isGameReward;
     private ProductType productType;
+    /**
+     * Promoción especial de llaves vigente para este producto, o null si rige su tope
+     * ordinario. Con ella el producto admite más llaves que maxKeysAllowed, hasta su fecha de fin.
+     */
+    private ProductKeyPromotionDTO specialKeyPromotion;
 }

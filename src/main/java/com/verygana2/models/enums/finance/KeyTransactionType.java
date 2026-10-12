@@ -56,6 +56,8 @@ public enum KeyTransactionType {
      */
     DEBIT_ADMIN_ADJUSTMENT,
 
+    DEBIT_PET_GAME,
+
     // ─── EXPIRADAS (Llaves que pasan al fondo de fortalecimiento de VerYGana) ──────────────
 
     /**
@@ -80,8 +82,6 @@ public enum KeyTransactionType {
      * Revierte un RESERVE_COPAYMENT_PENDING.
      */
     RELEASE_COPAYMENT_CANCELLED,
-
-    DEBIT_PET_GAME,
 
     /**
      * Llaves acreditadas de vuelta porque un PurchaseItem se reembolsó (PQRS

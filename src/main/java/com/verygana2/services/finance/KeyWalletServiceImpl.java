@@ -10,7 +10,6 @@ import com.verygana2.dtos.keys.KeyBalanceResponseDTO;
 import com.verygana2.dtos.keys.SpendKeysRequestDTO;
 import com.verygana2.dtos.keys.SpendKeysResponseDTO;
 import com.verygana2.models.finance.KeyTransaction;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -20,6 +19,7 @@ import com.verygana2.models.pets.PetCatalogItem;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.pet.PetItemChargeService;
@@ -43,7 +43,7 @@ public class KeyWalletServiceImpl implements KeyWalletService {
     private static final ZoneId COLOMBIA_ZONE = ZoneId.of("America/Bogota");
 
     private final Clock clock;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
     private final KeyWalletRepository keyWalletRepository;
     private final ConsumerDetailsService consumerDetailsService;
     private final PetCatalogItemRepository petCatalogItemRepository;
@@ -145,16 +145,13 @@ public class KeyWalletServiceImpl implements KeyWalletService {
         log.info("PetGame spend: itemId={} itemName={} qty={} amountCents={} consumerId={}",
                 request.itemId(), request.itemName(), request.quantityOrOne(), amountCents, consumerId);
 
-        if (!wallet.hasSufficientPurchaseKeysCents(amountCents)) {
+        // Las llaves ya vencidas que el job aún no extinguió no cuentan como saldo.
+        if (keyLedgerService.spendablePurchaseCents(wallet) < amountCents) {
             return SpendKeysResponseDTO.fail("Saldo insuficiente");
         }
 
-        wallet.expirePurchaseKeysCents(amountCents);
-        keyWalletRepository.save(wallet);
-
-        KeyTransaction spend = keyTransactionRepository.save(
-                KeyTransaction.forPetGame(wallet, amountCents, request.itemId(), request.itemName(),
-                        item != null ? item.getId() : null));
+        KeyTransaction spend = keyLedgerService.spendForPetGame(wallet, amountCents, request.itemId(),
+                request.itemName(), item != null ? item.getId() : null);
 
         // Cobro por uso al comercial dueño del ítem, de la bolsa que reservó al pedir la
         // integración. Va aparte del gasto del consumidor: aquel es plata del jugador,

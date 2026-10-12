@@ -115,6 +115,8 @@ public class ProductServiceImpl implements ProductService {
 
     private final AssetDurationService assetDurationService;
 
+    private final ProductKeyPromotionResolver keyPromotionResolver;
+
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
 
@@ -506,12 +508,19 @@ public class ProductServiceImpl implements ProductService {
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
                         municipality, consumerAge, consumerGender, pageable));
 
-        return productPage.map(product -> {
+        return withKeyPromotions(productPage.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
-        });
+        }));
 
+    }
+
+    /** Marca los productos de la página que hoy tienen promoción especial de llaves (una consulta por página). */
+    private PagedResponse<ProductSummaryResponseDTO> withKeyPromotions(PagedResponse<ProductSummaryResponseDTO> page) {
+        keyPromotionResolver.decorate(page.getData(), ProductSummaryResponseDTO::getId,
+                ProductSummaryResponseDTO::getPrice, ProductSummaryResponseDTO::setSpecialKeyPromotion);
+        return page;
     }
 
     private String validateAndGetSortField(String sortBy) {
@@ -540,6 +549,8 @@ public class ProductServiceImpl implements ProductService {
         Product product = getById(productId);
         ProductResponseDTO response = productMapper.toProductResponseDTO(product);
         response.setImageUrl(resolveImageUrl(product));
+        keyPromotionResolver.decorate(List.of(response), ProductResponseDTO::getId, ProductResponseDTO::getPrice,
+                ProductResponseDTO::setSpecialKeyPromotion);
         return response;
     }
 
@@ -556,11 +567,11 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findByCommercialId(commercialId, pageable));
-        return products.map(product -> {
+        return withKeyPromotions(products.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
-        });
+        }));
     }
 
     @Override
@@ -574,7 +585,7 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(page, 10, Sort.Direction.DESC, "createdAt");
         PagedResponse<FavoriteProduct> favorites = PagedResponse
                 .from(favoriteProductRepository.findByConsumerIdWithActiveProducts(consumerId, pageable));
-        return favorites.map(productMapper::toProductSummaryResponseDTO);
+        return withKeyPromotions(favorites.map(productMapper::toProductSummaryResponseDTO));
     }
 
     @Override
@@ -648,11 +659,11 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, String search, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findAllProductsForAdmin(status, search, pageable));
-        return products.map(product -> {
+        return withKeyPromotions(products.map(product -> {
             ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
-        });
+        }));
     }
 
     @Override

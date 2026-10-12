@@ -139,6 +139,21 @@ function wallet(session, me) {
     call('PATCH /commercial/allies/promotions/{productId}', { session, path: { productId }, ok: [200, 204], reject: REJ });
     call('PATCH /commercial/allies/promotions/{productId}', { session, path: { productId }, ok: [200, 204], reject: REJ });
   }
+  // Invitaciones a promociones especiales de llaves. Con la siembra normal no hay ninguna, así que las
+  // respuestas a una invitación solo corren si un admin creó y autorizó una promoción para la prueba.
+  const keyOffers = call('GET /commercial/key-promotions/offers', { session, json: true, reject: REJ });
+  const pendingOffer = rows(keyOffers.body).find((o) => o.status === 'PENDING_ACCEPTANCE');
+  if (pendingOffer) {
+    const path = { offerId: pendingOffer.offerId };
+    if (often(0.8)) {
+      call('POST /commercial/key-promotions/offers/{offerId}/accept', { session, path, reject: REJ });
+      if (often(0.05)) {
+        call('POST /commercial/key-promotions/offers/{offerId}/withdraw', { session, path, reject: REJ });
+      }
+    } else {
+      call('POST /commercial/key-promotions/offers/{offerId}/reject', { session, path, reject: REJ });
+    }
+  }
 }
 
 function sales(session) {

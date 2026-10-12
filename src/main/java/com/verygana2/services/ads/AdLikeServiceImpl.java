@@ -40,19 +40,18 @@ import com.verygana2.models.ads.Ad;
 import com.verygana2.models.ads.AdLike;
 import com.verygana2.models.ads.AdLikeId;
 import com.verygana2.models.ads.AdWatchSession;
-import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.AdLikeRepository;
 import com.verygana2.repositories.AdRepository;
 import com.verygana2.repositories.AdWatchSessionRepository;
 import com.verygana2.repositories.details.ConsumerDetailsRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.AdLikeService;
 import com.verygana2.services.interfaces.AdService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
+import com.verygana2.models.enums.finance.KeyOriginType;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.scoring.ScoringContext;
 import com.verygana2.services.interfaces.levels.LevelService;
@@ -85,9 +84,8 @@ public class AdLikeServiceImpl implements AdLikeService {
 
     private final AdLikeRepository adLikeRepository;
     private final ConsumerDetailsService consumerDetailsService;
-    private final KeyWalletRepository keyWalletRepository;
     private final KeyWalletService keyWalletService;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
     private final AdRepository adRepository;
     private final AdService adService;
     private final AdWatchSessionRepository adWatchSessionRepository;
@@ -403,13 +401,10 @@ public class AdLikeServiceImpl implements AdLikeService {
         ZonedDateTime connectivityExpiry = keyWalletService.calculateConnectivityExpiry();
 
         String reason = "Interacción con anuncio #" + adId;
-        keyTransactionRepository.save(Objects.requireNonNull(
-                KeyTransaction.forInteractionPurchaseKeys(keyWallet, rewardSplit.purchaseKeysReward(), reason, sessionId, purchaseExpiry)));
-        keyTransactionRepository.save(Objects.requireNonNull(
-                KeyTransaction.forInteractionConnectivityKeys(keyWallet, rewardSplit.connectivityKeysReward(), reason, sessionId, connectivityExpiry)));
-
-        keyWallet.creditKeysCents(rewardSplit.purchaseKeysReward(), rewardSplit.connectivityKeysReward());
-        keyWalletRepository.save(keyWallet);
+        keyLedgerService.issue(keyWallet, new KeyLedgerService.Issuance(
+                KeyOriginType.AD, sessionId, reason,
+                rewardSplit.purchaseKeysReward(), purchaseExpiry,
+                rewardSplit.connectivityKeysReward(), connectivityExpiry));
     }
 
     private TargetGender toTargetGender(Gender gender) {

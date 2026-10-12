@@ -145,7 +145,7 @@ class TreasuryAdminControllerSecurityIntegrationTest {
     @DisplayName("GET /admin/treasury/balance con ADMIN autenticado responde 200")
     void getBalance_asAdmin_respondsOk() throws Exception {
         var expected = new TreasuryBalanceResponseDTO(
-                60_000_000L, 10_000_000L, 30_000_000L, 5_000_000L, 0L, 0L, 0L, 0L,
+                60_000_000L, 10_000_000L, 30_000_000L, 5_000_000L, 0L, 0L, 0L, 0L, 0L,
                 105_000_000L, 100.0, 60_000_000L, 100.0, "OK", false);
         when(treasuryService.getBalanceReport()).thenReturn(expected);
 

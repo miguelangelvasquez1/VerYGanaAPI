@@ -4,6 +4,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.Immutable;
+
+import com.verygana2.models.enums.finance.KeyOriginType;
 import com.verygana2.models.enums.finance.KeyTransactionType;
 
 import jakarta.persistence.Column;
@@ -19,34 +22,40 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Data;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * Registro inmutable de cada movimiento de llaves en el wallet de un usuario.
- * Reemplaza completamente la entidad Transaction para operaciones con llaves.
+ * Asiento del Libro Mayor de Llaves (Contrato B 2.25): append-only, cronológico por
+ * billetera ({@code sequence}) y con el saldo disponible de cada bolsa antes y después.
  *
- * PRINCIPIO: una vez creado, ningún campo cambia. Si hay que corregir un error,
- * se crea una nueva KeyTransaction que compensa, nunca se edita la existente.
- * Esto garantiza un libro de llaves auditado e inalterable.
+ * Nunca se edita ni se borra (entidad {@link Immutable} + triggers MySQL en
+ * V202610061600): toda corrección es un movimiento compensatorio que apunta al original
+ * vía {@code reverses}. Solo los escribe KeyLedgerServiceImpl, que deriva los deltas del
+ * cambio real de la billetera para que libro y saldo no puedan divergir.
  */
 @Entity
+@Immutable
 @Table(name = "key_transactions", indexes = {
         @Index(name = "idx_kt_wallet_id",       columnList = "key_wallet_id"),
         @Index(name = "idx_kt_type",            columnList = "type"),
         @Index(name = "idx_kt_reference_id",    columnList = "reference_id"),
         @Index(name = "idx_kt_expires_at",      columnList = "expires_at"),
-        @Index(name = "idx_kt_expiry_processed",columnList = "expiry_processed"),
         @Index(name = "idx_kt_created_at",      columnList = "created_at")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uk_kt_idempotency", columnNames = "idempotency_key"),
+        @UniqueConstraint(name = "uk_kt_wallet_sequence", columnNames = { "key_wallet_id", "seq_no" })
 })
-@Data
+@Getter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class KeyTransaction {
 
     @Id
@@ -55,117 +64,97 @@ public class KeyTransaction {
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "key_wallet_id", nullable = false)
+    @JoinColumn(name = "key_wallet_id", nullable = false, updatable = false)
     @NotNull
     private KeyWallet keyWallet;
+
+    /** Posición del asiento dentro de su billetera. Null solo en filas anteriores a MP-12. */
+    @Column(name = "seq_no", updatable = false)
+    private Long sequence;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 40, updatable = false)
     @NotNull
     private KeyTransactionType type;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "origin_type", nullable = false, updatable = false)
+    @NotNull
+    @Builder.Default
+    private KeyOriginType originType = KeyOriginType.LEGACY;
+
     /**
-     * Delta de llaves de compra afectadas en este movimiento, en centavos.
-     * Positivo = crédito, negativo = débito.
-     * Null si este movimiento no afecta las llaves de compra.
+     * Cambio del saldo DISPONIBLE de llaves de compra, en centavos (positivo = entra).
+     * Null si el movimiento no lo toca: la confirmación de un copago solo baja el
+     * bloqueado, porque el disponible ya bajó al reservar.
      */
     @Column(name = "purchase_keys_delta_cents", updatable = false)
     private Long purchaseKeysDeltaCents;
 
+    /** Cambio del saldo disponible de llaves de conectividad, en centavos. Null si no lo toca. */
+    @Column(name = "connectivity_keys_delta_cents", updatable = false)
+    private Long connectivityKeysDeltaCents;
+
     /**
-     * Delta de llaves de conectividad afectadas en este movimiento, en centavos.
-     * Positivo = crédito, negativo = débito.
-     * Null si este movimiento no afecta las llaves de conectividad.
+     * Cambio del saldo BLOQUEADO de llaves de compra: sube al reservar un copago y baja
+     * al confirmarlo o liberarlo. Null si el movimiento no lo toca.
      */
+    @Column(name = "blocked_purchase_delta_cents", updatable = false)
+    private Long blockedPurchaseDeltaCents;
+
+    @Column(name = "purchase_balance_before_cents", updatable = false)
+    private Long purchaseBalanceBeforeCents;
+
+    @Column(name = "purchase_balance_after_cents", updatable = false)
+    private Long purchaseBalanceAfterCents;
+
+    @Column(name = "connectivity_balance_before_cents", updatable = false)
+    private Long connectivityBalanceBeforeCents;
+
+    @Column(name = "connectivity_balance_after_cents", updatable = false)
+    private Long connectivityBalanceAfterCents;
+
     /**
      * Ítem del catálogo de mascotas que originó el gasto, o null si la compra no se
      * pudo resolver (ítem sin registrar) o la transacción no es del juego.
      *
-     * Existe para poder medir ventas por producto. Antes el ítem vivía solo dentro del
-     * texto de {@code reason} ("Mascota virtual: 1300 (itemId=0)") y {@code referenceId}
-     * es un UUID aleatorio, así que cualquier informe tenía que partir esa cadena: si
-     * alguien cambiaba el formato del mensaje, los reportes devolvían cero en silencio.
-     *
+     * Existe para poder medir ventas por producto sin partir el texto de {@code reason}.
      * Se guarda el id suelto y no una relación JPA a propósito: finanzas no debe
      * depender del modelo de mascotas, y para agregar por producto basta con el join.
      */
     @Column(name = "pet_catalog_item_id", updatable = false)
     private Long petCatalogItemId;
 
-    @Column(name = "connectivity_keys_delta_cents", updatable = false)
-    private Long connectivityKeysDeltaCents;
-
-    /**
-     * Descripción legible del motivo para mostrar en el historial del usuario.
-     * Ejemplos:
-     *   "Interacción con anuncio de Empresa X"
-     *   "Copago orden #3fa85f64"
-     *   "Recarga 1GB Claro"
-     *   "Vencimiento mensual abril 2025"
-     *   "Premio rifa #42 - Producto Netflix 1 mes"
-     */
+    /** Descripción legible del motivo para mostrar en el historial del usuario. */
     @Column(nullable = false, length = 255, updatable = false)
     @NotBlank
     private String reason;
 
     /**
-     * ID de la entidad que originó este movimiento.
-     * Permite trazabilidad completa: dado un KeyTransaction siempre puedes
-     * encontrar el origen exacto del movimiento.
-     *
-     * Ejemplos por tipo:
-     *   CREDIT_INTERACTION          → ID del anuncio o juego interactuado
-     *   CREDIT_REFERRAL_BONUS       → ID del usuario referido
-     *   CREDIT_RAFFLE_PRIZE         → ID del sorteo
-     *   DEBIT_COPAYMENT             → ID del Copayment
-     *   DEBIT_CONNECTIVITY_RECHARGE → ID de la orden de recarga en Puntored
-     *   DEBIT_RAFFLE_PARTICIPATION  → ID del sorteo
-     *   DEBIT_EXPIRY                → ID del batch de vencimiento (KeyExpiryBatch)
-     *   RESERVE_COPAYMENT_PENDING   → ID del Copayment
-     *   RELEASE_COPAYMENT_CANCELLED → ID del Copayment cancelado
+     * ID de la operación que originó el movimiento, según {@code originType}: sesión de
+     * anuncio, juego o encuesta, Copayment, o el lote de vencimiento de la billetera.
      */
     @Column(name = "reference_id", nullable = false, updatable = false)
     @NotNull
     private UUID referenceId;
 
+    /** Movimiento que este compensa: la reserva que se libera, el pago que se reembolsa. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "reverses_id", updatable = false)
+    private KeyTransaction reverses;
+
+    /** Misma clave → mismo asiento: reintentar una operación no la aplica dos veces. */
+    @Column(name = "idempotency_key", nullable = false, updatable = false, length = 120)
+    @NotBlank
+    private String idempotencyKey;
+
     /**
-     * Fecha exacta de vencimiento de este lote de llaves en UTC.
-     *
-     * Para purchase_keys:
-     *   Primer día del mes siguiente a las 00:00 hora Colombia (05:00 UTC).
-     *   Todas las llaves ganadas en abril vencen el 1 de mayo a las 05:00 UTC.
-     *
-     * Para connectivity_keys:
-     *   Inicio del día siguiente a las 00:00 hora Colombia (05:00 UTC).
-     *   Llaves ganadas el 8 de abril a cualquier hora vencen el 9 de abril 05:00 UTC.
-     *
-     * Null para movimientos que no tienen vencimiento:
-     *   RESERVE_, RELEASE_, DEBIT_, CREDIT_ADMIN_ADJUSTMENT.
-     *
-     * CÁLCULO en KeyTransactionService:
-     *   ZoneId colombia = ZonedDateTime.now(ZoneOffset.UTC);
-     *   // Para purchase:
-     *   ZonedDateTime.now(colombia).toLocalDate()
-     *       .withDayOfMonth(1).plusMonths(1)
-     *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
-     *   // Para connectivity:
-     *   ZonedDateTime.now(colombia).toLocalDate()
-     *       .plusDays(1)
-     *       .atStartOfDay(colombia).withZoneSameInstant(ZoneOffset.UTC);
+     * Vencimiento, en UTC, de las llaves que este movimiento acredita. Null en los
+     * movimientos que no acreditan. Es informativo para el historial: el remanente que
+     * realmente vence se lleva en {@link KeyLot}.
      */
     @Column(name = "expires_at", updatable = false)
     private ZonedDateTime expiredAt;
-
-    /**
-     * Flag que el job de vencimientos marca como true cuando procesa este lote.
-     * Previene doble procesamiento si el job se reinicia a mitad de ejecución.
-     * Query del job: WHERE expires_at < NOW() AND expiry_processed = false.
-     *
-     * Es el único campo mutable de esta entidad: pasa de false a true una sola vez.
-     */
-    @Column(name = "expiry_processed", nullable = false)
-    @Builder.Default
-    private Boolean expiryProcessed = false;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private ZonedDateTime createdAt;
@@ -173,147 +162,5 @@ public class KeyTransaction {
     @PrePersist
     public void onCreate() {
         this.createdAt = ZonedDateTime.now(ZoneOffset.UTC);
-        if (this.expiryProcessed == null) this.expiryProcessed = false;
-    }
-
-    // ─── FACTORIES ────────────────────────────────────────────────────────────
-    // Reemplazan los métodos estáticos de la Transaction eliminada.
-    // Cada factory corresponde a un caso de uso específico del sistema.
-
-    public static KeyTransaction forInteractionPurchaseKeys(
-            KeyWallet wallet, long purchaseDeltaCents,
-            String reason, UUID referenceId,
-            ZonedDateTime expiredAt) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.CREDIT_INTERACTION)
-                .purchaseKeysDeltaCents(purchaseDeltaCents)
-                .reason(reason)
-                .referenceId(referenceId)
-                .expiredAt(expiredAt)
-                .build();
-    }
-
-    public static KeyTransaction forInteractionConnectivityKeys(
-            KeyWallet wallet, long connectivityDeltaCents,
-            String reason, UUID referenceId,
-            ZonedDateTime expiredAt) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.CREDIT_INTERACTION)
-                .connectivityKeysDeltaCents(connectivityDeltaCents)
-                .reason(reason)
-                .referenceId(referenceId)
-                .expiredAt(expiredAt)
-                .build();
-    }
-
-    public static KeyTransaction forReferralBonus(
-            KeyWallet wallet, long purchaseDeltaCents, String reason,
-            UUID referenceId, ZonedDateTime expiredAt) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.CREDIT_REFERRAL_BONUS)
-                .purchaseKeysDeltaCents(purchaseDeltaCents)
-                .reason(reason)
-                .referenceId(referenceId)
-                .expiredAt(expiredAt)
-                .build();
-    }
-
-    public static KeyTransaction forCopaymentReserve(
-            KeyWallet wallet, long amountCentsToReserve, UUID copaymentId) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.RESERVE_COPAYMENT_PENDING)
-                .purchaseKeysDeltaCents(-amountCentsToReserve)
-                .reason("Reserva de llaves para copago en proceso")
-                .referenceId(copaymentId)
-                .build();
-    }
-
-    public static KeyTransaction forCopaymentConfirm(
-            KeyWallet wallet, long amountCentsDebited, UUID copaymentId, String productName) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.DEBIT_COPAYMENT)
-                .purchaseKeysDeltaCents(-amountCentsDebited)
-                .reason("Pago con llaves: " + productName)
-                .referenceId(copaymentId)
-                .build();
-    }
-
-    public static KeyTransaction forCopaymentRelease(
-            KeyWallet wallet, long amountCentsReleased, UUID copaymentId) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.RELEASE_COPAYMENT_CANCELLED)
-                .purchaseKeysDeltaCents(amountCentsReleased)
-                .reason("Devolución de llaves: copago cancelado o rechazado")
-                .referenceId(copaymentId)
-                .build();
-    }
-
-    public static KeyTransaction forCopaymentRefund(
-            KeyWallet wallet, long amountCentsCredited, UUID copaymentId) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.CREDIT_COPAYMENT_REFUND)
-                .purchaseKeysDeltaCents(amountCentsCredited)
-                .reason("Reembolso de llaves: ítem de compra reembolsado")
-                .referenceId(copaymentId)
-                .build();
-    }
-
-    public static KeyTransaction forConnectivityRecharge(
-            KeyWallet wallet, long amountCentsDebited, String rechargeDescription, UUID rechargeOrderId) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.DEBIT_CONNECTIVITY_RECHARGE)
-                .connectivityKeysDeltaCents(-amountCentsDebited)
-                .reason("Recarga: " + rechargeDescription)
-                .referenceId(rechargeOrderId)
-                .build();
-    }
-
-    public static KeyTransaction forExpiry(
-            KeyWallet wallet, long purchaseExpiredCents, long connectivityExpiredCents,
-            UUID expiryBatchId, String period) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.EXPIRED)
-                .purchaseKeysDeltaCents(purchaseExpiredCents > 0 ? -purchaseExpiredCents : null)
-                .connectivityKeysDeltaCents(connectivityExpiredCents > 0 ? -connectivityExpiredCents : null)
-                .reason("Vencimiento de llaves - período " + period)
-                .referenceId(expiryBatchId)
-                .expiryProcessed(true)
-                .build();
-    }
-
-    // KeyTransaction.java — agregar factory method
-    /**
-     * El itemId se guarda además del nombre porque es el único dato que permite
-     * saber qué ítem se compró: el juego manda nombres numéricos para la comida
-     * ("12", "14") y descriptivos para la ropa ("monoculo"), así que el nombre
-     * solo no identifica nada. Es además el candidato a cruzarse con
-     * PetCatalogItem.externalId cuando el precio pase a calcularse en el servidor.
-     */
-    /**
-     * @param petCatalogItemId ítem resuelto en nuestro catálogo, o null si la compra
-     *                         llegó con un identificador que no tenemos registrado.
-     *                         Es lo que permite medir ventas por producto sin parsear
-     *                         el texto de {@code reason}.
-     */
-    public static KeyTransaction forPetGame(
-            KeyWallet wallet, long amountCentsSpent, Integer itemId, String itemName,
-            Long petCatalogItemId) {
-        return KeyTransaction.builder()
-                .keyWallet(wallet)
-                .type(KeyTransactionType.DEBIT_PET_GAME)
-                .purchaseKeysDeltaCents(-amountCentsSpent)
-                .petCatalogItemId(petCatalogItemId)
-                .reason("Mascota virtual: " + itemName + " (itemId=" + itemId + ")")
-                .referenceId(UUID.randomUUID()) // no hay entidad externa, se genera aquí
-                .build();
     }
 }

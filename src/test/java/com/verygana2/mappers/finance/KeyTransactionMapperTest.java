@@ -102,6 +102,36 @@ class KeyTransactionMapperTest {
         }
 
         @Test
+        @DisplayName("confirmación de copago: el monto va en el delta bloqueado y los saldos posteriores salen en llaves")
+        void mapsBlockedDeltaBalancesAndOrigin() {
+            KeyTransaction kt = KeyTransaction.builder()
+                    .id(UUID.randomUUID())
+                    .type(KeyTransactionType.DEBIT_COPAYMENT)
+                    .originType(com.verygana2.models.enums.finance.KeyOriginType.COPAYMENT)
+                    .blockedPurchaseDeltaCents(-5000L)
+                    .purchaseBalanceAfterCents(12_000L)
+                    .connectivityBalanceAfterCents(3000L)
+                    .reason("Pago con llaves: Netflix")
+                    .referenceId(UUID.randomUUID())
+                    .build();
+
+            KeyTransactionResponseDTO dto = mapper.toKeyTransactionResponseDTO(kt);
+
+            // El disponible ya bajó al reservar: aquí no se mueve.
+            assertThat(dto.getPurchaseKeysDelta()).isNull();
+            assertThat(dto.getBlockedPurchaseKeysDelta()).isEqualTo(-5L);
+            assertThat(dto.getOriginType()).isEqualTo(com.verygana2.models.enums.finance.KeyOriginType.COPAYMENT);
+        }
+
+        @Test
+        @DisplayName("movimiento anterior al Libro Mayor: sin saldos, y origen LEGACY")
+        void legacyRowHasNoBalances() {
+            KeyTransactionResponseDTO dto = mapper.toKeyTransactionResponseDTO(keyTransaction(5000L, null));
+
+            assertThat(dto.getOriginType()).isEqualTo(com.verygana2.models.enums.finance.KeyOriginType.LEGACY);
+        }
+
+        @Test
         @DisplayName("delta null en la entidad se mapea a null en el DTO")
         void nullDeltaInEntity_mapsToNullInDto() {
             KeyTransaction kt = keyTransaction(null, 3000L);
