@@ -4,47 +4,48 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 /**
- * Lo que la plataforma debe mostrar antes de confirmar una compra (Contrato B 7.9):
- * precio, tope de llaves, saldo, cobertura efectiva y dinero a pagar en cada caso.
- * Las llaves van en cantidad y el dinero en centavos, siempre en campos separados.
+ * Límites de una compra para pagar con llaves (Contrato B 7.9). Trae solo lo que el
+ * cliente no puede saber por su cuenta; el resto de lo que debe mostrar antes de
+ * confirmar se deriva de aquí, para las llaves {@code n} que el usuario elija:
+ *
+ * <pre>
+ * dinero a pagar                     = totalCents − n × keyValueCents
+ * dinero a pagar con cobertura máxima = totalCents − maxApplicableKeys × keyValueCents
+ * llaves que le faltan               = max(0, maxApplicableKeys − availableKeys)
+ * </pre>
  */
 public record KeyCoverageQuoteResponseDTO(
         /** Precio final total de la compra. */
         long totalCents,
         /** Llaves que el usuario puede gastar hoy (las vencidas no cuentan). */
         long availableKeys,
-        /** Máximo de llaves que esta compra admite, sumando el tope de cada ítem. */
+        /** Tope de la compra: máximo de llaves que admite, sumando el tope de cada unidad. */
         long maxApplicableKeys,
-        /** Llaves que el usuario pidió aplicar; si no indicó, las máximas que puede usar. */
-        long requestedKeys,
-        /** Llaves que se aplicarían: el menor entre tope, saldo, respaldo y lo pedido. */
-        long effectiveKeys,
-        /** Valor que cubren las llaves efectivas. */
-        long effectiveCoverageCents,
-        /** Llaves que le faltan al usuario para alcanzar la cobertura máxima. */
-        long missingKeysForMaxCoverage,
-        /** Dinero a pagar si compra ahora con las llaves efectivas. */
-        long cashToPayCents,
-        /** Dinero a pagar si llegara a completar la cobertura máxima. */
-        long cashToPayAtMaxCoverageCents,
         /**
-         * false si el respaldo promocional disponible hoy es menor que la cobertura que el
-         * usuario podría usar por tope y saldo.
+         * Máximo que el usuario puede aplicar ahora: el menor entre el tope, su saldo y el
+         * respaldo disponible. Es el límite superior de lo que POST /purchases/buy acepta.
+         */
+        long usableKeys,
+        /** Valor de una llave en centavos. */
+        long keyValueCents,
+        /**
+         * false si el respaldo promocional disponible hoy es lo que limita
+         * {@code usableKeys}: el usuario tendría tope y saldo para más.
          */
         boolean backingSufficient,
         List<Item> items) {
 
     public record Item(
             Long productId,
-            String productName,
-            int quantity,
-            long unitPriceCents,
-            /** Tope de cobertura con llaves por unidad, en porcentaje. */
+            /**
+             * Tope de cobertura con llaves del producto, en porcentaje. Si una promoción
+             * especial no alcanza para todas las unidades pedidas, es el ordinario.
+             */
             int maxKeysPct,
-            long maxKeysPerUnit,
-            /** true si el tope viene de una promoción especial y no del ordinario. */
-            boolean specialPromotion,
-            /** Hasta cuándo rige la promoción especial. No es un derecho para compras futuras. */
+            /**
+             * Hasta cuándo rige la promoción especial que da ese tope; null si es el
+             * ordinario. No es un derecho para compras futuras.
+             */
             ZonedDateTime promotionEndsAt) {
     }
 }

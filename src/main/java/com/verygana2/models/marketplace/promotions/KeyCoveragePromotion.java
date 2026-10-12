@@ -70,10 +70,15 @@ public class KeyCoveragePromotion {
     @Column(name = "consumed_cents", nullable = false)
     private Long consumedCents = 0L;
 
-    /** Parte de la garantía que tuvo que reponer KEYS_RESERVE; no vuelve a FORTIFICATION. */
+    /** Lo que el Fondo ya puso por ventas aprobadas (repuesto a KEYS_RESERVE); no vuelve a FORTIFICATION. */
     @Column(name = "guarantee_drawn_cents", nullable = false)
     private Long guaranteeDrawnCents = 0L;
 
+    /** Lo que ya volvió a FORTIFICATION tras el cierre. Puede devolverse por partes. */
+    @Column(name = "guarantee_returned_cents", nullable = false)
+    private Long guaranteeReturnedCents = 0L;
+
+    /** Cuándo terminó de devolverse el fondo: cerrada y sin compras con pago en curso. */
     @Column(name = "guarantee_returned_at")
     private ZonedDateTime guaranteeReturnedAt;
 
@@ -143,6 +148,9 @@ public class KeyCoveragePromotion {
         if (terms.maxExcessCentsPerUser() != null && terms.maxExcessCentsPerUser() <= 0) {
             throw new BusinessException("El límite por usuario debe ser positivo");
         }
+        if (terms.maxExcessCentsPerUser() != null && terms.maxExcessCentsPerUser() > terms.budgetCents()) {
+            throw new BusinessException("El límite por usuario no puede ser mayor que el presupuesto de la promoción");
+        }
         this.name = terms.name();
         this.coveragePct = terms.coveragePct();
         this.startsAt = terms.startsAt();
@@ -195,6 +203,21 @@ public class KeyCoveragePromotion {
         return budgetCents - reservedCents - consumedCents;
     }
 
+    /**
+     * ¿Le queda presupuesto para subir el tope de una unidad de este producto? El margen
+     * de una unidad es lo que la promoción cubre por encima del tope ordinario. Sin
+     * presupuesto para eso la promoción ya no aplica a ese producto, aunque siga vigente.
+     *
+     * @param keyValueCents valor de una llave: la cobertura va en llaves enteras.
+     */
+    public boolean canCoverOneUnit(long priceCents, int productOrdinaryPct, long keyValueCents) {
+        int ordinaryPct = Math.min(productOrdinaryPct, ORDINARY_MAX_PCT);
+        long ordinaryLimit = priceCents * ordinaryPct / 100 / keyValueCents * keyValueCents;
+        long promotionLimit = priceCents * coveragePct / 100 / keyValueCents * keyValueCents;
+        long excess = promotionLimit - ordinaryLimit;
+        return excess > 0 && excess <= availableBudgetCents();
+    }
+
     public void reserve(long excessCents) {
         if (excessCents > availableBudgetCents()) {
             throw new BusinessException("La promoción \"" + name + "\" agotó su presupuesto");
@@ -213,21 +236,50 @@ public class KeyCoveragePromotion {
         this.reservedCents -= excessCents;
     }
 
+    /**
+     * Reembolso de una venta ya aprobada: el exceso deja de contar como consumido (el
+     * presupuesto vuelve a estar disponible) y lo que el Fondo había puesto por ella deja
+     * de contar como aportado.
+     *
+     * @return lo que el Fondo había puesto por ese exceso y hay que devolverle. Puede ser
+     *         menos que el exceso en ventas aprobadas antes de que el Fondo lo asumiera.
+     */
+    public long restore(long excessCents) {
+        if (excessCents > consumedCents) {
+            throw new IllegalStateException("La promoción " + id + " no tiene " + excessCents
+                    + " centavos consumidos (consumido " + consumedCents + ")");
+        }
+        long funded = Math.min(excessCents, guaranteeDrawnCents);
+        this.consumedCents -= excessCents;
+        this.guaranteeDrawnCents -= funded;
+        return funded;
+    }
+
     public void registerGuaranteeDrawn(long cents) {
         this.guaranteeDrawnCents += cents;
     }
 
-    /** Garantía que vuelve a FORTIFICATION al cierre: todo menos lo que repuso KEYS_RESERVE. */
-    public long returnableGuaranteeCents() {
-        return budgetCents - guaranteeDrawnCents;
+    /**
+     * Lo que puede volver a FORTIFICATION ahora: del presupuesto apartado, lo que el Fondo
+     * no ha puesto por ventas, no está comprometido por compras con pago en curso y no se
+     * ha devuelto ya. Solo tiene sentido con la promoción cerrada.
+     */
+    public long releasableGuaranteeCents() {
+        return Math.max(0L, budgetCents - guaranteeDrawnCents - reservedCents - guaranteeReturnedCents);
     }
 
-    public void markGuaranteeReturned(ZonedDateTime now) {
-        if (status != KeyCoveragePromotionStatus.ENDED || reservedCents > 0) {
-            throw new InvalidStatusException(
-                    "La garantía solo se devuelve con la promoción cerrada y sin compras en curso");
+    /**
+     * Registra una devolución a FORTIFICATION. Si ya no quedan compras con pago en curso,
+     * el fondo de la promoción queda saldado.
+     */
+    public void registerGuaranteeReturned(long cents, ZonedDateTime now) {
+        if (status != KeyCoveragePromotionStatus.ENDED) {
+            throw new InvalidStatusException("El fondo de una promoción solo se devuelve cuando está cerrada");
         }
-        this.guaranteeReturnedAt = now;
+        this.guaranteeReturnedCents += cents;
+        if (reservedCents == 0) {
+            this.guaranteeReturnedAt = now;
+        }
     }
 
     private void requireReserved(long excessCents) {

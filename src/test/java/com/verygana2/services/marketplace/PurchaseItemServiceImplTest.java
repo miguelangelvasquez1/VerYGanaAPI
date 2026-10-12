@@ -44,6 +44,7 @@ import static org.mockito.Mockito.when;
 @DisplayName("PurchaseItemServiceImpl")
 class PurchaseItemServiceImplTest {
 
+    @Mock private ProductKeyPromotionResolver keyPromotionResolver;
     @Mock private PurchaseItemRepository purchaseItemRepository;
     @Mock private PurchaseMapper purchaseMapper;
     @Mock private ProductCodeEncryptor codeEncryptor;
@@ -57,7 +58,8 @@ class PurchaseItemServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new PurchaseItemServiceImpl(purchaseItemRepository, purchaseMapper, codeEncryptor, passwordEncoder);
+        service = new PurchaseItemServiceImpl(purchaseItemRepository, purchaseMapper, codeEncryptor, passwordEncoder,
+                keyPromotionResolver);
     }
 
     private PurchaseItem physicalPendingItem() {

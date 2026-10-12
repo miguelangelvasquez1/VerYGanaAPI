@@ -100,16 +100,12 @@ public class KeyCoverageServiceImpl implements KeyCoverageService {
     @Override
     @Transactional(readOnly = true)
     public KeyCoverageQuoteResponseDTO quote(Long consumerId, KeyCoverageQuoteRequestDTO request) {
-        Map<Long, Integer> quantities = new LinkedHashMap<>();
-        Map<Long, Product> products = new HashMap<>();
         List<Product> units = new ArrayList<>();
         for (CreatePurchaseItemRequestDTO line : request.getItems()) {
             Product product = productService.getById(line.getProductId());
             if (product.getStatus() != ProductStatus.ACTIVE) {
                 throw new ProductNotAvailableException(product.getName());
             }
-            products.put(product.getId(), product);
-            quantities.merge(product.getId(), line.getQuantity(), Integer::sum);
             for (int i = 0; i < line.getQuantity(); i++) {
                 units.add(product);
             }
@@ -125,45 +121,38 @@ public class KeyCoverageServiceImpl implements KeyCoverageService {
 
         // Lo que el usuario podría cubrir por tope y saldo, antes de mirar el respaldo.
         long reachableCents = Math.min(maxCoverageCents, spendableCents);
-        long coverableCents = Math.min(reachableCents, backingCents);
-        long requestedCents = request.getKeysToUse() == null
-                ? coverableCents
-                : request.getKeysToUse() * keyValueCents;
-        long effectiveCents = Math.min(coverableCents, requestedCents);
+        long usableCents = Math.min(reachableCents, backingCents);
 
-        long totalCents = plan.totalCents();
         return new KeyCoverageQuoteResponseDTO(
-                totalCents,
+                plan.totalCents(),
                 spendableCents / keyValueCents,
                 maxCoverageCents / keyValueCents,
-                requestedCents / keyValueCents,
-                effectiveCents / keyValueCents,
-                effectiveCents,
-                (maxCoverageCents - reachableCents) / keyValueCents,
-                totalCents - effectiveCents,
-                totalCents - maxCoverageCents,
+                usableCents / keyValueCents,
+                keyValueCents,
                 backingCents >= reachableCents,
-                quoteItems(plan, products, quantities));
+                quoteItems(plan));
     }
 
-    private List<KeyCoverageQuoteResponseDTO.Item> quoteItems(KeyCoveragePlan plan, Map<Long, Product> products,
-            Map<Long, Integer> quantities) {
-        // Una línea por producto. Si la promoción no alcanzó para todas sus unidades, se
-        // muestra el tope de la primera, que es la que la obtiene.
-        Map<Long, KeyCoveragePlan.Unit> firstUnit = new LinkedHashMap<>();
+    /**
+     * Una línea por producto. Si la promoción no alcanzó para todas sus unidades se
+     * informa el tope ordinario: anunciar el especial prometería en todas lo que solo
+     * tiene una. La cobertura real de la compra va en maxApplicableKeys, que sí suma
+     * unidad por unidad.
+     */
+    private List<KeyCoverageQuoteResponseDTO.Item> quoteItems(KeyCoveragePlan plan) {
+        Map<Long, List<KeyCoveragePlan.Unit>> byProduct = new LinkedHashMap<>();
         for (KeyCoveragePlan.Unit unit : plan.units()) {
-            firstUnit.putIfAbsent(unit.productId(), unit);
+            byProduct.computeIfAbsent(unit.productId(), id -> new ArrayList<>()).add(unit);
         }
-        return firstUnit.values().stream()
-                .map(unit -> new KeyCoverageQuoteResponseDTO.Item(
-                        unit.productId(),
-                        products.get(unit.productId()).getName(),
-                        quantities.get(unit.productId()),
-                        unit.priceCents(),
-                        unit.pctApplied(),
-                        unit.limitCents() / keyValueCents,
-                        unit.promotionId() != null,
-                        unit.promotionEndsAt()))
+        return byProduct.values().stream()
+                .map(productUnits -> {
+                    KeyCoveragePlan.Unit first = productUnits.get(0);
+                    boolean allPromoted = productUnits.stream().allMatch(u -> u.promotionId() != null);
+                    return allPromoted
+                            ? new KeyCoverageQuoteResponseDTO.Item(first.productId(), first.pctApplied(),
+                                    first.promotionEndsAt())
+                            : new KeyCoverageQuoteResponseDTO.Item(first.productId(), first.ordinaryPct(), null);
+                })
                 .toList();
     }
 

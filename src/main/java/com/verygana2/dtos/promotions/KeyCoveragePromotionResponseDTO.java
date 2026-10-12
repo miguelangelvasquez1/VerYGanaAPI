@@ -24,6 +24,9 @@ public record KeyCoveragePromotionResponseDTO(
         Long maxExcessCentsPerUser,
         /** Parte de la garantía que tuvo que reponer KEYS_RESERVE. */
         long guaranteeDrawnCents,
+        /** Lo que ya volvió a FORTIFICATION tras el cierre. */
+        long guaranteeReturnedCents,
+        /** Cuándo terminó de devolverse; null mientras queden compras con pago en curso. */
         ZonedDateTime guaranteeReturnedAt,
         ZonedDateTime authorizedAt,
         List<KeyCoveragePromotionOfferResponseDTO> offers) {

@@ -37,13 +37,15 @@ public interface KeyCoveragePromotionRepository extends JpaRepository<KeyCoverag
             """)
     List<Long> findIdsPastEndNotEnded(@Param("now") ZonedDateTime now);
 
-    /** Cerradas, ya sin compras en curso, cuya garantía sigue apartada. */
+    /**
+     * Cerradas cuyo fondo todavía no está saldado. Incluye las que tienen compras con pago
+     * en curso: lo no comprometido se devuelve ya y el resto cuando esos pagos se resuelvan.
+     */
     @Query("""
             SELECT p.id FROM KeyCoveragePromotion p
             WHERE p.status = com.verygana2.models.enums.marketplace.KeyCoveragePromotionStatus.ENDED
               AND p.authorizedAt IS NOT NULL
               AND p.guaranteeReturnedAt IS NULL
-              AND p.reservedCents = 0
             """)
     List<Long> findIdsEndedWithGuaranteeToReturn();
 }

@@ -729,38 +729,69 @@ public class TreasuryServiceImpl implements TreasuryService {
 
         @Transactional
         @Override
-        public long drawPromotionGuarantee(long maxCents, long keysOutflowCents, UUID referenceId) {
-                if (maxCents <= 0) {
+        public long fundPromotionExcess(long excessCents, UUID referenceId) {
+                if (excessCents <= 0) {
                         return 0L;
                 }
 
                 TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
-
-                long shortfall = treasuryConfig.getKeysReserveCriticalThresholdCents()
-                                - (keysReserve.getBalanceCents() - keysOutflowCents);
-                if (shortfall <= 0) {
-                        // KEYS_RESERVE paga por sí solo: las llaves ya estaban respaldadas ahí.
-                        return 0L;
-                }
-
                 TreasuryAccount promotions = getAccountForUpdate(TreasuryAccountCode.PROMOTIONS_RESERVE);
-                long drawn = Math.min(Math.min(maxCents, shortfall), promotions.getBalanceCents());
-                if (drawn <= 0) {
+
+                // El presupuesto de la promoción se apartó completo al autorizarla, así que
+                // el bolsillo siempre debería alcanzar. Si no alcanza hay un descuadre: se
+                // mueve lo que hay y se deja registrado, sin tumbar una venta que el usuario
+                // ya pagó.
+                long funded = Math.min(excessCents, promotions.getBalanceCents());
+                if (funded < excessCents) {
+                        log.error("[TREASURY] PROMOTIONS_RESERVE no cubre el exceso de la promoción. "
+                                        + "disponible={}, requerido={}, reference={}",
+                                        promotions.getBalanceCents(), excessCents, referenceId);
+                }
+                if (funded <= 0) {
                         return 0L;
                 }
 
-                promotions.setBalanceCents(promotions.getBalanceCents() - drawn);
-                keysReserve.setBalanceCents(keysReserve.getBalanceCents() + drawn);
+                promotions.setBalanceCents(promotions.getBalanceCents() - funded);
+                keysReserve.setBalanceCents(keysReserve.getBalanceCents() + funded);
                 treasuryAccountRepository.save(promotions);
                 treasuryAccountRepository.save(keysReserve);
 
-                recordMovement(promotions, keysReserve, drawn,
+                recordMovement(promotions, keysReserve, funded,
                                 MovementConcept.PROMOTION_GUARANTEE_TO_KEYS_RESERVE, referenceId,
                                 PROMOTION_REFERENCE_TYPE);
 
-                log.warn("[TREASURY] La garantía de promociones repuso KEYS_RESERVE: amount={}, reference={}",
-                                drawn, referenceId);
-                return drawn;
+                log.info("[TREASURY] Exceso de promoción asumido por el Fondo: PROMOTIONS_RESERVE → KEYS_RESERVE, amount={}, reference={}",
+                                funded, referenceId);
+                return funded;
+        }
+
+        @Transactional
+        @Override
+        public void refundPromotionExcess(long cents, boolean toPromotionsReserve, UUID referenceId) {
+                validateAmount(cents);
+
+                TreasuryAccount keysReserve = getAccountForUpdate(TreasuryAccountCode.KEYS_RESERVE);
+                TreasuryAccount destination = getAccountForUpdate(toPromotionsReserve
+                                ? TreasuryAccountCode.PROMOTIONS_RESERVE
+                                : TreasuryAccountCode.FORTIFICATION);
+
+                if (keysReserve.getBalanceCents() < cents) {
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.KEYS_RESERVE,
+                                        "[TREASURY] KEYS_RESERVE no cubre la devolución del exceso de promoción. "
+                                                        + "disponible=" + keysReserve.getBalanceCents()
+                                                        + " requerido=" + cents);
+                }
+
+                keysReserve.setBalanceCents(keysReserve.getBalanceCents() - cents);
+                destination.setBalanceCents(destination.getBalanceCents() + cents);
+                treasuryAccountRepository.save(keysReserve);
+                treasuryAccountRepository.save(destination);
+
+                recordMovement(keysReserve, destination, cents,
+                                MovementConcept.PROMOTION_EXCESS_REFUND, referenceId, PROMOTION_REFERENCE_TYPE);
+
+                log.info("[TREASURY] Exceso de promoción devuelto por reembolso: KEYS_RESERVE → {}, amount={}, reference={}",
+                                destination.getCode(), cents, referenceId);
         }
 
         @Transactional

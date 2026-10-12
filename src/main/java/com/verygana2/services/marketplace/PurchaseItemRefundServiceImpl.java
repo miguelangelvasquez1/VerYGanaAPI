@@ -21,6 +21,7 @@ import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
 
 import lombok.RequiredArgsConstructor;
@@ -40,6 +41,7 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     private final KeyLedgerService keyLedgerService;
     private final KeyWalletService keyWalletService;
     private final PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
+    private final KeyCoveragePromotionService keyCoveragePromotionService;
 
     @Override
     @Transactional
@@ -123,10 +125,22 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         // copago bloquean prosperidad → tesorería, y este debe seguir ese orden.
         prosperityService.reintegrateRefund(item);
 
+        // Si el ítem usó una promoción especial, su presupuesto vuelve a estar disponible.
+        // Se bloquea antes que tesorería, que es el orden de la compra y del copago.
+        KeyCoveragePromotionService.ExcessRefund excessRefund = keyCoveragePromotionService.restoreForRefund(item);
+
         // La comisión que se revierte ya es solo la de la porción no absorbida.
         treasuryService.reversePurchaseItemForRefund(
                 item.getCommissionCents(), item.getCommissionVatCents(),
                 keysPortionCents, cashPortionCents, copayment.getId());
+
+        // KEYS_RESERVE acaba de recuperar todas las llaves de la venta, incluido el exceso
+        // que en su momento le repuso el Fondo: esa parte se le devuelve, para que cada
+        // bolsillo quede como estaba antes de la venta.
+        if (excessRefund.cents() > 0) {
+            treasuryService.refundPromotionExcess(excessRefund.cents(), excessRefund.fundPocketStillHeld(),
+                    excessRefund.treasuryReference());
+        }
 
         if (wallet != null) {
             creditBackKeys(wallet, item, copayment, keysPortionCents);

@@ -16,6 +16,11 @@ public class FeaturedProductResponseDTO {
     private BigDecimal price;
     private Double averageRate;
     private Long totalSales;
+    /**
+     * Promoción especial de llaves vigente para este producto, o null si rige su tope
+     * ordinario. Con ella el producto admite más llaves que su tope ordinario, hasta su fecha de fin.
+     */
+    private ProductKeyPromotionDTO specialKeyPromotion;
 
     public FeaturedProductResponseDTO(Long id, String name, String imageUrl,
             Long priceCents, Double averageRate, Long totalSales) {

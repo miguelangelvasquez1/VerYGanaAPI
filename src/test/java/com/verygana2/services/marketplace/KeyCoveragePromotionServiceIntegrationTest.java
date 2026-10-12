@@ -93,6 +93,7 @@ class KeyCoveragePromotionServiceIntegrationTest {
     @MockitoBean private TreasuryService treasuryService;
     @MockitoBean private NotificationService notificationService;
     @MockitoBean private ProductService productService;
+    @MockitoBean private com.verygana2.services.interfaces.finance.ProsperityService prosperityService;
     @MockitoBean private Clock clock;
 
     private final AtomicReference<Instant> now = new AtomicReference<>(NOW.toInstant());
@@ -199,6 +200,36 @@ class KeyCoveragePromotionServiceIntegrationTest {
         }
 
         @Test
+        @DisplayName("fecha de fin ya vencida: no se puede crear ni dejar así al editar")
+        void endDateInThePastIsRejected() {
+            KeyCoveragePromotionRequestDTO expired = new KeyCoveragePromotionRequestDTO("Vencida", 70,
+                    NOW.minusDays(3), NOW.minusMinutes(1), BUDGET, null, null);
+
+            assertThatThrownBy(() -> service.create(expired)).isInstanceOf(BusinessException.class);
+
+            Long id = service.create(request(70)).id();
+            assertThatThrownBy(() -> service.updateDraft(id, expired)).isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("inicio en el pasado con fin en el futuro: se permite, la promoción arranca de inmediato")
+        void startInThePastIsAllowed() {
+            assertThat(service.create(new KeyCoveragePromotionRequestDTO("Ya empezó", 70,
+                    NOW.minusDays(1), NOW.plusDays(1), BUDGET, null, null)).id()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("presupuesto que no alcanza para una unidad del producto: no se puede invitar")
+        void budgetTooSmallForOneUnitIsRejected() {
+            // Producto de $100.000: subir del 50 % al 70 % cuesta $20.000 por unidad.
+            Long id = service.create(new KeyCoveragePromotionRequestDTO("Presupuesto corto", 70,
+                    NOW.minusHours(1), NOW.plusDays(7), 1_999_000L, null, null)).id();
+
+            assertThatThrownBy(() -> service.addOffer(id, product(PlanCode.STANDARD).getId()))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
         @DisplayName("un borrador no aplica a ninguna compra ni se le muestra al empresario")
         void draftHasNoEffect() {
             Product product = product(PlanCode.STANDARD);
@@ -230,6 +261,30 @@ class KeyCoveragePromotionServiceIntegrationTest {
             verify(treasuryService).reservePromotionGuarantee(eq(BUDGET), any());
             verify(notificationService).createInternalNotification(
                     eq(product.getCommercial().getId()), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("producto que dejó de estar activo después de invitarlo: no se autoriza")
+        void productNoLongerActive_isRejected() {
+            Product product = product(PlanCode.STANDARD);
+            Long id = service.create(request(70)).id();
+            service.addOffer(id, product.getId());
+            product.setStatus(ProductStatus.INACTIVE);
+
+            assertThatThrownBy(() -> service.authorize(id, ADMIN)).isInstanceOf(BusinessException.class);
+            verify(treasuryService, never()).reservePromotionGuarantee(anyLong(), any());
+        }
+
+        @Test
+        @DisplayName("presupuesto bajado después de invitar hasta no alcanzar para una unidad: no se autoriza")
+        void budgetLoweredBelowOneUnit_isRejected() {
+            Long id = service.create(request(70)).id();
+            service.addOffer(id, product(PlanCode.STANDARD).getId());
+            service.updateDraft(id, new KeyCoveragePromotionRequestDTO("Semana del 70", 70,
+                    NOW.minusHours(1), NOW.plusDays(7), 1_000_000L, null, null));
+
+            assertThatThrownBy(() -> service.authorize(id, ADMIN)).isInstanceOf(BusinessException.class);
+            verify(treasuryService, never()).reservePromotionGuarantee(anyLong(), any());
         }
 
         @Test
@@ -297,8 +352,10 @@ class KeyCoveragePromotionServiceIntegrationTest {
             assertThat(accepted.promotionKeysPct()).isEqualTo(70);
             assertThat(accepted.maxKeysCoverageCents()).isEqualTo(7_000_000L);
             assertThat(accepted.minUserCashCents()).isEqualTo(3_000_000L);
-            // Las llaves no reducen la Venta Computable: la comisión es sobre el precio completo.
+            // Las llaves no reducen la Venta Computable: sin Saldo de Prosperidad, la
+            // comisión es sobre el precio completo.
             assertThat(accepted.commissionPct()).isEqualTo(10);
+            assertThat(accepted.prosperityBalanceCents()).isZero();
             assertThat(accepted.estimatedCommissionCents()).isEqualTo(1_000_000L);
             assertThat(accepted.estimatedNetToCommercialCents()).isEqualTo(9_000_000L);
 
@@ -313,6 +370,23 @@ class KeyCoveragePromotionServiceIntegrationTest {
             product.setPriceCents(20_000_000L);
             assertThat(service.listOffers(product.getCommercial().getId())).singleElement()
                     .extracting(KeyCoveragePromotionOfferResponseDTO::priceCents).isEqualTo(10_000_000L);
+        }
+
+        @Test
+        @DisplayName("el Saldo de Prosperidad se informa pero no entra en los cálculos de la oferta")
+        void prosperityBalanceIsReportedButNotAppliedToTheEstimate() {
+            Product product = product(PlanCode.STANDARD);
+            authorizedPromotionWith(product);
+            // Saldo de sobra para absorber toda la venta.
+            when(prosperityService.absorbableBalanceCents(product.getCommercial())).thenReturn(40_000_000L);
+
+            KeyCoveragePromotionOfferResponseDTO offer =
+                    service.listOffers(product.getCommercial().getId()).get(0);
+
+            assertThat(offer.prosperityBalanceCents()).isEqualTo(40_000_000L);
+            // Comisión y valor reconocido siguen siendo los de una venta sin saldo.
+            assertThat(offer.estimatedCommissionCents()).isEqualTo(1_000_000L);
+            assertThat(offer.estimatedNetToCommercialCents()).isEqualTo(9_000_000L);
         }
 
         @Test
@@ -358,7 +432,7 @@ class KeyCoveragePromotionServiceIntegrationTest {
     class PurchaseCycle {
 
         @Test
-        @DisplayName("pago aprobado: lo reservado pasa a consumido")
+        @DisplayName("pago aprobado: lo reservado pasa a consumido y el Fondo asume ese exceso")
         void reserveThenConfirm() {
             Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
             Purchase purchase = purchaseUsing(id, 2_000_000L);
@@ -366,13 +440,13 @@ class KeyCoveragePromotionServiceIntegrationTest {
             service.reserveForPurchase(purchase);
             assertThat(reload(id).getReservedCents()).isEqualTo(2_000_000L);
 
-            service.confirmForPurchase(purchase, 7_000_000L);
+            service.confirmForPurchase(purchase);
 
             KeyCoveragePromotion promotion = reload(id);
             assertThat(promotion.getReservedCents()).isZero();
             assertThat(promotion.getConsumedCents()).isEqualTo(2_000_000L);
             assertThat(promotion.availableBudgetCents()).isEqualTo(BUDGET - 2_000_000L);
-            verify(treasuryService).drawPromotionGuarantee(eq(2_000_000L), eq(7_000_000L), any());
+            verify(treasuryService).fundPromotionExcess(eq(2_000_000L), any());
         }
 
         @Test
@@ -387,20 +461,79 @@ class KeyCoveragePromotionServiceIntegrationTest {
             KeyCoveragePromotion promotion = reload(id);
             assertThat(promotion.getReservedCents()).isZero();
             assertThat(promotion.getConsumedCents()).isZero();
-            verify(treasuryService, never()).drawPromotionGuarantee(anyLong(), anyLong(), any());
+            verify(treasuryService, never()).fundPromotionExcess(anyLong(), any());
         }
 
         @Test
-        @DisplayName("lo que la garantía repuso a KEYS_RESERVE queda registrado en la promoción")
+        @DisplayName("lo que el Fondo puso por la venta queda registrado en la promoción")
         void guaranteeDrawnIsRecorded() {
             Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
             Purchase purchase = purchaseUsing(id, 2_000_000L);
-            when(treasuryService.drawPromotionGuarantee(anyLong(), anyLong(), any())).thenReturn(1_200_000L);
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(1_200_000L);
 
             service.reserveForPurchase(purchase);
-            service.confirmForPurchase(purchase, 7_000_000L);
+            service.confirmForPurchase(purchase);
 
             assertThat(reload(id).getGuaranteeDrawnCents()).isEqualTo(1_200_000L);
+        }
+
+        @Test
+        @DisplayName("reembolso: el presupuesto vuelve a estar disponible y se informa lo que hay que devolverle al Fondo")
+        void refundRestoresBudgetAndReportsWhatTheFundPut() {
+            Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
+            Purchase purchase = purchaseUsing(id, 2_000_000L);
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(2_000_000L);
+            service.reserveForPurchase(purchase);
+            service.confirmForPurchase(purchase);
+
+            var refund = service.restoreForRefund(purchase.getItems().get(0));
+
+            assertThat(refund.cents()).isEqualTo(2_000_000L);
+            assertThat(refund.fundPocketStillHeld()).isTrue();
+            KeyCoveragePromotion promotion = reload(id);
+            assertThat(promotion.getConsumedCents()).isZero();
+            assertThat(promotion.getGuaranteeDrawnCents()).isZero();
+            assertThat(promotion.availableBudgetCents()).isEqualTo(BUDGET);
+        }
+
+        @Test
+        @DisplayName("reembolso de una venta en la que el Fondo no puso nada: restituye el presupuesto y no pide devolución")
+        void refundOfSaleTheFundDidNotPayRestoresOnlyTheBudget() {
+            Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
+            Purchase purchase = purchaseUsing(id, 2_000_000L);
+            // Ventas aprobadas antes de que el Fondo asumiera el exceso: no hubo aporte.
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(0L);
+            service.reserveForPurchase(purchase);
+            service.confirmForPurchase(purchase);
+
+            var refund = service.restoreForRefund(purchase.getItems().get(0));
+
+            assertThat(refund.cents()).isZero();
+            assertThat(reload(id).availableBudgetCents()).isEqualTo(BUDGET);
+        }
+
+        @Test
+        @DisplayName("reembolso con la promoción ya cerrada y su fondo devuelto: el dinero debe ir a FORTIFICATION")
+        void refundAfterClosureReportsThePocketIsGone() {
+            Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
+            Purchase purchase = purchaseUsing(id, 2_000_000L);
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(2_000_000L);
+            service.reserveForPurchase(purchase);
+            service.confirmForPurchase(purchase);
+            service.end(id);
+
+            var refund = service.restoreForRefund(purchase.getItems().get(0));
+
+            assertThat(refund.cents()).isEqualTo(2_000_000L);
+            assertThat(refund.fundPocketStillHeld()).isFalse();
+        }
+
+        @Test
+        @DisplayName("reembolso de un ítem sin promoción: no hay nada que restituir")
+        void refundOfItemWithoutPromotionRestoresNothing() {
+            var refund = service.restoreForRefund(PurchaseItem.builder().build());
+
+            assertThat(refund.cents()).isZero();
         }
 
         @Test
@@ -430,10 +563,10 @@ class KeyCoveragePromotionServiceIntegrationTest {
             purchase.getItems().add(PurchaseItem.builder().build());
 
             service.reserveForPurchase(purchase);
-            service.confirmForPurchase(purchase, 1_000_000L);
+            service.confirmForPurchase(purchase);
             service.releaseForPurchase(purchase);
 
-            verify(treasuryService, never()).drawPromotionGuarantee(anyLong(), anyLong(), any());
+            verify(treasuryService, never()).fundPromotionExcess(anyLong(), any());
         }
     }
 
@@ -461,13 +594,13 @@ class KeyCoveragePromotionServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("devuelve la garantía descontando lo que repuso KEYS_RESERVE")
+        @DisplayName("al cierre devuelve el presupuesto descontando lo que el Fondo ya puso")
         void returnsGuaranteeMinusWhatWasDrawn() {
             Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
             Purchase purchase = purchaseUsing(id, 2_000_000L);
-            when(treasuryService.drawPromotionGuarantee(anyLong(), anyLong(), any())).thenReturn(500_000L);
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(500_000L);
             service.reserveForPurchase(purchase);
-            service.confirmForPurchase(purchase, 7_000_000L);
+            service.confirmForPurchase(purchase);
 
             service.end(id);
 
@@ -475,21 +608,46 @@ class KeyCoveragePromotionServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("con una compra en curso la garantía espera: se devuelve cuando ese pago se resuelve")
-        void guaranteeWaitsForPurchasesInFlight() {
+        @DisplayName("cierre con una compra en curso: lo no comprometido vuelve ya, y lo reservado cuando ese pago se resuelve")
+        void closingReturnsUncommittedNowAndTheRestLater() {
             Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
             Purchase inFlight = purchaseUsing(id, 2_000_000L);
             service.reserveForPurchase(inFlight);
 
-            service.end(id);
-            verify(treasuryService, never()).returnPromotionGuarantee(anyLong(), any());
-            assertThat(service.idsNeedingClosure()).isEmpty(); // todavía hay reserva
+            KeyCoveragePromotionResponseDTO ended = service.end(id);
 
-            service.releaseForPurchase(inFlight);
+            verify(treasuryService).returnPromotionGuarantee(eq(BUDGET - 2_000_000L), any());
+            assertThat(ended.guaranteeReturnedCents()).isEqualTo(BUDGET - 2_000_000L);
+            assertThat(ended.guaranteeReturnedAt()).as("aún retiene lo de la compra en curso").isNull();
             assertThat(service.idsNeedingClosure()).containsExactly(id);
+
+            service.releaseForPurchase(inFlight); // el pago falló
             service.close(id);
 
-            verify(treasuryService).returnPromotionGuarantee(eq(BUDGET), any());
+            verify(treasuryService).returnPromotionGuarantee(eq(2_000_000L), any());
+            KeyCoveragePromotion promotion = reload(id);
+            assertThat(promotion.getGuaranteeReturnedCents()).isEqualTo(BUDGET);
+            assertThat(promotion.getGuaranteeReturnedAt()).isNotNull();
+            assertThat(service.idsNeedingClosure()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("cierre con una compra en curso que luego se aprueba: lo reservado lo pone el Fondo y no vuelve")
+        void closingThenApprovedPurchaseKeepsTheReservedPart() {
+            Long id = acceptedPromotionWith(product(PlanCode.STANDARD));
+            Purchase inFlight = purchaseUsing(id, 2_000_000L);
+            when(treasuryService.fundPromotionExcess(anyLong(), any())).thenReturn(2_000_000L);
+            service.reserveForPurchase(inFlight);
+            service.end(id);
+
+            service.confirmForPurchase(inFlight);
+            service.close(id);
+
+            // Solo hubo la devolución del cierre; lo de la compra aprobada lo puso el Fondo.
+            verify(treasuryService, times(1)).returnPromotionGuarantee(anyLong(), any());
+            KeyCoveragePromotion promotion = reload(id);
+            assertThat(promotion.getGuaranteeReturnedCents()).isEqualTo(BUDGET - 2_000_000L);
+            assertThat(promotion.getGuaranteeReturnedAt()).isNotNull();
         }
 
         @Test

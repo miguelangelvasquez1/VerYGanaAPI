@@ -141,12 +141,22 @@ public interface TreasuryService {
     void reservePromotionGuarantee(long amountCents, UUID referenceId);
 
     /**
-     * Repone KEYS_RESERVE desde la garantía, solo si pagar {@code keysOutflowCents} lo
-     * dejaría bajo el umbral crítico y nunca más que {@code maxCents}.
+     * El Fondo asume el exceso de una venta con promoción especial: PROMOTIONS_RESERVE →
+     * KEYS_RESERVE por lo que el usuario cubrió con llaves por encima del tope ordinario.
+     * El pago al empresario sale completo de KEYS_RESERVE; esto le repone esa parte.
      *
-     * @return lo efectivamente movido (0 si KEYS_RESERVE aguanta el pago por sí solo).
+     * @return lo efectivamente movido.
      */
-    long drawPromotionGuarantee(long maxCents, long keysOutflowCents, UUID referenceId);
+    long fundPromotionExcess(long excessCents, UUID referenceId);
+
+    /**
+     * Deshace {@link #fundPromotionExcess} al reembolsarse la venta: KEYS_RESERVE devuelve
+     * el exceso que el Fondo había puesto.
+     *
+     * @param toPromotionsReserve true si la promoción aún tiene su fondo apartado; false si
+     *                            ya cerró y lo devolvió, y entonces va directo a FORTIFICATION.
+     */
+    void refundPromotionExcess(long cents, boolean toPromotionsReserve, UUID referenceId);
 
     /** Devuelve la garantía no usada al cierre: PROMOTIONS_RESERVE → FORTIFICATION. */
     void returnPromotionGuarantee(long amountCents, UUID referenceId);

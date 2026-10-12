@@ -104,11 +104,11 @@ class KeyCoverageServiceImplTest {
                 .thenReturn(Optional.of(KeyWallet.builder().purchaseKeysCents(keys * KEY).build()));
     }
 
-    private KeyCoverageQuoteResponseDTO quote(Product product, Long keysToUse) {
+    private KeyCoverageQuoteResponseDTO quote(Product product, int quantity) {
         when(productService.getById(product.getId())).thenReturn(product);
         return service.quote(CONSUMER, KeyCoverageQuoteRequestDTO.builder()
-                .items(List.of(CreatePurchaseItemRequestDTO.builder().productId(product.getId()).quantity(1).build()))
-                .keysToUse(keysToUse)
+                .items(List.of(CreatePurchaseItemRequestDTO.builder()
+                        .productId(product.getId()).quantity(quantity).build()))
                 .build());
     }
 
@@ -227,111 +227,126 @@ class KeyCoverageServiceImplTest {
 
     // ─── Cotización ───────────────────────────────────────────────────────────
 
+    /**
+     * La cotización da los límites; el dinero a pagar para las llaves que el usuario
+     * elija lo calcula el cliente con totalCents y keyValueCents.
+     */
     @Nested
     @DisplayName("cotización previa a la compra")
     class Quote {
 
         @Test
-        @DisplayName("saldo igual al límite: cubre $50.000 con llaves y paga $50.000")
+        @DisplayName("saldo igual al tope: puede usar las 5.000 llaves del tope")
         void balanceEqualToLimit() {
             givenWallet(5_000);
 
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), null);
+            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 1);
 
             assertThat(quote.totalCents()).isEqualTo(PRICE);
+            assertThat(quote.keyValueCents()).isEqualTo(KEY);
+            assertThat(quote.availableKeys()).isEqualTo(5_000);
             assertThat(quote.maxApplicableKeys()).isEqualTo(5_000);
-            assertThat(quote.effectiveKeys()).isEqualTo(5_000);
-            assertThat(quote.cashToPayCents()).isEqualTo(5_000_000L);
-            assertThat(quote.missingKeysForMaxCoverage()).isZero();
+            assertThat(quote.usableKeys()).isEqualTo(5_000);
+            assertThat(quote.backingSufficient()).isTrue();
         }
 
         @Test
-        @DisplayName("saldo menor al límite: usa las $20.000 que tiene, paga $80.000 y le faltan 3.000 llaves")
+        @DisplayName("saldo menor al tope: el tope sigue en 5.000 pero solo puede usar las 2.000 que tiene")
         void balanceBelowLimit() {
             givenWallet(2_000);
 
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), null);
+            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 1);
 
             assertThat(quote.availableKeys()).isEqualTo(2_000);
-            assertThat(quote.effectiveKeys()).isEqualTo(2_000);
-            assertThat(quote.cashToPayCents()).isEqualTo(8_000_000L);
-            assertThat(quote.missingKeysForMaxCoverage()).isEqualTo(3_000);
-            assertThat(quote.cashToPayAtMaxCoverageCents()).isEqualTo(5_000_000L);
+            assertThat(quote.maxApplicableKeys()).isEqualTo(5_000);
+            assertThat(quote.usableKeys()).isEqualTo(2_000);
+            // Le faltan 3.000 para el tope y no es por respaldo.
+            assertThat(quote.backingSufficient()).isTrue();
         }
 
         @Test
-        @DisplayName("saldo superior al límite: no cubre más que el tope")
+        @DisplayName("saldo superior al tope: no puede usar más que el tope")
         void balanceAboveLimit() {
             givenWallet(9_000);
 
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), null);
+            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 1);
 
-            assertThat(quote.effectiveKeys()).isEqualTo(5_000);
-            assertThat(quote.cashToPayCents()).isEqualTo(5_000_000L);
+            assertThat(quote.availableKeys()).isEqualTo(9_000);
+            assertThat(quote.usableKeys()).isEqualTo(5_000);
         }
 
         @Test
-        @DisplayName("el usuario pide menos que el máximo: se respeta, no se aplica el máximo automáticamente")
-        void userRequestsLessThanMax() {
-            givenWallet(9_000);
-
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 2_000L);
-
-            assertThat(quote.requestedKeys()).isEqualTo(2_000);
-            assertThat(quote.effectiveKeys()).isEqualTo(2_000);
-            assertThat(quote.cashToPayCents()).isEqualTo(8_000_000L);
-        }
-
-        @Test
-        @DisplayName("el usuario pide más que el máximo: la cotización muestra lo que realmente se aplicaría")
-        void userRequestsMoreThanMax() {
-            givenWallet(9_000);
-
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 8_000L);
-
-            assertThat(quote.requestedKeys()).isEqualTo(8_000);
-            assertThat(quote.effectiveKeys()).isEqualTo(5_000);
-        }
-
-        @Test
-        @DisplayName("sin llaves: paga todo en dinero")
+        @DisplayName("sin llaves, o sin billetera: no puede usar ninguna")
         void noKeys() {
             givenWallet(0);
+            assertThat(quote(product(1, 50), 1).usableKeys()).isZero();
 
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), null);
-
-            assertThat(quote.effectiveKeys()).isZero();
-            assertThat(quote.cashToPayCents()).isEqualTo(PRICE);
+            when(keyWalletRepository.findByConsumerId(CONSUMER)).thenReturn(Optional.empty());
+            KeyCoverageQuoteResponseDTO withoutWallet = quote(product(1, 50), 1);
+            assertThat(withoutWallet.availableKeys()).isZero();
+            assertThat(withoutWallet.usableKeys()).isZero();
         }
 
         @Test
-        @DisplayName("respaldo insuficiente: la cobertura se limita a lo que KEYS_RESERVE puede pagar hoy")
+        @DisplayName("respaldo insuficiente: lo utilizable baja a lo que KEYS_RESERVE puede pagar, en llaves enteras")
         void insufficientBacking() {
             givenWallet(9_000);
             when(treasuryService.keysReserveHeadroomCents()).thenReturn(1_500_500L); // $15.005
 
-            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), null);
+            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 1);
 
+            assertThat(quote.maxApplicableKeys()).isEqualTo(5_000);
+            assertThat(quote.usableKeys()).isEqualTo(1_500);
             assertThat(quote.backingSufficient()).isFalse();
-            assertThat(quote.effectiveKeys()).isEqualTo(1_500); // llaves enteras
-            assertThat(quote.cashToPayCents()).isEqualTo(8_500_000L);
         }
 
         @Test
-        @DisplayName("promoción al 70 %: informa el tope especial y hasta cuándo rige")
+        @DisplayName("varias unidades: el total y el tope suman unidad por unidad, y hay una sola línea por producto")
+        void severalUnitsOfTheSameProduct() {
+            givenWallet(20_000);
+
+            KeyCoverageQuoteResponseDTO quote = quote(product(1, 50), 3);
+
+            assertThat(quote.totalCents()).isEqualTo(3 * PRICE);
+            assertThat(quote.maxApplicableKeys()).isEqualTo(15_000);
+            assertThat(quote.items()).singleElement()
+                    .satisfies(item -> {
+                        assertThat(item.productId()).isEqualTo(1L);
+                        assertThat(item.maxKeysPct()).isEqualTo(50);
+                        assertThat(item.promotionEndsAt()).isNull();
+                    });
+        }
+
+        @Test
+        @DisplayName("promoción al 70 %: sube el tope e informa hasta cuándo rige")
         void specialPromotionIsReported() {
             Product product = product(1, 50);
             givenLivePromotion(product, promotion(7, 70, 100_000_000L, null));
             givenWallet(9_000);
 
-            KeyCoverageQuoteResponseDTO quote = quote(product, null);
+            KeyCoverageQuoteResponseDTO quote = quote(product, 1);
 
-            assertThat(quote.effectiveKeys()).isEqualTo(7_000);
-            assertThat(quote.cashToPayCents()).isEqualTo(3_000_000L);
+            assertThat(quote.maxApplicableKeys()).isEqualTo(7_000);
+            assertThat(quote.usableKeys()).isEqualTo(7_000);
             KeyCoverageQuoteResponseDTO.Item item = quote.items().get(0);
-            assertThat(item.specialPromotion()).isTrue();
             assertThat(item.maxKeysPct()).isEqualTo(70);
             assertThat(item.promotionEndsAt()).isEqualTo(NOW.plusDays(5));
+        }
+
+        @Test
+        @DisplayName("promoción que alcanza para una unidad de dos: la línea anuncia el tope ordinario, el total sí cuenta el margen")
+        void promotionCoveringOnlySomeUnitsIsNotAdvertisedForAll() {
+            Product product = product(1, 50);
+            // Presupuesto para el margen de una sola unidad ($20.000 de $30.000).
+            givenLivePromotion(product, promotion(7, 70, 3_000_000L, null));
+            givenWallet(20_000);
+
+            KeyCoverageQuoteResponseDTO quote = quote(product, 2);
+
+            assertThat(quote.maxApplicableKeys()).isEqualTo(12_000); // 7.000 + 5.000
+            KeyCoverageQuoteResponseDTO.Item item = quote.items().get(0);
+            assertThat(item.maxKeysPct()).isEqualTo(50);
+            assertThat(item.promotionEndsAt()).isNull();
         }
     }
 }

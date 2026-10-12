@@ -152,28 +152,63 @@ class KeyCoveragePromotionTest {
         }
 
         @Test
-        @DisplayName("la garantía que vuelve al cierre descuenta lo que repuso KEYS_RESERVE")
-        void returnableGuaranteeExcludesWhatWasDrawn() {
-            KeyCoveragePromotion promotion = authorized();
-            promotion.registerGuaranteeDrawn(150_000L);
+        @DisplayName("deja de cubrir un producto cuando lo que queda no alcanza para el margen de una unidad")
+        void canCoverOneUnitUntilTheBudgetRunsOut() {
+            KeyCoveragePromotion promotion = authorized(); // 70 %, presupuesto $10.000
+            // Producto de $40.000 con tope ordinario 50 %: el margen de una unidad son $8.000.
+            assertThat(promotion.canCoverOneUnit(4_000_000L, 50, 1_000L)).isTrue();
 
-            assertThat(promotion.returnableGuaranteeCents()).isEqualTo(850_000L);
+            promotion.reserve(300_000L); // quedan $7.000
+            assertThat(promotion.canCoverOneUnit(4_000_000L, 50, 1_000L)).isFalse();
+            // Un producto más barato todavía cabe: su margen son $4.000.
+            assertThat(promotion.canCoverOneUnit(2_000_000L, 50, 1_000L)).isTrue();
         }
 
         @Test
-        @DisplayName("la garantía no se devuelve con la promoción abierta ni con compras en curso")
-        void guaranteeReturnRequiresEndedAndNothingReserved() {
-            KeyCoveragePromotion promotion = authorized();
-            assertThatThrownBy(() -> promotion.markGuaranteeReturned(END)).isInstanceOf(InvalidStatusException.class);
+        @DisplayName("al cierre vuelve lo no comprometido: ni lo que el Fondo ya puso ni lo reservado por compras en curso")
+        void releasableExcludesFundedAndReserved() {
+            KeyCoveragePromotion promotion = authorized(); // presupuesto $10.000
+            promotion.registerGuaranteeDrawn(150_000L);
+            promotion.reserve(100_000L);
 
+            assertThat(promotion.releasableGuaranteeCents()).isEqualTo(750_000L);
+        }
+
+        @Test
+        @DisplayName("con una compra en curso se devuelve por partes: primero lo libre, y se salda cuando el pago se resuelve")
+        void guaranteeIsReturnedInParts() {
+            KeyCoveragePromotion promotion = authorized();
             promotion.reserve(100_000L);
             promotion.end();
-            assertThatThrownBy(() -> promotion.markGuaranteeReturned(END)).isInstanceOf(InvalidStatusException.class);
 
-            promotion.release(100_000L);
-            promotion.markGuaranteeReturned(END);
+            promotion.registerGuaranteeReturned(promotion.releasableGuaranteeCents(), END);
+            assertThat(promotion.getGuaranteeReturnedCents()).isEqualTo(900_000L);
+            assertThat(promotion.hasGuarantee()).as("todavía retiene lo de la compra en curso").isTrue();
+            assertThat(promotion.releasableGuaranteeCents()).isZero();
+
+            promotion.release(100_000L); // el pago falló
+            promotion.registerGuaranteeReturned(promotion.releasableGuaranteeCents(), END);
+
+            assertThat(promotion.getGuaranteeReturnedCents()).isEqualTo(1_000_000L);
             assertThat(promotion.hasGuarantee()).isFalse();
             assertThat(promotion.getStatus()).isEqualTo(KeyCoveragePromotionStatus.ENDED);
+        }
+
+        @Test
+        @DisplayName("el fondo no se devuelve con la promoción abierta")
+        void guaranteeIsNotReturnedWhileRunning() {
+            KeyCoveragePromotion promotion = authorized();
+
+            assertThatThrownBy(() -> promotion.registerGuaranteeReturned(1L, END))
+                    .isInstanceOf(InvalidStatusException.class);
+        }
+
+        @Test
+        @DisplayName("el límite por usuario no puede superar el presupuesto")
+        void perUserLimitCannotExceedBudget() {
+            assertThatThrownBy(() -> KeyCoveragePromotion.draft(
+                    new Terms("Límite mayor", 70, START, END, 1_000_000L, 1_000_001L, null)))
+                    .isInstanceOf(BusinessException.class);
         }
     }
 }

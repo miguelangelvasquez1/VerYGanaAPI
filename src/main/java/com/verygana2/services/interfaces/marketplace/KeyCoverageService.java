@@ -27,6 +27,9 @@ public interface KeyCoverageService {
      */
     long backingAvailableCents(KeyCoveragePlan plan);
 
-    /** Cotización previa a la compra. No reserva llaves, stock ni presupuesto. */
+    /**
+     * Límites del carrito para pagar con llaves, antes de comprar. No depende de cuántas
+     * llaves quiera usar el usuario y no reserva llaves, stock ni presupuesto.
+     */
     KeyCoverageQuoteResponseDTO quote(Long consumerId, KeyCoverageQuoteRequestDTO request);
 }

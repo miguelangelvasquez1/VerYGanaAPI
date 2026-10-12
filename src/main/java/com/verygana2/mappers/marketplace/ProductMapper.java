@@ -110,6 +110,7 @@ public interface ProductMapper {
     @Mapping(target = "price", source = "priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
+    @Mapping(target = "specialKeyPromotion", ignore = true) // lo asigna ProductKeyPromotionResolver, por página
     ProductResponseDTO toProductResponseDTO(Product product);
 
     @Mapping(target = "consumerName", source = "consumer.name")
@@ -123,6 +124,7 @@ public interface ProductMapper {
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
     @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
+    @Mapping(target = "specialKeyPromotion", ignore = true)
     ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
 
     @Mapping(target = "id", source = "product.id")
@@ -140,6 +142,7 @@ public interface ProductMapper {
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "isGameReward", ignore = true)
     @Mapping(target = "commercialPublicId", source = "product.commercial.user.publicId")
+    @Mapping(target = "specialKeyPromotion", ignore = true)
     ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
 
     @AfterMapping

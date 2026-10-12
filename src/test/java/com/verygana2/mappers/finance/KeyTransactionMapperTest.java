@@ -120,8 +120,6 @@ class KeyTransactionMapperTest {
             // El disponible ya bajó al reservar: aquí no se mueve.
             assertThat(dto.getPurchaseKeysDelta()).isNull();
             assertThat(dto.getBlockedPurchaseKeysDelta()).isEqualTo(-5L);
-            assertThat(dto.getPurchaseKeysBalanceAfter()).isEqualTo(12L);
-            assertThat(dto.getConnectivityKeysBalanceAfter()).isEqualTo(3L);
             assertThat(dto.getOriginType()).isEqualTo(com.verygana2.models.enums.finance.KeyOriginType.COPAYMENT);
         }
 
@@ -130,7 +128,6 @@ class KeyTransactionMapperTest {
         void legacyRowHasNoBalances() {
             KeyTransactionResponseDTO dto = mapper.toKeyTransactionResponseDTO(keyTransaction(5000L, null));
 
-            assertThat(dto.getPurchaseKeysBalanceAfter()).isNull();
             assertThat(dto.getOriginType()).isEqualTo(com.verygana2.models.enums.finance.KeyOriginType.LEGACY);
         }
 

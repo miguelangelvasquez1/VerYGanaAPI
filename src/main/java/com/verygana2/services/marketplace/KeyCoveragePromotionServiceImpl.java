@@ -35,6 +35,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.marketplace.KeyCoveragePromotionOfferRepository;
 import com.verygana2.repositories.marketplace.KeyCoveragePromotionRepository;
 import com.verygana2.services.interfaces.NotificationService;
+import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
@@ -55,6 +56,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
     private final ProductService productService;
     private final TreasuryService treasuryService;
     private final NotificationService notificationService;
+    private final ProsperityService prosperityService;
     private final CommissionPolicy commissionPolicy;
     private final Clock clock;
 
@@ -63,6 +65,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
     @Override
     @Transactional
     public KeyCoveragePromotionResponseDTO create(KeyCoveragePromotionRequestDTO request) {
+        requireFutureEnd(request);
         KeyCoveragePromotion promotion = promotionRepository.save(KeyCoveragePromotion.draft(toTerms(request)));
         return toResponse(promotion);
     }
@@ -70,6 +73,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
     @Override
     @Transactional
     public KeyCoveragePromotionResponseDTO updateDraft(Long promotionId, KeyCoveragePromotionRequestDTO request) {
+        requireFutureEnd(request);
         KeyCoveragePromotion promotion = lock(promotionId);
         promotion.updateDraft(toTerms(request));
         return toResponse(promotion);
@@ -98,6 +102,8 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
             throw new BusinessException("El producto ya está en otra promoción especial que no ha cerrado");
         }
 
+        requireRoomForOneUnit(promotion, product);
+
         offerRepository.save(KeyCoveragePromotionOffer.invite(promotion, product));
         return toResponse(promotion);
     }
@@ -125,6 +131,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
         if (offers.isEmpty()) {
             throw new BusinessException("La promoción no tiene ofertas: solo aplica a las expresamente incorporadas");
         }
+        offers.forEach(offer -> requireStillEligible(promotion, offer.getProduct()));
 
         promotion.authorize(adminUserId, ZonedDateTime.now(clock));
 
@@ -161,7 +168,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
     public KeyCoveragePromotionResponseDTO end(Long promotionId) {
         KeyCoveragePromotion promotion = lock(promotionId);
         promotion.end();
-        returnGuaranteeIfSettled(promotion);
+        returnUncommittedGuarantee(promotion);
         return toResponse(promotion);
     }
 
@@ -234,6 +241,9 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
     public List<ActiveKeyCoveragePromotionResponseDTO> listActive() {
         return offerRepository.findAllLive(ZonedDateTime.now(clock)).stream()
                 .filter(offer -> offer.getProduct().getStatus() == ProductStatus.ACTIVE)
+                // Sin presupuesto para una unidad ya no aplica: no se anuncia.
+                .filter(offer -> offer.getPromotion().canCoverOneUnit(offer.getProduct().getPriceCents(),
+                        offer.getProduct().getMaxKeysPct(), keyValueCents))
                 .map(offer -> new ActiveKeyCoveragePromotionResponseDTO(
                         offer.getProduct().getId(),
                         offer.getPromotion().getName(),
@@ -264,7 +274,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
 
     @Override
     @Transactional
-    public void confirmForPurchase(Purchase purchase, long keysOutflowCents) {
+    public void confirmForPurchase(Purchase purchase) {
         Map<Long, Long> excessByPromotion = excessByPromotion(purchase);
         if (excessByPromotion.isEmpty()) {
             return;
@@ -272,9 +282,11 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
         for (KeyCoveragePromotion promotion : promotionRepository.findAllByIdForUpdate(excessByPromotion.keySet())) {
             long excess = excessByPromotion.get(promotion.getId());
             promotion.confirm(excess);
-            long drawn = treasuryService.drawPromotionGuarantee(excess, keysOutflowCents, treasuryReference(promotion));
-            if (drawn > 0) {
-                promotion.registerGuaranteeDrawn(drawn);
+            // El exceso es lo que la promoción dejó cubrir por encima del tope ordinario:
+            // lo pone el Fondo, no el respaldo ordinario de las llaves.
+            long funded = treasuryService.fundPromotionExcess(excess, treasuryReference(promotion));
+            if (funded > 0) {
+                promotion.registerGuaranteeDrawn(funded);
             }
         }
     }
@@ -289,6 +301,21 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
         for (KeyCoveragePromotion promotion : promotionRepository.findAllByIdForUpdate(excessByPromotion.keySet())) {
             promotion.release(excessByPromotion.get(promotion.getId()));
         }
+    }
+
+    @Override
+    @Transactional
+    public ExcessRefund restoreForRefund(PurchaseItem item) {
+        Long promotionId = item.getKeyCoveragePromotionId();
+        Long excess = item.getPromotionExcessCents();
+        if (promotionId == null || excess == null || excess <= 0) {
+            return ExcessRefund.none();
+        }
+        KeyCoveragePromotion promotion = lock(promotionId);
+        long funded = promotion.restore(excess);
+        log.info("[KEY-PROMOTION] Reembolso del ítem {}: promoción {} recupera {} de presupuesto y {} del Fondo",
+                item.getId(), promotionId, excess, funded);
+        return new ExcessRefund(funded, promotion.hasGuarantee(), treasuryReference(promotion));
     }
 
     // ─── Cierre ───────────────────────────────────────────────────────────────
@@ -311,26 +338,61 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
             promotion.end();
             log.info("[KEY-PROMOTION] Promoción {} cerrada por fin de vigencia", promotionId);
         }
-        returnGuaranteeIfSettled(promotion);
+        returnUncommittedGuarantee(promotion);
     }
 
     /**
-     * Devuelve a FORTIFICATION la garantía no usada. Espera a que no queden compras con
-     * pago en curso: una de ellas todavía podría necesitarla al aprobarse.
+     * Devuelve a FORTIFICATION lo que la promoción cerrada ya no tiene comprometido. Lo
+     * reservado por compras con pago en curso se queda en el bolsillo: si el pago se
+     * aprueba el Fondo lo pone, y si falla se devuelve en la siguiente pasada.
      */
-    private void returnGuaranteeIfSettled(KeyCoveragePromotion promotion) {
-        if (promotion.getStatus() != KeyCoveragePromotionStatus.ENDED
-                || !promotion.hasGuarantee()
-                || promotion.getReservedCents() > 0) {
+    private void returnUncommittedGuarantee(KeyCoveragePromotion promotion) {
+        if (promotion.getStatus() != KeyCoveragePromotionStatus.ENDED || !promotion.hasGuarantee()) {
             return;
         }
-        long returnable = promotion.returnableGuaranteeCents();
-        if (returnable > 0) {
-            treasuryService.returnPromotionGuarantee(returnable, treasuryReference(promotion));
+        long releasable = promotion.releasableGuaranteeCents();
+        if (releasable > 0) {
+            treasuryService.returnPromotionGuarantee(releasable, treasuryReference(promotion));
         }
-        promotion.markGuaranteeReturned(ZonedDateTime.now(clock));
-        log.info("[KEY-PROMOTION] Garantía de la promoción {} devuelta a FORTIFICATION: {} centavos",
-                promotion.getId(), returnable);
+        promotion.registerGuaranteeReturned(releasable, ZonedDateTime.now(clock));
+        if (releasable > 0 || promotion.getGuaranteeReturnedAt() != null) {
+            log.info("[KEY-PROMOTION] Promoción {}: {} centavos devueltos a FORTIFICATION, {} retenidos por compras en curso",
+                    promotion.getId(), releasable, promotion.getReservedCents());
+        }
+    }
+
+    // ─── Validaciones ─────────────────────────────────────────────────────────
+
+    /** Una promoción cuya vigencia ya terminó no puede aplicar a ninguna compra. */
+    private void requireFutureEnd(KeyCoveragePromotionRequestDTO request) {
+        if (request.endsAt() != null && !request.endsAt().isAfter(ZonedDateTime.now(clock))) {
+            throw new BusinessException("La fecha de fin de la promoción ya pasó");
+        }
+    }
+
+    /**
+     * El presupuesto debe alcanzar al menos para subir el tope de una unidad del producto:
+     * si no, la promoción nunca le aplicaría. También descarta precios tan bajos que el
+     * tope especial y el ordinario dan las mismas llaves.
+     */
+    private void requireRoomForOneUnit(KeyCoveragePromotion promotion, Product product) {
+        if (!promotion.canCoverOneUnit(product.getPriceCents(), product.getMaxKeysPct(), keyValueCents)) {
+            throw new BusinessException("El presupuesto de la promoción no alcanza para subir el tope de una unidad de \""
+                    + product.getName() + "\"");
+        }
+    }
+
+    /** Entre invitar y autorizar pudo cambiar el producto, su dueño o el presupuesto del borrador. */
+    private void requireStillEligible(KeyCoveragePromotion promotion, Product product) {
+        if (product.getStatus() != ProductStatus.ACTIVE) {
+            throw new BusinessException("El producto \"" + product.getName() + "\" ya no está activo: quítalo de la promoción");
+        }
+        CommercialDetails commercial = product.getCommercial();
+        if (commercial.getCurrentPlan() == null || commercial.getCurrentPlan().getCode() != PlanCode.STANDARD) {
+            throw new BusinessException("El empresario de \"" + product.getName()
+                    + "\" ya no es Empresa Tipo B (plan STANDARD): quita el producto de la promoción");
+        }
+        requireRoomForOneUnit(promotion, product);
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -420,6 +482,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
                 promotion.availableBudgetCents(),
                 promotion.getMaxExcessCentsPerUser(),
                 promotion.getGuaranteeDrawnCents(),
+                promotion.getGuaranteeReturnedCents(),
                 promotion.getGuaranteeReturnedAt(),
                 promotion.getAuthorizedAt(),
                 offers.stream().map(this::toOfferResponse).toList());
@@ -438,6 +501,9 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
         int commissionPct = accepted
                 ? offer.getAcceptedCommissionPct()
                 : commissionPolicy.commissionPctFor(product.getCommercial());
+        // Sobre el precio completo, sin descontar Saldo de Prosperidad: son las condiciones
+        // estables de la oferta. El saldo se informa aparte para que el empresario sepa
+        // que sus ventas reales pueden causar menos comisión.
         long commission = price * commissionPct / 100;
 
         return new KeyCoveragePromotionOfferResponseDTO(
@@ -459,6 +525,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
                 price - maxCoverage,
                 commissionPct,
                 commission,
-                price - commission);
+                price - commission,
+                prosperityService.absorbableBalanceCents(product.getCommercial()));
     }
 }

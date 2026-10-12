@@ -260,10 +260,11 @@ public class CopaymentServiceImpl implements CopaymentService {
      * correo de confirmación de compra (ver SendGridEmailService.buildItemsHtml).
      */
     private void settleTreasury(Copayment copayment, Purchase purchase, long keysValueCents, long cashAmountCents) {
-        // El exceso cubierto bajo una promoción especial pasa de reservado a consumido, y
-        // su garantía repone KEYS_RESERVE si este pago lo dejaría bajo el umbral crítico.
-        // Va antes de la conversión para que esta encuentre el fondo ya repuesto.
-        keyCoveragePromotionService.confirmForPurchase(purchase, keysValueCents);
+        // El exceso cubierto bajo una promoción especial pasa de reservado a consumido y
+        // lo asume el Fondo: PROMOTIONS_RESERVE repone esa parte a KEYS_RESERVE. Va antes
+        // de la conversión (misma transacción, mismo saldo final) para que KEYS_RESERVE
+        // pague todas las llaves con ese dinero ya adentro y no roce su umbral crítico.
+        keyCoveragePromotionService.confirmForPurchase(purchase);
 
         // KEYS_RESERVE → PAYOUTS_PENDING por el valor de las llaves
         if (keysValueCents > 0) {

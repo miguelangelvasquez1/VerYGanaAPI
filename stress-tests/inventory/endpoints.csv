@@ -8,6 +8,8 @@ GET,/admin/audit-logs/critical,A,
 GET,/admin/cash-refunds,A,
 GET,/admin/cash-refunds/by-purchase-item/{purchaseItemId},A,
 PATCH,/admin/cash-refunds/{id}/mark-paid,,admin
+POST,/admin/key-ledger/expiry,,admin
+POST,/admin/key-ledger/reconciliation,,admin
 GET,/admin/key-promotions,,admin
 POST,/admin/key-promotions,,admin
 GET,/admin/key-promotions/{id},,admin

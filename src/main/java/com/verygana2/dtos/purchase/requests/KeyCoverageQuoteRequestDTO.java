@@ -4,12 +4,16 @@ import java.util.List;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.PositiveOrZero;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * Carrito a cotizar. No lleva las llaves que el usuario quiere usar: la cotización da
+ * los límites y el valor de la llave, y con eso el cliente calcula el dinero a pagar
+ * para cualquier cantidad sin volver a preguntar.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,11 +23,4 @@ public class KeyCoverageQuoteRequestDTO {
     @Valid
     @NotEmpty(message = "Quote must have at least one item")
     private List<CreatePurchaseItemRequestDTO> items;
-
-    /**
-     * Llaves que el usuario quiere aplicar. Null = cotizar con todas las que pueda usar.
-     * Si pide más de las permitidas, la cotización muestra lo que realmente se aplicaría.
-     */
-    @PositiveOrZero(message = "keysToUse cannot be negative")
-    private Long keysToUse;
 }

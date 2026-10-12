@@ -780,45 +780,70 @@ class TreasuryServiceImplTest {
         }
 
         @Test
-        @DisplayName("KEYS_RESERVE aguanta el pago: la garantía no se toca")
-        void drawDoesNothingWhenKeysReserveCanPay() {
-            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
+        @DisplayName("venta con promoción: el Fondo repone a KEYS_RESERVE el exceso, aunque KEYS_RESERVE tenga de sobra")
+        void fundMovesTheExcessToKeysReserve() {
             TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 10_000_000L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 5_000_000L);
 
-            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+            long funded = service.fundPromotionExcess(2_000_000L, UUID.randomUUID());
 
-            assertThat(drawn).isZero();
-            assertThat(keysReserve.getBalanceCents()).isEqualTo(10_000_000L);
+            assertThat(funded).isEqualTo(2_000_000L);
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(12_000_000L);
+            assertThat(promotions.getBalanceCents()).isEqualTo(3_000_000L);
+            verify(treasuryMovementRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                    m.getConcept() == com.verygana2.models.enums.finance.MovementConcept.PROMOTION_GUARANTEE_TO_KEYS_RESERVE
+                            && m.getAmountCents() == 2_000_000L));
+        }
+
+        @Test
+        @DisplayName("venta sin exceso: no mueve nada ni bloquea cuentas")
+        void fundWithoutExcessDoesNothing() {
+            assertThat(service.fundPromotionExcess(0L, UUID.randomUUID())).isZero();
+
+            verify(treasuryAccountRepository, org.mockito.Mockito.never()).findByCodeForUpdate(any());
             verify(treasuryMovementRepository, org.mockito.Mockito.never()).save(any());
         }
 
         @Test
-        @DisplayName("el pago dejaría KEYS_RESERVE bajo el umbral crítico: la garantía repone solo el faltante")
-        void drawCoversOnlyTheShortfall() {
-            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
-            // 7.500.000 − 7.000.000 = 500.000, medio millón por debajo del umbral.
-            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 7_500_000L);
-            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 5_000_000L);
+        @DisplayName("bolsillo descuadrado: mueve lo que hay y no tumba la venta ya pagada")
+        void fundIsCappedByThePocketBalance() {
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 0L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 500_000L);
 
-            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+            long funded = service.fundPromotionExcess(2_000_000L, UUID.randomUUID());
 
-            assertThat(drawn).isEqualTo(500_000L);
-            assertThat(keysReserve.getBalanceCents()).isEqualTo(8_000_000L);
-            assertThat(promotions.getBalanceCents()).isEqualTo(4_500_000L);
+            assertThat(funded).isEqualTo(500_000L);
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(500_000L);
+            assertThat(promotions.getBalanceCents()).isZero();
         }
 
         @Test
-        @DisplayName("la garantía nunca repone más que el exceso de esa compra")
-        void drawIsCappedByThePurchaseExcess() {
-            when(treasuryConfig.getKeysReserveCriticalThresholdCents()).thenReturn(1_000_000L);
-            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 0L);
-            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 5_000_000L);
+        @DisplayName("reembolso con la promoción abierta: KEYS_RESERVE devuelve el exceso a PROMOTIONS_RESERVE")
+        void refundExcessGoesBackToThePromotionsPocket() {
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 12_000_000L);
+            TreasuryAccount promotions = stub(TreasuryAccountCode.PROMOTIONS_RESERVE, 3_000_000L);
 
-            long drawn = service.drawPromotionGuarantee(2_000_000L, 7_000_000L, UUID.randomUUID());
+            service.refundPromotionExcess(2_000_000L, true, UUID.randomUUID());
 
-            assertThat(drawn).isEqualTo(2_000_000L);
-            assertThat(keysReserve.getBalanceCents()).isEqualTo(2_000_000L);
-            assertThat(promotions.getBalanceCents()).isEqualTo(3_000_000L);
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(10_000_000L);
+            assertThat(promotions.getBalanceCents()).isEqualTo(5_000_000L);
+            verify(treasuryMovementRepository).save(org.mockito.ArgumentMatchers.argThat(m ->
+                    m.getConcept() == com.verygana2.models.enums.finance.MovementConcept.PROMOTION_EXCESS_REFUND
+                            && m.getAmountCents() == 2_000_000L));
+        }
+
+        @Test
+        @DisplayName("reembolso con la promoción ya cerrada: el exceso va directo a FORTIFICATION")
+        void refundExcessGoesToFortificationWhenThePromotionIsClosed() {
+            TreasuryAccount keysReserve = stub(TreasuryAccountCode.KEYS_RESERVE, 12_000_000L);
+            TreasuryAccount fortification = stub(TreasuryAccountCode.FORTIFICATION, 1_000_000L);
+
+            service.refundPromotionExcess(2_000_000L, false, UUID.randomUUID());
+
+            assertThat(keysReserve.getBalanceCents()).isEqualTo(10_000_000L);
+            assertThat(fortification.getBalanceCents()).isEqualTo(3_000_000L);
+            verify(treasuryAccountRepository, org.mockito.Mockito.never())
+                    .findByCodeForUpdate(TreasuryAccountCode.PROMOTIONS_RESERVE);
         }
 
         @Test

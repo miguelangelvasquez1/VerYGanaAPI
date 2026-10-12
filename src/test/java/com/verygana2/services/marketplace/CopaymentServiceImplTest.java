@@ -221,7 +221,7 @@ class CopaymentServiceImplTest {
                     org.mockito.ArgumentMatchers.eq(copayment.getId()), any());
             verify(treasuryService).convertKeysToPayoutPending(50_000L, copayment.getId());
             // El presupuesto de promoción comprometido por la compra se consume al aprobarse.
-            verify(keyCoveragePromotionService).confirmForPurchase(any(), org.mockito.ArgumentMatchers.eq(50_000L));
+            verify(keyCoveragePromotionService).confirmForPurchase(any());
             verify(treasuryService).moveCashToPayoutPending(50_000L, copayment.getId());
         }
 
@@ -317,8 +317,7 @@ class CopaymentServiceImplTest {
             verify(keyLedgerService).releaseCopayment(wallet, 50_000L, copayment.getId());
             // ...y se libera si el pago falla.
             verify(keyCoveragePromotionService).releaseForPurchase(any());
-            verify(keyCoveragePromotionService, org.mockito.Mockito.never())
-                    .confirmForPurchase(any(), org.mockito.ArgumentMatchers.anyLong());
+            verify(keyCoveragePromotionService, org.mockito.Mockito.never()).confirmForPurchase(any());
         }
     }
 

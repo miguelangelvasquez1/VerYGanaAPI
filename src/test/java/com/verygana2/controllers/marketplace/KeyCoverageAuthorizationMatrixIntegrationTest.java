@@ -60,7 +60,8 @@ import com.verygana2.services.interfaces.marketplace.PurchaseService;
  * service: un carrito vacío responde 400 sin reservar nada.
  */
 @WebMvcTest({ KeyCoveragePromotionAdminController.class, KeyCoveragePromotionOfferController.class,
-        KeyCoverageController.class, PurchaseController.class })
+        KeyCoverageController.class, PurchaseController.class,
+        com.verygana2.controllers.admin.KeyLedgerAdminController.class })
 @Import({ SecurityConfig.class, KeyCoverageAuthorizationMatrixIntegrationTest.TestKeysConfig.class })
 @DisplayName("MP-12 — matriz de autorización de promociones de llaves y cotización")
 class KeyCoverageAuthorizationMatrixIntegrationTest {
@@ -71,6 +72,8 @@ class KeyCoverageAuthorizationMatrixIntegrationTest {
     @MockitoBean private KeyCoveragePromotionService promotionService;
     @MockitoBean private KeyCoverageService keyCoverageService;
     @MockitoBean private PurchaseService purchaseService;
+    @MockitoBean private com.verygana2.services.interfaces.finance.KeyExpiryService keyExpiryService;
+    @MockitoBean private com.verygana2.services.interfaces.finance.KeyLedgerService keyLedgerService;
     @MockitoBean private CustomUserDetailsService customUserDetailsService;
     @MockitoBean private UserIdResolver userIdResolver;
     @MockitoBean private FeatureFlagService featureFlagService;
@@ -144,6 +147,9 @@ class KeyCoverageAuthorizationMatrixIntegrationTest {
                 new Endpoint("POST", "/admin/key-promotions/3/pause", null, ADMIN),
                 new Endpoint("POST", "/admin/key-promotions/3/resume", null, ADMIN),
                 new Endpoint("POST", "/admin/key-promotions/3/end", null, ADMIN),
+                new Endpoint("POST", "/admin/key-ledger/expiry", null, ADMIN),
+                new Endpoint("POST", "/admin/key-ledger/expiry?asOf=2026-12-01T06:00:00Z", null, ADMIN),
+                new Endpoint("POST", "/admin/key-ledger/reconciliation", null, ADMIN),
                 new Endpoint("GET", "/commercial/key-promotions/offers", null, COMMERCIAL),
                 new Endpoint("POST", "/commercial/key-promotions/offers/8/accept", null, COMMERCIAL),
                 new Endpoint("POST", "/commercial/key-promotions/offers/8/reject", null, COMMERCIAL),
@@ -274,5 +280,18 @@ class KeyCoverageAuthorizationMatrixIntegrationTest {
 
         assertThat(status).isEqualTo(400);
         verify(purchaseService, never()).createPurchase(any(), any());
+    }
+
+    @Test
+    @DisplayName("vencimiento sin asOf corre con la fecha real; con asOf pasa esa fecha al service")
+    void expiry_routesAsOfToTheSimulatedRun() throws Exception {
+        String token = "Bearer " + tokenWithRole(1L, "ROLE_ADMIN");
+
+        mockMvc.perform(post("/admin/key-ledger/expiry").header("Authorization", token));
+        mockMvc.perform(post("/admin/key-ledger/expiry").param("asOf", "2026-12-01T06:00:00Z")
+                .header("Authorization", token));
+
+        verify(keyExpiryService).processExpiredKeys();
+        verify(keyExpiryService).processExpiredKeysAsOf(java.time.ZonedDateTime.parse("2026-12-01T06:00:00Z"));
     }
 }

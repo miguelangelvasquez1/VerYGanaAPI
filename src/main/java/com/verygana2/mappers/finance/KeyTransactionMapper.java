@@ -22,7 +22,5 @@ public abstract class KeyTransactionMapper {
     @Mapping(target = "purchaseKeysDelta", source = "purchaseKeysDeltaCents", qualifiedByName = "centsToKeysDelta")
     @Mapping(target = "connectivityKeysDelta", source = "connectivityKeysDeltaCents", qualifiedByName = "centsToKeysDelta")
     @Mapping(target = "blockedPurchaseKeysDelta", source = "blockedPurchaseDeltaCents", qualifiedByName = "centsToKeysDelta")
-    @Mapping(target = "purchaseKeysBalanceAfter", source = "purchaseBalanceAfterCents", qualifiedByName = "centsToKeysDelta")
-    @Mapping(target = "connectivityKeysBalanceAfter", source = "connectivityBalanceAfterCents", qualifiedByName = "centsToKeysDelta")
     public abstract KeyTransactionResponseDTO toKeyTransactionResponseDTO(KeyTransaction kt);
 }

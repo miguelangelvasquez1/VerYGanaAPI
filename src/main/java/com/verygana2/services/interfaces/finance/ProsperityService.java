@@ -1,5 +1,6 @@
 package com.verygana2.services.interfaces.finance;
 
+import com.verygana2.models.userDetails.CommercialDetails;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -48,6 +49,13 @@ public interface ProsperityService {
     ProsperityMovementResponseDTO adjust(Long commercialId, ProsperityAdjustmentRequestDTO request, Long adminId);
 
     ProsperitySummaryResponseDTO getSummary(Long commercialId);
+
+    /**
+     * Saldo de Prosperidad que hoy absorbería ventas de este comercial: su saldo si es
+     * STANDARD, 0 si no tiene cuenta o si dejó de ser STANDARD (saldo congelado). Solo
+     * lectura, para estimaciones: lo que absorbe una venta real lo fija absorbPurchase.
+     */
+    long absorbableBalanceCents(CommercialDetails commercial);
 
     Page<ProsperityMovementResponseDTO> getMovements(Long commercialId, Pageable pageable);
 

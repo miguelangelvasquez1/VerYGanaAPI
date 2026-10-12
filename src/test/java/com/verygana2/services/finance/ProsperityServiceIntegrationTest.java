@@ -193,6 +193,26 @@ class ProsperityServiceIntegrationTest {
         return accountRepository.findByCommercialId(commercial.getId()).orElseThrow().getBalanceCents();
     }
 
+    // ─── Saldo absorbible (estimaciones) ──────────────────────────────────────
+
+    @Test
+    @DisplayName("saldo absorbible: el saldo del STANDARD; 0 sin cuenta y 0 mientras está congelado")
+    void absorbableBalance() {
+        CommercialDetails commercial = standardCommercial();
+        assertThat(service.absorbableBalanceCents(commercial)).isZero(); // aún sin Umbral
+
+        invest(commercial, ONE_MILLION);
+        assertThat(service.absorbableBalanceCents(commercial)).isEqualTo(4 * ONE_MILLION);
+
+        // Dejó de ser STANDARD: conserva el saldo, pero no absorbe ventas.
+        Plan standard = commercial.getCurrentPlan();
+        commercial.setCurrentPlan(plan(PlanCode.BASIC, null));
+        assertThat(service.absorbableBalanceCents(commercial)).isZero();
+
+        commercial.setCurrentPlan(standard);
+        assertThat(service.absorbableBalanceCents(commercial)).isEqualTo(4 * ONE_MILLION);
+    }
+
     // ─── Umbral ───────────────────────────────────────────────────────────────
 
     @Nested

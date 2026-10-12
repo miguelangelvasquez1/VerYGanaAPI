@@ -31,7 +31,7 @@ public class KeyCoverageController {
     private final KeyCoverageService keyCoverageService;
     private final KeyCoveragePromotionService promotionService;
 
-    /** POST /purchases/quote — cotiza sin reservar llaves, stock ni presupuesto. */
+    /** POST /purchases/quote — límites del carrito para pagar con llaves; una llamada por carrito, no por cada cantidad de llaves. */
     @PostMapping("/purchases/quote")
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
     public ResponseEntity<KeyCoverageQuoteResponseDTO> quote(@AuthenticationPrincipal Jwt jwt,

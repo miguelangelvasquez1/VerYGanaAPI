@@ -37,10 +37,17 @@ public record KeyCoveragePromotionOfferResponseDTO(
         long minUserCashCents,
         int commissionPct,
         /**
-         * Comisión estimada sobre el precio completo: las llaves no reducen la Venta
-         * Computable. La definitiva puede ser menor si el Saldo de Prosperidad absorbe la venta.
+         * Comisión sobre el precio completo, como si el empresario no tuviera Saldo de
+         * Prosperidad: las llaves no reducen la Venta Computable. En una venta real el
+         * saldo absorbe primero su valor y la comisión es solo sobre lo no absorbido.
          */
         long estimatedCommissionCents,
-        /** Valor reconocido al empresario: el precio completo menos la comisión estimada. */
-        long estimatedNetToCommercialCents) {
+        /** Valor reconocido al empresario sin Saldo de Prosperidad: precio menos esa comisión. */
+        long estimatedNetToCommercialCents,
+        /**
+         * Saldo de Prosperidad que hoy absorbería ventas del empresario (0 si no aplica).
+         * Es informativo y no entra en los cálculos de esta respuesta: cambia con cada
+         * venta, y lo que el empresario acepta son condiciones que no dependen de él.
+         */
+        long prosperityBalanceCents) {
 }

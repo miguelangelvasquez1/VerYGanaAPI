@@ -22,6 +22,7 @@ public interface KeyCoveragePromotionOfferRepository extends JpaRepository<KeyCo
     @Query("""
             SELECT o FROM KeyCoveragePromotionOffer o
             JOIN FETCH o.promotion p
+            JOIN FETCH o.product
             WHERE o.product.id IN :productIds
               AND o.status = com.verygana2.models.enums.marketplace.KeyCoveragePromotionOfferStatus.ACCEPTED
               AND p.status = com.verygana2.models.enums.marketplace.KeyCoveragePromotionStatus.AUTHORIZED

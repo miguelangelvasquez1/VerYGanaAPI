@@ -23,9 +23,6 @@ public class KeyTransactionResponseDTO {
         private Long connectivityKeysDelta;
         /** Cambio del saldo bloqueado por un copago en curso. Null si el movimiento no lo toca. */
         private Long blockedPurchaseKeysDelta;
-        /** Saldo disponible tras el movimiento. Null en movimientos anteriores al Libro Mayor. */
-        private Long purchaseKeysBalanceAfter;
-        private Long connectivityKeysBalanceAfter;
         private String reason;
         private UUID referenceId;
         private ZonedDateTime expiredAt;

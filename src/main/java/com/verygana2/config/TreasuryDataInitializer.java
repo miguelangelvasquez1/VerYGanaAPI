@@ -104,8 +104,8 @@ public class TreasuryDataInitializer implements ApplicationRunner {
             TreasuryAccountCode.PROMOTIONS_RESERVE,
             "Garantía de promociones de llaves",
             "Presupuesto de las promociones especiales de cobertura con llaves (MP-12), " +
-            "apartado de FORTIFICATION al autorizarlas. Repone KEYS_RESERVE solo si un copago " +
-            "de la promoción lo dejaría bajo el umbral crítico; lo no usado vuelve a FORTIFICATION."
+            "apartado de FORTIFICATION al autorizarlas. En cada venta repone a KEYS_RESERVE el " +
+            "exceso cubierto sobre el tope ordinario; lo no consumido vuelve a FORTIFICATION."
         )
 
     );

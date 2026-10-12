@@ -208,6 +208,9 @@ financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
   connectivity-keys-percentage: ${CONNECTIVITY_KEYS_PERCENTAGE:25}
   key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
+  # POST /admin/key-ledger/expiry?asOf=... vence llaves como si fuera otra fecha. Solo
+  # para probar en dev: en producción vencería llaves antes de tiempo.
+  allow-simulated-expiry: ${ALLOW_SIMULATED_KEY_EXPIRY:true}
 
 # ============================================
 # TAXES

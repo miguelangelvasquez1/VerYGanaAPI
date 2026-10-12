@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces.marketplace;
 
 import java.util.List;
+import java.util.UUID;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -10,6 +11,7 @@ import com.verygana2.dtos.promotions.KeyCoveragePromotionOfferResponseDTO;
 import com.verygana2.dtos.promotions.KeyCoveragePromotionRequestDTO;
 import com.verygana2.dtos.promotions.KeyCoveragePromotionResponseDTO;
 import com.verygana2.models.marketplace.Purchase;
+import com.verygana2.models.marketplace.PurchaseItem;
 
 /**
  * Promociones especiales de cobertura con llaves (Contrato B 6.22.8, 7.9.2): el admin
@@ -61,13 +63,32 @@ public interface KeyCoveragePromotionService {
     void reserveForPurchase(Purchase purchase);
 
     /**
-     * Pago aprobado: lo comprometido pasa a consumido y la garantía repone KEYS_RESERVE
-     * si pagar {@code keysOutflowCents} lo dejaría bajo el umbral crítico.
+     * Pago aprobado: lo comprometido pasa a consumido y el Fondo lo asume, reponiendo ese
+     * exceso a KEYS_RESERVE (que es quien le paga al empresario todas las llaves).
      */
-    void confirmForPurchase(Purchase purchase, long keysOutflowCents);
+    void confirmForPurchase(Purchase purchase);
 
     /** Pago fallido o vencido: lo comprometido vuelve a estar disponible. */
     void releaseForPurchase(Purchase purchase);
+
+    /**
+     * Lo que tesorería debe devolverle al Fondo por el reembolso de un ítem.
+     *
+     * @param fundPocketStillHeld true si la promoción conserva su fondo apartado; false si
+     *                            ya cerró y lo devolvió a FORTIFICATION.
+     */
+    record ExcessRefund(long cents, boolean fundPocketStillHeld, UUID treasuryReference) {
+        public static ExcessRefund none() {
+            return new ExcessRefund(0L, false, null);
+        }
+    }
+
+    /**
+     * Reembolso de un ítem ya aprobado que usó una promoción: restituye el presupuesto de
+     * la promoción y dice cuánto hay que devolverle al Fondo. No mueve tesorería: lo hace
+     * quien reembolsa, después de que KEYS_RESERVE recuperó las llaves de la venta.
+     */
+    ExcessRefund restoreForRefund(PurchaseItem item);
 
     // ─── Cierre ───────────────────────────────────────────────────────────────
 
