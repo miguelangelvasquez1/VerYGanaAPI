@@ -28,6 +28,44 @@ WHERE NOT EXISTS (
     WHERE existing_category.name = seed.name
 );
 
+-- Imagen de cada categoría del marketplace, incluidas las 5 que no crea este
+-- archivo (Videojuegos, Supermercados, Música, Entretenimiento, Fitness vienen
+-- de productCategories.sql, reference seed compartido con dev/test). En ese
+-- seed no tienen imagen porque allí no hay nada que suba el archivo real; aquí
+-- sí, porque BetaPlaceholderAssetSeeder sube el JPEG placeholder al arrancar el
+-- perfil beta/demo. status VALIDATED, igual que deja ProductCategoryServiceImpl
+-- al publicar. Este INSERT no toca productCategories.sql ni afecta a dev/test.
+INSERT INTO product_category_image_assets (
+    object_key,
+    size_bytes,
+    mime_type,
+    status,
+    uploaded_at,
+    product_category_id
+)
+SELECT
+    seed.object_key,
+    20000,
+    'IMAGE_JPEG',
+    'VALIDATED',
+    NOW(),
+    category.id
+FROM (
+    SELECT 'Videojuegos' AS category_name, 'categories/beta/videojuegos.jpg' AS object_key
+    UNION ALL SELECT 'Supermercados', 'categories/beta/supermercados.jpg'
+    UNION ALL SELECT 'Música', 'categories/beta/musica.jpg'
+    UNION ALL SELECT 'Entretenimiento', 'categories/beta/entretenimiento.jpg'
+    UNION ALL SELECT 'Fitness', 'categories/beta/fitness.jpg'
+    UNION ALL SELECT 'Moda y accesorios', 'categories/beta/moda-y-accesorios.jpg'
+    UNION ALL SELECT 'Hogar y tecnología', 'categories/beta/hogar-y-tecnologia.jpg'
+) seed
+JOIN product_category category ON category.name = seed.category_name
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM product_category_image_assets existing_image
+    WHERE existing_image.product_category_id = category.id
+);
+
 -- Catálogo de productos de las marcas beta existentes.
 INSERT INTO products (
     approved_at,
@@ -101,6 +139,44 @@ WHERE NOT EXISTS (
     FROM products existing_product
     WHERE existing_product.commercial_id = commercial_details.user_id
       AND existing_product.name = seed.product_name
+);
+
+-- Imagen de cada producto. Product.imageAsset es opcional (no hay NPE si falta),
+-- pero sin esta fila el detalle del producto se ve vacío en el front. El archivo
+-- real detrás de cada object_key lo sube BetaPlaceholderAssetSeeder (JPEG generado
+-- en memoria) al arrancar el perfil beta/demo. status VALIDATED, igual que deja
+-- ProductServiceImpl cuando un comercial publica la imagen por el flujo real.
+INSERT INTO product_image_assets (
+    object_key,
+    size_bytes,
+    mime_type,
+    status,
+    uploaded_at,
+    product_id
+)
+SELECT
+    seed.object_key,
+    20000,
+    'IMAGE_JPEG',
+    'VALIDATED',
+    NOW(),
+    product.id
+FROM (
+    SELECT
+        'Tarjeta digital Moda Urbana - $85.000 COP' AS product_name,
+        'products/beta/tarjeta-digital-moda-urbana.jpg' AS object_key
+    UNION ALL SELECT
+        'Kit de iluminación solar Andina - 2 unidades',
+        'products/beta/kit-iluminacion-solar-andina.jpg'
+    UNION ALL SELECT
+        'Caja de panadería artesanal Trigo Dorado - 12 piezas',
+        'products/beta/caja-panaderia-trigo-dorado.jpg'
+) seed
+JOIN products product ON product.name = seed.product_name
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM product_image_assets existing_image
+    WHERE existing_image.product_id = product.id
 );
 
 -- Compras completadas por consumidores activos de beta.
@@ -396,6 +472,42 @@ WHERE NOT EXISTS (
     WHERE existing_raffle.title = seed.title
 );
 
+-- Imagen de cada rifa. El archivo real detrás de cada object_key lo sube
+-- BetaPlaceholderAssetSeeder (JPEG generado en memoria) al arrancar el perfil
+-- beta/demo. status VALIDATED, igual que deja RaffleServiceImpl al publicar.
+INSERT INTO raffle_image_assets (
+    object_key,
+    size_bytes,
+    mime_type,
+    status,
+    uploaded_at,
+    raffle_id
+)
+SELECT
+    seed.object_key,
+    20000,
+    'IMAGE_JPEG',
+    'VALIDATED',
+    NOW(),
+    raffle.id
+FROM (
+    SELECT
+        'Mercado local: sabores de Colombia' AS raffle_title,
+        'raffles/beta/mercado-local-sabores-de-colombia.jpg' AS object_key
+    UNION ALL SELECT
+        'Tecnología para un hogar más eficiente',
+        'raffles/beta/tecnologia-para-un-hogar-mas-eficiente.jpg'
+    UNION ALL SELECT
+        'Experiencia de café de altura',
+        'raffles/beta/experiencia-de-cafe-de-altura.jpg'
+) seed
+JOIN raffles raffle ON raffle.title = seed.raffle_title
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM raffle_image_assets existing_image
+    WHERE existing_image.raffle_id = raffle.id
+);
+
 -- Premios de las tres rifas. claim_code se protege en BetaDataSeeder.
 INSERT INTO raffle_prizes (
     brand,
@@ -464,6 +576,42 @@ WHERE NOT EXISTS (
     FROM raffle_prizes existing_prize
     WHERE existing_prize.raffle_id = raffle.id
       AND existing_prize.title = seed.prize_title
+);
+
+-- Imagen de cada premio. El archivo real detrás de cada object_key lo sube
+-- BetaPlaceholderAssetSeeder (JPEG generado en memoria) al arrancar el perfil
+-- beta/demo. status VALIDATED, igual que deja RaffleServiceImpl al publicar.
+INSERT INTO prize_image_assets (
+    object_key,
+    size_bytes,
+    mime_type,
+    status,
+    uploaded_at,
+    prize_id
+)
+SELECT
+    seed.object_key,
+    20000,
+    'IMAGE_JPEG',
+    'VALIDATED',
+    NOW(),
+    prize.id
+FROM (
+    SELECT
+        'Bono de mercado local por $250.000 COP' AS prize_title,
+        'prizes/beta/bono-mercado-local.jpg' AS object_key
+    UNION ALL SELECT
+        'Kit solar de balcón',
+        'prizes/beta/kit-solar-balcon.jpg'
+    UNION ALL SELECT
+        'Experiencia de café para dos',
+        'prizes/beta/experiencia-cafe-para-dos.jpg'
+) seed
+JOIN raffle_prizes prize ON prize.title = seed.prize_title
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM prize_image_assets existing_image
+    WHERE existing_image.prize_id = prize.id
 );
 
 -- Regla para ganar un ticket por inicio diario; la próxima rifa se activa

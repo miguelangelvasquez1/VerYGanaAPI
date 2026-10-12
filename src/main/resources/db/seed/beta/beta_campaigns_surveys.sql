@@ -177,6 +177,75 @@ WHERE NOT EXISTS (
       AND existing_ad.title = seed.title
 );
 
+-- Asset de cada anuncio. AdLikeServiceImpl asume que todo anuncio ACTIVE tiene un
+-- AdAsset (lee ad.getAsset().getDurationSeconds() sin null-check) tanto al
+-- seleccionar el siguiente anuncio como al reanudar una visualización; sin esta
+-- fila GET /ads/next lanza NullPointerException para cualquier consumidor.
+--
+-- Se usa IMAGE y no VIDEO (a diferencia de test-ads.sql) porque el archivo real
+-- detrás de cada object_key lo genera BetaPlaceholderAssetSeeder como JPEG en
+-- memoria con Java2D al arrancar el perfil beta/demo: no depende de ffmpeg ni de
+-- binarios en el repo, así que no hay forma de producir un .mp4 real por esta vía.
+-- MediaType.IMAGE es un formato de anuncio igual de válido (duration_seconds sigue
+-- rigiendo el tiempo mínimo de visualización); mismo status ATTACHED que ya
+-- usaba test-ads.sql para sus videos.
+INSERT INTO ad_assets (
+    object_key,
+    size_bytes,
+    media_type,
+    mime_type,
+    status,
+    duration_seconds,
+    ad_id,
+    uploaded_at,
+    version
+)
+SELECT
+    CONCAT('ads/beta/', seed.slug, '.jpg'),
+    20000,
+    'IMAGE',
+    'IMAGE_JPEG',
+    'ATTACHED',
+    5,
+    a.id,
+    NOW(),
+    0
+FROM (
+    SELECT 'Desayunos con sabor a hogar' AS ad_title, 'desayunos-con-sabor-a-hogar' AS slug
+    UNION ALL SELECT 'Pan artesanal para compartir', 'pan-artesanal-para-compartir'
+    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias'
+    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana'
+    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple'
+    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural'
+) seed
+JOIN ads a ON a.title = seed.ad_title
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM ad_assets existing_asset
+    WHERE existing_asset.ad_id = a.id
+);
+
+-- Reparación de un arranque previo: una versión anterior de este seed insertó
+-- el asset como VIDEO/.mp4 (nunca existió un archivo real detrás). El INSERT de
+-- arriba es "solo si falta" y jamás pisa esa fila ya creada, así que sin este
+-- UPDATE una base de beta que ya corrió esa versión se queda con el enlace roto
+-- para siempre. No-op si nunca se tuvo esa versión (no hay filas que coincidan).
+UPDATE ad_assets existing_asset
+JOIN ads a ON a.id = existing_asset.ad_id
+JOIN (
+    SELECT 'Desayunos con sabor a hogar' AS ad_title, 'desayunos-con-sabor-a-hogar' AS slug
+    UNION ALL SELECT 'Pan artesanal para compartir', 'pan-artesanal-para-compartir'
+    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias'
+    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana'
+    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple'
+    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural'
+) seed ON seed.ad_title = a.title
+SET existing_asset.object_key = CONCAT('ads/beta/', seed.slug, '.jpg'),
+    existing_asset.media_type = 'IMAGE',
+    existing_asset.mime_type = 'IMAGE_JPEG'
+WHERE existing_asset.media_type = 'VIDEO'
+  AND existing_asset.object_key LIKE 'ads/beta/%.mp4';
+
 -- Visualizaciones de ejemplo sin duplicar la combinación anuncio-consumidor.
 INSERT INTO ad_watch_session (
     id,
