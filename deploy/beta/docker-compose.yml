@@ -124,10 +124,13 @@ services:
       - APP_CLAIM_CODE_ENCRYPTION_KEY=${APP_CLAIM_CODE_ENCRYPTION_KEY:?APP_CLAIM_CODE_ENCRYPTION_KEY falta en Infisical beta}
       - APP_PRODUCT_CODE_ENCRYPTION_KEY=${APP_PRODUCT_CODE_ENCRYPTION_KEY:?APP_PRODUCT_CODE_ENCRYPTION_KEY falta en Infisical beta}
       - APP_PRODUCT_CODE_HMAC_SECRET=${APP_PRODUCT_CODE_HMAC_SECRET:?APP_PRODUCT_CODE_HMAC_SECRET falta en Infisical beta}
-      # La imagen nueva lee RANDOM_ORG_BETA_API_KEY (application-beta.yml). Se
-      # conserva RANDOM_ORG_API_KEY para poder volver a verygana-api:0e5a906, que
-      # todavía la lee.
-      - RANDOM_ORG_API_KEY=${RANDOM_ORG_API_KEY:?RANDOM_ORG_API_KEY falta (la de desarrollo)}
+      # Una sola fuente en Infisical: RANDOM_ORG_BETA_API_KEY, que es la que lee la
+      # imagen nueva (application-beta.yml). El mismo valor se entrega también con
+      # el nombre viejo, RANDOM_ORG_API_KEY, solo para poder volver a
+      # verygana-api:0e5a906, que todavía lo lee. En Infisical beta NO existe un
+      # secreto RANDOM_ORG_API_KEY. Cuando ya no haga falta esa vuelta atrás, se
+      # borra la segunda línea.
+      - RANDOM_ORG_API_KEY=${RANDOM_ORG_BETA_API_KEY:?RANDOM_ORG_BETA_API_KEY falta en Infisical beta (la llave de desarrollo de Random.org)}
       - RANDOM_ORG_BETA_API_KEY=${RANDOM_ORG_BETA_API_KEY:?RANDOM_ORG_BETA_API_KEY falta en Infisical beta (la llave de desarrollo de Random.org)}
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:?TWILIO_ACCOUNT_SID falta en Infisical beta}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:?TWILIO_AUTH_TOKEN falta en Infisical beta}

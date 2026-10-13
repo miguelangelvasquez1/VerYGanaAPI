@@ -63,9 +63,27 @@ public class BetaDataSeeder implements CommandLineRunner {
         log.info("Seed beta ejecutado correctamente");
     }
 
+    /**
+     * Copias propias de beta de los datos base de {@code db/seed}, para poder ajustarlos
+     * (p. ej. imágenes) sin tocar los de dev. Mismo orden que {@code ReferenceSeedScripts.BASE_DATA}
+     * sin el script de ítems comerciales de mascotas, que va después de los usuarios.
+     */
+    private static final List<String> BETA_REFERENCE_DATA = List.of(
+            "db/seed/beta/categories.sql",
+            "db/seed/beta/system-features.sql",
+            "db/seed/beta/pricing-config.sql",
+            "db/seed/beta/legal-documents.sql",
+            "db/seed/beta/avatars.sql",
+            "db/seed/beta/departments.sql",
+            "db/seed/beta/municipalities.sql", // depende de departamentos
+            "db/seed/beta/productCategories.sql",
+            "db/seed/beta/beta_category_images.sql", // depende de productCategories
+            "db/seed/beta/pet-catalog-baked.sql",
+            "db/seed/beta/pet-scenes.sql");
+
     static List<String> seedScripts() {
-        List<String> scripts = new ArrayList<>(ReferenceSeedScripts.all());
-        scripts.remove(ReferenceSeedScripts.PET_COMMERCIAL_ITEMS);
+        List<String> scripts = new ArrayList<>(BETA_REFERENCE_DATA);
+        scripts.addAll(ReferenceSeedScripts.GAMES);
         scripts.addAll(List.of(
                 "db/seed/beta/beta_users.sql",
                 "db/seed/beta/beta_campaigns_surveys.sql",
