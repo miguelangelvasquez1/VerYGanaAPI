@@ -24,6 +24,8 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.EndSessionResponseDTO;
 import com.verygana2.dtos.game.GameEventDTO;
@@ -36,8 +38,6 @@ import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.games.GameSession;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
@@ -65,11 +65,15 @@ class GameServiceCompleteSessionTest {
     @Mock ProductRepository productRepository;
     @Mock ApplicationEventPublisher eventPublisher;
     @Mock KeyWalletService keyWalletService;
-    @Mock KeyWalletRepository keyWalletRepository;
-    @Mock KeyTransactionRepository keyTransactionRepository;
+    @Mock KeyLedgerService keyLedgerService;
     @Mock LevelService levelService;
 
     @InjectMocks GameServiceImpl service;
+
+    @org.junit.jupiter.api.BeforeEach
+    void stubKeyLedger() {
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
+    }
 
     private GameSession session;
     private GameEventDTO<EndSessionDTO> event;
@@ -119,8 +123,7 @@ class GameServiceCompleteSessionTest {
         // ni la sesión entra a la liquidación de tesorería.
         assertThat(session.getCreditedAmountCents()).isNull();
         verify(keyWalletService, never()).getByConsumerId(any());
-        verify(keyWalletRepository, never()).save(any());
-        verify(keyTransactionRepository, never()).saveAll(any());
+        verify(keyLedgerService, never()).issue(any(), any());
     }
 
     @Test
@@ -220,8 +223,7 @@ class GameServiceCompleteSessionTest {
         // 6.500 ¢ × multiplicador 1.0 → split 75/25 = 4.875 / 1.625
         assertThat(keyWallet.getPurchaseKeysCents()).isEqualTo(4_875L);
         assertThat(keyWallet.getConnectivityKeysCents()).isEqualTo(1_625L);
-        verify(keyWalletRepository).save(keyWallet);
-        verify(keyTransactionRepository).saveAll(any());
+        verify(keyLedgerService).issue(org.mockito.ArgumentMatchers.eq(keyWallet), any());
     }
 
     @Test
@@ -311,8 +313,7 @@ class GameServiceCompleteSessionTest {
 
         // Sin cobro no hay crédito.
         verify(keyWalletService, never()).getByConsumerId(any());
-        verify(keyWalletRepository, never()).save(any());
-        verify(keyTransactionRepository, never()).saveAll(any());
+        verify(keyLedgerService, never()).issue(any(), any());
     }
 
     @Test
@@ -329,7 +330,6 @@ class GameServiceCompleteSessionTest {
         verify(campaignRepository, never()).findByIdForUpdate(any());
         verify(campaignRepository, never()).save(any());
         verify(keyWalletService, never()).getByConsumerId(any());
-        verify(keyWalletRepository, never()).save(any());
-        verify(keyTransactionRepository, never()).saveAll(any());
+        verify(keyLedgerService, never()).issue(any(), any());
     }
 }

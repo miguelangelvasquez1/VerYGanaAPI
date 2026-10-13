@@ -208,6 +208,37 @@ public class PurchaseItem {
     private Integer maxKeysPctAtPurchase;
 
     /**
+     * Porción en Llaves de este ítem (Contrato B 2.26): cuánto de su precio se cubrió
+     * con llaves, en centavos. La Porción Monetaria es subtotalCents menos esto.
+     * Null solo en ítems anteriores a MP-12, donde el reparto existía únicamente a
+     * nivel de copago (ver PurchaseItemRefundServiceImpl).
+     */
+    @Column(name = "keys_value_cents")
+    private Long keysValueCents;
+
+    /**
+     * Tope de cobertura con llaves que rigió para este ítem: el ordinario del producto o
+     * el de la promoción especial. Es el tope, no lo que el usuario decidió usar.
+     */
+    @Column(name = "keys_pct_applied")
+    private Integer keysPctApplied;
+
+    /**
+     * Promoción especial que subió el tope de este ítem, o null si aplicó el ordinario.
+     * Id suelto, como petCatalogItemId en KeyTransaction: basta para auditar y agregar.
+     */
+    @Column(name = "key_coverage_promotion_id")
+    private Long keyCoveragePromotionId;
+
+    /**
+     * Parte de keysValueCents que superó el tope ordinario gracias a la promoción. Es lo
+     * que consume su presupuesto.
+     */
+    @Column(name = "promotion_excess_cents", nullable = false)
+    @Builder.Default
+    private Long promotionExcessCents = 0L;
+
+    /**
      * Código entregado al cliente, cifrado con AES-GCM (mismo ciphertext que
      * ProductStock.code). Se descifra únicamente al exponerlo en la respuesta
      * de "mis compras" del consumidor dueño de la compra (ver PurchaseMapper).

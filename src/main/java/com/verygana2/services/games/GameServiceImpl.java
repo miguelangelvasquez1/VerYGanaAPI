@@ -39,7 +39,6 @@ import com.verygana2.models.enums.CampaignStatus;
 import com.verygana2.models.enums.DevicePlatform;
 import com.verygana2.models.enums.Gender;
 import com.verygana2.models.enums.TargetGender;
-import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
@@ -50,8 +49,6 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
-import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
@@ -61,6 +58,8 @@ import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.GameService;
+import com.verygana2.models.enums.finance.KeyOriginType;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.levels.LevelService;
 import com.verygana2.services.scoring.ScoringContext;
@@ -114,8 +113,7 @@ public class GameServiceImpl implements GameService {
     private final GameResponseEnvelope gameResponseEnvelope;
     private final PreviewRewardSamples previewRewardSamples;
     private final KeyWalletService keyWalletService;
-    private final KeyWalletRepository keyWalletRepository;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
     private final LevelService levelService;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
@@ -517,7 +515,7 @@ public class GameServiceImpl implements GameService {
      * patrón que anuncios ({@code AdLikeServiceImpl.creditRewardToUser}) y encuestas
      * ({@code RewardService.creditPoints}): se ajusta por el multiplicador de nivel del jugador,
      * se reparte en llaves de compra/conectividad ({@code KeyWalletService.calculate}) y se
-     * registran dos {@code KeyTransaction} CREDIT_INTERACTION.
+     * registran dos asientos CREDIT_INTERACTION en el Libro Mayor de Llaves.
      *
      * <p>No hace nada si {@code chargedCents <= 0} (la sesión no cobró: sin campaña, campaña sin
      * presupuesto, o no ACTIVE/PAUSED). Corre en la misma transacción que
@@ -545,14 +543,10 @@ public class GameServiceImpl implements GameService {
         ZonedDateTime purchaseExpiry = keyWalletService.calculatePurchaseExpiry();
         ZonedDateTime connectivityExpiry = keyWalletService.calculateConnectivityExpiry();
 
-        keyTransactionRepository.saveAll(List.of(
-                KeyTransaction.forInteractionPurchaseKeys(
-                        keyWallet, split.purchaseKeysReward(), reason, referenceId, purchaseExpiry),
-                KeyTransaction.forInteractionConnectivityKeys(
-                        keyWallet, split.connectivityKeysReward(), reason, referenceId, connectivityExpiry)));
-
-        keyWallet.creditKeysCents(split.purchaseKeysReward(), split.connectivityKeysReward());
-        keyWalletRepository.save(keyWallet);
+        keyLedgerService.issue(keyWallet, new KeyLedgerService.Issuance(
+                KeyOriginType.GAME, referenceId, reason,
+                split.purchaseKeysReward(), purchaseExpiry,
+                split.connectivityKeysReward(), connectivityExpiry));
         return adjustedCents;
     }
 

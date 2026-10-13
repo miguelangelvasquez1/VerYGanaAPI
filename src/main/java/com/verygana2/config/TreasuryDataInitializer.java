@@ -99,6 +99,13 @@ public class TreasuryDataInitializer implements ApplicationRunner {
             "Cubre la remuneración del equipo de VerYGana (MP-04). No se alimenta del " +
             "reparto de depósitos empresariales — se nutre de otras operaciones, " +
             "aún no implementadas."
+        ),
+        new AccountDefinition(
+            TreasuryAccountCode.PROMOTIONS_RESERVE,
+            "Garantía de promociones de llaves",
+            "Presupuesto de las promociones especiales de cobertura con llaves (MP-12), " +
+            "apartado de FORTIFICATION al autorizarlas. En cada venta repone a KEYS_RESERVE el " +
+            "exceso cubierto sobre el tope ordinario; lo no consumido vuelve a FORTIFICATION."
         )
 
     );

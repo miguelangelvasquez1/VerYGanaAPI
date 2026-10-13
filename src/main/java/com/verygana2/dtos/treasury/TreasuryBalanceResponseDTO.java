@@ -9,6 +9,8 @@ public record TreasuryBalanceResponseDTO(
         long connectivityCents,
         long infrastructureCents,
         long payrollCents,
+        /** Garantía apartada de FORTIFICATION para promociones especiales de llaves vigentes. */
+        long promotionsReserveCents,
         long totalCents,
         /** Peso de KEYS_RESERVE sobre el total de tesorería. Mide reparto, no solvencia. */
         double keysReserveHealthPct,

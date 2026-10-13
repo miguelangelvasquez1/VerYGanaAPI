@@ -6,7 +6,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.finance.Copayment;
-import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.PurchaseItemCashRefund;
 import com.verygana2.models.marketplace.ProductStock;
@@ -14,13 +13,15 @@ import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
 import com.verygana2.repositories.finance.CopaymentRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.PurchaseItemCashRefundRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.services.interfaces.finance.KeyWalletService;
 import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
 
 import lombok.RequiredArgsConstructor;
@@ -37,8 +38,10 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     private final ProsperityService prosperityService;
     private final CopaymentRepository copaymentRepository;
     private final KeyWalletRepository keyWalletRepository;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
+    private final KeyWalletService keyWalletService;
     private final PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
+    private final KeyCoveragePromotionService keyCoveragePromotionService;
 
     @Override
     @Transactional
@@ -63,7 +66,7 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
             productStockRepository.save(stock);
         }
 
-        // maxKeysPct nunca llega a 100 (20/35/50 según el plan del comercial — ver
+        // maxKeysPct nunca llega a 100 (20 o 50 según el plan del comercial — ver
         // Product.maxKeysPct), así que todo ítem tiene una porción en efectivo
         // mínima obligatoria: cashRefund nunca es null aquí. El ítem se queda
         // IN_REVIEW — CashRefundServiceImpl.markPaid es el único lugar donde
@@ -122,10 +125,22 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
         // copago bloquean prosperidad → tesorería, y este debe seguir ese orden.
         prosperityService.reintegrateRefund(item);
 
+        // Si el ítem usó una promoción especial, su presupuesto vuelve a estar disponible.
+        // Se bloquea antes que tesorería, que es el orden de la compra y del copago.
+        KeyCoveragePromotionService.ExcessRefund excessRefund = keyCoveragePromotionService.restoreForRefund(item);
+
         // La comisión que se revierte ya es solo la de la porción no absorbida.
         treasuryService.reversePurchaseItemForRefund(
                 item.getCommissionCents(), item.getCommissionVatCents(),
                 keysPortionCents, cashPortionCents, copayment.getId());
+
+        // KEYS_RESERVE acaba de recuperar todas las llaves de la venta, incluido el exceso
+        // que en su momento le repuso el Fondo: esa parte se le devuelve, para que cada
+        // bolsillo quede como estaba antes de la venta.
+        if (excessRefund.cents() > 0) {
+            treasuryService.refundPromotionExcess(excessRefund.cents(), excessRefund.fundPocketStillHeld(),
+                    excessRefund.treasuryReference());
+        }
 
         if (wallet != null) {
             creditBackKeys(wallet, item, copayment, keysPortionCents);
@@ -147,12 +162,17 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     }
 
     /**
-     * Porción del precio del ítem pagada con llaves. El split keys/cash solo
-     * se registra a nivel de Copayment (no por ítem), así que se aproxima
-     * proporcionalmente al peso del ítem dentro del total de la compra —
-     * igual principio que ya usa el sistema para el snapshot de comisión por ítem.
+     * Porción del precio del ítem pagada con llaves: exactamente la que quedó registrada
+     * en el ítem al comprar (PurchaseItem.keysValueCents).
+     *
+     * Los ítems anteriores a MP-12 no la tienen: ahí el reparto solo existía a nivel de
+     * copago y se aproxima por el peso del ítem dentro del total de la compra.
      */
     private long computeItemKeysShareCents(PurchaseItem item, Copayment copayment) {
+        if (item.getKeysValueCents() != null) {
+            return item.getKeysValueCents();
+        }
+
         if (copayment.getKeysValueCents() == null || copayment.getKeysValueCents() <= 0) {
             return 0;
         }
@@ -173,11 +193,10 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     }
 
     private void creditBackKeys(KeyWallet wallet, PurchaseItem item, Copayment copayment, long keysPortionCents) {
-        wallet.creditKeysCents(keysPortionCents, 0);
-        keyWalletRepository.save(wallet);
-
-        keyTransactionRepository.save(
-                KeyTransaction.forCopaymentRefund(wallet, keysPortionCents, copayment.getId()));
+        // Vuelven con la vigencia de las llaves que se ganan hoy: antes regresaban sin
+        // fecha de vencimiento y no vencían nunca.
+        keyLedgerService.refundPurchaseItem(wallet, keysPortionCents, copayment.getId(), item.getId(),
+                keyWalletService.calculatePurchaseExpiry());
 
         log.info("[REFUND] Llaves acreditadas de vuelta: purchaseItemId={}, amountCents={}",
                 item.getId(), keysPortionCents);

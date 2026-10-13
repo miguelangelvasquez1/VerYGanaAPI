@@ -81,6 +81,7 @@ import static org.mockito.Mockito.when;
 @DisplayName("ProductServiceImpl")
 class ProductServiceImplTest {
 
+    @Mock private ProductKeyPromotionResolver keyPromotionResolver;
     @Mock private ProductRepository productRepository;
     @Mock private AdminDetailsService adminDetailsService;
     @Mock private NotificationService notificationService;
@@ -105,7 +106,8 @@ class ProductServiceImplTest {
         service = new ProductServiceImpl(productRepository, adminDetailsService, notificationService,
                 favoriteProductRepository, productCategoryService, productMapper, commercialDetailsRepository,
                 consumerDetailsService, productStockRepository, productImageAssetRepository, purchaseItemRepository,
-                r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler, assetDurationService);
+                r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler, assetDurationService,
+                keyPromotionResolver);
 
         ReflectionTestUtils.setField(service, "maxProductPriceCents", 50_000_000L);
         ReflectionTestUtils.setField(service, "minProductPriceCents", 100_000L);

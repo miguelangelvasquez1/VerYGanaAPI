@@ -31,6 +31,22 @@ public enum MovementConcept {
     /** Llaves vencidas convertidas a dinero para el fondo de fortalecimiento */
     EXPIRED_KEYS_TO_FORTIFICATION,
 
+    /** Presupuesto de una promoción especial de llaves apartado como garantía al autorizarla */
+    PROMOTION_GUARANTEE_FROM_FORTIFICATION,
+
+    /** El Fondo asume el exceso de una venta con promoción especial: repone a KEYS_RESERVE lo cubierto por encima del tope ordinario */
+    PROMOTION_GUARANTEE_TO_KEYS_RESERVE,
+
+    /**
+     * Reembolso de un ítem comprado con promoción especial: KEYS_RESERVE devuelve el exceso
+     * que el Fondo había puesto por esa venta (a PROMOTIONS_RESERVE, o a FORTIFICATION si
+     * la promoción ya cerró)
+     */
+    PROMOTION_EXCESS_REFUND,
+
+    /** Garantía no usada de una promoción cerrada, de vuelta al fondo de fortalecimiento */
+    PROMOTION_GUARANTEE_RETURN_TO_FORTIFICATION,
+
     /** Compra a empresario débil realizada con el fondo de fortalecimiento */
     FORTIFICATION_PURCHASE,
 

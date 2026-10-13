@@ -21,7 +21,6 @@ import com.verygana2.models.enums.finance.WompiTransactionStatus;
 import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.finance.Copayment;
-import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.marketplace.Product;
@@ -29,16 +28,17 @@ import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.repositories.finance.CopaymentRepository;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.CopaymentService;
+import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.raffles.TicketDeliveryService;
 import com.verygana2.services.wompi.WompiService;
 import com.verygana2.dtos.wompi.WompiTransactionResponseDTO.WompiTransactionData;
@@ -58,7 +58,8 @@ public class CopaymentServiceImpl implements CopaymentService {
     private final WompiTransactionRepository wompiTransactionRepository;
     private final PurchaseRepository purchaseRepository;
     private final KeyWalletRepository keyWalletRepository;
-    private final KeyTransactionRepository keyTransactionRepository;
+    private final KeyLedgerService keyLedgerService;
+    private final KeyCoveragePromotionService keyCoveragePromotionService;
     private final ProductStockRepository productStockRepository;
     private final ProductRepository productRepository;
     private final TreasuryService treasuryService;
@@ -140,15 +141,10 @@ public class CopaymentServiceImpl implements CopaymentService {
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
 
-            keyWallet.confirmReservedPurchaseKeysCents(keysValueCents);
-            keyWalletRepository.save(keyWallet);
-
-            // Ledger inmutable: débito definitivo de llaves (en centavos, misma
-            // escala que keysValueCents: 1 llave = keyValueCents centavos = keyValueCents
-            // subunidades del wallet)
-            keyTransactionRepository.save(Objects.requireNonNull(
-                    KeyTransaction.forCopaymentConfirm(
-                            keyWallet, keysValueCents, copayment.getId(), buildProductNames(purchase))));
+            // Libro Mayor: débito definitivo de las llaves reservadas (en centavos,
+            // misma escala que keysValueCents)
+            keyLedgerService.confirmCopayment(
+                    keyWallet, keysValueCents, copayment.getId(), buildProductNames(purchase));
         }
 
         // 2. Imputar la venta contra el Saldo de Prosperidad de cada comercial STANDARD
@@ -232,13 +228,13 @@ public class CopaymentServiceImpl implements CopaymentService {
                             "[COPAYMENT] KeyWallet no encontrado: consumerId="
                                     + copayment.getConsumer().getId()));
 
-            keyWallet.releasePurchaseKeysCents(keysValueCents);
-            keyWalletRepository.save(keyWallet);
-
-            // Ledger inmutable: liberación de llaves bloqueadas (en centavos)
-            keyTransactionRepository.save(Objects.requireNonNull(
-                    KeyTransaction.forCopaymentRelease(keyWallet, keysValueCents, copayment.getId())));
+            // Libro Mayor: las llaves bloqueadas vuelven a sus lotes de origen
+            keyLedgerService.releaseCopayment(keyWallet, keysValueCents, copayment.getId());
         }
+
+        // El presupuesto de promoción que esta compra tenía comprometido queda libre.
+        // Va antes de cancelar los ítems y después de la billetera (orden de bloqueo).
+        keyCoveragePromotionService.releaseForPurchase(purchase);
 
         // 2. Devolver stock reservado al pool disponible
         releaseReservedStock(purchase);
@@ -264,6 +260,12 @@ public class CopaymentServiceImpl implements CopaymentService {
      * correo de confirmación de compra (ver SendGridEmailService.buildItemsHtml).
      */
     private void settleTreasury(Copayment copayment, Purchase purchase, long keysValueCents, long cashAmountCents) {
+        // El exceso cubierto bajo una promoción especial pasa de reservado a consumido y
+        // lo asume el Fondo: PROMOTIONS_RESERVE repone esa parte a KEYS_RESERVE. Va antes
+        // de la conversión (misma transacción, mismo saldo final) para que KEYS_RESERVE
+        // pague todas las llaves con ese dinero ya adentro y no roce su umbral crítico.
+        keyCoveragePromotionService.confirmForPurchase(purchase);
+
         // KEYS_RESERVE → PAYOUTS_PENDING por el valor de las llaves
         if (keysValueCents > 0) {
             treasuryService.convertKeysToPayoutPending(keysValueCents, copayment.getId());

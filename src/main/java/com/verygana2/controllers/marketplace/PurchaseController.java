@@ -22,6 +22,7 @@ import com.verygana2.dtos.purchase.responses.InitiatePurchaseResponseDTO;
 import com.verygana2.dtos.purchase.responses.PurchaseResponseDTO;
 import com.verygana2.services.interfaces.marketplace.PurchaseService;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -34,7 +35,7 @@ public class PurchaseController {
     @PostMapping("/buy")
     @PreAuthorize("hasAuthority('ROLE_CONSUMER')")
     public ResponseEntity<InitiatePurchaseResponseDTO> createPurchase(@AuthenticationPrincipal Jwt jwt,
-            @RequestBody CreatePurchaseRequestDTO request) {
+            @Valid @RequestBody CreatePurchaseRequestDTO request) {
         Long consumerId = jwt.getClaim("userId");
         return ResponseEntity.ok(purchaseService.createPurchase(consumerId, request));
     }

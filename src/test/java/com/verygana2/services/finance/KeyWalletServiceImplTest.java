@@ -15,12 +15,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.dtos.keys.SpendKeysRequestDTO;
 import com.verygana2.dtos.keys.SpendKeysResponseDTO;
-import com.verygana2.models.finance.KeyTransaction;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.pets.PetCatalogItem;
-import com.verygana2.repositories.finance.KeyTransactionRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.repositories.pet.PetCatalogItemRepository;
 import com.verygana2.services.interfaces.finance.TreasuryService;
@@ -49,7 +49,7 @@ class KeyWalletServiceImplTest {
 
     private static final long KEY_VALUE_CENTS = 1000L;
 
-    @Mock private KeyTransactionRepository keyTransactionRepository;
+    @Mock private KeyLedgerService keyLedgerService;
     @Mock private KeyWalletRepository keyWalletRepository;
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private PetCatalogItemRepository petCatalogItemRepository;
@@ -59,11 +59,11 @@ class KeyWalletServiceImplTest {
     private KeyWalletServiceImpl service;
 
     private void setUpWithClock(Clock clock) {
-        service = new KeyWalletServiceImpl(clock, keyTransactionRepository, keyWalletRepository,
+        service = new KeyWalletServiceImpl(clock, keyLedgerService, keyWalletRepository,
                 consumerDetailsService, petCatalogItemRepository, treasuryService, petItemChargeService);
-        // spendKeysForPetGame usa el id de la transacción persistida como referencia
-        // del movimiento de tesorería.
-        lenient().when(keyTransactionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        // spendKeysForPetGame gasta a través del Libro Mayor y usa el id del asiento
+        // como referencia del movimiento de tesorería.
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
         ReflectionTestUtils.setField(service, "PURCHASE_KEYS_PERCENTAGE", 75L);
         ReflectionTestUtils.setField(service, "keyValueCents", KEY_VALUE_CENTS);
     }
@@ -186,7 +186,8 @@ class KeyWalletServiceImplTest {
 
             assertThat(response.success()).isTrue();
             assertThat(response.newBalance()).isEqualTo(70L);
-            verify(keyTransactionRepository).save(any());
+            verify(keyLedgerService).spendForPetGame(org.mockito.ArgumentMatchers.eq(wallet),
+                    org.mockito.ArgumentMatchers.eq(30L * KEY_VALUE_CENTS), any(), any(), any());
         }
 
         @Test
@@ -225,7 +226,8 @@ class KeyWalletServiceImplTest {
 
             assertThat(response.success()).isFalse();
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(10L * KEY_VALUE_CENTS); // sin cambios
-            verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
+            verify(keyLedgerService, org.mockito.Mockito.never())
+                    .spendForPetGame(any(), org.mockito.ArgumentMatchers.anyLong(), any(), any(), any());
         }
 
         /**
@@ -292,10 +294,8 @@ class KeyWalletServiceImplTest {
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "1005"));
 
-            org.mockito.ArgumentCaptor<KeyTransaction> captor =
-                    org.mockito.ArgumentCaptor.forClass(KeyTransaction.class);
-            verify(keyTransactionRepository).save(captor.capture());
-            assertThat(captor.getValue().getPetCatalogItemId()).isEqualTo(5L);
+            verify(keyLedgerService).spendForPetGame(any(), org.mockito.ArgumentMatchers.anyLong(), any(), any(),
+                    org.mockito.ArgumentMatchers.eq(5L));
         }
 
         @Test
@@ -306,10 +306,8 @@ class KeyWalletServiceImplTest {
 
             service.spendKeysForPetGame(9L, new SpendKeysRequestDTO(null, 1L, 0, "no_existe"));
 
-            org.mockito.ArgumentCaptor<KeyTransaction> captor =
-                    org.mockito.ArgumentCaptor.forClass(KeyTransaction.class);
-            verify(keyTransactionRepository).save(captor.capture());
-            assertThat(captor.getValue().getPetCatalogItemId()).isNull();
+            verify(keyLedgerService).spendForPetGame(any(), org.mockito.ArgumentMatchers.anyLong(), any(), any(),
+                    org.mockito.ArgumentMatchers.isNull());
         }
 
         /**
@@ -446,7 +444,8 @@ class KeyWalletServiceImplTest {
             assertThat(response.success()).isFalse();
             assertThat(response.error()).isEqualTo("Este producto ya no está disponible");
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(100L * KEY_VALUE_CENTS);
-            verify(keyTransactionRepository, org.mockito.Mockito.never()).save(any());
+            verify(keyLedgerService, org.mockito.Mockito.never())
+                    .spendForPetGame(any(), org.mockito.ArgumentMatchers.anyLong(), any(), any(), any());
             verify(treasuryService, org.mockito.Mockito.never())
                     .registerPetGamePurchase(org.mockito.ArgumentMatchers.anyLong(), org.mockito.ArgumentMatchers.anyLong(), any());
             verify(petItemChargeService, org.mockito.Mockito.never())

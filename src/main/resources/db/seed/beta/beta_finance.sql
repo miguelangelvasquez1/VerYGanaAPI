@@ -340,8 +340,8 @@ WHERE ad_like.ad_id IN (
     SELECT demo_ad.id
     FROM ads demo_ad
     WHERE demo_ad.title IN (
-        'Desayunos con sabor a hogar',
-        'Pan artesanal para compartir',
+        'Energía solar para tu hogar',
+        'Conectividad rural sin interrupciones',
         'Estilo urbano para todos los días',
         'Tecnología útil para una vida más simple'
     )
@@ -378,12 +378,13 @@ INSERT INTO key_transactions (
     connectivity_keys_delta_cents,
     created_at,
     expires_at,
-    expiry_processed,
     purchase_keys_delta_cents,
     reason,
     reference_id,
     type,
-    key_wallet_id
+    key_wallet_id,
+    origin_type,
+    idempotency_key
 )
 SELECT
     UUID_TO_BIN(CONCAT(
@@ -404,7 +405,6 @@ SELECT
         THEN DATE_ADD(event_record.event_at, INTERVAL 1 DAY)
         ELSE DATE_ADD(LAST_DAY(event_record.event_at), INTERVAL 1 DAY) + INTERVAL 5 HOUR
     END,
-    FALSE,
     CASE
         WHEN component.component_name = 'PURCHASE'
         THEN ROUND(event_record.credited_cents * 0.75)
@@ -419,7 +419,14 @@ SELECT
         SUBSTRING(MD5(event_record.event_key), 21, 12)
     )),
     'CREDIT_INTERACTION',
-    key_wallet.id
+    key_wallet.id,
+    CASE
+        WHEN event_record.event_key LIKE 'BETA-AD-%' THEN 'AD'
+        WHEN event_record.event_key LIKE 'BETA-SURVEY-%' THEN 'SURVEY'
+        WHEN event_record.event_key LIKE 'BETA-GAME-%' THEN 'GAME'
+        ELSE 'LEGACY'
+    END,
+    CONCAT(event_record.event_key, '/', component.component_name)
 FROM (
     SELECT
         CONCAT('BETA-AD-', ad_like.ad_id, '-', ad_like.consumer_user_id) AS event_key,
@@ -433,8 +440,8 @@ FROM (
     JOIN users demo_consumer
       ON demo_consumer.id = ad_like.consumer_user_id
     WHERE demo_ad.title IN (
-        'Desayunos con sabor a hogar',
-        'Pan artesanal para compartir',
+        'Energía solar para tu hogar',
+        'Conectividad rural sin interrupciones',
         'Estilo urbano para todos los días',
         'Tecnología útil para una vida más simple'
     )

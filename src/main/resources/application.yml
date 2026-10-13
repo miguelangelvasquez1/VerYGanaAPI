@@ -164,3 +164,8 @@ loadtest:
   seed:
     users: 0          # 0 = no siembra
     password: ""
+
+# Vencimiento de llaves con fecha simulada (POST /admin/key-ledger/expiry?asOf=...).
+# Apagado por defecto; application-dev.yml lo enciende para pruebas.
+financial:
+  allow-simulated-expiry: false

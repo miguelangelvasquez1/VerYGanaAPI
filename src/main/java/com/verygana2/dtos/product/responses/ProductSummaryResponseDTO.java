@@ -25,4 +25,9 @@ public class ProductSummaryResponseDTO {
     private UUID commercialPublicId;
     private String companyName;
     private Boolean isGameReward;
+    /**
+     * Promoción especial de llaves vigente para este producto, o null si rige su tope
+     * ordinario. Con ella el producto admite más llaves que maxKeysAllowed, hasta su fecha de fin.
+     */
+    private ProductKeyPromotionDTO specialKeyPromotion;
 }

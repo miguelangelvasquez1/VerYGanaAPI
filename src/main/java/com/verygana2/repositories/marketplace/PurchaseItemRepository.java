@@ -21,6 +21,19 @@ import com.verygana2.models.marketplace.PurchaseItem;
 @Repository
 public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long> {
 
+    /**
+     * Exceso sobre el tope ordinario que un consumidor ya comprometió en una promoción
+     * especial: compras aprobadas y compras con pago en curso. Las canceladas no cuentan.
+     */
+    @Query("""
+                SELECT COALESCE(SUM(pi.promotionExcessCents), 0)
+                FROM PurchaseItem pi
+                WHERE pi.keyCoveragePromotionId = :promotionId
+                AND pi.purchase.consumer.id = :consumerId
+                AND pi.status <> com.verygana2.models.enums.marketplace.PurchaseItemStatus.CANCELLED
+            """)
+    long sumPromotionExcessByConsumer(@Param("promotionId") Long promotionId, @Param("consumerId") Long consumerId);
+
     @Query("""
                 SELECT pi FROM PurchaseItem pi
                 LEFT JOIN FETCH pi.product p

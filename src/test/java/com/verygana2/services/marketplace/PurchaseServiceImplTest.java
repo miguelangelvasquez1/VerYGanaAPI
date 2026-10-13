@@ -13,6 +13,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import com.verygana2.services.interfaces.finance.KeyLedgerService;
+import com.verygana2.testsupport.KeyLedgerStubs;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
@@ -71,6 +73,11 @@ class PurchaseServiceImplTest {
     @Mock private ProductStockRepository productStockRepository;
     @Mock private ConsumerDetailsService consumerDetailsService;
     @Mock private KeyWalletRepository keyWalletRepository;
+    @Mock private KeyLedgerService keyLedgerService;
+    @Mock private com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService keyCoveragePromotionService;
+    @Mock private com.verygana2.repositories.marketplace.KeyCoveragePromotionOfferRepository promotionOfferRepository;
+    @Mock private com.verygana2.repositories.marketplace.PurchaseItemRepository purchaseItemRepository;
+    @Mock private com.verygana2.services.interfaces.finance.TreasuryService treasuryService;
     @Mock private CopaymentRepository copaymentRepository;
     @Mock private WompiService wompiService;
     @Mock private WompiTransactionRepository wompiTransactionRepository;
@@ -81,10 +88,20 @@ class PurchaseServiceImplTest {
 
     @BeforeEach
     void setUp() {
+        // La cobertura es la real, sin promociones vigentes (el repositorio de ofertas
+        // devuelve vacío): así estos tests ejercitan el tope ordinario de verdad.
+        KeyCoverageServiceImpl keyCoverageService = new KeyCoverageServiceImpl(promotionOfferRepository,
+                purchaseItemRepository, keyWalletRepository, keyLedgerService, treasuryService, productService,
+                java.time.Clock.systemUTC());
+        ReflectionTestUtils.setField(keyCoverageService, "keyValueCents", KEY_VALUE_CENTS);
+        org.mockito.Mockito.lenient().when(treasuryService.keysReserveHeadroomCents()).thenReturn(1_000_000_000L);
+
         service = new PurchaseServiceImpl(purchaseRepository, productService, productRepository,
-                productStockRepository, consumerDetailsService, keyWalletRepository, copaymentRepository,
+                productStockRepository, consumerDetailsService, keyWalletRepository, keyLedgerService,
+                keyCoverageService, keyCoveragePromotionService, new CommissionPolicy(), copaymentRepository,
                 wompiService, wompiTransactionRepository, purchaseMapper, treasuryConfig);
         ReflectionTestUtils.setField(service, "KEY_VALUE", KEY_VALUE_CENTS);
+        KeyLedgerStubs.applyToWallet(keyLedgerService);
     }
 
     private Product activeProduct(long priceCents, int maxKeysPct, int availableStock) {
@@ -196,7 +213,6 @@ class PurchaseServiceImplTest {
                     .blockedPurchaseKeysCents(0L)
                     .build();
             when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
-            when(keyWalletRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
             var response = service.createPurchase(9L, requestFor(100L, 1));
 
@@ -204,6 +220,61 @@ class PurchaseServiceImplTest {
             assertThat(response.getCashAmountCents()).isEqualTo(1_000_000L - 100L * KEY_VALUE_CENTS);
             assertThat(wallet.getPurchaseKeysCents()).isEqualTo(400L * KEY_VALUE_CENTS); // 500 - 100 reservadas
             assertThat(wallet.getBlockedPurchaseKeysCents()).isEqualTo(100L * KEY_VALUE_CENTS);
+            // La reserva queda en el Libro Mayor: antes no escribía asiento.
+            verify(keyLedgerService).reserveForCopayment(
+                    org.mockito.ArgumentMatchers.eq(wallet), org.mockito.ArgumentMatchers.eq(100L * KEY_VALUE_CENTS),
+                    any());
+        }
+
+        @Test
+        @DisplayName("cada ítem guarda su Porción en Llaves y el tope que le rigió; sin promoción no hay exceso")
+        void mixedPayment_snapshotsKeyCoveragePerItem() {
+            Product product = activeProduct(1_000_000L, 30, 1);
+            stubHappyPathCollaborators(product);
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(500L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
+
+            service.createPurchase(9L, requestFor(100L, 1));
+
+            var captor = org.mockito.ArgumentCaptor.forClass(Purchase.class);
+            verify(purchaseRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+            var item = captor.getValue().getItems().get(0);
+            assertThat(item.getKeysValueCents()).isEqualTo(100L * KEY_VALUE_CENTS);
+            assertThat(item.getKeysPctApplied()).isEqualTo(30);
+            assertThat(item.getPromotionExcessCents()).isZero();
+            assertThat(item.getKeyCoveragePromotionId()).isNull();
+            verify(keyCoveragePromotionService).reserveForPurchase(any());
+        }
+
+        @Test
+        @DisplayName("compra 100 % en dinero: el ítem queda con Porción en Llaves 0, no nula")
+        void allCash_snapshotsZeroKeys() {
+            Product product = activeProduct(1_000_000L, 30, 1);
+            stubHappyPathCollaborators(product);
+
+            service.createPurchase(9L, requestFor(0L, 1));
+
+            var captor = org.mockito.ArgumentCaptor.forClass(Purchase.class);
+            verify(purchaseRepository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+            assertThat(captor.getValue().getItems().get(0).getKeysValueCents()).isZero();
+        }
+
+        @Test
+        @DisplayName("respaldo insuficiente: se rechaza antes de reservar llaves y antes de que Wompi cobre")
+        void insufficientBacking_rejectsBeforeCharging() {
+            Product product = activeProduct(1_000_000L, 30, 1);
+            stubUpToStockReservation(product);
+            KeyWallet wallet = KeyWallet.builder().purchaseKeysCents(500L * KEY_VALUE_CENTS).build();
+            when(keyWalletRepository.findByConsumerIdForUpdate(9L)).thenReturn(Optional.of(wallet));
+            // KEYS_RESERVE solo puede pagar 50 llaves sin cruzar su umbral crítico.
+            when(treasuryService.keysReserveHeadroomCents()).thenReturn(50L * KEY_VALUE_CENTS);
+
+            assertThatThrownBy(() -> service.createPurchase(9L, requestFor(100L, 1)))
+                    .isInstanceOf(com.verygana2.exceptions.KeysReserveInsufficientException.class);
+
+            assertThat(wallet.getPurchaseKeysCents()).isEqualTo(500L * KEY_VALUE_CENTS);
+            verify(keyLedgerService, never()).reserveForCopayment(any(), org.mockito.ArgumentMatchers.anyLong(), any());
+            verify(wompiService, never()).createCheckoutUrl(any(), any());
         }
 
         @Test

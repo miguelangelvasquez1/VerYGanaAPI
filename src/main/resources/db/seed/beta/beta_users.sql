@@ -299,6 +299,65 @@ ON DUPLICATE KEY UPDATE
                      department_name = VALUES(department_name),
                      current_plan_id = VALUES(current_plan_id);
 
+-- Onboarding del comercial BASIC (NATURAL - persona natural)
+INSERT INTO commercial_onboarding (
+    commercial_details_id,
+    current_step,
+    person_type,
+    route_confirmed,
+    route_preliminary,
+    verification_required,
+    created_at
+)
+SELECT
+    cd.user_id,
+    'COMPLETED',
+    'NATURAL',
+    1,
+    1,
+    0,
+    NOW() - INTERVAL 30 DAY
+FROM commercial_details cd
+JOIN users u ON u.id = cd.user_id
+WHERE u.email = 'juanp.rodriguezg+commercial@uqvirtual.edu.co'
+ON DUPLICATE KEY UPDATE 
+    person_type = 'NATURAL', 
+    route_confirmed = 1,
+    route_preliminary = 1,
+    verification_required = 0;
+
+-- Suscripción activa del comercial BASIC (30 días desde hace 5 días)
+INSERT INTO subscriptions (
+    id,
+    commercial_id,
+    plan_id,
+    status,
+    amount_paid_cents,
+    start_date,
+    end_date,
+    created_at,
+    wompi_reference,
+    wompi_transaction_id
+)
+SELECT
+    UUID_TO_BIN('0be7a000-1001-0000-0000-000000000001'),
+    cd.user_id,
+    p.id,
+    'ACTIVE',
+    5000000, -- $50,000 COP
+    NOW() - INTERVAL 5 DAY,
+    NOW() + INTERVAL 25 DAY,
+    NOW() - INTERVAL 5 DAY,
+    'SEED-BASIC-SUB-001',
+    NULL
+FROM commercial_details cd
+JOIN users u ON u.id = cd.user_id
+JOIN plans p ON p.code = 'BASIC' AND p.active = true
+WHERE u.email = 'juanp.rodriguezg+commercial@uqvirtual.edu.co'
+ON DUPLICATE KEY UPDATE 
+    status = 'ACTIVE',
+    end_date = NOW() + INTERVAL 25 DAY;
+
 
 -- ============================================================
 -- 5. COMMERCIAL — plan STANDARD

@@ -304,6 +304,8 @@ financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
   connectivity-keys-percentage: ${CONNECTIVITY_KEYS_PERCENTAGE:25}
   key-value-cents: ${KEY_VALUE_CENTS:1000} # $1.000 centavos de COP por cada key
+  # Nunca en producción: vencer con una fecha simulada extingue llaves antes de tiempo.
+  allow-simulated-expiry: false
 
 # ============================================
 # PRODUCT CLEANUP (REJECTED / INACTIVE)
