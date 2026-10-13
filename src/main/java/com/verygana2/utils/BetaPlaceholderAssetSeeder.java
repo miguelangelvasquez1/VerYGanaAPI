@@ -65,8 +65,6 @@ public class BetaPlaceholderAssetSeeder implements CommandLineRunner {
                     "Planea tu escapada natural\nEcosistema Andino", new Color(0x256B4E)),
             new PlaceholderAsset("products/beta/tarjeta-digital-moda-urbana.jpg",
                     "Tarjeta digital\nModa Urbana", new Color(0xB23A6B)),
-            new PlaceholderAsset("products/beta/kit-iluminacion-solar-andina.jpg",
-                    "Kit de iluminación solar\nEcosistema Andino", new Color(0x2E7D5C)),
             new PlaceholderAsset("products/beta/caja-panaderia-trigo-dorado.jpg",
                     "Caja de panadería artesanal\nTrigo Dorado", new Color(0xB5651D)),
             new PlaceholderAsset("raffles/beta/mercado-local-sabores-de-colombia.jpg",
