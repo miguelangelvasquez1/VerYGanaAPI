@@ -141,6 +141,16 @@ class PublicPathsAuthorizationTest {
                     .content("{}"))
                     .hasStatus(HttpStatus.NOT_FOUND);
         }
+
+        /** Cierra la partida y paga (spec 013): sin JWT, nunca 401. */
+        @Test
+        @DisplayName("POST /games/metrics pasa la cadena de seguridad sin token")
+        void metricsIsReachableWithoutToken() {
+            assertThat(mvc.post().uri("/games/metrics")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .content("{}"))
+                    .hasStatus(HttpStatus.NOT_FOUND);
+        }
     }
 
     @Nested

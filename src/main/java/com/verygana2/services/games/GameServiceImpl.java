@@ -17,8 +17,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.game.EndSessionDTO;
 import com.verygana2.dtos.game.EndSessionResponseDTO;
@@ -42,17 +40,13 @@ import com.verygana2.models.enums.TargetGender;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.games.Game;
 import com.verygana2.models.games.GameConfigDefinition;
-import com.verygana2.models.games.GameMetricDefinition;
 import com.verygana2.models.games.GameSession;
-import com.verygana2.models.games.GameSessionMetric;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.models.branding.BrandingRequest;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
-import com.verygana2.repositories.games.GameMetricDefinitionRepository;
 import com.verygana2.repositories.games.GameRepository;
-import com.verygana2.repositories.games.GameSessionMetricRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
@@ -68,7 +62,6 @@ import com.verygana2.utils.games.GameResponseEnvelope;
 import com.verygana2.utils.games.PreviewRewardSamples;
 import com.verygana2.utils.validators.games.GameConfigValidator;
 import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
-import com.verygana2.utils.validators.MetricValidator;
 
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.EntityNotFoundException;
@@ -95,14 +88,10 @@ public class GameServiceImpl implements GameService {
     @PersistenceContext
     private EntityManager entityManager;
 
-    private final ObjectMapper objectMapper;
     private final GameRepository gameRepository;
     private final CampaignRepository campaignRepository;
     private final BrandingRequestRepository brandingRequestRepository;
     private final GameSessionRepository gameSessionRepository;
-    private final GameMetricDefinitionRepository metricDefinitionRepository;
-    private final MetricValidator metricValidator;
-    private final GameSessionMetricRepository gameSessionMetricRepository;
     private final ProductRepository productRepository;
     private final AllyProductPromotionRepository allyProductPromotionRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -246,33 +235,34 @@ public class GameServiceImpl implements GameService {
     }
 
     /**
-     * Recibe y guarda métricas de una sesión de juego
+     * Cierra la partida con el envío de métricas del juego y la paga (spec 013): mismo cierre que
+     * {@link #completeSession}, con el puntaje tomado de la métrica {@code performance}.
+     *
+     * <p>Orden de chequeos: dueño (401) → ya cerrada (no hace nada, sin cobro, sin llaves y sin XP) →
+     * vencida (422) → pagar. Lo ya cerrada va antes del vencimiento para que el reintento de un build
+     * a una partida ya pagada responda 200 aunque hayan pasado los 30 minutos, y después del dueño
+     * para que el 200 no sirva de oráculo de tokens existentes.
      */
     @Override
+    @RetryOnConcurrencyConflict
     public void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event) {
-        // Validar sesión y permisos
-        GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
+        GameSession session = lockSession(event.getSessionToken());
+        checkOwnership(session, event.getUserHash());
 
-        // Obtener definiciones de métricas del juego
-        List<GameMetricDefinition> definitions = metricDefinitionRepository
-                .findByGameId(session.getGame().getId());
+        if (session.isCompleted()) {
+            log.info("Métricas ignoradas: la sesión {} ya estaba cerrada", session.getId());
+            return;
+        }
 
-        List<GameMetricDTO> metrics = event.getPayload();
+        checkNotExpired(session);
 
-        // Validar métricas contra definiciones
-        metricValidator.validateMetrics(metrics, definitions);
-
-        // Convertir y guardar métricas
-        List<GameSessionMetric> sessionMetrics = metrics.stream()
-                .map(dto -> buildSessionMetric(dto, session))
-                .collect(Collectors.toList());
-
-        gameSessionMetricRepository.saveAll(java.util.Objects.requireNonNull(
-                sessionMetrics, "sessionMetrics must not be null"));
-
-        // Devolver los puntos ganados por el usuario
-
-        log.info("Submitted {} metrics for session {}", metrics.size(), event.getSessionToken());
+        // PENDIENTE (spec 013, RN-6): las métricas se descartan; solo se usa performance como puntaje.
+        // Para guardarlas falta: cargar game_metric_definitions por juego (incluida performance y los
+        // tipos reales: DOUBLE con valores enteros como 3, que MetricValidator.validateValueType hoy
+        // rechazaría porque exige instanceof Double), decidir qué hacer con las claves no definidas en
+        // vez de rechazar el envío, y volver a llamar a metricValidator.validateMetrics y
+        // gameSessionMetricRepository.saveAll.
+        closeSession(session, PerformanceScore.from(event.getPayload()));
     }
 
     /**
@@ -289,14 +279,27 @@ public class GameServiceImpl implements GameService {
 
         GameSession session = validateSessionOwnership(event.getSessionToken(), event.getUserHash());
 
+        // Sin payload la partida cierra con score nulo: cobra solo la recompensa por completar.
+        Integer score = event.getPayload() != null ? event.getPayload().getFinalScore() : null;
+        long credited = closeSession(session, score);
+
+        return new EndSessionResponseDTO(session.isRewardGranted(), credited / keyValueCents);
+    }
+
+    /**
+     * Cierre compartido por {@code /games/end-session} y {@code /games/metrics}: marca la sesión,
+     * cobra a la campaña, acredita las llaves y pide el XP (AFTER_COMMIT).
+     *
+     * @return lo acreditado al jugador en centavos
+     */
+    private long closeSession(GameSession session, Integer score) {
         ZonedDateTime end = ZonedDateTime.now();
 
         session.setCompleted(true);
         session.setEndTime(end);
         session.setPlayTimeSeconds(
                 java.time.Duration.between(session.getStartTime(), end).getSeconds());
-        // Sin payload la partida cierra con score nulo: cobra solo la recompensa por completar.
-        session.setScore(event.getPayload() != null ? event.getPayload().getFinalScore() : null);
+        session.setScore(score);
 
         long charged = chargeCampaignForSession(session);
         long credited = creditPlayerForSession(session, charged);
@@ -308,7 +311,7 @@ public class GameServiceImpl implements GameService {
         eventPublisher.publishEvent(new XpAwardRequestedEvent(
                 this, session.getConsumer().getId(), ActivityType.GAME_PLAYED));
 
-        return new EndSessionResponseDTO(session.isRewardGranted(), credited / keyValueCents);
+        return credited;
     }
 
     @Override
@@ -503,7 +506,7 @@ public class GameServiceImpl implements GameService {
             session.setRewardGranted(true);
             campaignRepository.save(campaign);
             log.info("Session {} charged {} ¢ to campaign {} (spent {}/{}, status {})",
-                    session.getSessionToken(), charged, campaign.getId(),
+                    session.getId(), charged, campaign.getId(),
                     campaign.getSpentCents(), campaign.getBudgetCents(), campaign.getStatus());
         }
 
@@ -551,25 +554,21 @@ public class GameServiceImpl implements GameService {
     }
 
     private GameSession validateSessionOwnership(String sessionToken, String userHash) {
+        return checkSessionUsable(lockSession(sessionToken), userHash);
+    }
 
+    private GameSession lockSession(String sessionToken) {
         // FOR UPDATE: tanto completeSession (que cobra la sesión a la campaña) como
         // submitGameMetrics escriben sobre la sesión; serializar evita el doble cierre/cobro.
-        GameSession session = gameSessionRepository.findBySessionTokenForUpdate(
+        return gameSessionRepository.findBySessionTokenForUpdate(
                 java.util.Objects.requireNonNull(sessionToken, "sessionToken must not be null"))
                 .orElseThrow(() -> new EntityNotFoundException("Session not found"));
-
-        return checkSessionUsable(session, userHash);
     }
 
     /** Dueño, vigencia y que no esté cerrada: lo que exige cualquier uso de la sesión. */
     private GameSession checkSessionUsable(GameSession session, String userHash) {
-        if (!session.getUserHash().equals(userHash)) {
-            throw new UnauthorizedException("Session does not belong to user");
-        }
-
-        if (session.getStartTime().plusMinutes(sessionExpirationTime).isBefore(ZonedDateTime.now())) {
-            throw new BusinessException("Session expired");
-        }
+        checkOwnership(session, userHash);
+        checkNotExpired(session);
 
         if (session.isCompleted()) {
             throw new BusinessException("Cannot submit metrics for completed session");
@@ -578,20 +577,16 @@ public class GameServiceImpl implements GameService {
         return session;
     }
 
-    private GameSessionMetric buildSessionMetric(GameMetricDTO dto, GameSession session) {
-        GameSessionMetric metric = new GameSessionMetric();
-        metric.setSession(session);
-        metric.setMetricKey(dto.getKey());
-        metric.setMetricType(dto.getType());
-        metric.setMetricValue(toJsonNode(dto.getValue()));
-        metric.setRecordedAt(ZonedDateTime.now());
-        return metric;
+    private void checkOwnership(GameSession session, String userHash) {
+        if (!session.getUserHash().equals(userHash)) {
+            throw new UnauthorizedException("Session does not belong to user");
+        }
     }
 
-    private JsonNode toJsonNode(Object value) {
-        return value == null
-                ? objectMapper.nullNode()
-                : objectMapper.valueToTree(value);
+    private void checkNotExpired(GameSession session) {
+        if (session.getStartTime().plusMinutes(sessionExpirationTime).isBefore(ZonedDateTime.now())) {
+            throw new BusinessException("Session expired");
+        }
     }
 
     private List<RewardCardResponseDTO> getGameRewards(CommercialDetails commercial) {
