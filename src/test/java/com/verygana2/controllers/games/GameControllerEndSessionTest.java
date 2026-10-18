@@ -1,5 +1,6 @@
 package com.verygana2.controllers.games;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -11,6 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.MediaType;
@@ -33,7 +36,7 @@ import com.verygana2.services.interfaces.GameService;
  * identifica solo con session_token + user_hash. Que la ruta sea pública lo prueba
  * PublicPathsAuthorizationTest; aquí, que el controller no dependa de un principal.
  */
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 @DisplayName("GameController: cierre de sesión desde el juego")
 class GameControllerEndSessionTest {
 
@@ -88,5 +91,24 @@ class GameControllerEndSessionTest {
                 .andExpect(status().isBadRequest());
 
         verifyNoInteractions(gameService);
+    }
+
+    @Test
+    @DisplayName("el endpoint está marcado obsoleto (spec 013, RN-9)")
+    void endSessionIsDeprecated() throws Exception {
+        assertThat(GameController.class.getMethod("endSession", GameEventDTO.class)
+                .isAnnotationPresent(Deprecated.class)).isTrue();
+    }
+
+    @Test
+    @DisplayName("la salida no contiene token ni hash")
+    void outputNeverContainsTokenOrHash(CapturedOutput output) throws Exception {
+        when(gameService.completeSession(any())).thenReturn(new EndSessionResponseDTO(true, 13L));
+
+        postEndSession("token-secret-1", "hash-secret-1").andExpect(status().isOk());
+
+        assertThat(output.getAll())
+                .doesNotContain("token-secret-1")
+                .doesNotContain("hash-secret-1");
     }
 }

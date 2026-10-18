@@ -82,19 +82,33 @@ public class GameController {
         return ResponseEntity.ok(objectMapper.valueToTree(gameService.getGameAssets(req)));
     }
 
+    // Público (ver PublicPaths): lo llama el juego desde el iframe, sin JWT. La credencial es
+    // session_token + user_hash. El envío cierra la partida y paga llaves y XP (spec 013).
+    // Nunca se escribe en el log el evento ni su credencial.
     @PostMapping("/metrics")
-    public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event,
-            @AuthenticationPrincipal Jwt jwt) {
-        // Long userId = jwt.getClaim("userId");
-        if (event.getIsBrandedMode() == false)
+    public ResponseEntity<Void> submitGameMetrics(@RequestBody GameEventDTO<List<GameMetricDTO>> event) {
+        if (event.getSessionToken() == null || event.getUserHash() == null) {
+            throw new ValidationException("session_token y user_hash son requeridos");
+        }
+        // Vista previa del comercial: no hay sesión real que cerrar ni pagar
+        if ("preview".equals(event.getSessionToken())) {
             return ResponseEntity.ok().build();
-        System.out.println(event.toString());
-        // gameService.submitGameMetrics(event);
+        }
+        // Solo el false explícito se ignora; si viene nulo decide la sesión
+        if (Boolean.FALSE.equals(event.getIsBrandedMode())) {
+            return ResponseEntity.ok().build();
+        }
+        gameService.submitGameMetrics(event);
         return ResponseEntity.ok().build();
     }
 
     // Público (ver PublicPaths): lo llama el juego desde el iframe, que no tiene JWT. La
     // credencial es session_token + user_hash, como en /games/assets.
+    /**
+     * @deprecated usar {@code POST /games/metrics}, que cierra la partida; se elimina en otra spec
+     *             (spec 013, RN-9). Mientras tanto se comporta igual que antes.
+     */
+    @Deprecated
     @PostMapping("/end-session")
     public ResponseEntity<EndSessionResponseDTO> endSession(@RequestBody GameEventDTO<EndSessionDTO> event) {
         if (event.getSessionToken() == null || event.getUserHash() == null) {
