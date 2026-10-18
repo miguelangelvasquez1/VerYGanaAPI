@@ -1,0 +1,20 @@
+{
+  "comment": "Casos de PromQL. La expresión sale del JSON del dashboard (panel + refId); aquí solo van las sustituciones de variables, las series de entrada y el resultado esperado. Ver monitoring/check_dashboards.py render-promtool.",
+  "cases": [
+    {
+      "name": "uptime_muestra_el_valor_del_ambiente",
+      "dashboard": "api-jvm.json",
+      "panel": "Uptime",
+      "refId": "A",
+      "vars": {"$env": "dev"},
+      "interval": "1m",
+      "input_series": [
+        {"series": "process_uptime_seconds{env=\"dev\"}", "values": "100 160"}
+      ],
+      "eval_time": "1m",
+      "exp_samples": [
+        {"labels": "process_uptime_seconds{env=\"dev\"}", "value": 160}
+      ]
+    }
+  ]
+}

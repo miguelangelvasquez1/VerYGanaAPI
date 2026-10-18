@@ -17,7 +17,11 @@
 # esa variable definida no se inventa ninguna ruta: sale con 1.
 #
 # Para que "Sí" valga, la referencia tiene que ser una spec real del repo del front:
-#   - la sección "## Impacto en el front" aparece una sola vez;
+#   - la sección "## Impacto en el front" aparece una sola vez, y cada uno de sus tres campos
+#     (Toca al front, Motivo o cambios, Spec del front) también;
+#   - la ruta real de la referencia (resuelta con `cd` y `pwd -P`, o sea, siguiendo enlaces
+#     simbólicos) no cae dentro del repo de la API, que es dos niveles arriba de la spec que se
+#     comprueba;
 #   - la ruta termina en specs/<NNN>-<slug>/spec.md con NNN numérico (no _template, no
 #     front-spec.md, no el spec.md de la propia spec de la API);
 #   - dos niveles arriba de specs/ hay un package.json con "name": "rifacel-app-nextjs";
@@ -26,9 +30,10 @@
 #
 # Códigos de salida:
 #   0  "No" con motivo; o "Sí" con una referencia que cumple todo lo de arriba.
-#   1  Cualquier otro caso: sección ausente, repetida o sin llenar, "No" sin motivo, "Sí" sin
+#   1  Cualquier otro caso: sección ausente, repetida o sin llenar, campo repetido, "No" sin motivo, "Sí" sin
 #      referencia, PENDIENTE DE TRASLADAR, archivo inexistente, ruta relativa sin
-#      VERYGANA_FRONT_DIR, ruta o repo que no son una spec del front, Estado inválido u Origen
+#      VERYGANA_FRONT_DIR, ruta o repo que no son una spec del front (o que caen dentro de la
+#      API), Estado inválido u Origen
 #      que no nombra esta spec de la API.
 #   2  Mal uso: sin argumento, o la carpeta no tiene spec.md.
 
@@ -63,6 +68,12 @@ section=$(awk '
 ' "$spec")
 
 [ -n "$section" ] || fail "falta la sección '## Impacto en el front'."
+
+# Cada campo aparece una sola vez: con dos líneas iguales, `grep -m1` leería la primera y callaría la otra.
+for label in "Toca al front" "Motivo o cambios" "Spec del front"; do
+  n=$(printf '%s\n' "$section" | grep -c -E "^- \*\*$label:\*\*")
+  [ "$n" -le 1 ] || fail "el campo '$label' aparece $n veces en la sección; debe aparecer una sola."
+done
 
 touches=$(field "Toca al front")
 reason=$(field "Motivo o cambios")
@@ -123,6 +134,16 @@ case "/$norm/" in
 esac
 printf '%s\n' "$norm" | grep -q -E '/specs/[0-9]+-[^/]+/spec\.md$' \
   || fail "la referencia debe terminar en specs/<NNN>-<slug>/spec.md con NNN numérico (no _template ni front-spec.md): $full"
+
+# La spec del front no puede estar dentro del repo de la API (ni por ruta ni por enlace simbólico):
+# un package.json fabricado dentro de la API no es el repo del front. Se compara la ruta física.
+api_root=$(cd "$dir/../.." 2>/dev/null && pwd -P)
+ref_dir=$(cd "$(dirname "$full")" 2>/dev/null && pwd -P)
+if [ -n "$api_root" ] && [ -n "$ref_dir" ]; then
+  case "$ref_dir/" in
+    "$api_root"/*) fail "la spec del front referenciada está dentro del repo de la API, no en el repo del front: $full" ;;
+  esac
+fi
 
 # Dos niveles arriba de specs/ tiene que estar el repo del front (misma condición del coordinator).
 front_root=$(printf '%s\n' "$norm" | sed -E 's#/specs/[0-9]+-[^/]+/spec\.md$##')

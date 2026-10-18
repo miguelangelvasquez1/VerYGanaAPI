@@ -1,0 +1,2 @@
+# promtool test rules exige rule_files; los casos son todos promql_expr_test.
+groups: []

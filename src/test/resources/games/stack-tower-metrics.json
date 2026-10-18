@@ -1,0 +1,10 @@
+{ "sessionToken": "token-stack-1", "userHash": "hash-stack-1", "isBrandedMode": true, "campaignId": "14",
+  "gameTitle": "stack-tower", "error_count": 0, "error_types": [], "load_time": 3.414,
+  "payload": [
+    { "key": "start_time",  "type": "DOUBLE", "value": 1792280954 },
+    { "key": "end_time",    "type": "DOUBLE", "value": 1792281019 },
+    { "key": "play_time",   "type": "DOUBLE", "value": 65.2170028686523 },
+    { "key": "keys_earned", "type": "INT",    "value": 0 },
+    { "key": "result",      "type": "STRING", "value": "win" },
+    { "key": "game_time",   "type": "DOUBLE", "value": 16.8980007171631 },
+    { "key": "performance", "type": "DOUBLE", "value": 3 } ] }

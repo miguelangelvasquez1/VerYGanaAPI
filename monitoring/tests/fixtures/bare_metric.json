@@ -1,0 +1,96 @@
+{
+  "uid": "verygana-valid",
+  "title": "Fixture válido",
+  "tags": [
+    "verygana"
+  ],
+  "graphTooltip": 1,
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROM",
+        "type": "datasource",
+        "query": "prometheus"
+      },
+      {
+        "name": "env",
+        "label": "Ambiente",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "query": "label_values(up{job=\"verygana-api\"}, env)",
+        "definition": "label_values(up{job=\"verygana-api\"}, env)",
+        "refresh": 1,
+        "sort": 1,
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "name": "Annotations & Alerts",
+        "enable": false
+      },
+      {
+        "name": "Alertas disparadas",
+        "enable": true,
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "expr": "max by (alertname, severity) ({__name__=~\"ALERTS|GRAFANA_ALERTS\", alertstate=\"firing\", env=\"$env\"})"
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "VERyGANA",
+      "type": "dashboards",
+      "tags": [
+        "verygana"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Peticiones / s",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "process_uptime_seconds"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Fila",
+      "collapsed": true,
+      "panels": [
+        {
+          "type": "stat",
+          "title": "Uptime",
+          "targets": [
+            {
+              "refId": "A",
+              "expr": "process_uptime_seconds{env=\"$env\"}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
