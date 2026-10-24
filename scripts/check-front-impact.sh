@@ -79,13 +79,16 @@ touches=$(field "Toca al front")
 reason=$(field "Motivo o cambios")
 ref=$(field "Spec del front")
 
-case "$touches" in
-  "No")
+# Sin distinguir mayúsculas (bash 3.2 de macOS: sin ${var,,}). `tr` solo baja ASCII, así que
+# "SÍ" queda como "sÍ" y se admite aparte.
+touches_lc=$(printf '%s' "$touches" | tr 'A-Z' 'a-z')
+case "$touches_lc" in
+  "no")
     [ -n "$reason" ] || fail "'Toca al front: No' exige el motivo en 'Motivo o cambios'."
     echo "OK ($spec): no toca al front, con motivo escrito."
     exit 0
     ;;
-  "Sí" | "Si")
+  "sí" | "si" | "sÍ")
     ;;
   "")
     fail "falta la línea '- **Toca al front:**'."
@@ -139,9 +142,13 @@ printf '%s\n' "$norm" | grep -q -E '/specs/[0-9]+-[^/]+/spec\.md$' \
 # un package.json fabricado dentro de la API no es el repo del front. Se compara la ruta física.
 api_root=$(cd "$dir/../.." 2>/dev/null && pwd -P)
 ref_dir=$(cd "$(dirname "$full")" 2>/dev/null && pwd -P)
+# La comparación ignora mayúsculas: el disco de macOS no las distingue y una ruta con otras
+# mayúsculas (`.../VERYGANAR/...`) apuntaría a la misma carpeta.
 if [ -n "$api_root" ] && [ -n "$ref_dir" ]; then
-  case "$ref_dir/" in
-    "$api_root"/*) fail "la spec del front referenciada está dentro del repo de la API, no en el repo del front: $full" ;;
+  api_root_lc=$(printf '%s' "$api_root" | tr 'A-Z' 'a-z')
+  ref_dir_lc=$(printf '%s' "$ref_dir" | tr 'A-Z' 'a-z')
+  case "$ref_dir_lc/" in
+    "$api_root_lc"/*) fail "la spec del front referenciada está dentro del repo de la API, no en el repo del front: $full" ;;
   esac
 fi
 

@@ -6,14 +6,1761 @@
       "dashboard": "api-jvm.json",
       "panel": "Uptime",
       "refId": "A",
-      "vars": {"$env": "dev"},
+      "vars": {
+        "$env": "dev"
+      },
       "interval": "1m",
       "input_series": [
-        {"series": "process_uptime_seconds{env=\"dev\"}", "values": "100 160"}
+        {
+          "series": "process_uptime_seconds{env=\"dev\"}",
+          "values": "100 160"
+        }
       ],
       "eval_time": "1m",
       "exp_samples": [
-        {"labels": "process_uptime_seconds{env=\"dev\"}", "value": 160}
+        {
+          "labels": "process_uptime_seconds{env=\"dev\"}",
+          "value": 160
+        }
+      ]
+    },
+    {
+      "name": "peticiones_s_ignora_actuator",
+      "dashboard": "api-jvm.json",
+      "panel": "Peticiones / s",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__rate_interval": "1m"
+      },
+      "interval": "15s",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0 15 30 45 60"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0 15 30 45 60"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": []
+    },
+    {
+      "name": "errores_5xx_ignora_actuator",
+      "dashboard": "api-jvm.json",
+      "panel": "Errores 5xx",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__rate_interval": "1m"
+      },
+      "interval": "15s",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0 15 30 45 60"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0 15 30 45 60"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": []
+    },
+    {
+      "name": "peticiones_s_cuenta_trafico_normal",
+      "dashboard": "api-jvm.json",
+      "panel": "Peticiones / s",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__rate_interval": "1m"
+      },
+      "interval": "15s",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0 15 30 45 60"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0 15 30 45 60"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 15 30 45 60"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "peticiones_s_no_mezcla_ambientes",
+      "dashboard": "api-jvm.json",
+      "panel": "Peticiones / s",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__rate_interval": "1m"
+      },
+      "interval": "15s",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 15 30 45 60"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"beta\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 150 300 450 600"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "name": "endpoints_lentos_excluye_poco_trafico",
+      "dashboard": "api-jvm.json",
+      "panel": "Endpoints más lentos (p95)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__range": "6h"
+      },
+      "interval": "1h",
+      "wrap": "round(%s * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.05\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.1\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.2\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.4\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"1.0\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"2.0\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"5.0\"}",
+          "values": "0 0 0 0 0 0 1"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 0 0 0 0 0 1"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\"}",
+          "values": "0 0 0 0 0 0 1"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"0.05\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"0.1\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"0.2\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"0.4\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"1.0\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"2.0\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"5.0\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/busy\",method=\"GET\",status=\"200\"}",
+          "values": "0 3600 7200 10800 14400 18000 21600"
+        }
+      ],
+      "eval_time": "6h",
+      "exp_samples": [
+        {
+          "labels": "{method=\"GET\", uri=\"/busy\"}",
+          "value": 97500
+        }
+      ]
+    },
+    {
+      "name": "endpoints_lentos_incluye_lento_con_trafico",
+      "dashboard": "api-jvm.json",
+      "panel": "Endpoints más lentos (p95)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev",
+        "$__range": "6h"
+      },
+      "interval": "1h",
+      "wrap": "round(%s * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.05\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.1\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.2\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.4\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"1.0\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"2.0\"}",
+          "values": "0 0 0 0 0 0 0"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"5.0\"}",
+          "values": "0 180 360 540 720 900 1080"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 180 360 540 720 900 1080"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/slow\",method=\"GET\",status=\"200\"}",
+          "values": "0 180 360 540 720 900 1080"
+        }
+      ],
+      "eval_time": "6h",
+      "exp_samples": [
+        {
+          "labels": "{method=\"GET\", uri=\"/slow\"}",
+          "value": 4850000
+        }
+      ]
+    },
+    {
+      "name": "payouts_por_fase_diario_entero",
+      "dashboard": "payouts.json",
+      "panel": "Payouts por fase",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "payout_scheduled_total{env=\"dev\"}",
+          "values": "_ _ 7 7 7 8 8 8 8 8 8 8 8 9 9 9 9 9 9 9 10 10 10 10 10"
+        }
+      ],
+      "eval_time": "24h",
+      "exp_samples": [
+        {
+          "labels": "{env=\"dev\"}",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "name": "dinero_dispersado_diario",
+      "dashboard": "payouts.json",
+      "panel": "Dinero dispersado vs. programado",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "payout_paid_amount_cents_total{env=\"dev\"}",
+          "values": "_ _ 1000000 1000000 1000000 1100000 1100000 1100000 1100000 1100000 1100000 1100000 1100000 1350000 1350000 1350000 1350000 1350000 1350000 1350000 1500000 1500000 1500000 1500000 1500000"
+        }
+      ],
+      "eval_time": "24h",
+      "exp_samples": [
+        {
+          "labels": "{env=\"dev\"}",
+          "value": 5113.64
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_cumple",
+      "comment": "100 000 peticiones en 7 días, 400 con 5xx: cumplimiento 0,996; presupuesto 0,2 (20 %); 100 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 99600+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0 400+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 996000
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_cumple",
+      "comment": "100 000 peticiones en 7 días, 400 con 5xx: cumplimiento 0,996; presupuesto 0,2 (20 %); 100 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 99600+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0 400+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 200000
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_cumple",
+      "comment": "100 000 peticiones en 7 días, 400 con 5xx: cumplimiento 0,996; presupuesto 0,2 (20 %); 100 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 99600+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0 400+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 100000000
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_sin_5xx",
+      "comment": "Sin ninguna serie 5xx: cumplimiento 1 y presupuesto completo (no vacío). Prueba el or vector(0).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 1000000
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_sin_5xx",
+      "comment": "Sin ninguna serie 5xx: cumplimiento 1 y presupuesto completo (no vacío). Prueba el or vector(0).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 1000000
+        }
+      ]
+    },
+    {
+      "name": "slo_disponibilidad_sin_5xx",
+      "comment": "Sin ninguna serie 5xx: cumplimiento 1 y presupuesto completo (no vacío). Prueba el or vector(0).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 500000000
+        }
+      ]
+    },
+    {
+      "name": "slo_latencia",
+      "comment": "100 000 peticiones, 96 000 en le=0.8: cumplimiento 0,96; presupuesto 0,2; 1 000 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 96000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 960000
+        }
+      ]
+    },
+    {
+      "name": "slo_latencia",
+      "comment": "100 000 peticiones, 96 000 en le=0.8: cumplimiento 0,96; presupuesto 0,2; 1 000 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 96000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 200000
+        }
+      ]
+    },
+    {
+      "name": "slo_latencia",
+      "comment": "100 000 peticiones, 96 000 en le=0.8: cumplimiento 0,96; presupuesto 0,2; 1 000 peticiones.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0 100000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0 96000+0x167"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0 100000+0x167"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 1000000000
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h",
+      "comment": "Última hora: 10 de 1 000 con 5xx (1 %): burn 1 h = 2; 6 h: 10 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x167 167990"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0+0x167 10"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 2000000
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h",
+      "comment": "Última hora: 10 de 1 000 con 5xx (1 %): burn 1 h = 2; 6 h: 10 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x167 167990"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0+0x167 10"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 333333
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h",
+      "comment": "Última hora: 10 de 1 000 con 5xx (1 %): burn 1 h = 2; 6 h: 10 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x167 167990"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0+0x167 10"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 2000000
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h",
+      "comment": "Última hora: 10 de 1 000 con 5xx (1 %): burn 1 h = 2; 6 h: 10 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x167 167990"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "0+0x167 10"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 333333
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h_latencia",
+      "comment": "Última hora: 100 de 1 000 superan 800 ms (10 %): burn 1 h = 2; 6 h: 100 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+1000x167 167900"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+1000x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 2000000
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h_latencia",
+      "comment": "Última hora: 100 de 1 000 superan 800 ms (10 %): burn 1 h = 2; 6 h: 100 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+1000x167 167900"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+1000x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 333333
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h_latencia",
+      "comment": "Última hora: 100 de 1 000 superan 800 ms (10 %): burn 1 h = 2; 6 h: 100 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+1000x167 167900"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+1000x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 2000000
+        }
+      ]
+    },
+    {
+      "name": "slo_burn_rate_1h_6h_latencia",
+      "comment": "Última hora: 100 de 1 000 superan 800 ms (10 %): burn 1 h = 2; 6 h: 100 de 6 000, burn = 0,333333.",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "wrap": "round((%s) * 1e6)",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "0+1000x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+1000x167 167900"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+1000x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": [
+        {
+          "labels": "{}",
+          "value": 333333
+        }
+      ]
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_sin_trafico",
+      "comment": "Series existentes sin incremento en la ventana: el panel queda vacío (Sin datos), nunca 0 % ni 100 % (CA-13).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\"}",
+          "values": "5+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"500\"}",
+          "values": "2+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "4+0x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/api/games\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "5+0x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Disponibilidad · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Cumplimiento 7 días",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Presupuesto restante (peticiones)",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 1 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate 6 h",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "slo_ignora_actuator",
+      "comment": "Solo tráfico a /actuator/prometheus: no cuenta, el panel queda vacío (CA-9).",
+      "dashboard": "slo.json",
+      "panel": "Latencia · Burn rate en el tiempo",
+      "refId": "B",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1h",
+      "input_series": [
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\"}",
+          "values": "0+100x168"
+        },
+        {
+          "series": "http_server_requests_seconds_count{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"500\"}",
+          "values": "0+10x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"0.8\"}",
+          "values": "0+50x168"
+        },
+        {
+          "series": "http_server_requests_seconds_bucket{env=\"dev\",uri=\"/actuator/prometheus\",method=\"GET\",status=\"200\",le=\"+Inf\"}",
+          "values": "0+100x168"
+        }
+      ],
+      "eval_time": "168h",
+      "exp_samples": []
+    },
+    {
+      "name": "saldo_wompi_conserva_centavos",
+      "comment": "D-10: el saldo conserva los centavos (123456 centavos = 1234,56); con un round() el caso falla.",
+      "dashboard": "payouts.json",
+      "panel": "Balance Wompi Payouts",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "wompi_payout_balance_cents{env=\"dev\"}",
+          "values": "123456 123456"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": [
+        {
+          "labels": "{env=\"dev\"}",
+          "value": 1234.56
+        }
+      ]
+    },
+    {
+      "name": "retenido_scheduled_conserva_centavos",
+      "comment": "D-10: el saldo conserva los centavos (123456 centavos = 1234,56); con un round() el caso falla.",
+      "dashboard": "payouts.json",
+      "panel": "Retenido en SCHEDULED",
+      "refId": "A",
+      "vars": {
+        "$env": "dev"
+      },
+      "interval": "1m",
+      "input_series": [
+        {
+          "series": "payout_pending_amount_cents{env=\"dev\",status=\"SCHEDULED\"}",
+          "values": "123456 123456"
+        }
+      ],
+      "eval_time": "1m",
+      "exp_samples": [
+        {
+          "labels": "{env=\"dev\", status=\"SCHEDULED\"}",
+          "value": 1234.56
+        }
       ]
     }
   ]

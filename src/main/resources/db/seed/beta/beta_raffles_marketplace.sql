@@ -313,6 +313,58 @@ WHERE product.name = 'Caja de panadería artesanal Trigo Dorado - 12 piezas'
       WHERE existing_stock.product_id = product.id
   );
 
+-- Inventario para poder comprar en vivo en la beta: 20 unidades AVAILABLE
+-- (códigos 101 a 120) por cada producto. BetaDataSeeder cifra los códigos RAW:
+-- al arrancar. La idempotencia NO puede depender de code_hash: tras el primer
+-- arranque BetaDataSeeder reemplaza el SHA2 plano por un HMAC-SHA256 con clave
+-- (CodeEncryptor.hash), así que el SHA2 nunca vuelve a coincidir y reinsertaría
+-- 40 filas que chocarían con uk_code_hash_per_product al cifrarse. El guard es por
+-- cantidad: solo se insertan si el producto tiene como mucho las filas que deja el
+-- resto del seed (Moda Urbana: 1 SOLD; Trigo Dorado: 1 SOLD y, si el bloque
+-- anterior la insertó, 1 AVAILABLE). Una base que ya las tiene (21 y 22 filas)
+-- no recibe nada. El NOT EXISTS por SHA2 queda solo como defensa extra.
+INSERT INTO product_stock (
+    code,
+    code_hash,
+    created_at,
+    status,
+    version,
+    product_id
+)
+SELECT
+    CONCAT('RAW:', product.code_prefix, product.seq),
+    SHA2(CONCAT(product.code_prefix, product.seq), 256),
+    NOW(),
+    'AVAILABLE',
+    0,
+    product.id
+FROM (
+    SELECT
+        p.id,
+        CASE p.name
+            WHEN 'Tarjeta digital Moda Urbana - $85.000 COP' THEN 'BETA-MODA-URBANA-85K-2026-'
+            ELSE 'BETA-TRIGO-DORADO-CAJA-2026-'
+        END AS code_prefix,
+        101 + tens.d * 10 + ones.d AS seq
+    FROM products p
+    JOIN (SELECT 0 AS d UNION ALL SELECT 1) tens
+    JOIN (SELECT 0 AS d UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4
+          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) ones
+    WHERE p.name IN ('Tarjeta digital Moda Urbana - $85.000 COP',
+                     'Caja de panadería artesanal Trigo Dorado - 12 piezas')
+) product
+WHERE (
+    SELECT COUNT(*)
+    FROM product_stock stock_count
+    WHERE stock_count.product_id = product.id
+) <= 2
+AND NOT EXISTS (
+    SELECT 1
+    FROM product_stock existing_stock
+    WHERE existing_stock.product_id = product.id
+      AND existing_stock.code_hash = SHA2(CONCAT(product.code_prefix, product.seq), 256)
+);
+
 -- Historial de compra: el bono digital ya se reclamó; el pedido físico espera
 -- la validación del PIN por el comercio.
 INSERT INTO purchase_items (
