@@ -70,28 +70,6 @@ class ProductTest {
     }
 
     @Nested
-    @DisplayName("getImageUrl")
-    class ImageUrl {
-
-        @Test
-        @DisplayName("sin imageAsset: retorna null")
-        void withoutImageAsset_returnsNull() {
-            Product product = new Product();
-            assertThat(product.getImageUrl()).isNull();
-        }
-
-        @Test
-        @DisplayName("con imageAsset: construye la URL pública del CDN")
-        void withImageAsset_buildsCdnUrl() {
-            Product product = new Product();
-            ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1/img.jpg").build();
-            product.setImageAsset(asset);
-
-            assertThat(product.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1/img.jpg");
-        }
-    }
-
-    @Nested
     @DisplayName("getMaxKeysAllowed / getMinCashCents")
     class KeysAndCash {
 

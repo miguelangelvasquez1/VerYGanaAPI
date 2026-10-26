@@ -22,14 +22,4 @@ class ProductCategoryTest {
         assertThat(category.isActive()).isTrue();
         assertThat(category.getCreatedAt()).isNotNull();
     }
-
-    @Test
-    @DisplayName("getImageUrl: sin imageAsset retorna null, con imageAsset arma la URL del CDN")
-    void getImageUrl_dependsOnImageAsset() {
-        ProductCategory category = new ProductCategory();
-        assertThat(category.getImageUrl()).isNull();
-
-        category.setImageAsset(ProductCategoryImageAsset.builder().objectKey("categories/1/img.jpg").build());
-        assertThat(category.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/categories/1/img.jpg");
-    }
 }

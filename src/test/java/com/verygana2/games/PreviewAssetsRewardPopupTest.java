@@ -20,12 +20,17 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 
 import com.verygana2.exceptions.BusinessException;
+import com.verygana2.dtos.game.RewardCardResponseDTO;
 import com.verygana2.models.branding.BrandingRequest;
+import com.verygana2.models.marketplace.Product;
+import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.services.games.GameServiceImpl;
+import com.verygana2.storage.service.PublicUrlBuilder;
+import com.verygana2.testsupport.PublicUrlBuilders;
 import com.verygana2.utils.games.GameConfigStamper;
 import com.verygana2.utils.games.GameResponseEnvelope;
 import com.verygana2.utils.games.PreviewRewardSamples;
@@ -54,6 +59,8 @@ class PreviewAssetsRewardPopupTest {
 
     /** Real: sin productos del comercial, la preview usa ejemplos. */
     @Spy private PreviewRewardSamples previewRewardSamples = new PreviewRewardSamples("https://cdn/ejemplo.png");
+
+    @Spy private PublicUrlBuilder publicUrlBuilder = PublicUrlBuilders.forDomain("cdn-beta.verygana.com");
 
     @InjectMocks private GameServiceImpl gameService;
 
@@ -90,6 +97,33 @@ class PreviewAssetsRewardPopupTest {
 
         Map<String, Object> popup = (Map<String, Object>) assets.get("reward_popup");
         assertThat(popup).containsKeys("popup_title", "products");
+    }
+
+    @Test
+    @DisplayName("la tarjeta de recompensa arma la imagen con el CDN configurado")
+    @SuppressWarnings("unchecked")
+    void rewardCardImageUsesConfiguredCdn() {
+        givenRequestWithDraft(Map.of("game", Map.of("ball_speed", 500)));
+        Product product = new Product();
+        product.setId(7L);
+        product.setName("Audífonos");
+        product.setPriceCents(500_000L);
+        product.setMaxKeysPct(10);
+        product.setAverageRate(4.5);
+        CommercialDetails owner = new CommercialDetails();
+        owner.setCompanyName("Tienda");
+        product.setCommercial(owner);
+        com.verygana2.models.marketplace.ProductCategory category = new com.verygana2.models.marketplace.ProductCategory();
+        category.setName("Tecnología");
+        product.setProductCategory(category);
+        product.setImageAsset(ProductImageAsset.builder().objectKey("products/7.png").build());
+        when(productRepository.findGameRewardsProducts(any())).thenReturn(List.of(product));
+
+        Map<String, Object> assets = gameService.getPreviewAssets(5L);
+
+        Map<String, Object> popup = (Map<String, Object>) assets.get("reward_popup");
+        List<RewardCardResponseDTO> cards = (List<RewardCardResponseDTO>) popup.get("products");
+        assertThat(cards.get(0).getImage_url()).isEqualTo("https://cdn-beta.verygana.com/public/products/7.png");
     }
 
     @Test

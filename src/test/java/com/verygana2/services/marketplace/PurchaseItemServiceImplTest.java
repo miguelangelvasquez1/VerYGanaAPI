@@ -59,7 +59,26 @@ class PurchaseItemServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PurchaseItemServiceImpl(purchaseItemRepository, purchaseMapper, codeEncryptor, passwordEncoder,
-                keyPromotionResolver);
+                keyPromotionResolver, com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+    }
+
+    @Test
+    @DisplayName("más vendidos (general y por rango de fechas): la imagen usa el CDN configurado")
+    void topSellingProducts_useConfiguredCdn() {
+        var general = new com.verygana2.dtos.product.responses.FeaturedProductResponseDTO(
+                1L, "A", "products/a.png", 1000L, 4.0, 3L);
+        var ranged = new com.verygana2.dtos.product.responses.FeaturedProductResponseDTO(
+                2L, "B", "products/b.png", 1000L, 4.0, 3L);
+        when(purchaseItemRepository.findTopSellingProducts(org.mockito.ArgumentMatchers.eq(9L), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(general)));
+        when(purchaseItemRepository.findTopSellingProductsByDateRange(org.mockito.ArgumentMatchers.eq(9L), org.mockito.ArgumentMatchers.eq(START), org.mockito.ArgumentMatchers.eq(END), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(ranged)));
+
+        service.getTopSellingProductsPage(9L, org.springframework.data.domain.Pageable.unpaged());
+        service.getTopSellingProductsByDateRangePage(9L, START, END, org.springframework.data.domain.Pageable.unpaged());
+
+        assertThat(general.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/a.png");
+        assertThat(ranged.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/b.png");
     }
 
     private PurchaseItem physicalPendingItem() {

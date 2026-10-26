@@ -50,6 +50,7 @@ class ProductMapperTest {
         ProductMapperImpl impl = new ProductMapperImpl();
         org.springframework.test.util.ReflectionTestUtils.setField(impl, "moneyMapper", new MoneyMapper());
         org.springframework.test.util.ReflectionTestUtils.setField(impl, "targetAudienceMapper", new TargetAudienceMapperImpl());
+        org.springframework.test.util.ReflectionTestUtils.setField(impl, "publicUrlBuilder", com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
         return impl;
     }
 
@@ -286,8 +287,8 @@ class ProductMapperTest {
     class ToProductSummaryResponseDTOFromFavoriteProduct {
 
         @Test
-        @DisplayName("aquí SÍ se llena imageUrl, desde favoriteProduct.getProduct().getImageUrl()")
-        void imageUrlIsFilledFromProduct() {
+        @DisplayName("aquí SÍ se llena imageUrl, desde el objectKey del asset con el dominio de CDN configurado")
+        void favoriteProductImageUrlUsesConfiguredCdn() {
             Product product = baseProduct();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1.png").build();
             product.setImageAsset(asset);
@@ -295,8 +296,20 @@ class ProductMapperTest {
 
             ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct);
 
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/1.png");
             assertThat(dto.getName()).isEqualTo("Producto");
+        }
+
+        @Test
+        @DisplayName("sin imageAsset: imageUrl queda null")
+        void favoriteProductWithoutAssetHasNullUrl() {
+            Product product = baseProduct();
+            product.setImageAsset(null);
+            FavoriteProduct favoriteProduct = FavoriteProduct.builder().product(product).build();
+
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct);
+
+            assertThat(dto.getImageUrl()).isNull();
         }
 
     }

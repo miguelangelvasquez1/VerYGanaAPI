@@ -132,12 +132,6 @@ public class Prize {
 
     // ========== MÉTODOS DE UTILIDAD ==========
 
-    public String getImageUrl() {
-        if (this.imageAsset == null)
-            return null;
-        return "https://cdn.verygana.com/public/" + this.imageAsset.getObjectKey();
-    }
-
     /**
      * Incrementa el contador de premios reclamados
      */

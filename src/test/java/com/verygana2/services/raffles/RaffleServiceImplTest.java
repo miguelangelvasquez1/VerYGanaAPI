@@ -34,6 +34,7 @@ import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.Raffle;
 import com.verygana2.models.raffles.RaffleImageAsset;
+import com.verygana2.testsupport.PublicUrlBuilders;
 import com.verygana2.repositories.raffles.PrizeImageAssetRepository;
 import com.verygana2.repositories.raffles.PrizeRepository;
 import com.verygana2.repositories.raffles.RaffleImageAssetRepository;
@@ -88,7 +89,7 @@ class RaffleServiceImplTest {
                 raffleTicketRepository, raffleImageAssetRepository,
                 prizeImageAssetRepository, r2Service, raffleMapper, prizeMapper,
                 targetAudienceAssembler, consumerDetailsService, claimCodeEncryptor, objectMapper,
-                assetOrphanedService);
+                assetOrphanedService, PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
     }
 
     private Raffle raffle(Long id, RaffleStatus status) {
@@ -213,6 +214,76 @@ class RaffleServiceImplTest {
         void notFound_throwsObjectNotFoundException() {
             when(raffleRepository.findById(1L)).thenReturn(Optional.empty());
             assertThatThrownBy(() -> service.getRaffleById(1L)).isInstanceOf(ObjectNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("detalle: la imagen de la rifa y de sus premios usa el CDN configurado")
+        void raffleDetail_buildsUrlsWithConfiguredCdn() {
+            Raffle raffle = raffle(1L, RaffleStatus.ACTIVE);
+            when(raffleRepository.findById(1L)).thenReturn(Optional.of(raffle));
+            when(raffleImageAssetRepository.findByRaffleId(1L)).thenReturn(Optional.of(
+                    com.verygana2.models.raffles.RaffleImageAsset.builder().objectKey("raffles/r.png").build()));
+            com.verygana2.dtos.raffle.responses.PrizeResponseDTO prize =
+                    new com.verygana2.dtos.raffle.responses.PrizeResponseDTO();
+            prize.setImageUrl("prizes/p.png");
+            com.verygana2.dtos.raffle.responses.RaffleResponseDTO dto =
+                    new com.verygana2.dtos.raffle.responses.RaffleResponseDTO();
+            dto.setPrizes(List.of(prize));
+            when(raffleMapper.toRaffleResponseDTO(raffle)).thenReturn(dto);
+
+            var response = service.getRaffleResponseDTOById(1L, false);
+
+            assertThat(response.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/r.png");
+            assertThat(response.getPrizes().get(0).getImageUrl())
+                    .isEqualTo("https://cdn-beta.verygana.com/public/prizes/p.png");
+        }
+    }
+
+    @Nested
+    @DisplayName("listados de rifas: URL de imagen")
+    class ListUrls {
+
+        private com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO summary(String key) {
+            return com.verygana2.dtos.raffle.responses.RaffleSummaryResponseDTO.builder().imageUrl(key).build();
+        }
+
+        @Test
+        @DisplayName("resúmenes por filtro, live, activas y mis rifas usan el CDN configurado")
+        void raffleLists_buildUrlsWithConfiguredCdn() {
+            var byFilter = summary("raffles/a.png");
+            var live = summary("raffles/b.png");
+            var active = summary("raffles/c.png");
+            var mine = com.verygana2.dtos.raffle.responses.UserRaffleSummaryResponseDTO.builder()
+                    .imageUrl("raffles/d.png").build();
+            when(raffleRepository.findByFilters(any(), any(), any(), any(), any(), any()))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(byFilter)));
+            when(raffleRepository.findLiveRaffles(any(), any(), any())).thenReturn(List.of(live));
+            when(raffleRepository.findActiveRaffles(any(), any(), any(), any(), any()))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(active)));
+            when(raffleRepository.findMyRafflesByStatus(any(), any(), any()))
+                    .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(mine)));
+
+            service.getSummaryRafflesByFilters(null, null, null, null,
+                    org.springframework.data.domain.Pageable.unpaged());
+            service.getLiveRaffles(null);
+            service.getActiveRaffles(null, null, org.springframework.data.domain.Pageable.unpaged());
+            service.getMyRafflesByStatus(1L, RaffleStatus.ACTIVE, org.springframework.data.domain.Pageable.unpaged());
+
+            assertThat(byFilter.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/a.png");
+            assertThat(live.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/b.png");
+            assertThat(active.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/c.png");
+            assertThat(mine.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/d.png");
+        }
+
+        @Test
+        @DisplayName("sin imagen: la URL queda null, no .../public/null (D3)")
+        void raffleSummaryWithoutImage_hasNullUrl() {
+            var withoutImage = summary(null);
+            when(raffleRepository.findLiveRaffles(any(), any(), any())).thenReturn(List.of(withoutImage));
+
+            service.getLiveRaffles(null);
+
+            assertThat(withoutImage.getImageUrl()).isNull();
         }
     }
 

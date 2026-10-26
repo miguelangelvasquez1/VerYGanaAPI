@@ -63,6 +63,9 @@ class PreviewRewardFallbackTest {
     @Spy private GameResponseEnvelope gameResponseEnvelope = new GameResponseEnvelope();
     @Spy private PreviewRewardSamples previewRewardSamples = new PreviewRewardSamples("https://cdn/ejemplo.png");
 
+    @Spy private com.verygana2.storage.service.PublicUrlBuilder publicUrlBuilder =
+        com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com");
+
     @InjectMocks private GameServiceImpl gameService;
 
     /** El @Value de la expiración no llega con @InjectMocks. */

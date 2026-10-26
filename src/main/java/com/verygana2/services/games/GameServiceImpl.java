@@ -61,6 +61,7 @@ import com.verygana2.utils.games.GameConfigStamper;
 import com.verygana2.utils.games.GameResponseEnvelope;
 import com.verygana2.utils.games.PreviewRewardSamples;
 import com.verygana2.utils.validators.games.GameConfigValidator;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.utils.concurrency.RetryOnConcurrencyConflict;
 
 import jakarta.persistence.EntityManager;
@@ -104,6 +105,7 @@ public class GameServiceImpl implements GameService {
     private final KeyWalletService keyWalletService;
     private final KeyLedgerService keyLedgerService;
     private final LevelService levelService;
+    private final PublicUrlBuilder publicUrlBuilder;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -614,7 +616,8 @@ public class GameServiceImpl implements GameService {
                 .map(p -> RewardCardResponseDTO.builder()
                         .id(p.getId())
                         .name(p.getName())
-                        .image_url(p.getImageUrl())
+                        .image_url(p.getImageAsset() == null ? null
+                                : publicUrlBuilder.toPublicUrl(p.getImageAsset().getObjectKey()))
                         .image_message(p.getMaxKeysPct() + "% Descuento")
                         .regular_price(p.getPriceCents() / 100)
                         .keys_message("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"

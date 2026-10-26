@@ -5,12 +5,14 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.verygana2.models.enums.AssetStatus;
+import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.marketplace.ProductImageAsset;
 
 @Repository
@@ -41,5 +43,23 @@ public interface ProductImageAssetRepository extends JpaRepository<ProductImageA
     List<ProductImageAsset> findStaleUnattachedAssets(
         @Param("statuses") Collection<AssetStatus> statuses,
         @Param("threshold") ZonedDateTime threshold
+    );
+
+    /**
+     * Referencias (ids y clave) de la imagen de los productos en un estado, en orden de id de
+     * asset y paginadas por clave (keyset): la reparación de imágenes las recorre por lotes sin
+     * cargar la entidad Product. Solo ids y clave de objeto.
+     */
+    @Query("""
+        SELECT new com.verygana2.repositories.marketplace.ProductImageRef(p.id, a.id, a.objectKey)
+        FROM ProductImageAsset a JOIN a.product p
+        WHERE p.status = :status
+        AND a.id > :afterAssetId
+        ORDER BY a.id
+    """)
+    List<ProductImageRef> findImageRefsByProductStatus(
+        @Param("status") ProductStatus status,
+        @Param("afterAssetId") Long afterAssetId,
+        Pageable page
     );
 }

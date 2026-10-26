@@ -11,6 +11,10 @@ import com.verygana2.dtos.product.responses.ProductCategoryResponseDTO;
 import com.verygana2.models.marketplace.ProductCategory;
 import com.verygana2.models.marketplace.ProductCategoryImageAsset;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.verygana2.testsupport.PublicUrlBuilders;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
@@ -20,7 +24,13 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("ProductCategoryMapper")
 class ProductCategoryMapperTest {
 
-    private final ProductCategoryMapperImpl mapper = new ProductCategoryMapperImpl();
+    private final ProductCategoryMapperImpl mapper = newMapper();
+
+    private static ProductCategoryMapperImpl newMapper() {
+        ProductCategoryMapperImpl impl = new ProductCategoryMapperImpl();
+        ReflectionTestUtils.setField(impl, "publicUrlBuilder", PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+        return impl;
+    }
 
     @Nested
     @DisplayName("toProductCategory")
@@ -56,7 +66,7 @@ class ProductCategoryMapperTest {
 
         @Test
         @DisplayName("sin imageAsset: mapea id/name y imageUrl queda null")
-        void withoutImageAsset_imageUrlIsNull() {
+        void imageUrlNullWithoutAsset() {
             ProductCategory category = new ProductCategory();
             category.setId(3L);
             category.setName("Videojuegos");
@@ -70,8 +80,8 @@ class ProductCategoryMapperTest {
         }
 
         @Test
-        @DisplayName("con imageAsset: imageUrl se arma con la URL pública del CDN (expression java(getImageUrl()))")
-        void withImageAsset_imageUrlFromCdn() {
+        @DisplayName("con imageAsset: imageUrl se arma con la URL pública del CDN (dominio configurado)")
+        void imageUrlUsesConfiguredCdn() {
             ProductCategory category = new ProductCategory();
             category.setId(3L);
             category.setName("Videojuegos");
@@ -79,7 +89,7 @@ class ProductCategoryMapperTest {
 
             ProductCategoryResponseDTO dto = mapper.toProductCategoryResponseDTO(category);
 
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/categories/3/img.jpg");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/categories/3/img.jpg");
         }
 
         @Test

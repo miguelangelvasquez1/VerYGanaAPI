@@ -9,6 +9,10 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
+import org.mockito.InOrder;
+import org.mockito.Mockito;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -51,6 +55,8 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
 import com.verygana2.storage.service.R2Service;
+import com.verygana2.exceptions.StorageException;
+import com.verygana2.testsupport.PublicUrlBuilders;
 import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -64,6 +70,7 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -107,7 +114,7 @@ class ProductServiceImplTest {
                 favoriteProductRepository, productCategoryService, productMapper, commercialDetailsRepository,
                 consumerDetailsService, productStockRepository, productImageAssetRepository, purchaseItemRepository,
                 r2Service, assetOrphanedService, productCodeEncryptor, targetAudienceAssembler, assetDurationService,
-                keyPromotionResolver);
+                keyPromotionResolver, PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
 
         ReflectionTestUtils.setField(service, "maxProductPriceCents", 50_000_000L);
         ReflectionTestUtils.setField(service, "minProductPriceCents", 100_000L);
@@ -446,7 +453,7 @@ class ProductServiceImplTest {
             assertThat(pending.getApprovedBy()).isSameAs(admin);
             verify(r2Service).copyObject("private/products/1/img.jpg", "public/products/1/img.jpg");
             // El mapper deja imageUrl en null; el servicio la resuelve tras el mapeo (status ya ACTIVE -> URL pública).
-            assertThat(response.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1/img.jpg");
+            assertThat(response.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/1/img.jpg");
         }
 
         @Test
@@ -590,6 +597,184 @@ class ProductServiceImplTest {
         }
     }
 
+    // ─── Cambio de imagen (confirm) ─────────────────────────────────────────
+
+    @Nested
+    @DisplayName("confirmProductImageUpdate")
+    class ConfirmProductImageUpdate {
+
+        private Product owned(ProductStatus status) {
+            Product product = product(1L, status);
+            when(productRepository.findByIdAndCommercialId(1L, 7L)).thenReturn(Optional.of(product));
+            return product;
+        }
+
+        private ProductImageAsset newAsset() {
+            ProductImageAsset asset = ProductImageAsset.builder()
+                    .id(200L).objectKey("products/commercial-7/new.jpg").sizeBytes(1000L)
+                    .status(AssetStatus.PENDING).build();
+            when(productImageAssetRepository.findById(200L)).thenReturn(Optional.of(asset));
+            lenient().when(r2Service.validateUploadedObject(eq(true), eq("products/commercial-7/new.jpg"),
+                    anyLong(), anyLong(), any())).thenReturn(SupportedMimeType.IMAGE_JPEG);
+            return asset;
+        }
+
+        private ProductImageAsset oldAsset(Product product) {
+            ProductImageAsset old = ProductImageAsset.builder()
+                    .id(100L).objectKey("products/commercial-7/old.jpg").sizeBytes(1000L)
+                    .status(AssetStatus.VALIDATED).product(product).build();
+            when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(old));
+            return old;
+        }
+
+        @Test
+        @DisplayName("ACTIVE: publica la imagen nueva y el producto sigue ACTIVE")
+        void activeProduct_publishesNewImageAndStaysActive() {
+            Product active = owned(ProductStatus.ACTIVE);
+            ProductImageAsset asset = newAsset();
+            oldAsset(active);
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            verify(r2Service).copyObject("private/products/commercial-7/new.jpg",
+                    "public/products/commercial-7/new.jpg");
+            assertThat(asset.getProduct()).isSameAs(active);
+            assertThat(asset.getStatus()).isEqualTo(AssetStatus.VALIDATED);
+            assertThat(active.getStatus()).isEqualTo(ProductStatus.ACTIVE);
+        }
+
+        @Test
+        @DisplayName("ACTIVE: tras confirmar, el detalle apunta a la imagen pública nueva")
+        void activeProduct_detailPointsToNewPublicImage() {
+            Product active = owned(ProductStatus.ACTIVE);
+            ProductImageAsset asset = newAsset();
+            oldAsset(active);
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            // En la siguiente petición la asociación inversa se carga con el asset nuevo.
+            active.setImageAsset(asset);
+            when(productRepository.findById(1L)).thenReturn(Optional.of(active));
+            ProductResponseDTO dto = new ProductResponseDTO();
+            when(productMapper.toProductResponseDTO(active)).thenReturn(dto);
+
+            service.detailProduct(1L);
+
+            assertThat(dto.getImageUrl())
+                    .isEqualTo("https://cdn-beta.verygana.com/public/products/commercial-7/new.jpg");
+        }
+
+        @Test
+        @DisplayName("ACTIVE: la imagen anterior se huérfana solo después de publicar la nueva")
+        void activeProduct_orphansOldImageOnlyAfterPublishing() {
+            Product active = owned(ProductStatus.ACTIVE);
+            newAsset();
+            ProductImageAsset old = oldAsset(active);
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            InOrder order = Mockito.inOrder(r2Service, productImageAssetRepository);
+            order.verify(r2Service).copyObject(anyString(), anyString());
+            order.verify(productImageAssetRepository).save(old);
+            assertThat(old.getStatus()).isEqualTo(AssetStatus.ORPHANED);
+            assertThat(old.getProduct()).isNull();
+            verify(assetOrphanedService, never()).markProductImageAssetsAsOrphanedByIds(List.of(100L));
+        }
+
+        @Test
+        @DisplayName("ACTIVE: si publicar falla, se relanza, la anterior sigue asociada y la nueva queda huérfana")
+        void activeProduct_publishFails_keepsOldImageAndOrphansNew() {
+            Product active = owned(ProductStatus.ACTIVE);
+            newAsset();
+            ProductImageAsset old = ProductImageAsset.builder().id(100L).status(AssetStatus.VALIDATED)
+                    .product(active).build();
+            Mockito.doThrow(new StorageException("Error copiando objeto")).when(r2Service)
+                    .copyObject(anyString(), anyString());
+
+            assertThatThrownBy(() -> service.confirmProductImageUpdate(1L, 7L, 200L))
+                    .isInstanceOf(StorageException.class);
+
+            assertThat(old.getProduct()).isSameAs(active);
+            assertThat(old.getStatus()).isEqualTo(AssetStatus.VALIDATED);
+            verify(productImageAssetRepository, never()).findByProductId(anyLong());
+            verify(assetOrphanedService).markProductImageAssetsAsOrphanedByIds(List.of(200L));
+        }
+
+        @Test
+        @DisplayName("ACTIVE: si borrar el privado falla, igual confirma y lo marca para limpieza")
+        void activeProduct_privateDeleteFails_stillConfirms() {
+            Product active = owned(ProductStatus.ACTIVE);
+            ProductImageAsset asset = newAsset();
+            oldAsset(active);
+            Mockito.doThrow(new RuntimeException("boom")).when(r2Service)
+                    .deleteObject("private/products/commercial-7/new.jpg");
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            verify(r2Service).markAsOrphan("private/products/commercial-7/new.jpg");
+            assertThat(asset.getProduct()).isSameAs(active);
+        }
+
+        @ParameterizedTest
+        @EnumSource(value = ProductStatus.class, names = { "PENDING", "REJECTED" })
+        @DisplayName("PENDING/REJECTED: la imagen sigue privada y el estado no cambia")
+        void pendingOrRejectedProduct_keepsImagePrivate(ProductStatus status) {
+            Product product = owned(status);
+            ProductImageAsset asset = newAsset();
+            oldAsset(product);
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            verify(r2Service, never()).copyObject(anyString(), anyString());
+            assertThat(product.getStatus()).isEqualTo(status);
+            assertThat(asset.getProduct()).isSameAs(product);
+
+            product.setImageAsset(asset);
+            when(productRepository.findById(1L)).thenReturn(Optional.of(product));
+            ProductResponseDTO dto = new ProductResponseDTO();
+            when(productMapper.toProductResponseDTO(product)).thenReturn(dto);
+            service.detailProduct(1L);
+            assertThat(dto.getImageUrl()).isEqualTo("https://api.verygana.com/products/1/private-image");
+        }
+
+        @Test
+        @DisplayName("INACTIVE: no publica (D2)")
+        void inactiveProduct_keepsImagePrivate() {
+            Product inactive = owned(ProductStatus.INACTIVE);
+            ProductImageAsset asset = newAsset();
+            oldAsset(inactive);
+
+            service.confirmProductImageUpdate(1L, 7L, 200L);
+
+            verify(r2Service, never()).copyObject(anyString(), anyString());
+            assertThat(asset.getProduct()).isSameAs(inactive);
+        }
+
+        @Test
+        @DisplayName("PENDING con imagen reemplazada: la aprobación publica la imagen vigente")
+        void pendingProductWithReplacedImage_approvalPublishesCurrentImage() {
+            Product pending = product(1L, ProductStatus.PENDING);
+            CommercialDetails commercial = commercial(1L);
+            commercial.setId(1L);
+            pending.setCommercial(commercial);
+            ProductImageAsset current = ProductImageAsset.builder()
+                    .objectKey("products/commercial-7/new.jpg").build();
+            pending.setImageAsset(current);
+            when(productRepository.findById(1L)).thenReturn(Optional.of(pending));
+            when(productImageAssetRepository.findByProductId(1L)).thenReturn(Optional.of(current));
+            when(adminDetailsService.getById(5L)).thenReturn(new AdminDetails());
+            when(productRepository.save(any(Product.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(productMapper.toProductResponseDTO(any())).thenReturn(new ProductResponseDTO());
+
+            ProductResponseDTO response = service.approveProductForAdmin(5L, 1L);
+
+            verify(r2Service).copyObject("private/products/commercial-7/new.jpg",
+                    "public/products/commercial-7/new.jpg");
+            assertThat(response.getImageUrl())
+                    .isEqualTo("https://cdn-beta.verygana.com/public/products/commercial-7/new.jpg");
+        }
+    }
+
     // ─── Listados con URL de imagen resuelta según status ──────────────────────
 
     @Nested
@@ -608,7 +793,7 @@ class ProductServiceImplTest {
 
             service.detailProduct(1L);
 
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/p1/img.jpg");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/p1/img.jpg");
         }
 
         @Test

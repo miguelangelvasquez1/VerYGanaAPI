@@ -67,6 +67,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
@@ -116,6 +117,8 @@ public class ProductServiceImpl implements ProductService {
     private final AssetDurationService assetDurationService;
 
     private final ProductKeyPromotionResolver keyPromotionResolver;
+
+    private final PublicUrlBuilder publicUrlBuilder;
 
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
@@ -444,12 +447,23 @@ public class ProductServiceImpl implements ProductService {
             newAsset.setMimeType(realMimeType);
             newAsset.setStatus(AssetStatus.VALIDATED);
 
-            // Marcar el asset viejo como huérfano para que el job de limpieza lo elimine
+            // Un producto aprobado publica el cambio de imagen al confirmar (RN-1). Va antes de
+            // tocar el asset anterior: si falla, el anterior sigue asociado y visible (RN-4).
+            // PENDING/REJECTED/INACTIVE conservan la imagen privada.
+            if (product.getStatus() == ProductStatus.ACTIVE) {
+                publishProductImage(newAsset.getObjectKey());
+            }
+
+            // El asset viejo se marca huérfano dentro de esta transacción: si algo falla después,
+            // el rollback lo deja asociado y VALIDATED. Misma guarda que markProductImageAssetsAsOrphanedByIds.
             productImageAssetRepository.findByProductId(productId)
                     .ifPresent(oldAsset -> {
                         oldAsset.setProduct(null);
+                        if (oldAsset.getStatus() == AssetStatus.VALIDATED
+                                || oldAsset.getStatus() == AssetStatus.PENDING) {
+                            oldAsset.setStatus(AssetStatus.ORPHANED);
+                        }
                         productImageAssetRepository.save(oldAsset);
-                        assetOrphanedService.markProductImageAssetsAsOrphanedByIds(List.of(oldAsset.getId()));
                     });
 
             newAsset.setProduct(product);
@@ -680,18 +694,7 @@ public class ProductServiceImpl implements ProductService {
                 .findByProductId(productId)
                 .orElseThrow(() -> new ValidationException("Product has no image asset"));
 
-        String privateKey = "private/" + imageAsset.getObjectKey();
-        String publicKey = "public/" + imageAsset.getObjectKey();
-
-        r2Service.copyObject(privateKey, publicKey);
-
-        try {
-            r2Service.deleteObject(privateKey);
-
-        } catch (Exception e) {
-            log.warn("couldn't eliminate private object {}, it requires manual clean", privateKey);
-            r2Service.markAsOrphan(privateKey);
-        }
+        publishProductImage(imageAsset.getObjectKey());
 
         AdminDetails admin = adminDetailsService.getById(adminId);
         product.setApprovedBy(admin);
@@ -706,6 +709,25 @@ public class ProductServiceImpl implements ProductService {
         ProductResponseDTO response = productMapper.toProductResponseDTO(product);
         response.setImageUrl(resolveImageUrl(product));
         return response;
+    }
+
+    /**
+     * Publica la imagen de un producto: copia {@code private/k} a {@code public/k} (lanza si falla)
+     * y borra la copia privada; si el borrado falla, la marca para limpieza manual.
+     */
+    private void publishProductImage(String objectKey) {
+        String privateKey = "private/" + objectKey;
+        String publicKey = "public/" + objectKey;
+
+        r2Service.copyObject(privateKey, publicKey);
+
+        try {
+            r2Service.deleteObject(privateKey);
+
+        } catch (Exception e) {
+            log.warn("couldn't eliminate private object {}, it requires manual clean", privateKey);
+            r2Service.markAsOrphan(privateKey);
+        }
     }
 
     @Override
@@ -779,7 +801,7 @@ public class ProductServiceImpl implements ProductService {
             return appBaseUrl + "/products/" + product.getId() + "/private-image";
         }
 
-        return product.getImageUrl();
+        return publicUrlBuilder.toPublicUrl(product.getImageAsset().getObjectKey());
     }
 
     @Override

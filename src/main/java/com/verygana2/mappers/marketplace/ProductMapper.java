@@ -5,6 +5,7 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.dtos.product.requests.CreateProductRequestDTO;
 import com.verygana2.dtos.product.requests.ProductStockRequestDTO;
 import com.verygana2.dtos.product.requests.UpdateProductRequestDTO;
@@ -21,7 +22,7 @@ import com.verygana2.models.marketplace.ProductStock;
 
 import java.util.List;
 
-@Mapper(componentModel = "spring", uses = {MoneyMapper.class, TargetAudienceMapper.class})
+@Mapper(componentModel = "spring", uses = {MoneyMapper.class, TargetAudienceMapper.class, PublicUrlBuilder.class})
 public interface ProductMapper {
 
     @Mapping(target = "id", ignore = true)
@@ -129,7 +130,7 @@ public interface ProductMapper {
 
     @Mapping(target = "id", source = "product.id")
     @Mapping(target = "name", source = "product.name")
-    @Mapping(target = "imageUrl", expression = "java(favoriteProduct.getProduct().getImageUrl())")
+    @Mapping(target = "imageUrl", source = "product.imageAsset.objectKey", qualifiedByName = "publicUrl")
     @Mapping(target = "price", source = "product.priceCents")
     @Mapping(target = "averageRate", source = "product.averageRate")
     @Mapping(target = "categoryName", source = "product.productCategory.name")

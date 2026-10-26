@@ -29,6 +29,7 @@ import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
 import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -40,7 +41,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final ProductCodeEncryptor codeEncryptor;
     private final PasswordEncoder passwordEncoder;
     private final ProductKeyPromotionResolver keyPromotionResolver;
-    private static final String domain = "https://cdn.verygana.com/public/";
+    private final PublicUrlBuilder publicUrlBuilder;
     private static final int MAX_CLAIM_ATTEMPTS = 5;
 
     /**
@@ -52,12 +53,13 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private static final LocalTime PAYOUT_CUTOFF_TIME = LocalTime.of(23, 0);
 
     public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, @Lazy PurchaseMapper purchaseMapper, ProductCodeEncryptor codeEncryptor,
-            PasswordEncoder passwordEncoder, ProductKeyPromotionResolver keyPromotionResolver) {
+            PasswordEncoder passwordEncoder, ProductKeyPromotionResolver keyPromotionResolver, PublicUrlBuilder publicUrlBuilder) {
         this.purchaseItemRepository = purchaseItemRepository;
         this.purchaseMapper = purchaseMapper;
         this.codeEncryptor = codeEncryptor;
         this.passwordEncoder = passwordEncoder;
         this.keyPromotionResolver = keyPromotionResolver;
+        this.publicUrlBuilder = publicUrlBuilder;
     }
 
     @Override
@@ -118,7 +120,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         }
 
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository.findTopSellingProducts(commercialId, pageable);
-        topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
+        topSellingProducts.forEach(fp -> fp.setImageUrl(publicUrlBuilder.toPublicUrl(fp.getImageUrl())));
         return withKeyPromotions(PagedResponse.from(topSellingProducts));
     }
 
@@ -153,7 +155,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         validateDateRange(commercialId, startDate, endDate);
         Page<FeaturedProductResponseDTO> topSellingProducts = purchaseItemRepository
                 .findTopSellingProductsByDateRange(commercialId, startDate, endDate, pageable);
-        topSellingProducts.forEach(fp -> fp.setImageUrl(domain + fp.getImageUrl()));
+        topSellingProducts.forEach(fp -> fp.setImageUrl(publicUrlBuilder.toPublicUrl(fp.getImageUrl())));
         return withKeyPromotions(PagedResponse.from(topSellingProducts));
     }
 

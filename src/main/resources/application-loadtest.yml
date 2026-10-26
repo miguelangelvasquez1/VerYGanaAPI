@@ -86,6 +86,9 @@ cloudflare:
     access-key-id: loadtest-r2-access
     secret-access-key: loadtest-r2-secret
     bucket-name: loadtest-campaigns
+    # El perfil se monta sobre prod y CdnDomainStartupGuard exige el dominio. TLD reservado: nunca resuelve;
+    # la prueba no descarga imágenes por el CDN, solo necesita arrancar.
+    cdn-domain: cdn.loadtest.invalid
     pets-bucket-name: loadtest-pets
 
 recaptcha:

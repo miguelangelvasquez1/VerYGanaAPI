@@ -13,9 +13,10 @@ import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.marketplace.ProductReviewService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = PublicUrlBuilder.class)
 public abstract class PurchaseMapper {
 
     @Autowired
@@ -29,7 +30,7 @@ public abstract class PurchaseMapper {
 
     @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", expression = "java(resolveProductName(purchaseItem))")
-    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "imageUrl", source = "product.imageAsset.objectKey", qualifiedByName = "publicUrl")
     public abstract PurchaseItemResponseDTO toPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
     @Mapping(target = "totalItems", expression = "java(getTotalItems(purchase))")
@@ -37,13 +38,13 @@ public abstract class PurchaseMapper {
 
     @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", expression = "java(resolveProductName(purchaseItem))")
-    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "imageUrl", source = "product.imageAsset.objectKey", qualifiedByName = "publicUrl")
     @Mapping(target = "canBeReviewed", expression = "java(resolveCanBeReviewed(purchaseItem))")
     public abstract ConsumerPurchaseItemResponseDTO toConsumerPurchaseItemResponseDTO(PurchaseItem purchaseItem);
 
     @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", source = "product.name")
-    @Mapping(target = "imageUrl", source = "product.imageUrl")
+    @Mapping(target = "imageUrl", source = "product.imageAsset.objectKey", qualifiedByName = "publicUrl")
     @Mapping(target = "buyerName", source = "purchase.consumer.name")
     @Mapping(target = "documentType", source = "purchase.consumer.documentType")
     @Mapping(target = "documentNumber", source = "purchase.consumer.documentNumber")

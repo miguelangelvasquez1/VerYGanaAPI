@@ -61,7 +61,53 @@ class RaffleWinnerServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new RaffleWinnerServiceImpl(raffleWinnerRepository, prizeRepository,
-                raffleWinnerMapper, emailService, emailVerificationService, twilioSmsService, claimCodeEncryptor);
+                raffleWinnerMapper, emailService, emailVerificationService, twilioSmsService, claimCodeEncryptor,
+                com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+    }
+
+    @Test
+    @DisplayName("getWonPrizesList: la imagen del premio usa el CDN configurado y es null-safe")
+    void wonPrizes_useConfiguredCdn() {
+        RaffleWinner withImage = winnerRecord(1L, false, ZonedDateTime.now().plusDays(1));
+        withImage.getPrize().setImageAsset(
+                com.verygana2.models.raffles.PrizeImageAsset.builder().objectKey("prizes/p.png").build());
+        RaffleWinner withoutImage = winnerRecord(1L, false, ZonedDateTime.now().plusDays(1));
+        withoutImage.getPrize().setImageAsset(null);
+        for (RaffleWinner w : java.util.List.of(withImage, withoutImage)) {
+            com.verygana2.models.raffles.RaffleTicket ticket = new com.verygana2.models.raffles.RaffleTicket();
+            ticket.setTicketNumber("000001");
+            w.setWinningTicket(ticket);
+            com.verygana2.models.raffles.RaffleResult result = new com.verygana2.models.raffles.RaffleResult();
+            result.setDrawnAt(ZonedDateTime.now());
+            w.setRaffleResult(result);
+        }
+        when(raffleWinnerRepository.findWonPrizesByConsumer(any(), any(), any()))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(withImage, withoutImage)));
+
+        var page = service.getWonPrizesList(1L, null, org.springframework.data.domain.Pageable.unpaged());
+
+        assertThat(page.getData().get(0).getImageUrl())
+                .isEqualTo("https://cdn-beta.verygana.com/public/prizes/p.png");
+        assertThat(page.getData().get(1).getImageUrl()).isNull();
+    }
+
+    /** Ejecuta la acción y devuelve los mensajes que RaffleWinnerServiceImpl escribió en el log. */
+    private java.util.List<String> captureClaimLogs(Runnable action) {
+        ch.qos.logback.classic.Logger logger =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(RaffleWinnerServiceImpl.class);
+        ch.qos.logback.classic.Level previous = logger.getLevel();
+        logger.setLevel(ch.qos.logback.classic.Level.TRACE);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            action.run();
+            return appender.list.stream().map(e -> e.getFormattedMessage()).toList();
+        } finally {
+            logger.detachAppender(appender);
+            logger.setLevel(previous);
+        }
     }
 
     private RaffleWinner winnerRecord(Long winnerConsumerId, boolean claimed, ZonedDateTime deadline) {
@@ -95,6 +141,19 @@ class RaffleWinnerServiceImplTest {
             request.setPrizeId(1L);
             request.setDeliveryMethod(ClaimPreferenceDeliveryMethod.EMAIL);
             return request;
+        }
+
+        @Test
+        @DisplayName("el log del reclamo por email no lleva el correo del consumidor")
+        void emailClaim_logDoesNotContainEmail() {
+            RaffleWinner winnerRecord = winnerRecord(9L, false, ZonedDateTime.now(ZoneOffset.UTC).plusDays(5));
+            when(raffleWinnerRepository.findByPrizeId(1L)).thenReturn(Optional.of(winnerRecord));
+            when(claimCodeEncryptor.decrypt("cipherText")).thenReturn("PLAIN-CODE");
+
+            java.util.List<String> logged = captureClaimLogs(() -> service.claimPrize(9L, emailRequest()));
+
+            assertThat(logged).isNotEmpty();
+            assertThat(logged).noneMatch(m -> m.contains("ganador@test.com"));
         }
 
         @Test
@@ -179,6 +238,25 @@ class RaffleWinnerServiceImplTest {
 
             assertThat(winnerRecord.getPrizeTrackingInfo()).isEqualTo("SMS:3009999999");
             verify(twilioSmsService).sendPrizeClaimConfirmation(winnerRecord.getPrize(), "3009999999", "PLAIN-CODE");
+        }
+
+        @Test
+        @DisplayName("el log del reclamo por SMS no lleva el teléfono del consumidor")
+        void smsClaim_logDoesNotContainPhone() {
+            RaffleWinner winnerRecord = winnerRecord(9L, false, ZonedDateTime.now(ZoneOffset.UTC).plusDays(5));
+            when(raffleWinnerRepository.findByPrizeId(1L)).thenReturn(Optional.of(winnerRecord));
+            when(claimCodeEncryptor.decrypt("cipherText")).thenReturn("PLAIN-CODE");
+            when(twilioSmsService.verifyOtp("3009999999", "123456")).thenReturn(true);
+            ClaimPrizeRequestDTO request = new ClaimPrizeRequestDTO();
+            request.setPrizeId(1L);
+            request.setDeliveryMethod(ClaimPreferenceDeliveryMethod.SMS);
+            request.setNewPhoneNumber("3009999999");
+            request.setSmsOtpCode("123456");
+
+            java.util.List<String> logged = captureClaimLogs(() -> service.claimPrize(9L, request));
+
+            assertThat(logged).isNotEmpty();
+            assertThat(logged).noneMatch(m -> m.contains("3009999999"));
         }
 
         @Test
