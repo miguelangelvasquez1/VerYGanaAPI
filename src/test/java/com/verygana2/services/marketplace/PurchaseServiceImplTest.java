@@ -96,10 +96,11 @@ class PurchaseServiceImplTest {
         ReflectionTestUtils.setField(keyCoverageService, "keyValueCents", KEY_VALUE_CENTS);
         org.mockito.Mockito.lenient().when(treasuryService.keysReserveHeadroomCents()).thenReturn(1_000_000_000L);
 
-        service = new PurchaseServiceImpl(purchaseRepository, productService, productRepository,
-                productStockRepository, consumerDetailsService, keyWalletRepository, keyLedgerService,
-                keyCoverageService, keyCoveragePromotionService, new CommissionPolicy(), copaymentRepository,
-                wompiService, wompiTransactionRepository, purchaseMapper, treasuryConfig);
+        PurchaseItemAssembler assembler = new PurchaseItemAssembler(productService, productRepository,
+                productStockRepository, new CommissionPolicy(), treasuryConfig);
+        service = new PurchaseServiceImpl(purchaseRepository, assembler, consumerDetailsService,
+                keyWalletRepository, keyLedgerService, keyCoverageService, keyCoveragePromotionService,
+                copaymentRepository, wompiService, wompiTransactionRepository, purchaseMapper);
         ReflectionTestUtils.setField(service, "KEY_VALUE", KEY_VALUE_CENTS);
         KeyLedgerStubs.applyToWallet(keyLedgerService);
     }

@@ -831,6 +831,110 @@ public class TreasuryServiceImpl implements TreasuryService {
                 return Math.max(0L, balance - treasuryConfig.getKeysReserveCriticalThresholdCents());
         }
 
+        // ─── Compras de VERYGANA para reconocimientos (Contrato B 10.16) ──────────
+
+        private static final String INSTITUTIONAL_PURCHASE_REFERENCE_TYPE = "INSTITUTIONAL_PURCHASE";
+
+        @Transactional
+        @Override
+        public void fundInstitutionalPurchase(long amountCents, UUID fundingRef) {
+                validateAmount(amountCents);
+
+                TreasuryAccount fortification = getAccountForUpdate(TreasuryAccountCode.FORTIFICATION);
+                TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+
+                // El fondo paga el precio completo o no hay compra: con 95.000 no se paga una de 100.000.
+                if (fortification.getBalanceCents() < amountCents) {
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.FORTIFICATION,
+                                        "[TREASURY] FORTIFICATION no cubre la compra del reconocimiento. "
+                                                        + "disponible=" + fortification.getBalanceCents()
+                                                        + " requerido=" + amountCents);
+                }
+
+                fortification.setBalanceCents(fortification.getBalanceCents() - amountCents);
+                payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + amountCents);
+                treasuryAccountRepository.save(fortification);
+                treasuryAccountRepository.save(payoutsPending);
+
+                recordMovement(fortification, payoutsPending, amountCents,
+                                MovementConcept.FORTIFICATION_PURCHASE, fundingRef,
+                                INSTITUTIONAL_PURCHASE_REFERENCE_TYPE);
+
+                log.info("[TREASURY] Compra de reconocimiento pagada: FORTIFICATION → PAYOUTS_PENDING, amount={}, fundingRef={}",
+                                amountCents, fundingRef);
+        }
+
+        @Transactional
+        @Override
+        public void reverseInstitutionalPurchaseItem(long amountCents, long commissionCents,
+                        long commissionVatCents, UUID fundingRef) {
+                validateAmount(amountCents);
+                if (commissionCents < 0 || commissionVatCents < 0 || commissionVatCents > commissionCents
+                                || commissionCents > amountCents) {
+                        throw new InvalidAmountException("Montos de reverso inconsistentes");
+                }
+                long commissionNet = commissionCents - commissionVatCents;
+
+                // Orden de bloqueo de la clase: FORTIFICATION → PAYOUTS_PENDING → OPERATIONS → TAX_RESERVE.
+                TreasuryAccount fortification = getAccountForUpdate(TreasuryAccountCode.FORTIFICATION);
+                TreasuryAccount payoutsPending = getAccountForUpdate(TreasuryAccountCode.PAYOUTS_PENDING);
+                TreasuryAccount operations = commissionNet > 0
+                                ? getAccountForUpdate(TreasuryAccountCode.OPERATIONS)
+                                : null;
+                TreasuryAccount taxReserve = commissionVatCents > 0
+                                ? getAccountForUpdate(TreasuryAccountCode.TAX_RESERVE)
+                                : null;
+
+                if (operations != null) {
+                        if (operations.getBalanceCents() < commissionNet) {
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.OPERATIONS,
+                                                "[TREASURY] Saldo insuficiente en OPERATIONS para revertir la comisión.");
+                        }
+                        operations.setBalanceCents(operations.getBalanceCents() - commissionNet);
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + commissionNet);
+                        treasuryAccountRepository.save(operations);
+                        recordMovement(operations, payoutsPending, commissionNet,
+                                        MovementConcept.COMMISSION_REVERSAL, fundingRef,
+                                        INSTITUTIONAL_PURCHASE_REFERENCE_TYPE);
+                }
+
+                if (taxReserve != null) {
+                        if (taxReserve.getBalanceCents() < commissionVatCents) {
+                                throw new TreasuryInsufficientFundsException(TreasuryAccountCode.TAX_RESERVE,
+                                                "[TREASURY] Saldo insuficiente en TAX_RESERVE para revertir el IVA de la comisión.");
+                        }
+                        taxReserve.setBalanceCents(taxReserve.getBalanceCents() - commissionVatCents);
+                        payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() + commissionVatCents);
+                        treasuryAccountRepository.save(taxReserve);
+                        recordMovement(taxReserve, payoutsPending, commissionVatCents,
+                                        MovementConcept.COMMISSION_VAT_REVERSAL, fundingRef,
+                                        INSTITUTIONAL_PURCHASE_REFERENCE_TYPE);
+                }
+
+                if (payoutsPending.getBalanceCents() < amountCents) {
+                        throw new TreasuryInsufficientFundsException(TreasuryAccountCode.PAYOUTS_PENDING,
+                                        "[TREASURY] Saldo insuficiente en PAYOUTS_PENDING para devolver la compra al fondo.");
+                }
+                payoutsPending.setBalanceCents(payoutsPending.getBalanceCents() - amountCents);
+                fortification.setBalanceCents(fortification.getBalanceCents() + amountCents);
+                treasuryAccountRepository.save(payoutsPending);
+                treasuryAccountRepository.save(fortification);
+                recordMovement(payoutsPending, fortification, amountCents,
+                                MovementConcept.FORTIFICATION_PURCHASE_REVERSAL, fundingRef,
+                                INSTITUTIONAL_PURCHASE_REFERENCE_TYPE);
+
+                log.info("[TREASURY] Compra de reconocimiento revertida: amount={}, commission={}, fundingRef={}",
+                                amountCents, commissionCents, fundingRef);
+        }
+
+        @Transactional(readOnly = true)
+        @Override
+        public long fortificationBalanceCents() {
+                return treasuryAccountRepository.findByCode(TreasuryAccountCode.FORTIFICATION)
+                                .map(TreasuryAccount::getBalanceCents)
+                                .orElse(0L);
+        }
+
         // ─── Privados ─────────────────────────────────────────────────────────────
 
         private TreasuryAccount getAccountForUpdate(TreasuryAccountCode code) {

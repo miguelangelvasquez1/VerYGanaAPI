@@ -248,6 +248,8 @@ function c5(session) {
 
   const purchases = call('GET /purchases', { session, json: true });
   const history = rows(purchases.body);
+  // Obsequios que VERYGANA le compró al usuario: van aparte de sus compras.
+  call('GET /recognitions/me', { session });
 
   // Compra con dinero real simulado: Wompi (WireMock) crea el checkout y el webhook firmado la aprueba.
   const buyable = products.filter((p) => p.status === 'ACTIVE' && p.stock > 0);

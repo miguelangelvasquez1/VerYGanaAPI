@@ -59,6 +59,9 @@ class PurchaseItemRefundServiceImplTest {
     @Mock private com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService keyCoveragePromotionService;
     @Mock private com.verygana2.services.interfaces.finance.KeyWalletService keyWalletService;
     @Mock private PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
+    @Mock private SaleComponentRecorder saleComponentRecorder;
+    @Mock private com.verygana2.services.recognitions.InstitutionalPurchaseReverser institutionalPurchaseReverser;
+    @Mock private com.verygana2.repositories.recognitions.RecognitionRepository recognitionRepository;
 
     private PurchaseItemRefundServiceImpl service;
 
@@ -66,7 +69,8 @@ class PurchaseItemRefundServiceImplTest {
     void setUp() {
         service = new PurchaseItemRefundServiceImpl(purchaseItemRepository, productStockRepository, treasuryService,
                 prosperityService, copaymentRepository, keyWalletRepository, keyLedgerService, keyWalletService,
-                purchaseItemCashRefundRepository, keyCoveragePromotionService);
+                purchaseItemCashRefundRepository, keyCoveragePromotionService, saleComponentRecorder,
+                institutionalPurchaseReverser, recognitionRepository);
         KeyLedgerStubs.applyToWallet(keyLedgerService);
         org.mockito.Mockito.lenient().when(keyCoveragePromotionService.restoreForRefund(any()))
                 .thenReturn(com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService.ExcessRefund.none());
@@ -342,6 +346,46 @@ class PurchaseItemRefundServiceImplTest {
             var captor = org.mockito.ArgumentCaptor.forClass(PurchaseItemCashRefund.class);
             verify(purchaseItemCashRefundRepository).save(captor.capture());
             assertThat(captor.getValue().getAmountCents()).isEqualTo(100_000L);
+        }
+    }
+
+    @Nested
+    @DisplayName("compras de VERYGANA (reconocimientos)")
+    class Institutional {
+
+        private PurchaseItem institutionalItem(PurchaseItemStatus status) {
+            PurchaseItem item = itemWithStock(100_000L, 100_000L, 10_000L, 90_000L, status);
+            item.getPurchase().setBuyerType(com.verygana2.models.enums.marketplace.PurchaseBuyerType.VERYGANA);
+            return item;
+        }
+
+        @Test
+        @DisplayName("vencido sin reclamar: el precio vuelve al fondo por el reverso institucional, sin copago ni reembolso en efectivo")
+        void expireUnclaimed_returnsToFundWithoutCopayment() {
+            PurchaseItem item = institutionalItem(PurchaseItemStatus.PENDING);
+            com.verygana2.models.recognitions.Recognition recognition =
+                    org.mockito.Mockito.mock(com.verygana2.models.recognitions.Recognition.class);
+            when(recognitionRepository.findByPurchaseId(50L)).thenReturn(java.util.Optional.of(recognition));
+
+            service.expireUnclaimed(item);
+
+            verify(institutionalPurchaseReverser).reverse(item, "EXPIRED_UNCLAIMED");
+            verify(institutionalPurchaseReverser).settleStatus(recognition);
+            assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.EXPIRED_UNCLAIMED);
+            verify(copaymentRepository, never()).findByPurchaseId(any());
+            verify(purchaseItemCashRefundRepository, never()).save(any());
+            verify(treasuryService, never()).reversePurchaseItemForRefund(any(), any(), any(), any(), any());
+        }
+
+        @Test
+        @DisplayName("reembolso por PQRS: se rechaza, el beneficiario no pagó nada que devolverle")
+        void refund_rejected() {
+            PurchaseItem item = institutionalItem(PurchaseItemStatus.IN_REVIEW);
+
+            assertThatThrownBy(() -> service.refund(item,
+                    com.verygana2.models.enums.pqrs.MarketplaceIssueReason.CODE_INVALID, null))
+                    .isInstanceOf(com.verygana2.exceptions.BusinessException.class);
+            verify(treasuryService, never()).reversePurchaseItemForRefund(any(), any(), any(), any(), any());
         }
     }
 }

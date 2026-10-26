@@ -21,6 +21,21 @@ public interface TreasuryMovementRepository extends JpaRepository<TreasuryMoveme
 
     List<TreasuryMovement> findByConcept(MovementConcept concept);
 
+    /**
+     * Neto que el fondo de fortalecimiento puso en cada compra de reconocimiento: lo pagado
+     * menos lo devuelto, agrupado por fundingRef. Cada fila: {@code [referenceId (UUID), neto (Long)]}.
+     */
+    @Query("""
+            SELECT tm.referenceId,
+                   SUM(CASE WHEN tm.concept = com.verygana2.models.enums.finance.MovementConcept.FORTIFICATION_PURCHASE
+                            THEN tm.amountCents ELSE -tm.amountCents END)
+            FROM TreasuryMovement tm
+            WHERE tm.concept IN (com.verygana2.models.enums.finance.MovementConcept.FORTIFICATION_PURCHASE,
+                                 com.verygana2.models.enums.finance.MovementConcept.FORTIFICATION_PURCHASE_REVERSAL)
+            GROUP BY tm.referenceId
+            """)
+    List<Object[]> sumNetFortificationPurchasesByReference();
+
     /** Movimientos donde la cuenta fue origen O destino. Pageable controla el orden y tamaño. */
     @Query("""
             SELECT tm FROM TreasuryMovement tm

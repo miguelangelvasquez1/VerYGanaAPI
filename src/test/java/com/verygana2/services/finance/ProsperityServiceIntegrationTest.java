@@ -328,11 +328,14 @@ class ProsperityServiceIntegrationTest {
             assertThat(uncovered.getProsperityAbsorbedCents()).isZero();
             assertThat(uncovered.getCommissionBaseCents()).isEqualTo(50_000_000L);
             assertThat(uncovered.getCommissionCents()).isEqualTo(5_000_000L);
-            assertThat(uncovered.getCommissionVatCents()).isEqualTo(950_000L);
+            // IVA extraído de la comisión: 5.000.000 × 19 / 119 = 798.319,3 → 798.319
+            assertThat(uncovered.getCommissionVatCents()).isEqualTo(798_319L);
 
             assertThat(balance(commercial)).isZero();
             assertThat(purchase.getProsperityAbsorbedCents()).isEqualTo(4 * ONE_MILLION);
             assertThat(purchase.getCommissionCents()).isEqualTo(5_000_000L);
+            assertThat(purchase.getCommissionVatCents()).isEqualTo(798_319L);
+            assertThat(purchase.getCommissionNetOfVatCents()).isEqualTo(4_201_681L);
             assertThat(purchase.getNetToCommercialsCents())
                     .isEqualTo(purchase.getTotalCents() - purchase.getCommissionCents());
         }
