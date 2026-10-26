@@ -55,6 +55,12 @@ public class LoadTestEmailService implements EmailService {
 
     @Async
     @Override
+    public void sendRecognitionDelivery(Purchase purchase, String recognitionRef) {
+        simulate();
+    }
+
+    @Async
+    @Override
     public void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode) {
         simulate();
     }

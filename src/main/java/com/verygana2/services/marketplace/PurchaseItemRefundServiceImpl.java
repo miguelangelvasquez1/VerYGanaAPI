@@ -3,6 +3,7 @@ package com.verygana2.services.marketplace;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.verygana2.exceptions.BusinessException;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.pqrs.MarketplaceIssueReason;
 import com.verygana2.models.finance.Copayment;
@@ -23,6 +24,8 @@ import com.verygana2.services.interfaces.finance.ProsperityService;
 import com.verygana2.services.interfaces.finance.TreasuryService;
 import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemRefundService;
+import com.verygana2.repositories.recognitions.RecognitionRepository;
+import com.verygana2.services.recognitions.InstitutionalPurchaseReverser;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +45,9 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
     private final KeyWalletService keyWalletService;
     private final PurchaseItemCashRefundRepository purchaseItemCashRefundRepository;
     private final KeyCoveragePromotionService keyCoveragePromotionService;
+    private final SaleComponentRecorder saleComponentRecorder;
+    private final InstitutionalPurchaseReverser institutionalPurchaseReverser;
+    private final RecognitionRepository recognitionRepository;
 
     @Override
     @Transactional
@@ -50,8 +56,14 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
             log.info("[REFUND] PurchaseItem {} ya estaba REFUNDED, no se reprocesa", item.getId());
             return null;
         }
+        // El beneficiario de un reconocimiento no pagó nada: no hay dinero que devolverle.
+        // La anulación de esas compras es del admin (RecognitionService.cancel).
+        if (item.getPurchase().isInstitutional()) {
+            throw new BusinessException("Una compra de VERYGANA no se reembolsa: se anula desde el reconocimiento");
+        }
 
         PurchaseItemCashRefund cashRefund = reverseFinancials(item, pqrs);
+        saleComponentRecorder.reverse(item, "REFUND:" + reason);
 
         // El código ya fue mostrado al comprador desde el momento de la compra
         // (deliveredCode se entrega instantáneamente, sin importar el estado del
@@ -85,7 +97,19 @@ public class PurchaseItemRefundServiceImpl implements PurchaseItemRefundService 
             return;
         }
 
+        if (item.getPurchase().isInstitutional()) {
+            // Reconocimiento no reclamado: el precio vuelve al fondo de fortalecimiento.
+            institutionalPurchaseReverser.reverse(item, "EXPIRED_UNCLAIMED");
+            item.setStatus(PurchaseItemStatus.EXPIRED_UNCLAIMED);
+            purchaseItemRepository.save(item);
+            recognitionRepository.findByPurchaseId(item.getPurchase().getId())
+                    .ifPresent(institutionalPurchaseReverser::settleStatus);
+            log.info("[REFUND] Ítem de reconocimiento {} vencido sin reclamar, devuelto al fondo", item.getId());
+            return;
+        }
+
         reverseFinancials(item, null);
+        saleComponentRecorder.reverse(item, "EXPIRED_UNCLAIMED");
 
         // El código nunca estuvo mal — el comprador simplemente no lo reclamó a
         // tiempo — así que a diferencia de refund(reason=CODE_INVALID) el stock

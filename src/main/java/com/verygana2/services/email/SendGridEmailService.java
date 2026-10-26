@@ -78,7 +78,7 @@ public class SendGridEmailService implements EmailService {
         try {
             String recipientEmail = (contactEmail != null && !contactEmail.isBlank())
                     ? contactEmail
-                    : purchase.getConsumer().getUser().getEmail();
+                    : purchase.getRecipient().getUser().getEmail();
 
             if (recipientEmail == null || recipientEmail.isBlank()) {
                 log.error("No recipient email found for purchase ID: {}", purchase.getId());
@@ -100,6 +100,29 @@ public class SendGridEmailService implements EmailService {
             sendEmail(recipientEmail, "✅ Confirmación de Compra - Orden #" + purchase.getId(), html);
         } catch (Exception e) {
             log.error("Error sending purchase confirmation email for purchase ID: {}", purchase.getId(), e);
+        }
+    }
+
+    @Override
+    @Async
+    public void sendRecognitionDelivery(Purchase purchase, String recognitionRef) {
+        log.info("Sending recognition delivery email for purchase ID: {}", purchase.getId());
+        try {
+            String recipientEmail = purchase.getDeliveryEmail();
+            if (recipientEmail == null || recipientEmail.isBlank()) {
+                log.error("No recipient email found for recognition purchase ID: {}", purchase.getId());
+                return;
+            }
+
+            String html = templateLoader.render("recognition-delivered.html", Map.of(
+                    "recognitionRef", escapeHtml(recognitionRef),
+                    "itemsHtml", buildItemsHtml(purchase, false),
+                    "supportEmail", supportEmail,
+                    "sloganSection", SLOGAN_CONSUMER));
+
+            sendEmail(recipientEmail, "🎁 Tienes un reconocimiento de VerYGana", html);
+        } catch (Exception e) {
+            log.error("Error sending recognition delivery email for purchase ID: {}", purchase.getId(), e);
         }
     }
 
@@ -130,7 +153,7 @@ public class SendGridEmailService implements EmailService {
         try {
             String recipientEmail = (consumerEmail != null && !consumerEmail.isBlank())
                     ? consumerEmail
-                    : item.getPurchase().getConsumer().getUser().getEmail();
+                    : item.getPurchase().getRecipient().getUser().getEmail();
 
             if (recipientEmail == null || recipientEmail.isBlank()) {
                 log.error("No recipient email found for purchaseItemId: {}", item.getId());
@@ -650,14 +673,21 @@ public class SendGridEmailService implements EmailService {
     }
 
     private String buildItemsHtml(Purchase purchase) {
+        return buildItemsHtml(purchase, true);
+    }
+
+    /** @param showPrice false para el beneficiario de un reconocimiento, que no pagó nada. */
+    private String buildItemsHtml(Purchase purchase, boolean showPrice) {
         StringBuilder sb = new StringBuilder();
         for (PurchaseItem item : purchase.getItems()) {
             String imageUrl = item.getProduct().getImageUrl();
             sb.append("<div class='product-item'>");
             sb.append("<div class='product-name'>").append(escapeHtml(item.getProduct().getName())).append("</div>");
-            sb.append("<div class='product-price'>Precio: $")
-                    .append(String.format("%,.0f", moneyMapper.fromCents(item.getProduct().getPriceCents())))
-                    .append(" COP</div>");
+            if (showPrice) {
+                sb.append("<div class='product-price'>Precio: $")
+                        .append(String.format("%,.0f", moneyMapper.fromCents(item.getProduct().getPriceCents())))
+                        .append(" COP</div>");
+            }
             if (item.getDeliveredCode() != null) {
                 sb.append("<div class='code-row'>");
                 if (imageUrl != null) {

@@ -163,4 +163,31 @@ public interface TreasuryService {
 
     /** Cuánto puede salir hoy de KEYS_RESERVE sin cruzar el umbral crítico. Solo lectura. */
     long keysReserveHeadroomCents();
+
+    // ─── Compras de VERYGANA para reconocimientos (Contrato B 10.16) ──────────
+
+    /**
+     * Paga una compra de VERYGANA con el fondo de fortalecimiento: FORTIFICATION →
+     * PAYOUTS_PENDING por el precio completo. Desde ahí sigue el camino de cualquier venta
+     * (retención de comisión y payout diario).
+     *
+     * @throws com.verygana2.exceptions.TreasuryInsufficientFundsException si FORTIFICATION
+     *         no cubre el monto completo: no hay financiación parcial.
+     */
+    void fundInstitutionalPurchase(long amountCents, UUID fundingRef);
+
+    /**
+     * Deshace la venta de un ítem comprado por VERYGANA (anulación o vencimiento): la
+     * comisión y su IVA vuelven a PAYOUTS_PENDING y el precio completo vuelve a
+     * FORTIFICATION. Nunca va al beneficiario.
+     *
+     * @param amountCents        precio del ítem (lo que salió del fondo por él)
+     * @param commissionCents    comisión retenida sobre el ítem (puede ser 0), incluye IVA
+     * @param commissionVatCents porción de esa comisión que fue a TAX_RESERVE (puede ser 0)
+     */
+    void reverseInstitutionalPurchaseItem(long amountCents, long commissionCents, long commissionVatCents,
+            UUID fundingRef);
+
+    /** Saldo actual de FORTIFICATION. Solo lectura, sin bloqueo: sirve para avisar antes, no para decidir. */
+    long fortificationBalanceCents();
 }

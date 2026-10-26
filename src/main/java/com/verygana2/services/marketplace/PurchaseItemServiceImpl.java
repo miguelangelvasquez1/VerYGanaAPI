@@ -8,6 +8,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.hibernate.ObjectNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +20,7 @@ import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.product.responses.FeaturedProductResponseDTO;
 import com.verygana2.dtos.purchase.responses.CommercialPendingClaimResponseDTO;
 import com.verygana2.dtos.user.commercial.responses.DailySaleResponseDTO;
+import com.verygana2.event.PurchaseItemClaimedEvent;
 import com.verygana2.exceptions.InvalidStatusException;
 import com.verygana2.exceptions.marketplaceExceptions.InvalidClaimException;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
@@ -40,6 +42,7 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private final ProductCodeEncryptor codeEncryptor;
     private final PasswordEncoder passwordEncoder;
     private final ProductKeyPromotionResolver keyPromotionResolver;
+    private final ApplicationEventPublisher eventPublisher;
     private static final String domain = "https://cdn.verygana.com/public/";
     private static final int MAX_CLAIM_ATTEMPTS = 5;
 
@@ -52,12 +55,14 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
     private static final LocalTime PAYOUT_CUTOFF_TIME = LocalTime.of(23, 0);
 
     public PurchaseItemServiceImpl(PurchaseItemRepository purchaseItemRepository, @Lazy PurchaseMapper purchaseMapper, ProductCodeEncryptor codeEncryptor,
-            PasswordEncoder passwordEncoder, ProductKeyPromotionResolver keyPromotionResolver) {
+            PasswordEncoder passwordEncoder, ProductKeyPromotionResolver keyPromotionResolver,
+            ApplicationEventPublisher eventPublisher) {
         this.purchaseItemRepository = purchaseItemRepository;
         this.purchaseMapper = purchaseMapper;
         this.codeEncryptor = codeEncryptor;
         this.passwordEncoder = passwordEncoder;
         this.keyPromotionResolver = keyPromotionResolver;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -249,6 +254,8 @@ public class PurchaseItemServiceImpl implements PurchaseItemService {
         item.setStatus(PurchaseItemStatus.CLAIMED);
         item.setClaimedAt(ZonedDateTime.now(ZoneOffset.UTC));
         purchaseItemRepository.save(item);
+
+        eventPublisher.publishEvent(new PurchaseItemClaimedEvent(this, item.getPurchase().getId(), item.getId()));
     }
 
     @Override

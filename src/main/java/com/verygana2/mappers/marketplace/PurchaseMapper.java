@@ -44,9 +44,11 @@ public abstract class PurchaseMapper {
     @Mapping(target = "productId", source = "product.id")
     @Mapping(target = "productName", source = "product.name")
     @Mapping(target = "imageUrl", source = "product.imageUrl")
-    @Mapping(target = "buyerName", source = "purchase.consumer.name")
-    @Mapping(target = "documentType", source = "purchase.consumer.documentType")
-    @Mapping(target = "documentNumber", source = "purchase.consumer.documentNumber")
+    // Quien se presenta a recoger: el comprador, o el beneficiario si compró VERYGANA.
+    @Mapping(target = "buyerName", source = "purchase.recipient.name")
+    @Mapping(target = "documentType", source = "purchase.recipient.documentType")
+    @Mapping(target = "documentNumber", source = "purchase.recipient.documentNumber")
+    @Mapping(target = "buyerType", source = "purchase.buyerType")
     @Mapping(target = "purchaseAt", source = "purchase.completedAt")
     public abstract CommercialPendingClaimResponseDTO toCommercialPendingClaimResponseDTO (PurchaseItem purchaseItem);
 
@@ -66,7 +68,8 @@ public abstract class PurchaseMapper {
     }
 
     protected boolean resolveCanBeReviewed(PurchaseItem purchaseItem) {
-        if (purchaseItem.getProduct() == null) {
+        // Solo reseña quien compró: el beneficiario de un reconocimiento no es comprador.
+        if (purchaseItem.getProduct() == null || purchaseItem.getPurchase().getConsumer() == null) {
             return false;
         }
         return productReviewService.canBeReviewed(

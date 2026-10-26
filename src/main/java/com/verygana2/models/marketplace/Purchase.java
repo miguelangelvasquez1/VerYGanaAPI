@@ -5,6 +5,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.verygana2.models.enums.marketplace.PurchaseBuyerType;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
@@ -28,8 +29,8 @@ import lombok.ToString;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = { "consumer", "items" })
-@EqualsAndHashCode(exclude = { "consumer", "items" })
+@ToString(exclude = { "consumer", "beneficiary", "items" })
+@EqualsAndHashCode(exclude = { "consumer", "beneficiary", "items" })
 public class Purchase {
 
     @Id
@@ -41,9 +42,35 @@ public class Purchase {
 
     // ===== RELACIONES =====
 
+    /**
+     * Quién compra (Contrato B 10.16). En una compra de VERYGANA no hay consumidor
+     * comprador: {@link #consumer} queda en null y quien recibe va en {@link #beneficiary}.
+     * Un CHECK en la base impide mezclarlos.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "buyer_type", nullable = false, length = 20)
+    @Builder.Default
+    private PurchaseBuyerType buyerType = PurchaseBuyerType.CONSUMER;
+
+    /** Consumidor comprador. Null solo en compras de VERYGANA. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "consumer_id", nullable = false)
+    @JoinColumn(name = "consumer_id")
     private ConsumerDetails consumer;
+
+    /**
+     * Beneficiario de un reconocimiento: recibe lo que VERYGANA compró, sin pagar dinero
+     * ni llaves. Null en las compras de consumidor.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "beneficiary_id")
+    private ConsumerDetails beneficiary;
+
+    /**
+     * Clave de origen de una compra de VERYGANA (Idempotency-Key del admin): un reintento
+     * devuelve la compra ya registrada en vez de crear otra. Null en compras de consumidor.
+     */
+    @Column(name = "origin_key", length = 120, unique = true, updatable = false)
+    private String originKey;
 
     @OneToMany(mappedBy = "purchase", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
@@ -98,6 +125,15 @@ public class Purchase {
     @Column(name = "commission_vat_cents", nullable = false)
     @Builder.Default
     private Long commissionVatCents = 0L;
+
+    /**
+     * Suma de PurchaseItem.commissionNetOfVatCents de todos los ítems — ganancia real de
+     * VERyGANA en esta compra: commissionCents − commissionVatCents, lo que va a OPERATIONS
+     * (ver TreasuryServiceImpl.retainCommission).
+     */
+    @Column(name = "commission_net_of_vat_cents", nullable = false)
+    @Builder.Default
+    private Long commissionNetOfVatCents = 0L;
 
     /**
      * Suma de PurchaseItem.netToCommercialCents de todos los ítems.
@@ -182,6 +218,9 @@ public class Purchase {
         this.commissionVatCents = items.stream()
                 .mapToLong(PurchaseItem::getCommissionVatCents)
                 .sum();
+        this.commissionNetOfVatCents = items.stream()
+                .mapToLong(PurchaseItem::getCommissionNetOfVatCents)
+                .sum();
         this.netToCommercialsCents = items.stream()
                 .mapToLong(PurchaseItem::getNetToCommercialCents)
                 .sum();
@@ -190,6 +229,15 @@ public class Purchase {
                 .sum();
         // keysValueCents y cashCents se asignan externamente
         // cuando el Copayment confirma cuánto pagó con llaves si aplica y cuánto con Wompi.
+    }
+
+    public boolean isInstitutional() {
+        return buyerType == PurchaseBuyerType.VERYGANA;
+    }
+
+    /** Quien recibe lo comprado: el beneficiario en una compra de VERYGANA, si no el comprador. */
+    public ConsumerDetails getRecipient() {
+        return isInstitutional() ? beneficiary : consumer;
     }
 
     public void markAsCompleted() {
