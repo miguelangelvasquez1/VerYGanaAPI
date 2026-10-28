@@ -507,6 +507,7 @@ public class DrawingServiceImpl implements DrawingService {
             w.getPrize().getPosition();
         });
         return winners;
+
     }
 
 }

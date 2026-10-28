@@ -42,8 +42,8 @@ public class TreasuryConfig {
      *     ADICIONAL al monto base (ej. depositar $1.000.000 implica pagar
      *     $1.190.000 con vatPct=19).
      *   - Comisión de venta: se EXTRAE del monto de la comisión, que ya lo
-     *     incluye (ej. comisión de $100.000 con vatPct=19 → $19.000 a
-     *     TAX_RESERVE, $81.000 a OPERATIONS).
+     *     incluye: IVA = comisión × vatPct / (100 + vatPct) (ej. comisión de
+     *     $11.900 con vatPct=19 → $1.900 a TAX_RESERVE, $10.000 a OPERATIONS).
      * Configurable (no hardcodeado) para poder ajustarse sin tocar código si
      * la tarifa de IVA cambia. Default 19 si no se configura explícitamente.
      */

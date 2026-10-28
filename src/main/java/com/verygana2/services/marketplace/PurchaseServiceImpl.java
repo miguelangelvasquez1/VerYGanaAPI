@@ -1,8 +1,6 @@
 package com.verygana2.services.marketplace;
 
 import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -15,7 +13,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.verygana2.config.TreasuryConfig;
 import com.verygana2.dtos.PagedResponse;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseItemRequestDTO;
 import com.verygana2.dtos.purchase.requests.CreatePurchaseRequestDTO;
@@ -26,36 +23,26 @@ import com.verygana2.dtos.wompi.WompiCheckoutRequestDTO;
 import com.verygana2.dtos.wompi.WompiCheckoutResponseDTO;
 import com.verygana2.exceptions.BusinessException;
 import com.verygana2.exceptions.InsufficientFundsException;
-import com.verygana2.exceptions.InsufficientStockException;
 import com.verygana2.exceptions.InvalidAmountException;
 import com.verygana2.exceptions.KeysReserveInsufficientException;
-import com.verygana2.exceptions.ProductNotAvailableException;
 import com.verygana2.mappers.marketplace.PurchaseMapper;
 import com.verygana2.models.finance.Copayment;
 import com.verygana2.models.finance.KeyWallet;
 import com.verygana2.models.finance.WompiTransaction;
 import com.verygana2.models.enums.finance.CopaymentStatus;
 import com.verygana2.models.enums.finance.WompiTransactionType;
-import com.verygana2.models.enums.marketplace.ProductStatus;
-import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 import com.verygana2.models.enums.marketplace.PurchaseStatus;
-import com.verygana2.models.marketplace.Product;
-import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.models.marketplace.Purchase;
 import com.verygana2.models.marketplace.PurchaseItem;
-import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.finance.CopaymentRepository;
 import com.verygana2.repositories.finance.KeyWalletRepository;
 import com.verygana2.services.interfaces.finance.KeyLedgerService;
 import com.verygana2.repositories.finance.WompiTransactionRepository;
-import com.verygana2.repositories.marketplace.ProductRepository;
-import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseRepository;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.KeyCoveragePromotionService;
 import com.verygana2.services.interfaces.marketplace.KeyCoverageService;
-import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseService;
 import com.verygana2.services.wompi.WompiService;
 
@@ -72,20 +59,16 @@ public class PurchaseServiceImpl implements PurchaseService {
     private Long KEY_VALUE; // 1 llave = 10 COP = 1000 CENTAVOS DE COP
 
     private final PurchaseRepository purchaseRepository;
-    private final ProductService productService;
-    private final ProductRepository productRepository;
-    private final ProductStockRepository productStockRepository;
+    private final PurchaseItemAssembler purchaseItemAssembler;
     private final ConsumerDetailsService consumerDetailsService;
     private final KeyWalletRepository keyWalletRepository;
     private final KeyLedgerService keyLedgerService;
     private final KeyCoverageService keyCoverageService;
     private final KeyCoveragePromotionService keyCoveragePromotionService;
-    private final CommissionPolicy commissionPolicy;
     private final CopaymentRepository copaymentRepository;
     private final WompiService wompiService;
     private final WompiTransactionRepository wompiTransactionRepository;
     private final PurchaseMapper purchaseMapper;
-    private final TreasuryConfig treasuryConfig;
 
     // ─── Queries ──────────────────────────────────────────────────────────────
 
@@ -287,65 +270,10 @@ public class PurchaseServiceImpl implements PurchaseService {
     /**
      * Agrega ítems a la compra reservando stock y calculando comisiones.
      */
-    @SuppressWarnings("null")
     private void addPurchaseItems(Purchase purchase, CreatePurchaseRequestDTO request) {
 
         for (CreatePurchaseItemRequestDTO itemRequest : request.getItems()) {
-            Product product = productService.getById(itemRequest.getProductId());
-
-            if (product.getStatus() != ProductStatus.ACTIVE) {
-                throw new ProductNotAvailableException(product.getName());
-            }
-            if (product.getAvailableStock() < itemRequest.getQuantity()) {
-                throw new InsufficientStockException(product.getName());
-            }
-
-            CommercialDetails commercial = product.getCommercial();
-            int commissionPct = commissionPolicy.commissionPctFor(commercial);
-
-            for (int i = 0; i < itemRequest.getQuantity(); i++) {
-                ProductStock stock = productStockRepository
-                        .findNextAvailableForProduct(product.getId())
-                        .orElseThrow(() -> new InsufficientStockException(product.getName()));
-
-                stock.markAsReserved();
-                productStockRepository.save(stock);
-
-                long unitPriceCents = product.getPriceCents();
-
-                PurchaseItem item = PurchaseItem.builder()
-                        .product(product)
-                        .productNameSnapshot(product.getName())
-                        .commercialId(commercial.getId())
-                        .assignedProductStock(stock)
-                        .unitPriceCents(unitPriceCents)
-                        .subtotalCents(unitPriceCents)
-                        .commissionPctApplied(commissionPct)
-                        .commercialActivityTypeAtPurchase(commercial.getCommercialActivityType())
-                        .maxKeysPctAtPurchase(product.getMaxKeysPct())
-                        .status(PurchaseItemStatus.PENDING)
-                        .createdAt(ZonedDateTime.now(ZoneOffset.UTC))
-                        .build();
-                // Comisión provisional sobre el precio completo: la definitiva se fija al
-                // aprobarse el pago, descontando lo que absorba el Saldo de Prosperidad
-                // (ProsperityService.absorbPurchase).
-                item.applyCommission(unitPriceCents, treasuryConfig.getVatPct());
-
-                purchase.addItem(item);
-            }
-
-            product.updateStockCount();
-
-            // La sección de recompensas de juegos no filtra por stock (ver
-            // ProductRepository.findGameRewardsProducts), así que hay que apagar
-            // isGameReward manualmente al agotarse para no ofrecer un producto
-            // sin unidades disponibles.
-            if (Boolean.TRUE.equals(product.getIsGameReward()) && product.getAvailableStock() == 0) {
-                product.setIsGameReward(false);
-                product.setGameRewardAutoDisabled(true);
-            }
-
-            productRepository.save(product);
+            purchaseItemAssembler.addItems(purchase, itemRequest.getProductId(), itemRequest.getQuantity());
         }
 
         int expectedItems = request.getItems().stream()

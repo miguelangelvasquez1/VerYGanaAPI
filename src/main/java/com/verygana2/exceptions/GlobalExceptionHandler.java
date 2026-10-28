@@ -484,6 +484,14 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
     }
 
+    @ExceptionHandler(ProductNotAvailableException.class)
+    public ResponseEntity<ErrorResponse> handleProductNotAvailableException(
+        ProductNotAvailableException ex, WebRequest request) {
+        log.warn("Product error: {}", ex.getMessage());
+        return buildError(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        }
+    
+
     @ExceptionHandler(PlanFeatureGuard.BudgetDormantException.class)
     public ResponseEntity<ErrorResponse> handleBudgetDormantException(
             PlanFeatureGuard.BudgetDormantException ex, WebRequest request) {

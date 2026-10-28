@@ -49,7 +49,7 @@ class PurchaseItemServiceImplTest {
     @Mock private PurchaseMapper purchaseMapper;
     @Mock private ProductCodeEncryptor codeEncryptor;
     @Mock private PasswordEncoder passwordEncoder;
-
+    @Mock private org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     private PurchaseItemServiceImpl service;
 
@@ -59,7 +59,8 @@ class PurchaseItemServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new PurchaseItemServiceImpl(purchaseItemRepository, purchaseMapper, codeEncryptor, passwordEncoder,
-                keyPromotionResolver, com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+                keyPromotionResolver, com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"),
+                eventPublisher);
     }
 
     @Test
@@ -91,6 +92,7 @@ class PurchaseItemServiceImplTest {
         item.setClaimPinHash("hashed-pin");
         item.setClaimAttempts(0);
         item.setClaimExpiresAt(ZonedDateTime.now(ZoneOffset.UTC).plusDays(1));
+        item.setPurchase(com.verygana2.models.marketplace.Purchase.builder().id(50L).build());
         return item;
     }
 
@@ -110,6 +112,11 @@ class PurchaseItemServiceImplTest {
             assertThat(item.getStatus()).isEqualTo(PurchaseItemStatus.CLAIMED);
             assertThat(item.getClaimedAt()).isNotNull();
             verify(purchaseItemRepository).save(item);
+            // Un reconocimiento de VERYGANA se da por entregado con este evento.
+            org.mockito.ArgumentCaptor<com.verygana2.event.PurchaseItemClaimedEvent> event =
+                    org.mockito.ArgumentCaptor.forClass(com.verygana2.event.PurchaseItemClaimedEvent.class);
+            verify(eventPublisher).publishEvent(event.capture());
+            assertThat(event.getValue().getPurchaseId()).isEqualTo(50L);
         }
 
         @Test

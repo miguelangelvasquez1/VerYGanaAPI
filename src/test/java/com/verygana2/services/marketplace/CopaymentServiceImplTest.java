@@ -76,14 +76,17 @@ class CopaymentServiceImplTest {
     @Mock private ApplicationEventPublisher eventPublisher;
     @Mock private WompiService wompiService;
     @Mock private PasswordEncoder passwordEncoder;
+    @Mock private SaleComponentRecorder saleComponentRecorder;
 
     private CopaymentServiceImpl service;
 
     @BeforeEach
     void setUp() {
+        PurchaseDeliverer deliverer = new PurchaseDeliverer(productStockRepository, passwordEncoder, 15);
         service = new CopaymentServiceImpl(copaymentRepository, ticketDeliveryService, wompiTransactionRepository,
                 purchaseRepository, keyWalletRepository, keyLedgerService, keyCoveragePromotionService, productStockRepository,
-                productRepository, treasuryService, prosperityService, emailService, eventPublisher, wompiService, passwordEncoder);
+                productRepository, treasuryService, prosperityService, emailService, eventPublisher, wompiService,
+                deliverer, saleComponentRecorder);
         KeyLedgerStubs.applyToWallet(keyLedgerService);
     }
 
@@ -156,8 +159,10 @@ class CopaymentServiceImplTest {
             // Y toda la tesorería va después de prosperidad (mismo orden de bloqueo que el
             // depósito y el reembolso) pero antes de los tickets, que no se revierten.
             org.mockito.InOrder inOrder = org.mockito.Mockito.inOrder(
-                    prosperityService, treasuryService, ticketDeliveryService);
+                    prosperityService, saleComponentRecorder, treasuryService, ticketDeliveryService);
             inOrder.verify(prosperityService).absorbPurchase(purchase);
+            // La Venta Computable se reconoce con sus componentes antes de mover dinero.
+            inOrder.verify(saleComponentRecorder).recognizeConsumerSale(purchase, copayment.getId());
             inOrder.verify(treasuryService).moveCashToPayoutPending(100_000L, copayment.getId());
             inOrder.verify(treasuryService).retainCommission(10_000L, 0L, copayment.getId(), "COPAYMENT");
             inOrder.verify(ticketDeliveryService).processTicketEarningForPurchase(any(), any(), any());

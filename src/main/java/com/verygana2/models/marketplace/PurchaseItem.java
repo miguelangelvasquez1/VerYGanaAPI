@@ -3,6 +3,7 @@ package com.verygana2.models.marketplace;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.CommercialActivityType;
+import com.verygana2.models.enums.marketplace.ComputableSaleStatus;
 import com.verygana2.models.enums.marketplace.PurchaseItemStatus;
 
 import jakarta.persistence.CascadeType;
@@ -181,7 +182,8 @@ public class PurchaseItem {
 
     /**
      * Porción de commissionCents correspondiente a IVA (la comisión ya lo
-     * incluye — no se suma aparte, se extrae). Snapshot inmutable, calculado
+     * incluye — no se suma aparte, se extrae: comisión × vatPct / (100 + vatPct)).
+     * Snapshot inmutable, calculado
      * con TreasuryConfig.vatPct al momento de la compra — se usa para dividir
      * la retención entre OPERATIONS/TAX_RESERVE (TreasuryServiceImpl.retainCommission)
      * y para revertir exactamente lo mismo en un reembolso.
@@ -189,6 +191,15 @@ public class PurchaseItem {
     @Column(name = "commission_vat_cents", nullable = false)
     @Builder.Default
     private Long commissionVatCents = 0L;
+
+    /**
+     * Ganancia real de VERyGANA por este ítem: la comisión sin el IVA que ya traía
+     * (commissionCents − commissionVatCents). Es lo que va a OPERATIONS al retener la
+     * comisión (TreasuryServiceImpl.retainCommission). Lo fija {@link #applyCommission}.
+     */
+    @Column(name = "commission_net_of_vat_cents", nullable = false)
+    @Builder.Default
+    private Long commissionNetOfVatCents = 0L;
 
     /**
      * Lo que le corresponde al empresario después de comisión.
@@ -287,6 +298,19 @@ public class PurchaseItem {
     private PurchaseItemStatus status = PurchaseItemStatus.PENDING;
 
     /**
+     * Venta Computable de este ítem (Contrato B 5.9). Va aparte de {@link #status}: el
+     * estado del ítem habla de la entrega; este, de si el precio ya se reconoció a favor
+     * del empresario. Lo fija SaleComponentRecorder, nunca otro.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "computable_status", nullable = false, length = 20)
+    @Builder.Default
+    private ComputableSaleStatus computableStatus = ComputableSaleStatus.PENDING;
+
+    @Column(name = "recognized_at")
+    private ZonedDateTime recognizedAt;
+
+    /**
      * Status (PENDING o CLAIMED) que tenía el ítem justo antes de entrar en
      * IN_REVIEW — ver enterReview(). Permite restaurarlo exactamente si el
      * admin descarta el reclamo (exitReviewDismissed()), en vez de asumir
@@ -326,14 +350,27 @@ public class PurchaseItem {
 
     /**
      * Única fórmula de comisión del ítem, sobre la base dada (subtotal completo o la
-     * porción no absorbida por el Saldo de Prosperidad). La comisión ya incluye IVA —
-     * se extrae, no se suma aparte (ver TreasuryServiceImpl.retainCommission).
+     * porción no absorbida por el Saldo de Prosperidad).
+     *
+     * La comisión ya incluye IVA: el IVA se extrae, no se suma aparte.
+     *   comisión = base × pct / 100
+     *   IVA      = comisión − comisión / (1 + vatPct/100) = comisión × vatPct / (100 + vatPct)
+     * Ej. venta de $60.000 BASIC (20 %), IVA 19 %: comisión $12.000 → IVA $1.915,97 a
+     * TAX_RESERVE y $10.084,03 a OPERATIONS (ver TreasuryServiceImpl.retainCommission).
+     * commissionCents guarda la comisión bruta; el empresario recibe subtotal − comisión.
      */
     public void applyCommission(long baseCents, int vatPct) {
         long commission = baseCents * commissionPctApplied / 100;
         this.commissionCents = commission;
-        this.commissionVatCents = commission * vatPct / 100;
+        this.commissionVatCents = vatIncludedIn(commission, vatPct);
+        this.commissionNetOfVatCents = commission - this.commissionVatCents;
         this.netToCommercialCents = subtotalCents - commission;
+    }
+
+    /** IVA contenido en un monto que ya lo incluye, redondeado al centavo (mitad hacia arriba). */
+    static long vatIncludedIn(long grossCents, int vatPct) {
+        long divisor = 100L + vatPct;
+        return (grossCents * vatPct * 2 + divisor) / (2 * divisor);
     }
 
     /**

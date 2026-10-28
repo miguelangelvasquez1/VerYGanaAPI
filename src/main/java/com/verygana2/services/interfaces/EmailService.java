@@ -19,6 +19,12 @@ public interface EmailService {
      */
     void sendPurchaseConfirmation(Purchase purchase, String consumerEmail);
     void sendCommercialSaleNotification(Purchase purchase);
+
+    /**
+     * Correo al beneficiario de un reconocimiento (Contrato B 10.16): mismos códigos y PIN
+     * que una confirmación de compra, sin precio ni cobro. Va a Purchase.deliveryEmail.
+     */
+    void sendRecognitionDelivery(Purchase purchase, String recognitionRef);
     void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode);
 
     /**

@@ -47,8 +47,15 @@ public enum MovementConcept {
     /** Garantía no usada de una promoción cerrada, de vuelta al fondo de fortalecimiento */
     PROMOTION_GUARANTEE_RETURN_TO_FORTIFICATION,
 
-    /** Compra a empresario débil realizada con el fondo de fortalecimiento */
+    /**
+     * Compra de VERYGANA para un reconocimiento (Contrato B 10.16): FORTIFICATION →
+     * PAYOUTS_PENDING por el precio completo. Es a la vez el compromiso y el desembolso
+     * del recurso; su referenceId es el fundingRef del reconocimiento.
+     */
     FORTIFICATION_PURCHASE,
+
+    /** Anulación o vencimiento de una compra de VERYGANA: PAYOUTS_PENDING → FORTIFICATION */
+    FORTIFICATION_PURCHASE_REVERSAL,
 
     /** Plan básico mensual cobrado — distribución a operaciones */
     BASIC_PLAN_SUBSCRIPTION,

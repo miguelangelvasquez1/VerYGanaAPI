@@ -4,6 +4,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import com.verygana2.services.interfaces.finance.TreasuryService;
+import com.verygana2.services.interfaces.recognitions.RecognitionService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ReconciliationScheduler {
 
     private final TreasuryService treasuryService;
+    private final RecognitionService recognitionService;
 
     @Scheduled(cron = "0 0 6 * * MON")
     public void runWeeklyReconciliation() {
@@ -31,6 +33,12 @@ public class ReconciliationScheduler {
             treasuryService.runReconciliation();
         } catch (Exception e) {
             log.error("[RECONCILIATION-SCHEDULER] Error inesperado en reconciliación: {}", e.getMessage(), e);
+        }
+        // Cada recurso del fondo usado en un reconocimiento debe haberse contado una sola vez.
+        try {
+            recognitionService.reconcileFunding();
+        } catch (Exception e) {
+            log.error("[RECONCILIATION-SCHEDULER] Error conciliando reconocimientos: {}", e.getMessage(), e);
         }
         log.info("[RECONCILIATION-SCHEDULER] === Reconciliación semanal finalizada ===");
     }

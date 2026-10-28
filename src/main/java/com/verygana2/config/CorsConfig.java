@@ -20,7 +20,7 @@ public class CorsConfig {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(corsProperties.getAllowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
-        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type", "Upgrade", "Connection"));
+        configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token", "X-Client-Type", "Idempotency-Key", "Upgrade", "Connection"));
         configuration.setAllowCredentials(true); // Necesario para cookies
         configuration.setExposedHeaders(List.of("Set-Cookie"));
         configuration.setMaxAge(3600L);

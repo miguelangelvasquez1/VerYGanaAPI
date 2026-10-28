@@ -52,6 +52,12 @@ POST,/admin/prosperity/commercials/{publicId}/adjustments,,admin
 GET,/admin/prosperity/commercials/{publicId}/movements,A,
 POST,/admin/prosperity/reconciliation,,admin
 POST,/admin/prosperity/thresholds/{investmentId}/reversal,,admin
+GET,/admin/recognitions,A,
+POST,/admin/recognitions,,admin
+GET,/admin/recognitions/candidates,A,
+GET,/admin/recognitions/fund,A,
+GET,/admin/recognitions/{publicId},A,
+POST,/admin/recognitions/{publicId}/cancel,,admin
 GET,/admin/security-events,A,
 GET,/admin/security-events/critical,A,
 GET,/admin/treasury/balance,A,
@@ -410,6 +416,7 @@ GET,/purchases,C5,
 POST,/purchases/buy,C5,
 POST,/purchases/quote,C5,
 GET,/purchases/{purchaseId},C5,
+GET,/recognitions/me,C5,
 GET,/referrals/my-code,C7,
 GET,/referrals/my-referrals,C7,
 GET,/results/last,C3,

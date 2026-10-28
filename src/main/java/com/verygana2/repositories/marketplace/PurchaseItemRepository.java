@@ -233,8 +233,10 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
             JOIN FETCH pi.product p
             JOIN FETCH p.commercial
             JOIN FETCH pi.purchase pu
-            JOIN FETCH pu.consumer c
-            JOIN FETCH c.user
+            LEFT JOIN FETCH pu.consumer c
+            LEFT JOIN FETCH c.user
+            LEFT JOIN FETCH pu.beneficiary b
+            LEFT JOIN FETCH b.user
             WHERE pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.PENDING
             AND p.productType = com.verygana2.models.enums.marketplace.ProductType.PHYSICAL
             AND pi.claimExpiresAt < :now
@@ -294,12 +296,13 @@ public interface PurchaseItemRepository extends JpaRepository<PurchaseItem, Long
            SELECT pi FROM PurchaseItem pi
            JOIN FETCH pi.product p
            JOIN FETCH pi.purchase pu
-           JOIN FETCH pu.consumer c
+           LEFT JOIN FETCH pu.consumer c
+           LEFT JOIN FETCH pu.beneficiary b
            WHERE pi.commercialId = :commercialId
            AND pi.status = com.verygana2.models.enums.marketplace.PurchaseItemStatus.PENDING
            AND p.productType = com.verygana2.models.enums.marketplace.ProductType.PHYSICAL
-           AND (:documentType IS NULL OR c.documentType = :documentType)
-           AND (:documentNumber IS NULL OR :documentNumber = '' OR LOWER(c.documentNumber) LIKE LOWER(CONCAT('%', :documentNumber, '%')))
+           AND (:documentType IS NULL OR COALESCE(c.documentType, b.documentType) = :documentType)
+           AND (:documentNumber IS NULL OR :documentNumber = '' OR LOWER(COALESCE(c.documentNumber, b.documentNumber)) LIKE LOWER(CONCAT('%', :documentNumber, '%')))
                     """)
     Page<PurchaseItem> findPendingPhysicalItems (@Param("commercialId") Long commercialId, @Param("documentType") DocumentType documentType, @Param("documentNumber") String documentNumber, Pageable pageable);
 

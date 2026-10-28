@@ -100,6 +100,19 @@ function finance(session) {
       call('GET /admin/treasury/movements/{code}', { session, path: { code }, query: { page: 0, size: 20 } });
     }
   });
+  // Reconocimientos (compras de VERYGANA con el fondo de fortalecimiento): solo lectura. Crear o
+  // anular uno mueve dinero del fondo y está excluido (motivo `admin`).
+  call('GET /admin/recognitions/fund', { session });
+  call('GET /admin/recognitions/candidates', {
+    session, query: Object.assign({ criterion: 'KEYS_EARNED', from: isoDateTime(-30), to: isoDateTime(0) }, PAGE),
+  });
+  const recognitions = call('GET /admin/recognitions', { session, query: PAGE, json: true });
+  const recognition = pick(rows(recognitions.body));
+  // Sin reconocimientos sembrados el detalle sale por el camino de rechazo (404).
+  call('GET /admin/recognitions/{publicId}', {
+    session, path: { publicId: recognition && recognition.publicId ? recognition.publicId : NIL_UUID }, reject: BUSINESS,
+  });
+
   const payouts = call('GET /admin/payouts', { session, query: { date: isoDate(-1) }, json: true });
   const payout = pick(rows(payouts.body));
   // wompi-status consulta el estado al simulador de payouts; sin payouts sembrados responde 404.
