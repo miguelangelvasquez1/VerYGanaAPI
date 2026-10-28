@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -56,6 +57,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
@@ -117,6 +119,8 @@ public class ProductServiceImpl implements ProductService {
     private final AssetDurationService assetDurationService;
 
     private final ProductKeyPromotionResolver keyPromotionResolver;
+
+    private final ProductListingFactsResolver listingFactsResolver;
 
     private final PublicUrlBuilder publicUrlBuilder;
 
@@ -522,12 +526,18 @@ public class ProductServiceImpl implements ProductService {
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
                         municipality, consumerAge, consumerGender, pageable));
 
+        Map<Long, ProductListingFacts> facts = factsFor(productPage.getData());
         return withKeyPromotions(productPage.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));
 
+    }
+
+    /** Stock y datos del comercio de los productos de la página, en una sola consulta. */
+    private Map<Long, ProductListingFacts> factsFor(List<Product> products) {
+        return listingFactsResolver.resolve(products.stream().map(Product::getId).toList());
     }
 
     /** Marca los productos de la página que hoy tienen promoción especial de llaves (una consulta por página). */
@@ -581,8 +591,9 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findByCommercialId(commercialId, pageable));
+        Map<Long, ProductListingFacts> facts = factsFor(products.getData());
         return withKeyPromotions(products.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));
@@ -599,7 +610,10 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(page, 10, Sort.Direction.DESC, "createdAt");
         PagedResponse<FavoriteProduct> favorites = PagedResponse
                 .from(favoriteProductRepository.findByConsumerIdWithActiveProducts(consumerId, pageable));
-        return withKeyPromotions(favorites.map(productMapper::toProductSummaryResponseDTO));
+        Map<Long, ProductListingFacts> facts = factsFor(
+                favorites.getData().stream().map(FavoriteProduct::getProduct).toList());
+        return withKeyPromotions(favorites
+                .map(fp -> productMapper.toProductSummaryResponseDTO(fp, facts.get(fp.getProduct().getId()))));
     }
 
     @Override
@@ -673,8 +687,9 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, String search, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findAllProductsForAdmin(status, search, pageable));
+        Map<Long, ProductListingFacts> facts = factsFor(products.getData());
         return withKeyPromotions(products.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));

@@ -17,6 +17,7 @@ import com.verygana2.mappers.TargetAudienceMapper;
 import com.verygana2.mappers.finance.MoneyMapper;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.models.marketplace.ProductReview;
 import com.verygana2.models.marketplace.ProductStock;
 
@@ -117,34 +118,34 @@ public interface ProductMapper {
     @Mapping(target = "consumerName", source = "consumer.name")
     ProductReviewResponseDTO toProductReviewResponseDTO(ProductReview review);
 
-    @Mapping(target = "categoryName", source = "productCategory.name")
-    @Mapping(target = "stock", expression = "java(product.getAvailableStock())")
+    @Mapping(target = "categoryName", source = "product.productCategory.name")
+    @Mapping(target = "stock", expression = "java(facts.availableStockAsInt())")
     @Mapping(target = "imageUrl", ignore = true)
-    @Mapping(target = "companyName", source = "commercial.companyName")
-    @Mapping(target = "price", source = "priceCents")
+    @Mapping(target = "companyName", source = "facts.companyName")
+    @Mapping(target = "price", source = "product.priceCents")
     @Mapping(target = "maxKeysAllowed", expression = "java(product.getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(product.getMinCashCents())")
-    @Mapping(target = "commercialPublicId", source = "commercial.user.publicId")
+    @Mapping(target = "commercialPublicId", source = "facts.commercialPublicId")
     @Mapping(target = "specialKeyPromotion", ignore = true)
-    ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product);
+    ProductSummaryResponseDTO toProductSummaryResponseDTO(Product product, ProductListingFacts facts);
 
-    @Mapping(target = "id", source = "product.id")
-    @Mapping(target = "name", source = "product.name")
-    @Mapping(target = "imageUrl", source = "product.imageAsset.objectKey", qualifiedByName = "publicUrl")
-    @Mapping(target = "price", source = "product.priceCents")
-    @Mapping(target = "averageRate", source = "product.averageRate")
-    @Mapping(target = "categoryName", source = "product.productCategory.name")
-    @Mapping(target = "stock", expression = "java(favoriteProduct.getProduct().getAvailableStock())")
-    @Mapping(target = "status", source = "product.status")
-    @Mapping(target = "companyName", source = "product.commercial.companyName")
+    @Mapping(target = "id", source = "favoriteProduct.product.id")
+    @Mapping(target = "name", source = "favoriteProduct.product.name")
+    @Mapping(target = "imageUrl", source = "favoriteProduct.product.imageAsset.objectKey", qualifiedByName = "publicUrl")
+    @Mapping(target = "price", source = "favoriteProduct.product.priceCents")
+    @Mapping(target = "averageRate", source = "favoriteProduct.product.averageRate")
+    @Mapping(target = "categoryName", source = "favoriteProduct.product.productCategory.name")
+    @Mapping(target = "stock", expression = "java(facts.availableStockAsInt())")
+    @Mapping(target = "status", source = "favoriteProduct.product.status")
+    @Mapping(target = "companyName", source = "facts.companyName")
     @Mapping(target = "maxKeysAllowed", expression = "java(favoriteProduct.getProduct().getMaxKeysAllowed())")
     @Mapping(target = "minCashCents", expression = "java(favoriteProduct.getProduct().getMinCashCents())")
     @Mapping(target = "reviewCount", ignore = true)
     @Mapping(target = "maxKeysPct", ignore = true)
     @Mapping(target = "isGameReward", ignore = true)
-    @Mapping(target = "commercialPublicId", source = "product.commercial.user.publicId")
+    @Mapping(target = "commercialPublicId", source = "facts.commercialPublicId")
     @Mapping(target = "specialKeyPromotion", ignore = true)
-    ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct);
+    ProductSummaryResponseDTO toProductSummaryResponseDTO(FavoriteProduct favoriteProduct, ProductListingFacts facts);
 
     @AfterMapping
     default void calculateStock(@MappingTarget ProductResponseDTO dto, Product product) {

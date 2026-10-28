@@ -32,6 +32,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
 import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.games.GameServiceImpl;
 import com.verygana2.utils.games.GameConfigStamper;
@@ -57,6 +58,7 @@ class PreviewRewardFallbackTest {
     @Mock private CampaignRepository campaignRepository;
     @Mock private GameSessionRepository gameSessionRepository;
     @Mock private ProductRepository productRepository;
+    @Mock private com.verygana2.services.marketplace.ProductListingFactsResolver listingFactsResolver;
     @Mock private GameConfigValidator gameConfigValidator;
 
     @Spy private GameConfigStamper gameConfigStamper = new GameConfigStamper("https://cdn/moneda.png");
@@ -155,6 +157,8 @@ class PreviewRewardFallbackTest {
         real.setStockItems(new java.util.ArrayList<>());
 
         when(productRepository.findGameRewardsProducts(31L)).thenReturn(List.of(real));
+        when(listingFactsResolver.resolve(any()))
+                .thenReturn(java.util.Map.of(77L, new ProductListingFacts(77L, "Comercio", null, 0L)));
 
         List<Object> products = productsOf(preview());
 

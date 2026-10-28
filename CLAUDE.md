@@ -33,7 +33,7 @@ PMD (`pmd-ruleset.xml`, solo reglas de código muerto) es puerta bloqueante en C
 Si se corre como `./mvnw compile pmd:check` en una sola invocación, reporta falsos
 positivos porque el auxclasspath se resuelve antes de compilar.
 
-Ningún test toca base de datos ni usa `@SpringBootTest`. Hay dos estilos:
+Ningún test toca la base de producción (ni la de beta o dev) ni usa `@SpringBootTest`. Hay tres estilos:
 
 - Unitarios con Mockito. Los de controller usan `MockMvcBuilders.standaloneSetup`:
   hay que fijar `MappingJackson2HttpMessageConverter` con un `ObjectMapper` de
@@ -43,6 +43,11 @@ Ningún test toca base de datos ni usa `@SpringBootTest`. Hay dos estilos:
   con la cadena de seguridad real y JWT firmados en el test, para probar los
   `@PreAuthorize` rol por rol. Un endpoint nuevo con restricción de rol va aquí.
   Pese al nombre, corren con surefire (`-Dtest` funciona igual).
+- `@DataJpaTest` sobre H2 en memoria (p. ej. `ProductRepositoryTest`,
+  `RecognitionServiceIntegrationTest`), solo cuando lo que se prueba es el
+  comportamiento de JPA que un mock no ve: consultas, cargas perezosas, número de
+  sentencias (spec 016). H2 no es MySQL: lo específico de MySQL (triggers,
+  `sql_require_primary_key`, sintaxis propia) se comprueba aparte contra la base de dev.
 
 Fixtures compartidos en `src/test/java/com/verygana2/testsupport`.
 

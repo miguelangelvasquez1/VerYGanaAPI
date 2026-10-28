@@ -12,12 +12,21 @@ import com.verygana2.models.marketplace.FavoriteProduct;
 
 public interface FavoriteProductRepository extends JpaRepository<FavoriteProduct, Long> {
 
-    @Query("""
+    @Query(value = """
             SELECT fp FROM FavoriteProduct fp
             JOIN FETCH fp.product p
+            JOIN FETCH p.productCategory pc
+            LEFT JOIN FETCH pc.imageAsset pcia
+            LEFT JOIN FETCH p.imageAsset ia
             WHERE fp.consumer.id = :consumerId
             AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
             ORDER BY fp.createdAt DESC
+            """,
+            countQuery = """
+            SELECT COUNT(fp) FROM FavoriteProduct fp
+            JOIN fp.product p
+            WHERE fp.consumer.id = :consumerId
+            AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
             """)
     Page<FavoriteProduct> findByConsumerIdWithActiveProducts(
             @Param("consumerId") Long consumerId,

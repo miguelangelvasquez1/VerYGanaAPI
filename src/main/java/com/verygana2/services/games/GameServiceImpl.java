@@ -49,7 +49,9 @@ import com.verygana2.repositories.games.CampaignRepository;
 import com.verygana2.repositories.games.GameRepository;
 import com.verygana2.repositories.games.GameSessionRepository;
 import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.repositories.marketplace.ProductRepository;
+import com.verygana2.services.marketplace.ProductListingFactsResolver;
 import com.verygana2.services.finance.KeyWalletServiceImpl.RewardSplit;
 import com.verygana2.services.interfaces.GameService;
 import com.verygana2.models.enums.finance.KeyOriginType;
@@ -106,6 +108,7 @@ public class GameServiceImpl implements GameService {
     private final KeyLedgerService keyLedgerService;
     private final LevelService levelService;
     private final PublicUrlBuilder publicUrlBuilder;
+    private final ProductListingFactsResolver listingFactsResolver;
 
     public GameSchemaResponse getLatestGameSchema(Long gameId) {
 
@@ -591,7 +594,7 @@ public class GameServiceImpl implements GameService {
         }
     }
 
-    private List<RewardCardResponseDTO> getGameRewards(CommercialDetails commercial) {
+    List<RewardCardResponseDTO> getGameRewards(CommercialDetails commercial) {
 
         Long commercialId = commercial.getId();
 
@@ -612,6 +615,10 @@ public class GameServiceImpl implements GameService {
             return List.of();
         }
 
+        // Stock y comercio en una sola consulta para toda la lista (sin N+1 por producto).
+        Map<Long, ProductListingFacts> facts = listingFactsResolver
+                .resolve(gameRewards.stream().map(Product::getId).toList());
+
         return gameRewards.stream()
                 .map(p -> RewardCardResponseDTO.builder()
                         .id(p.getId())
@@ -622,11 +629,11 @@ public class GameServiceImpl implements GameService {
                         .regular_price(p.getPriceCents() / 100)
                         .keys_message("Con [[" + formatNumber(p.getMaxKeysAllowed()) + "]] llaves pagas [[SOLO $"
                                 + formatNumber(p.getMinCashCents() / 100) + " COP]]")
-                        .commercial(p.getCommercial().getCompanyName())
+                        .commercial(facts.get(p.getId()).companyName())
                         .rating(p.getAverageRate())
                         .max_keys_allowed(p.getMaxKeysAllowed())
                         .min_cash_cents(p.getMinCashCents())
-                        .stock(p.getAvailableStock())
+                        .stock(facts.get(p.getId()).availableStockAsInt())
                         .category_name(p.getProductCategory().getName())
                         .build())
                 .toList();

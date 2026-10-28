@@ -26,6 +26,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.repositories.branding.BrandingRequestRepository;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.models.games.GameConfigDefinition;
 import com.verygana2.services.games.GameServiceImpl;
@@ -51,6 +52,7 @@ class PreviewAssetsRewardPopupTest {
 
     @Mock private BrandingRequestRepository brandingRequestRepository;
     @Mock private ProductRepository productRepository;
+    @Mock private com.verygana2.services.marketplace.ProductListingFactsResolver listingFactsResolver;
     @Mock private GameConfigValidator gameConfigValidator;
     @Mock private GameConfigStamper gameConfigStamper;
 
@@ -118,6 +120,8 @@ class PreviewAssetsRewardPopupTest {
         product.setProductCategory(category);
         product.setImageAsset(ProductImageAsset.builder().objectKey("products/7.png").build());
         when(productRepository.findGameRewardsProducts(any())).thenReturn(List.of(product));
+        when(listingFactsResolver.resolve(any()))
+                .thenReturn(Map.of(7L, new ProductListingFacts(7L, "Tienda", null, 0L)));
 
         Map<String, Object> assets = gameService.getPreviewAssets(5L);
 
