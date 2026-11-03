@@ -122,7 +122,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
         publishAudit(userId, "TERMS_ACCEPTED",
                 "Comercial aceptó Términos y Condiciones v" + dto.getTermsVersion(),
                 ipAddress, userAgent,
-                Map.of("termsVersion", terms.getVersion(), "termsDocumentUrl", terms.getDocumentUrl()));
+                Map.of("termsVersion", terms.getVersion(), "termsDocumentUrl", terms.getDocumentUrl()),
+                AuditLevel.CRITICAL);
 
         log.info("Comercial userId={} aceptó T&C v{}", userId, dto.getTermsVersion());
         return toStatusDTO(onboarding);
@@ -420,7 +421,8 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
                 null, null, Map.of("planCode", plan.getCode().name(),
                         "saleCommissionPct", plan.getSaleCommissionPct(),
                         "wasRecommended", isRecommended,
-                        "requiresSpecialNegotiation", specialNegotiation));
+                        "requiresSpecialNegotiation", specialNegotiation),
+                AuditLevel.CRITICAL);
 
         return buildPlanSummary(onboarding, plan);
     }
@@ -680,11 +682,20 @@ public class CommercialOnboardingServiceImpl implements CommercialOnboardingServ
 
     private void publishAudit(Long userId, String action, String description, String ip, String userAgent,
                                Map<String, Object> additionalData) {
+        publishAudit(userId, action, description, ip, userAgent, additionalData, AuditLevel.INFO);
+    }
+
+    /**
+     * Las aceptaciones con valor de evidencia legal van en CRITICAL: AuditCleanupJob no
+     * borra ese nivel, mientras que INFO se elimina a los 90 días.
+     */
+    private void publishAudit(Long userId, String action, String description, String ip, String userAgent,
+                               Map<String, Object> additionalData, AuditLevel level) {
         try {
             AuditEvent event = AuditEvent.builder()
                     .userId(userId)
                     .action(action)
-                    .level(AuditLevel.INFO)
+                    .level(level)
                     .category("COMPLIANCE")
                     .description(description)
                     .className(CommercialOnboardingServiceImpl.class.getName())

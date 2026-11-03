@@ -129,12 +129,95 @@ function decisions(session, found, queued) {
   }
 }
 
+/**
+ * Fichas tributarias y expediente (4.7 / 4.8): colas y detalle. Las revisiones van sin nota o
+ * incompletas a propósito: son rechazos de validación y no alteran los datos sembrados.
+ */
+function taxProfiles(session) {
+  const profiles = call('GET /compliance/tax-profiles', { session, query: { page: 0, size: 20 }, json: true });
+  call('GET /compliance/tax-catalog', { session });
+  const profile = pick(rows(profiles.body));
+  const subject = profile && profile.commercialPublicId ? profile.commercialPublicId : NIL_UUID;
+  call('GET /compliance/tax-profiles/{commercialPublicId}', {
+    session, path: { commercialPublicId: subject }, reject: BUSINESS,
+  });
+  call('GET /compliance/tax-profiles/{commercialPublicId}/versions/{versionNumber}', {
+    session, path: { commercialPublicId: subject, versionNumber: 1 }, reject: BUSINESS,
+  });
+  call('GET /compliance/commercials/{commercialPublicId}/documents', {
+    session, path: { commercialPublicId: subject }, reject: BUSINESS,
+  });
+  call('GET /compliance/commercials/{commercialPublicId}/declarations/{code}', {
+    session, path: { commercialPublicId: subject, code: 'FORMALIZATION_COMMITMENT' }, reject: BUSINESS,
+  });
+  if (!often(0.2)) return;
+  call('POST /compliance/tax-profiles/{commercialPublicId}/sections/{section}/review', {
+    session, path: { commercialPublicId: subject, section: 'A_RUT' }, body: { result: 'OBSERVED' }, reject: BUSINESS,
+  });
+  call('POST /compliance/commercial-documents/{documentId}/review', {
+    session, path: { documentId: 1 }, body: { result: 'OBSERVED' }, reject: BUSINESS,
+  });
+  call('POST /compliance/tax-catalog', { session, body: { catalogType: 'REGIME' }, reject: BUSINESS });
+  call('POST /compliance/tax-catalog/{entryId}/retire', { session, path: { entryId: 1 }, body: {}, reject: BUSINESS });
+}
+
+/**
+ * Requerimientos, hallazgos, incidencias y alertas (4.8). Las escrituras son inválidas a
+ * propósito: un hallazgo de "inconsistencia aislada" con suspensión siempre se rechaza, así la
+ * prueba de carga nunca suspende una cuenta sembrada.
+ */
+function informationRequests(session) {
+  const list = call('GET /compliance/information-requests', { session, query: { page: 0, size: 20 }, json: true });
+  const request = pick(rows(list.body));
+  const requestId = request && request.publicId ? request.publicId : NIL_UUID;
+  const subject = request && request.commercialPublicId ? request.commercialPublicId : NIL_UUID;
+  call('GET /compliance/information-requests/{requestPublicId}', {
+    session, path: { requestPublicId: requestId }, reject: BUSINESS,
+  });
+  call('GET /compliance/commercials/{commercialPublicId}/findings', {
+    session, path: { commercialPublicId: subject }, reject: BUSINESS,
+  });
+  call('GET /compliance/commercials/{commercialPublicId}/incidents', {
+    session, path: { commercialPublicId: subject }, reject: BUSINESS,
+  });
+  const alerts = call('GET /compliance/alerts', { session, query: { page: 0, size: 20 }, json: true });
+  call('GET /compliance/alert-rules', { session });
+  if (!often(0.2)) return;
+  call('POST /compliance/information-requests', {
+    session, body: { commercialPublicId: subject, trigger: 'NEW_REQUIREMENT', reason: 'x', relationToOperation: 'x', items: [] },
+    reject: BUSINESS,
+  });
+  call('POST /compliance/information-requests/{requestPublicId}/review', {
+    session, path: { requestPublicId: requestId }, body: { result: 'INSUFFICIENT' }, reject: BUSINESS,
+  });
+  call('POST /compliance/information-requests/{requestPublicId}/cancel', {
+    session, path: { requestPublicId: requestId }, body: {}, reject: BUSINESS,
+  });
+  call('POST /compliance/findings', {
+    session,
+    body: {
+      commercialPublicId: subject, factObserved: 'Prueba de carga', classification: 'ISOLATED_INCONSISTENCY',
+      severity: 'LOW', impact: 'Ninguno', remediable: true, contractualBasis: 'Prueba de carga', measure: 'SUSPENSION',
+    },
+    reject: BUSINESS,
+  });
+  call('POST /compliance/incidents', { session, body: { commercialPublicId: subject }, reject: BUSINESS });
+  const alert = pick(rows(alerts.body));
+  call('POST /compliance/alerts/{alertId}/review', {
+    session, path: { alertId: alert && alert.id ? alert.id : 0 }, body: {}, reject: BUSINESS,
+  });
+  call('POST /compliance/alert-rules', { session, body: { code: 'LOAD', windowDays: 1 }, reject: BUSINESS });
+  call('POST /compliance/alert-rules/{ruleId}/deactivate', { session, path: { ruleId: 0 }, reject: BUSINESS });
+}
+
 function round(session) {
   const queued = queues(session);
   think();
   const found = contractsReview(session);
   think();
   decisions(session, found, queued);
+  taxProfiles(session);
+  informationRequests(session);
   auditTrail(session);
 }
 

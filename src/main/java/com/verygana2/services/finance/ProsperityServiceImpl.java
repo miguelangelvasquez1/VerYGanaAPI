@@ -1,5 +1,6 @@
 package com.verygana2.services.finance;
 
+import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -53,6 +54,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>UMBRAL_GENERADO = INVERSIÓN_COMPUTABLE (neto sin IVA) × multiplicador del plan (5.7, 10.3).</li>
  *   <li>SALDO_NUEVO = SALDO_ANTERIOR + UMBRAL_GENERADO: acumulativo, nunca se reinicia (10.4).</li>
  *   <li>PORCIÓN_ABSORBIDA = MIN(SALDO, VENTA_COMPUTABLE); BASE_COMISIONABLE = VENTA − ABSORBIDA (10.6, 10.10, 10.13).</li>
+ *   <li>COMISIÓN = ABSORBIDA × % absorción + BASE × % plan: el % de absorción
+ *       (PROSPERITY_MIN_COMMISSION_PCT, 5 % IVA incluido) cubre costos de pasarela y payouts.</li>
  *   <li>Toda corrección es un asiento compensatorio; el libro nunca se edita (10.27).</li>
  * </ul>
  * Toda escritura bloquea la cuenta del comercial (PESSIMISTIC_WRITE): no hay doble
@@ -67,9 +70,11 @@ public class ProsperityServiceImpl implements ProsperityService {
 
     static final String MULTIPLIER_FEATURE = "PROSPERITY_THRESHOLD_MULTIPLIER";
 
+    /** Comisión (% IVA incluido) que paga la porción de una venta absorbida por el Saldo de Prosperidad. */
+    static final String MIN_COMMISSION_FEATURE = "PROSPERITY_MIN_COMMISSION_PCT";
+
     static final String DISCLAIMER = "El Saldo de Prosperidad no es dinero, depósito, ahorro, crédito ni saldo "
-            + "retirable. Es la porción de tu Umbral que todavía puede absorber ventas antes de que se "
-            + "cause comisión.";
+            + "retirable. Es la porción de tu Umbral que todavía puede absorber ventas.";
 
     private static final String BY_INVESTMENT = "SYSTEM:INVESTMENT_CONFIRMATION";
     private static final String BY_COPAYMENT = "SYSTEM:COPAYMENT_APPROVAL";
@@ -150,10 +155,13 @@ public class ProsperityServiceImpl implements ProsperityService {
                     ? Optional.empty()
                     : accountRepository.findByCommercialIdForUpdate(group.getKey());
             boolean canAbsorb = accountOpt.isPresent() && isStandard(accountOpt.get().getCommercial());
+            BigDecimal minCommissionPct = canAbsorb
+                    ? minCommissionPct(accountOpt.get().getCommercial())
+                    : null;
 
             for (PurchaseItem item : group.getValue()) {
                 long absorbed = canAbsorb ? absorbItem(accountOpt.get(), item) : 0L;
-                item.settleCommission(absorbed, vatPct);
+                item.settleCommission(absorbed, vatPct, minCommissionPct);
             }
         }
 
@@ -333,11 +341,12 @@ public class ProsperityServiceImpl implements ProsperityService {
         CommercialDetails commercial = commercialDetailsRepository.findById(commercialId)
                 .orElseThrow(() -> new EntityNotFoundException("Comercial no encontrado: " + commercialId));
         boolean standard = isStandard(commercial);
+        String disclaimer = disclaimer(minCommissionPct(commercial));
 
         Optional<ProsperityAccount> accountOpt = accountRepository.findByCommercialId(commercialId);
         if (accountOpt.isEmpty()) {
             return prosperityMapper.toEmptySummaryResponseDTO(commercial.getUser().getPublicId(),
-                    standard ? "ACTIVE" : "NOT_APPLICABLE", DISCLAIMER);
+                    standard ? "ACTIVE" : "NOT_APPLICABLE", disclaimer);
         }
 
         ProsperityAccount account = accountOpt.get();
@@ -349,7 +358,7 @@ public class ProsperityServiceImpl implements ProsperityService {
                 .map(t -> prosperityMapper.toThresholdResponseDTO(t, reversedAtByThreshold.get(t.getId())))
                 .toList();
         return prosperityMapper.toSummaryResponseDTO(account, commercial.getUser().getPublicId(), standard ? "ACTIVE" : "FROZEN",
-                thresholds, DISCLAIMER);
+                thresholds, disclaimer);
     }
 
     @Override
@@ -361,6 +370,14 @@ public class ProsperityServiceImpl implements ProsperityService {
         return accountRepository.findByCommercialId(commercial.getId())
                 .map(ProsperityAccount::getBalanceCents)
                 .orElse(0L);
+    }
+
+    @Override
+    public BigDecimal minCommissionPct(CommercialDetails commercial) {
+        if (!isStandard(commercial)) {
+            return BigDecimal.ZERO;
+        }
+        return commercial.getCurrentPlan().getDecimalFeature(MIN_COMMISSION_FEATURE, BigDecimal.ZERO);
     }
 
     @Override
@@ -444,6 +461,17 @@ public class ProsperityServiceImpl implements ProsperityService {
 
     private boolean isStandard(CommercialDetails commercial) {
         return commercial.getCurrentPlan() != null && commercial.getCurrentPlan().getCode() == PlanCode.STANDARD;
+    }
+
+    private static String disclaimer(BigDecimal minCommissionPct) {
+        if (minCommissionPct == null || minCommissionPct.signum() <= 0) {
+            return DISCLAIMER;
+        }
+        String pct = minCommissionPct.stripTrailingZeros().toPlainString().replace('.', ',');
+        return DISCLAIMER + " La parte de cada venta que absorbe no paga la comisión de tu plan, sino una "
+                + "comisión del " + pct + " % (IVA incluido); el resto de la venta paga la comisión de tu plan. "
+                + "Ese " + pct + " % no es ganancia de VERyGANA: cubre lo que cuesta procesar el pago del "
+                + "comprador y transferirte tu dinero.";
     }
 
     private InvalidStatusException alreadyReversed(Long investmentId, ZonedDateTime reversedAt) {

@@ -1,5 +1,7 @@
 package com.verygana2.models.marketplace;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.CommercialActivityType;
@@ -149,8 +151,9 @@ public class PurchaseItem {
     /**
      * Porción de la Venta Computable (subtotalCents, incluida la parte pagada con
      * llaves) absorbida por el Saldo de Prosperidad del comercial STANDARD al aprobarse
-     * el pago (ver ProsperityServiceImpl.absorbPurchase). No genera comisión. 0 si no
-     * hubo absorción (otros planes, saldo agotado o cuenta congelada).
+     * el pago (ver ProsperityServiceImpl.absorbPurchase). No paga la comisión del plan,
+     * sino {@link #prosperityMinCommissionPct}. 0 si no hubo absorción (otros planes,
+     * saldo agotado o cuenta congelada).
      */
     @Column(name = "prosperity_absorbed_cents", nullable = false)
     @Builder.Default
@@ -158,11 +161,20 @@ public class PurchaseItem {
 
     /**
      * Base Comisionable definitiva = subtotalCents − prosperityAbsorbedCents (Contrato B
-     * 10.10). Se fija al aprobar el pago; null mientras la compra está pendiente y en los
-     * ítems anteriores a MP-05 (su base fue el subtotal).
+     * 10.10): lo que paga la comisión del plan. Se fija al aprobar el pago; null mientras
+     * la compra está pendiente y en los ítems anteriores a MP-05 (su base fue el subtotal).
      */
     @Column(name = "commission_base_cents")
     private Long commissionBaseCents;
+
+    /**
+     * Comisión (% de prosperityAbsorbedCents, IVA incluido) que pagó la porción absorbida
+     * por el Saldo de Prosperidad. Cubre los costos de pasarela y payouts; no es margen
+     * de VERyGANA. Snapshot de la feature PROSPERITY_MIN_COMMISSION_PCT del plan, topado al
+     * % del plan. Null si no hubo absorción o si el ítem es anterior a este cambio.
+     */
+    @Column(name = "prosperity_min_commission_pct", precision = 5, scale = 2)
+    private BigDecimal prosperityMinCommissionPct;
 
     /**
      * Comisión en centavos retenida por VeryGana sobre este ítem.
@@ -360,7 +372,10 @@ public class PurchaseItem {
      * commissionCents guarda la comisión bruta; el empresario recibe subtotal − comisión.
      */
     public void applyCommission(long baseCents, int vatPct) {
-        long commission = baseCents * commissionPctApplied / 100;
+        setCommission(baseCents * commissionPctApplied / 100, vatPct);
+    }
+
+    private void setCommission(long commission, int vatPct) {
         this.commissionCents = commission;
         this.commissionVatCents = vatIncludedIn(commission, vatPct);
         this.commissionNetOfVatCents = commission - this.commissionVatCents;
@@ -376,13 +391,34 @@ public class PurchaseItem {
     /**
      * Fija la comisión definitiva al aprobarse el pago, después de que el Saldo de
      * Prosperidad absorbió {@code absorbedCents} de la Venta Computable.
+     *
+     * La comisión tiene dos partes que se suman:
+     *   lo absorbido      × {@code absorbedCommissionPct} (5 %, topado al % del plan)
+     *   + base comisionable × % del plan (10 % PRODUCTOS / 15 % SERVICIOS)
+     * Ej. venta $100.000 con saldo $50.000: 5 % de $50.000 = $2.500 más 10 % de $50.000 =
+     * $5.000 → $7.500 (con 15 %: $2.500 + $7.500 = $10.000). Venta de $100.000 absorbida
+     * entera: $5.000 → IVA $798,32 y $4.201,68 a OPERATIONS.
      */
-    public void settleCommission(long absorbedCents, int vatPct) {
+    public void settleCommission(long absorbedCents, int vatPct, BigDecimal absorbedCommissionPct) {
         if (absorbedCents < 0 || absorbedCents > subtotalCents) {
             throw new IllegalArgumentException("Porción absorbida fuera de rango: " + absorbedCents);
         }
         this.prosperityAbsorbedCents = absorbedCents;
         this.commissionBaseCents = subtotalCents - absorbedCents;
-        applyCommission(this.commissionBaseCents, vatPct);
+        long baseCommission = this.commissionBaseCents * commissionPctApplied / 100;
+
+        if (absorbedCents == 0 || absorbedCommissionPct == null || absorbedCommissionPct.signum() <= 0) {
+            this.prosperityMinCommissionPct = null;
+            setCommission(baseCommission, vatPct);
+            return;
+        }
+        // Topado al % del plan: lo absorbido nunca paga más que si no hubiera saldo.
+        BigDecimal pct = absorbedCommissionPct.min(BigDecimal.valueOf(commissionPctApplied))
+                .setScale(2, RoundingMode.HALF_UP);
+        this.prosperityMinCommissionPct = pct;
+        long absorbedCommission = BigDecimal.valueOf(absorbedCents).multiply(pct)
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP)
+                .longValueExact();
+        setCommission(baseCommission + absorbedCommission, vatPct);
     }
 }

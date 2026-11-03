@@ -1,6 +1,7 @@
 package com.verygana2.repositories.commercial;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -13,6 +14,18 @@ public interface CommercialDocumentRepository extends JpaRepository<CommercialDo
     List<CommercialDocument> findByOnboarding_IdAndStatus(Long onboardingId, CommercialDocumentStatus status);
     List<CommercialDocument> findByOnboarding_IdAndStatusNot(Long onboardingId, CommercialDocumentStatus status);
     Optional<CommercialDocument> findByIdAndOnboarding_Id(Long id, Long onboardingId);
+
+    // ==================== EXPEDIENTE ====================
+
+    /** Documentos del expediente en los estados dados (vigentes e historial), más recientes primero. */
+    List<CommercialDocument> findByCommercial_IdAndStatusInOrderByUploadedAtDesc(
+            Long commercialId, Collection<CommercialDocumentStatus> statuses);
+
+    Optional<CommercialDocument> findByIdAndCommercial_Id(Long id, Long commercialId);
+
+    /** Vigentes con fecha de vencimiento comprobada anterior a la dada. Sin fecha, nunca vencen. */
+    List<CommercialDocument> findByStatusAndExpiresAtBeforeAndCommercialIsNotNull(
+            CommercialDocumentStatus status, java.time.LocalDate date);
 
     /** Documentos en el estado dado subidos antes del umbral (p. ej. PENDING nunca confirmados). */
     List<CommercialDocument> findByStatusAndUploadedAtBefore(CommercialDocumentStatus status, ZonedDateTime threshold);

@@ -29,7 +29,14 @@ public interface CommercialContractService {
      */
     ContractSummaryResponseDTO getForCommercial(Long contractId, Long commercialId);
 
-    ContractSummaryResponseDTO businessApprove(Long userId);
+    /**
+     * El empresario aprueba el Contrato Marco. En el mismo acto se registra la casilla del
+     * apartado 9 de la Hoja Final (compromiso de formalización); la aprobación sigue sea
+     * cual sea la decisión. {@code request} puede ser null (= no hubo manifestación).
+     */
+    ContractSummaryResponseDTO businessApprove(Long userId,
+            com.verygana2.dtos.user.commercial.onboarding.ContractApproveRequestDTO request,
+            String idempotencyKey, String ipAddress, String userAgent);
 
     /**
      * Genera un contrato de RECHARGE o PLAN_CHANGE (nunca ONBOARDING — usar generate()

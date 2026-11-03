@@ -26,6 +26,7 @@ import com.verygana2.models.enums.commercial.OnboardingStep;
 import com.verygana2.models.enums.commercial.PersonType;
 import com.verygana2.repositories.commercial.CommercialDocumentRepository;
 import com.verygana2.repositories.commercial.CommercialOnboardingRepository;
+import com.verygana2.repositories.tax.TaxProfileRepository;
 import com.verygana2.services.interfaces.commercial.CommercialDocumentService;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.audit.AuditEvent;
@@ -51,6 +52,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
     private final CommercialDocumentRepository documentRepository;
     private final R2Service r2Service;
     private final ApplicationEventPublisher eventPublisher;
+    private final TaxProfileRepository taxProfileRepository;
 
     @Value("${commercial.onboarding.documents.max-size-bytes}")
     private long maxSizeBytes;
@@ -79,6 +81,7 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
 
         CommercialDocument document = new CommercialDocument();
         document.setOnboarding(onboarding);
+        document.setCommercial(onboarding.getCommercialDetails());
         document.setDocumentType(dto.getDocumentType());
         document.setObjectKey(objectKey);
         document.setOriginalFileName(dto.getOriginalFileName());
@@ -127,7 +130,8 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
 
         if (onboarding.getDocumentsCompletedAt() != null && !isAllRequiredUploaded(onboarding)) {
             onboarding.setDocumentsCompletedAt(null);
-            if (onboarding.getCurrentStep() == OnboardingStep.CONTRACT_PENDING) {
+            if (onboarding.getCurrentStep() == OnboardingStep.CONTRACT_PENDING
+                    || onboarding.getCurrentStep() == OnboardingStep.TAX_PROFILE_PENDING) {
                 onboarding.setCurrentStep(OnboardingStep.DOCUMENTS_PENDING);
             }
             onboardingRepository.save(onboarding);
@@ -154,7 +158,10 @@ public class CommercialDocumentServiceImpl implements CommercialDocumentService 
 
         onboarding.setDocumentsCompletedAt(ZonedDateTime.now());
         if (onboarding.getCurrentStep() == OnboardingStep.DOCUMENTS_PENDING) {
-            onboarding.setCurrentStep(OnboardingStep.CONTRACT_PENDING);
+            // La ficha tributaria va entre documentos y contrato. Si ya se envió en un ciclo
+            // anterior (p. ej. tras request-changes), no se vuelve a pedir: se edita aparte.
+            onboarding.setCurrentStep(taxProfileRepository.existsByCommercial_Id(userId)
+                    ? OnboardingStep.CONTRACT_PENDING : OnboardingStep.TAX_PROFILE_PENDING);
         }
         onboardingRepository.save(onboarding);
 

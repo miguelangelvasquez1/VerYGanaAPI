@@ -1,0 +1,8 @@
+package com.verygana2.models.enums.tax;
+
+public enum EstablishmentRelation {
+    OWNED,
+    LEASED,
+    FRANCHISE,
+    OTHER
+}

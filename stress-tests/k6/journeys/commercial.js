@@ -210,6 +210,60 @@ function onboarding(session) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Expediente y ficha tributaria (4.7 / 4.8): las lecturas miden el camino feliz. Las escrituras
+// van con datos inválidos a propósito (dos actividades principales, una URL como sede), así salen
+// por la validación del servicio y no acumulan versiones de ficha ni establecimientos por corrida.
+// ---------------------------------------------------------------------------------------------
+function expediente(session) {
+  call('GET /commercials/documents', { session });
+  call('GET /commercials/tax-profile', { session, ok: [200, 204] });
+  call('GET /commercials/tax-profile/versions', { session });
+  call('GET /commercials/tax-profile/versions/{versionNumber}', { session, path: { versionNumber: 1 }, reject: REJ });
+  call('GET /commercials/tax-profile/catalog', { session });
+  call('GET /commercials/establishments', { session });
+  call('GET /commercials/declarations/{code}', { session, path: { code: 'FORMALIZATION_COMMITMENT' } });
+  const requests = call('GET /commercials/information-requests', { session, json: true });
+  const request = pick(rows(requests.body));
+  const requestId = request && request.publicId ? request.publicId : '00000000-0000-0000-0000-000000000000';
+  call('GET /commercials/information-requests/{requestPublicId}', {
+    session, path: { requestPublicId: requestId }, reject: REJ,
+  });
+  think();
+  if (!often(0.1)) return;
+  call('POST /commercials/documents/prepare-upload', {
+    session,
+    body: { documentType: 'OTRO', originalFileName: 'soporte.pdf', contentType: 'application/x-unsupported', sizeBytes: 1024 },
+    reject: REJ,
+  });
+  call('POST /commercials/documents/{documentId}/confirm', { session, path: { documentId: 1 }, reject: REJ });
+  call('PUT /commercials/tax-profile', {
+    session,
+    body: {
+      activities: [{ ciiuCode: '4711', main: true }, { ciiuCode: '5611', main: true }],
+      invoicingObligated: true, withholdingAgent: false, hasAccountingAdvisor: false,
+      currentCapacity: 'Capacidad ficticia de la prueba de carga',
+      incomeReports: [{
+        concept: 'VENTAS', periodStart: '2026-01-01', periodEnd: '2026-01-31', amountCents: 100000,
+        currency: 'COP', scope: 'EXTERNAL_ONLY',
+      }],
+    },
+    reject: REJ,
+  });
+  call('POST /commercials/establishments', {
+    session,
+    body: { name: 'Canal digital', address: 'https://tienda.example', municipalityCode: '63001', relation: 'OTHER' },
+    reject: REJ,
+  });
+  call('POST /commercials/establishments/{establishmentId}/close', {
+    session, path: { establishmentId: 1 }, body: { reason: 'Prueba de carga' }, reject: REJ,
+  });
+  // Respuesta vacía: se rechaza (no subsana nada) y no altera el requerimiento.
+  call('POST /commercials/information-requests/{requestPublicId}/responses', {
+    session, path: { requestPublicId: requestId }, body: {}, reject: REJ,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Planes: cambio de plan (deja un contrato en revisión de VERYGANA para cumplimiento), recarga y pago
 // ---------------------------------------------------------------------------------------------
 function plans(session, me) {
@@ -754,7 +808,7 @@ function register() {
 const WEIGHTED = [
   [20, reports, null], [15, wallet, null], [10, sales, null], [10, ads, 'advertise'], [10, products, 'products'],
   [8, surveys, 'surveys'], [7, campaigns, 'games'], [6, branding, 'games'], [5, plans, null],
-  [4, payoutMethods, null], [3, onboarding, null], [2, petRequests, 'pets'],
+  [4, payoutMethods, null], [3, onboarding, null], [2, expediente, null], [2, petRequests, 'pets'],
 ];
 
 function chooseArea(me) {
@@ -810,7 +864,7 @@ export function commercialSmoke() {
     clearOpenPlanChange(premium);
     const me = m0(premium, premiumId);
     account(premium, me);
-    [reports, wallet, sales, onboarding, payoutMethods, ads, campaigns, surveys, branding, petRequests, plans]
+    [reports, wallet, sales, onboarding, expediente, payoutMethods, ads, campaigns, surveys, branding, petRequests, plans]
       .forEach((area) => area(premium, me));
     logout(premium);
   }

@@ -1,5 +1,6 @@
 package com.verygana2.dtos.promotions;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 
 import com.verygana2.models.enums.marketplace.KeyCoveragePromotionOfferStatus;
@@ -39,7 +40,8 @@ public record KeyCoveragePromotionOfferResponseDTO(
         /**
          * Comisión sobre el precio completo, como si el empresario no tuviera Saldo de
          * Prosperidad: las llaves no reducen la Venta Computable. En una venta real el
-         * saldo absorbe primero su valor y la comisión es solo sobre lo no absorbido.
+         * saldo absorbe primero su valor: lo absorbido paga {@code prosperityMinCommissionPct}
+         * y lo no absorbido, la comisión del plan.
          */
         long estimatedCommissionCents,
         /** Valor reconocido al empresario sin Saldo de Prosperidad: precio menos esa comisión. */
@@ -49,5 +51,10 @@ public record KeyCoveragePromotionOfferResponseDTO(
          * Es informativo y no entra en los cálculos de esta respuesta: cambia con cada
          * venta, y lo que el empresario acepta son condiciones que no dependen de él.
          */
-        long prosperityBalanceCents) {
+        long prosperityBalanceCents,
+        /**
+         * Comisión (% IVA incluido) que paga la porción de una venta absorbida por el saldo:
+         * cubre los costos de pasarela y payouts. 0 si el saldo no aplica.
+         */
+        BigDecimal prosperityMinCommissionPct) {
 }

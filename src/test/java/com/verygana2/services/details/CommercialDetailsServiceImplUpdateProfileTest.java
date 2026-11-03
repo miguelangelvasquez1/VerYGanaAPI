@@ -38,6 +38,7 @@ import com.verygana2.services.interfaces.marketplace.ProductReviewService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.services.interfaces.marketplace.PurchaseItemService;
 import com.verygana2.utils.audit.AuditEvent;
+import com.verygana2.utils.audit.AuditLevel;
 
 /**
  * {@code updateCommercialProfile}: cambiar el representante legal desde la edición de
@@ -152,6 +153,7 @@ class CommercialDetailsServiceImplUpdateProfileTest {
         ArgumentCaptor<AuditEvent> audit = ArgumentCaptor.forClass(AuditEvent.class);
         verify(eventPublisher).publishEvent(audit.capture());
         assertThat(audit.getValue().getAction()).isEqualTo("LEGAL_REPRESENTATIVE_CHANGED");
+        assertThat(audit.getValue().getLevel()).isEqualTo(AuditLevel.CRITICAL);
         assertThat(audit.getValue().getUserId()).isEqualTo(COMMERCIAL_ID);
         assertThat(audit.getValue().getAdditionalData())
                 .containsEntry("previousFullName", "Ana Pérez")

@@ -7,7 +7,7 @@ package com.verygana2.models.enums.finance;
 public enum ProsperityEntryType {
     /** Umbral generado por una Inversión Computable confirmada: neto × multiplicador. */
     THRESHOLD_GENERATED(true),
-    /** Porción de una Venta Computable absorbida por el Saldo (no genera comisión). */
+    /** Porción de una Venta Computable absorbida por el Saldo (paga el % de absorción, no el del plan). */
     SALE_ABSORPTION(false),
     /** Devolución al Saldo de lo absorbido por un ítem reembolsado. */
     REFUND_REINTEGRATION(true),

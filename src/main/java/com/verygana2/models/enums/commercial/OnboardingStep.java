@@ -19,6 +19,12 @@ public enum OnboardingStep {
 
     PLAN_PENDING,               // Paso 6-7: configuración de plan + resumen económico, pendiente de aceptación
     DOCUMENTS_PENDING,          // Paso 8: carga documental
+    /**
+     * Paso 8b: ficha tributaria (4.7 a–h). Pide información, no la aceptación de la
+     * declaración de compromiso (esa va en la Hoja Final del contrato). Si el empresario
+     * ya envió la ficha en un ciclo anterior, este paso se salta.
+     */
+    TAX_PROFILE_PENDING,
     CONTRACT_PENDING,           // Paso 9: pendiente de generar el contrato
     BUSINESS_REVIEW_PENDING,    // Paso 10: contrato generado, pendiente de revisión/aprobación del empresario
     VERYGANA_REVIEW_PENDING,    // Paso 11: pendiente de revisión de VERYGANA

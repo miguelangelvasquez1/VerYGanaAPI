@@ -11,4 +11,6 @@ public interface CommercialOnboardingRepository extends JpaRepository<Commercial
     Optional<CommercialOnboarding> findByCommercialDetails_Id(Long userId);
     boolean existsByCommercialDetails_Id(Long userId);
     List<CommercialOnboarding> findByRequiresSpecialNegotiationTrueAndSpecialNegotiationResolvedAtIsNull();
+
+    List<CommercialOnboarding> findByCurrentStep(com.verygana2.models.enums.commercial.OnboardingStep step);
 }

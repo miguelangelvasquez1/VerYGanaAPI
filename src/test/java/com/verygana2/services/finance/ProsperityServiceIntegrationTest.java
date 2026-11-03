@@ -8,6 +8,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.math.BigDecimal;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -133,6 +134,8 @@ class ProsperityServiceIntegrationTest {
             PlanFeature pf = TestEntities.persistIntPlanFeature(em, plan,
                     ProsperityServiceImpl.MULTIPLIER_FEATURE, multiplier);
             plan.getFeatures().add(pf);
+            plan.getFeatures().add(TestEntities.persistDecimalPlanFeature(em, plan,
+                    ProsperityServiceImpl.MIN_COMMISSION_FEATURE, new BigDecimal("5.00")));
         }
         return plan;
     }
@@ -317,25 +320,29 @@ class ProsperityServiceIntegrationTest {
 
             service.absorbPurchase(purchase);
 
+            // Absorbidas enteras: no pagan el 10 % del plan, sí el mínimo del 5 %.
             assertThat(partial.getProsperityAbsorbedCents()).isEqualTo(ONE_MILLION);
-            assertThat(partial.getCommissionCents()).isZero();
-            assertThat(partial.getNetToCommercialCents()).isEqualTo(ONE_MILLION);
+            assertThat(partial.getCommissionCents()).isEqualTo(5_000_000L);
+            assertThat(partial.getProsperityMinCommissionPct()).isEqualByComparingTo("5");
+            assertThat(partial.getNetToCommercialCents()).isEqualTo(95_000_000L);
 
             assertThat(exact.getProsperityAbsorbedCents()).isEqualTo(3 * ONE_MILLION);
             assertThat(exact.getCommissionBaseCents()).isZero();
-            assertThat(exact.getCommissionCents()).isZero();
+            assertThat(exact.getCommissionCents()).isEqualTo(15_000_000L);
 
             assertThat(uncovered.getProsperityAbsorbedCents()).isZero();
             assertThat(uncovered.getCommissionBaseCents()).isEqualTo(50_000_000L);
             assertThat(uncovered.getCommissionCents()).isEqualTo(5_000_000L);
+            assertThat(uncovered.getProsperityMinCommissionPct()).isNull();
             // IVA extraído de la comisión: 5.000.000 × 19 / 119 = 798.319,3 → 798.319
             assertThat(uncovered.getCommissionVatCents()).isEqualTo(798_319L);
 
             assertThat(balance(commercial)).isZero();
             assertThat(purchase.getProsperityAbsorbedCents()).isEqualTo(4 * ONE_MILLION);
-            assertThat(purchase.getCommissionCents()).isEqualTo(5_000_000L);
-            assertThat(purchase.getCommissionVatCents()).isEqualTo(798_319L);
-            assertThat(purchase.getCommissionNetOfVatCents()).isEqualTo(4_201_681L);
+            // 50.000 + 150.000 + 50.000 pesos; IVA 7.983,19 + 23.949,58 + 7.983,19
+            assertThat(purchase.getCommissionCents()).isEqualTo(25_000_000L);
+            assertThat(purchase.getCommissionVatCents()).isEqualTo(3_991_596L);
+            assertThat(purchase.getCommissionNetOfVatCents()).isEqualTo(21_008_404L);
             assertThat(purchase.getNetToCommercialsCents())
                     .isEqualTo(purchase.getTotalCents() - purchase.getCommissionCents());
         }
@@ -351,7 +358,8 @@ class ProsperityServiceIntegrationTest {
 
             assertThat(sale.getProsperityAbsorbedCents()).isEqualTo(4 * ONE_MILLION);
             assertThat(sale.getCommissionBaseCents()).isEqualTo(6 * ONE_MILLION);
-            assertThat(sale.getCommissionCents()).isEqualTo(90_000_000L); // 15% de 6M
+            // 5 % de 4M absorbidos ($200.000) + 15 % de 6M de base ($900.000)
+            assertThat(sale.getCommissionCents()).isEqualTo(110_000_000L);
             assertThat(balance(commercial)).isZero();
 
             ProsperityLedgerEntry absorption = ledgerRepository
@@ -361,7 +369,7 @@ class ProsperityServiceIntegrationTest {
         }
 
         @Test
-        @DisplayName("venta que supera el saldo por $1: absorbe todo el saldo y la Base es $1")
+        @DisplayName("venta que supera el saldo por $1: la Base es $1; lo absorbido paga 5 % y el $1, 10 %")
         void saleAboveBalanceByOnePeso() {
             CommercialDetails commercial = standardCommercial();
             invest(commercial, ONE_MILLION);
@@ -371,7 +379,48 @@ class ProsperityServiceIntegrationTest {
 
             assertThat(sale.getProsperityAbsorbedCents()).isEqualTo(4 * ONE_MILLION);
             assertThat(sale.getCommissionBaseCents()).isEqualTo(100L);
-            assertThat(sale.getCommissionCents()).isEqualTo(10L);
+            // 5 % de $4.000.000 = $200.000 + 10 % de $1 = $0,10
+            assertThat(sale.getCommissionCents()).isEqualTo(20_000_010L);
+        }
+
+        @Test
+        @DisplayName("ejemplo del jefe: saldo $50.000, venta $100.000 → PRODUCTOS $2.500 + $5.000 = $7.500; SERVICIOS $2.500 + $7.500 = $10.000")
+        void halfAbsorbedSale_absorbedPaysFivePct_basePaysPlanPct() {
+            CommercialDetails products = standardCommercial();
+            invest(products, 1_250_000L); // $12.500 netos × 4 = saldo $50.000
+            PurchaseItem productsSale = item(products, 10_000_000L, 10);
+            service.absorbPurchase(purchase(productsSale));
+
+            assertThat(productsSale.getProsperityAbsorbedCents()).isEqualTo(5_000_000L);
+            assertThat(productsSale.getCommissionBaseCents()).isEqualTo(5_000_000L);
+            assertThat(productsSale.getCommissionCents()).isEqualTo(750_000L);
+            assertThat(productsSale.getNetToCommercialCents()).isEqualTo(9_250_000L);
+
+            CommercialDetails services = standardCommercial();
+            invest(services, 1_250_000L);
+            PurchaseItem servicesSale = item(services, 10_000_000L, 15);
+            service.absorbPurchase(purchase(servicesSale));
+
+            assertThat(servicesSale.getCommissionCents()).isEqualTo(1_000_000L);
+            assertThat(servicesSale.getNetToCommercialCents()).isEqualTo(9_000_000L);
+        }
+
+        @Test
+        @DisplayName("ejemplo del jefe: venta de $100.000 absorbida entera → comisión $5.000, IVA $798,32, VERyGANA $4.201,68")
+        void fullyAbsorbedSale_paysMinimumCommission() {
+            CommercialDetails commercial = standardCommercial();
+            invest(commercial, 2_500_000L); // $25.000 netos × 4 = saldo $100.000
+
+            PurchaseItem sale = item(commercial, 10_000_000L, 10);
+            service.absorbPurchase(purchase(sale));
+
+            assertThat(sale.getProsperityAbsorbedCents()).isEqualTo(10_000_000L);
+            assertThat(sale.getCommissionBaseCents()).isZero();
+            assertThat(sale.getCommissionCents()).isEqualTo(500_000L);
+            assertThat(sale.getCommissionVatCents()).isEqualTo(79_832L);
+            assertThat(sale.getCommissionNetOfVatCents()).isEqualTo(420_168L);
+            assertThat(sale.getNetToCommercialCents()).isEqualTo(9_500_000L);
+            assertThat(balance(commercial)).isZero();
         }
 
         @Test
@@ -465,7 +514,7 @@ class ProsperityServiceIntegrationTest {
         void refundWithoutAbsorption_isNoop() {
             CommercialDetails commercial = standardCommercial();
             PurchaseItem sale = item(commercial, ONE_MILLION, 10);
-            sale.settleCommission(0L, 19);
+            sale.settleCommission(0L, 19, null);
 
             service.reintegrateRefund(sale);
 
@@ -626,7 +675,9 @@ class ProsperityServiceIntegrationTest {
             assertThat(summary.balanceCents()).isEqualTo(8 * ONE_MILLION); // 4 − 2 + 2 + 8 − 4
             assertThat(summary.accumulatedThresholdCents()).isEqualTo(8 * ONE_MILLION);
             assertThat(summary.thresholds()).hasSize(2);
-            assertThat(summary.disclaimer()).contains("no es dinero");
+            assertThat(summary.disclaimer()).contains("no es dinero")
+                    .contains("comisión del 5 %")
+                    .contains("no es ganancia de VERyGANA");
         }
 
         @Test
@@ -692,20 +743,20 @@ class ProsperityServiceIntegrationTest {
         CommercialDetails commercial = standardCommercial();
         invest(commercial, ONE_MILLION); // saldo 4M
 
-        PurchaseItem covered = item(commercial, 3 * ONE_MILLION, 10);  // 4M → 1M, sin comisión
-        PurchaseItem partial = item(commercial, 2 * ONE_MILLION, 10);  // absorbe 1M, comisiona 1M
+        PurchaseItem covered = item(commercial, 3 * ONE_MILLION, 10);  // 4M → 1M, todo al 5 %
+        PurchaseItem partial = item(commercial, 2 * ONE_MILLION, 10);  // 1M al 5 % + 1M al 10 %
         PurchaseItem exhausted = item(commercial, ONE_MILLION, 10);    // saldo 0, comisiona todo
         List<Purchase> purchases = List.of(purchase(covered), purchase(partial), purchase(exhausted));
         purchases.forEach(service::absorbPurchase);
 
         assertThat(covered.getProsperityAbsorbedCents()).isEqualTo(3 * ONE_MILLION);
-        assertThat(covered.getCommissionCents()).isZero();
-        assertThat(covered.getNetToCommercialCents()).isEqualTo(3 * ONE_MILLION);
+        assertThat(covered.getCommissionCents()).isEqualTo(15_000_000L);
+        assertThat(covered.getNetToCommercialCents()).isEqualTo(285_000_000L);
 
         assertThat(partial.getProsperityAbsorbedCents()).isEqualTo(ONE_MILLION);
         assertThat(partial.getCommissionBaseCents()).isEqualTo(ONE_MILLION);
-        assertThat(partial.getCommissionCents()).isEqualTo(10_000_000L);
-        assertThat(partial.getNetToCommercialCents()).isEqualTo(190_000_000L);
+        assertThat(partial.getCommissionCents()).isEqualTo(15_000_000L); // $50.000 + $100.000
+        assertThat(partial.getNetToCommercialCents()).isEqualTo(185_000_000L);
 
         assertThat(exhausted.getProsperityAbsorbedCents()).isZero();
         assertThat(exhausted.getCommissionCents()).isEqualTo(10_000_000L);
@@ -742,7 +793,7 @@ class ProsperityServiceIntegrationTest {
         payoutService.scheduleDailyPayouts(now.minusDays(1), now);
 
         long expectedNet = items.stream().mapToLong(PurchaseItem::getNetToCommercialCents).sum();
-        assertThat(expectedNet).isEqualTo(580_000_000L); // 6M vendidos − 200k de comisión
+        assertThat(expectedNet).isEqualTo(560_000_000L); // 6M vendidos − 400k de comisión
 
         ArgumentCaptor<Payout> payout = ArgumentCaptor.forClass(Payout.class);
         verify(payoutRepository).save(payout.capture());
@@ -755,7 +806,7 @@ class ProsperityServiceIntegrationTest {
         ArgumentCaptor<PayoutItem> payoutItems = ArgumentCaptor.forClass(PayoutItem.class);
         verify(payoutItemRepository, times(3)).save(payoutItems.capture());
         assertThat(payoutItems.getAllValues()).extracting(PayoutItem::getAmountCents)
-                .containsExactly(3 * ONE_MILLION, 190_000_000L, 90_000_000L);
+                .containsExactly(285_000_000L, 185_000_000L, 90_000_000L);
     }
 
     // ─── Concurrencia ─────────────────────────────────────────────────────────

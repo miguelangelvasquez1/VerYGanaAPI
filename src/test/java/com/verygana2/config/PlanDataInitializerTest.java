@@ -38,6 +38,7 @@ import com.verygana2.repositories.finance.plans.PlanRepository;
 class PlanDataInitializerTest {
 
     private static final String PROSPERITY = "PROSPERITY_THRESHOLD_MULTIPLIER";
+    private static final String MIN_COMMISSION = "PROSPERITY_MIN_COMMISSION_PCT";
 
     @Mock private PlanRepository planRepository;
     @Mock private FeatureRepository featureRepository;
@@ -72,6 +73,25 @@ class PlanDataInitializerTest {
     }
 
     @Test
+    @DisplayName("base nueva: reutiliza la comisión mínima de prosperidad que creó la migración y le da 5 % al STANDARD")
+    void reusesMinCommissionFeatureCreatedByMigration() {
+        Feature fromMigration = Feature.builder().id(100L).code(MIN_COMMISSION)
+                .name("Comisión mínima").type(FeatureType.PERCENTAGE).build();
+        when(featureRepository.findByCode(anyString())).thenReturn(Optional.empty());
+        when(featureRepository.findByCode(MIN_COMMISSION)).thenReturn(Optional.of(fromMigration));
+
+        initializer.run(null);
+
+        ArgumentCaptor<Feature> saved = ArgumentCaptor.forClass(Feature.class);
+        verify(featureRepository, org.mockito.Mockito.atLeastOnce()).save(saved.capture());
+        assertThat(saved.getAllValues()).extracting(Feature::getCode).doesNotContain(MIN_COMMISSION);
+
+        PlanFeature standardMin = standardFeature(MIN_COMMISSION);
+        assertThat(standardMin.getFeature()).isSameAs(fromMigration);
+        assertThat(standardMin.getDecimalValue()).isEqualByComparingTo("5");
+    }
+
+    @Test
     @DisplayName("sin la fila de la migración, la crea como antes")
     void createsFeatureWhenMissing() {
         when(featureRepository.findByCode(anyString())).thenReturn(Optional.empty());
@@ -94,13 +114,17 @@ class PlanDataInitializerTest {
         verify(planFeatureRepository, never()).saveAll(any());
     }
 
-    @SuppressWarnings("unchecked")
     private PlanFeature standardProsperity() {
+        return standardFeature(PROSPERITY);
+    }
+
+    @SuppressWarnings("unchecked")
+    private PlanFeature standardFeature(String code) {
         ArgumentCaptor<List<PlanFeature>> captor = ArgumentCaptor.forClass(List.class);
         verify(planFeatureRepository).saveAll(captor.capture());
         return captor.getValue().stream()
                 .filter(pf -> pf.getPlan().getCode() == PlanCode.STANDARD
-                        && PROSPERITY.equals(pf.getFeature().getCode()))
+                        && code.equals(pf.getFeature().getCode()))
                 .findFirst()
                 .orElseThrow();
     }

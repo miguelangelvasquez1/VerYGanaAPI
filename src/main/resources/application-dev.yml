@@ -198,11 +198,11 @@ treasury:
     operations-pct: 30
     keys-reserve-warn-threshold-cents: 10000000 # Umbral WARNING: log de alerta, no bloquea (default $100.000 COP)
     keys-reserve-critical-threshold-cents: 2000000 # Umbral CRÍTICO: bloquea copagos con llaves hasta que se reponga (default $20.000 COP)
+    vat-pct: 19 # IVA Colombia — depósitos/suscripción: se suma; comisión: se extrae (ya la incluye)
   # Cada cuánto se liquida en tesorería el diferencial acumulado entre lo que
   # el anunciante financió y lo que se acreditó al consumidor.
   issuance-settlement:
     cron: "0 0/10 * * * *"   # cada 10 minutos
-    vat-pct: 19 # IVA Colombia — depósitos/suscripción: se suma; comisión: se extrae (ya la incluye)
 
 financial:
   purchase-keys-percentage: ${PURCHASE_KEYS_PERCENTAGE:75}
@@ -222,7 +222,7 @@ taxes:
 # MARKETPLACE LIMITS
 # ============================================
 marketplace:
-  min-product-price-cents: 100000      # $1.000 COP
+  min-product-price-cents: 5000000      # $50.000 COP
   max-product-price-cents: 50000000    # $500.000 COP
   product:
     cleanup:

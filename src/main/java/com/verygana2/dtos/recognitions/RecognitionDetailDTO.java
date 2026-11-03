@@ -1,5 +1,6 @@
 package com.verygana2.dtos.recognitions;
 
+import java.math.BigDecimal;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -53,6 +54,8 @@ public record RecognitionDetailDTO(
             long prosperityAbsorbedCents,
             Long commissionBaseCents,
             int commissionPctApplied,
+            /** % de comisión sobre lo absorbido por Prosperidad (null si no hubo absorción). */
+            BigDecimal prosperityMinCommissionPct,
             long commissionCents,
             long commissionVatCents,
             long commissionNetOfVatCents,

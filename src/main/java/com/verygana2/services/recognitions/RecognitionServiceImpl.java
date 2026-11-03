@@ -474,6 +474,7 @@ public class RecognitionServiceImpl implements RecognitionService {
                 item.getProsperityAbsorbedCents(),
                 item.getCommissionBaseCents(),
                 item.getCommissionPctApplied(),
+                item.getProsperityMinCommissionPct(),
                 item.getCommissionCents(),
                 item.getCommissionVatCents(),
                 item.getCommissionNetOfVatCents(),

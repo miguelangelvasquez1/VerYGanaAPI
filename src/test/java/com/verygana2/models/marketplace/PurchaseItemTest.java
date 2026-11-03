@@ -1,5 +1,7 @@
 package com.verygana2.models.marketplace;
 
+import java.math.BigDecimal;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -103,16 +105,77 @@ class PurchaseItemTest {
     }
 
     @Test
-    @DisplayName("settleCommission: el IVA se extrae solo de la comisión sobre la porción no absorbida")
-    void settleCommission_vatOnlyOnCommissionableBase() {
+    @DisplayName("settleCommission: lo absorbido paga 5 %, la base 15 %, y el IVA se extrae del total")
+    void settleCommission_absorbedAndBaseAddUp() {
         PurchaseItem item = sale(6_000_000L, 15);
 
-        item.settleCommission(2_000_000L, 19); // base 4.000.000 → comisión 600.000
+        // 5 % de 2.000.000 = 100.000 + 15 % de 4.000.000 = 600.000
+        item.settleCommission(2_000_000L, 19, FIVE);
+
+        assertThat(item.getCommissionCents()).isEqualTo(700_000L);
+        assertThat(item.getCommissionVatCents()).isEqualTo(111_765L); // 700.000 × 19 / 119 = 111.764,7
+        assertThat(item.getCommissionNetOfVatCents()).isEqualTo(588_235L);
+        assertThat(item.getNetToCommercialCents()).isEqualTo(5_300_000L);
+    }
+
+    @Test
+    @DisplayName("sin feature de absorción (null): lo absorbido no paga y la base paga el % del plan")
+    void settleCommission_withoutAbsorbedPct_onlyBasePays() {
+        PurchaseItem item = sale(6_000_000L, 15);
+
+        item.settleCommission(2_000_000L, 19, null);
 
         assertThat(item.getCommissionCents()).isEqualTo(600_000L);
-        assertThat(item.getCommissionVatCents()).isEqualTo(95_798L); // 600.000 × 19 / 119 = 95.798,3
-        assertThat(item.getCommissionNetOfVatCents()).isEqualTo(504_202L);
-        assertThat(item.getNetToCommercialCents()).isEqualTo(5_400_000L);
+        assertThat(item.getProsperityMinCommissionPct()).isNull();
+    }
+
+    private static final BigDecimal FIVE = new BigDecimal("5.00");
+
+    @Test
+    @DisplayName("ejemplo del jefe: $100.000 absorbidos enteros → comisión $5.000, IVA $798,32, VERyGANA $4.201,68")
+    void settleCommission_fullyAbsorbed_paysMinimum() {
+        PurchaseItem item = sale(10_000_000L, 10);
+
+        item.settleCommission(10_000_000L, 19, FIVE);
+
+        assertThat(item.getCommissionBaseCents()).isZero();
+        assertThat(item.getCommissionCents()).isEqualTo(500_000L);
+        assertThat(item.getCommissionVatCents()).isEqualTo(79_832L);
+        assertThat(item.getCommissionNetOfVatCents()).isEqualTo(420_168L);
+        assertThat(item.getNetToCommercialCents()).isEqualTo(9_500_000L);
+        assertThat(item.getProsperityMinCommissionPct()).isEqualByComparingTo("5");
+    }
+
+    @Test
+    @DisplayName("absorbe $90.000 de $100.000: 5 % de $90.000 ($4.500) + 10 % de $10.000 ($1.000) = $5.500")
+    void settleCommission_mostlyAbsorbed_addsBothParts() {
+        PurchaseItem item = sale(10_000_000L, 10);
+
+        item.settleCommission(9_000_000L, 19, FIVE);
+
+        assertThat(item.getCommissionCents()).isEqualTo(550_000L);
+    }
+
+    @Test
+    @DisplayName("sin absorción: paga solo el % del plan")
+    void settleCommission_noAbsorption_ignoresMinimum() {
+        PurchaseItem item = sale(10_000_000L, 3);
+
+        item.settleCommission(0L, 19, FIVE);
+
+        assertThat(item.getCommissionCents()).isEqualTo(300_000L);
+        assertThat(item.getProsperityMinCommissionPct()).isNull();
+    }
+
+    @Test
+    @DisplayName("el % de absorción nunca supera el del plan: con plan al 3 %, lo absorbido no paga más del 3 %")
+    void settleCommission_minimumCappedAtPlanPct() {
+        PurchaseItem item = sale(10_000_000L, 3);
+
+        item.settleCommission(10_000_000L, 19, FIVE);
+
+        assertThat(item.getCommissionCents()).isEqualTo(300_000L);
+        assertThat(item.getProsperityMinCommissionPct()).isEqualByComparingTo("3");
     }
 
     @Test

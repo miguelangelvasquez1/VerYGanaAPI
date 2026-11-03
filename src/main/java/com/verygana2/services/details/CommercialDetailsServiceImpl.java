@@ -395,7 +395,8 @@ public class CommercialDetailsServiceImpl implements CommercialDetailsService {
             eventPublisher.publishEvent(AuditEvent.builder()
                     .userId(commercialId)
                     .action("LEGAL_REPRESENTATIVE_CHANGED")
-                    .level(AuditLevel.INFO)
+                    // CRITICAL: evidencia legal; AuditCleanupJob borra INFO a los 90 días.
+                    .level(AuditLevel.CRITICAL)
                     .category("COMPLIANCE")
                     .description(change.identityChanged()
                             ? "Comercial cambió su representante legal desde la edición de perfil."

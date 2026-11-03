@@ -11,12 +11,17 @@ import org.hibernate.ObjectNotFoundException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.web.util.HtmlUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.verygana2.dtos.user.commercial.onboarding.AdvisorNegotiationListItemDTO;
 import com.verygana2.dtos.user.commercial.onboarding.CommercialDocumentResponseDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractReviewListItemDTO;
+import com.verygana2.dtos.user.commercial.onboarding.ContractApproveRequestDTO;
 import com.verygana2.dtos.user.commercial.onboarding.ContractSummaryResponseDTO;
+import com.verygana2.models.declarations.DeclarationText;
+import com.verygana2.models.enums.declarations.DeclarationCode;
+import com.verygana2.services.interfaces.declarations.DeclarationService;
 import com.verygana2.dtos.user.commercial.onboarding.DiagnosticAnswersSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.LegalIdentificationSummaryDTO;
 import com.verygana2.dtos.user.commercial.onboarding.PlanSummaryResponseDTO;
@@ -86,6 +91,7 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     private final ESignatureService esignatureService;
     private final EmailService emailService;
     private final com.verygana2.config.TreasuryConfig treasuryConfig;
+    private final DeclarationService declarationService;
 
     // ==================== LADO COMERCIAL (PASOS 7-10) ====================
 
@@ -230,13 +236,21 @@ public class CommercialContractServiceImpl implements CommercialContractService 
     }
 
     @Override
-    public ContractSummaryResponseDTO businessApprove(Long userId) {
+    public ContractSummaryResponseDTO businessApprove(Long userId, ContractApproveRequestDTO request,
+            String idempotencyKey, String ipAddress, String userAgent) {
         CommercialOnboarding onboarding = getOnboardingOrThrow(userId);
         CommercialContract contract = getContractByOnboardingOrThrow(onboarding.getId());
 
         if (contract.getStatus() != ContractStatus.PENDING_BUSINESS_REVIEW) {
             throw new OnboardingStepException("El contrato no está pendiente de revisión del empresario.");
         }
+
+        // Apartado 9 de la Hoja Final (4.7): se registra lo que pasó con la casilla del
+        // compromiso de formalización. Sea cual sea (aceptó, se negó, no marcó, falla
+        // técnica), la aprobación del contrato sigue: la ausencia o la negativa dan lugar a
+        // aclaración, nunca a un rechazo automático. No cambia la situación tributaria.
+        declarationService.recordContractManifestation(onboarding, contract, request, idempotencyKey,
+                userId, ipAddress, userAgent);
 
         contract.setBusinessApprovedAt(ZonedDateTime.now());
         contract.setStatus(ContractStatus.PENDING_VERYGANA_REVIEW);
@@ -678,6 +692,13 @@ public class CommercialContractServiceImpl implements CommercialContractService 
         vars.put("termsVersion", nullSafe(o.getTermsVersion()));
         vars.put("termsAcceptedAt", o.getTermsAcceptedAt() != null ? o.getTermsAcceptedAt().format(DATE_FMT) : "");
         vars.put("termsDocumentUrl", nullSafe(o.getTermsDocumentUrl()));
+
+        // Hoja Final, apartado 9: el texto literal se pone a disposición en el PDF que el
+        // empresario revisa; la manifestación se recoge con la casilla al aprobar.
+        DeclarationText commitment = declarationService.activeText(DeclarationCode.FORMALIZATION_COMMITMENT);
+        vars.put("formalizationCommitmentText", HtmlUtils.htmlEscape(commitment.getFullText()));
+        vars.put("formalizationCommitmentVersion", HtmlUtils.htmlEscape(commitment.getVersion()));
+        vars.put("formalizationCommitmentHash", commitment.getTextHash());
 
         return templateLoader.render("contrato-marco.html", vars);
     }

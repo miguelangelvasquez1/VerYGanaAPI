@@ -1,6 +1,7 @@
 package com.verygana2.services.interfaces.finance;
 
 import com.verygana2.models.userDetails.CommercialDetails;
+import java.math.BigDecimal;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -31,7 +32,8 @@ public interface ProsperityService {
 
     /**
      * Imputa cada ítem de una compra recién aprobada contra el Saldo de su comercial
-     * (absorbido = min(saldo, venta)) y fija la comisión definitiva sobre el resto.
+     * (absorbido = min(saldo, venta)) y fija la comisión definitiva: el % de absorción sobre
+     * lo absorbido más el % del plan sobre el resto.
      * Recalcula los totales de la compra. Solo absorbe si el comercial es STANDARD hoy.
      */
     void absorbPurchase(Purchase purchase);
@@ -56,6 +58,13 @@ public interface ProsperityService {
      * lectura, para estimaciones: lo que absorbe una venta real lo fija absorbPurchase.
      */
     long absorbableBalanceCents(CommercialDetails commercial);
+
+    /**
+     * Comisión (% IVA incluido) que paga hoy la porción de una venta de este comercial
+     * absorbida por el Saldo: la feature PROSPERITY_MIN_COMMISSION_PCT de su plan si es
+     * STANDARD, 0 si no. Cubre pasarela y payouts.
+     */
+    BigDecimal minCommissionPct(CommercialDetails commercial);
 
     Page<ProsperityMovementResponseDTO> getMovements(Long commercialId, Pageable pageable);
 

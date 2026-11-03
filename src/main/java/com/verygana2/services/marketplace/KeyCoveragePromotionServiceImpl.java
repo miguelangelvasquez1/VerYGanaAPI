@@ -502,8 +502,8 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
                 ? offer.getAcceptedCommissionPct()
                 : commissionPolicy.commissionPctFor(product.getCommercial());
         // Sobre el precio completo, sin descontar Saldo de Prosperidad: son las condiciones
-        // estables de la oferta. El saldo se informa aparte para que el empresario sepa
-        // que sus ventas reales pueden causar menos comisión.
+        // estables de la oferta. El saldo y la comisión sobre lo absorbido se informan aparte para que
+        // el empresario sepa que sus ventas reales pueden causar menos comisión, no cero.
         long commission = price * commissionPct / 100;
 
         return new KeyCoveragePromotionOfferResponseDTO(
@@ -526,6 +526,7 @@ public class KeyCoveragePromotionServiceImpl implements KeyCoveragePromotionServ
                 commissionPct,
                 commission,
                 price - commission,
-                prosperityService.absorbableBalanceCents(product.getCommercial()));
+                prosperityService.absorbableBalanceCents(product.getCommercial()),
+                prosperityService.minCommissionPct(product.getCommercial()));
     }
 }

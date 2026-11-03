@@ -223,6 +223,14 @@ public class PlanDataInitializer implements ApplicationRunner {
                         .type(FeatureType.LIMIT)
                         .build()));
 
+        // Igual que la anterior: la crea V202610261200__prosperity_min_commission.
+        Feature prosperityMinCommissionPct = featureRepository.findByCode("PROSPERITY_MIN_COMMISSION_PCT")
+                .orElseGet(() -> featureRepository.save(Feature.builder()
+                        .code("PROSPERITY_MIN_COMMISSION_PCT")
+                        .name("Comisión sobre la porción absorbida por el Saldo de Prosperidad (%)")
+                        .type(FeatureType.PERCENTAGE)
+                        .build()));
+
         // ── 3. Asociar features a planes ──────────────────────────────────────
         List<PlanFeature> planFeatures = List.of(
 
@@ -261,6 +269,8 @@ public class PlanDataInitializer implements ApplicationRunner {
             pf(standard, lowBalanceCriticalPct, null, null, new BigDecimal("5.00")),
             pf(standard, budgetGracePeriodDays, 15,   null, null),
             pf(standard, prosperityThresholdMultiplier, 4, null, null),
+            // 5 % IVA incluido sobre lo que absorbe el saldo: cubre pasarela y payouts
+            pf(standard, prosperityMinCommissionPct, null, null, new BigDecimal("5.00")),
 
             // ── PREMIUM ───────────────────────────────────────────────────────
             pf(premium, canAdvertise,    null, true,  null),
