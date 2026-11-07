@@ -239,6 +239,16 @@ class ProfileConfigurationTest {
         }
 
         @Test
+        @DisplayName("loadtest define el dominio del CDN (el guardián lo exige en prod); prod y beta siguen con ${R2_CDN_DOMAIN:}")
+        void loadTestProfileDefinesCdnDomain() {
+            assertThat(environmentFor(List.of("prod", "loadtest")).getProperty("cloudflare.r2.cdn-domain"))
+                    .isNotBlank();
+            List.of(List.of("prod"), List.of("prod", "beta")).forEach(profiles -> assertThat(
+                    rawValue(environmentFor(profiles), "cloudflare.r2.cdn-domain"))
+                    .as("%s", profiles).isEqualTo("${R2_CDN_DOMAIN:}"));
+        }
+
+        @Test
         @DisplayName("loadtest publica las métricas de hilos de Tomcat; prod y beta no cambian")
         void tomcatThreadMetricsAreExposedOnlyInLoadTest() {
             assertThat(environmentFor(List.of("prod", "loadtest"))

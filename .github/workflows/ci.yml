@@ -161,11 +161,29 @@ jobs:
             --entrypoint alloy grafana/alloy:v1.19.2 \
             fmt /etc/alloy/config.alloy > /dev/null
 
-      # Un dashboard con JSON inválido no lo carga el provisioner y falla en
-      # silencio: el panel simplemente no aparece.
-      - name: Validar los dashboards de Grafana
+      # Verificador estático: JSON válido (un dashboard inválido no lo carga el
+      # provisioner y falla en silencio) y las reglas de la spec 011: toda
+      # consulta filtra por env="$env", la variable env es de un solo valor, los
+      # paneles HTTP excluyen /actuator, los conteos de payouts no usan
+      # $__rate_interval y hay cursor compartido y enlaces con el rango.
+      - name: Lint de los dashboards de Grafana
+        run: python3 -B monitoring/check_dashboards.py lint monitoring/grafana/dashboards
+
+      # Tests del propio verificador: si una regla del lint se rompe, un
+      # dashboard sin filtro de ambiente pasaría el paso anterior sin avisar.
+      - name: Tests del verificador de dashboards
+        run: python3 -B -m unittest discover -s monitoring/tests -v
+
+      # Evalúa el PromQL real de los paneles (extraído de los JSON) contra series
+      # sintéticas con promtool: protege el resultado de las consultas (conteos
+      # enteros, SLO, umbral de tráfico, exclusión de actuator), no solo su forma.
+      - name: promtool test de las consultas de los dashboards
         run: |
-          for f in monitoring/grafana/dashboards/*.json; do
-            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f" \
-              || { echo "JSON inválido: $f"; exit 1; }
-          done
+          OUT="$RUNNER_TEMP/verygana-promql"
+          python3 -B monitoring/check_dashboards.py render-promtool \
+            monitoring/tests/promql-cases.json "$OUT"
+          docker run --rm \
+            -v "$OUT:/t:ro" \
+            -v "$PWD/monitoring/tests:/r:ro" \
+            --entrypoint promtool prom/prometheus:v2.55.1 \
+            test rules /t/dashboards.test.yml

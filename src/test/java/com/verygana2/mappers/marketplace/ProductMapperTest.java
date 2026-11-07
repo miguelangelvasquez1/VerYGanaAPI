@@ -24,6 +24,7 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
 import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.marketplace.ProductStock;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.enums.marketplace.ProductType;
 import com.verygana2.models.enums.marketplace.StockStatus;
@@ -43,6 +44,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ProductMapperTest {
 
     private static final UUID COMMERCIAL_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-000000000009");
+    private static final UUID FACTS_PUBLIC_ID = UUID.fromString("00000000-0000-0000-0000-0000000000aa");
+    private static final ProductListingFacts FACTS = new ProductListingFacts(1L, "Empresa Hechos", FACTS_PUBLIC_ID, 7L);
 
     private final ProductMapperImpl mapper = newMapper();
 
@@ -50,6 +53,7 @@ class ProductMapperTest {
         ProductMapperImpl impl = new ProductMapperImpl();
         org.springframework.test.util.ReflectionTestUtils.setField(impl, "moneyMapper", new MoneyMapper());
         org.springframework.test.util.ReflectionTestUtils.setField(impl, "targetAudienceMapper", new TargetAudienceMapperImpl());
+        org.springframework.test.util.ReflectionTestUtils.setField(impl, "publicUrlBuilder", com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
         return impl;
     }
 
@@ -259,44 +263,88 @@ class ProductMapperTest {
     }
 
     @Nested
-    @DisplayName("toProductSummaryResponseDTO(Product)")
+    @DisplayName("toProductSummaryResponseDTO(Product, facts)")
     class ToProductSummaryResponseDTOFromProduct {
 
         @Test
-        @DisplayName("imageUrl queda null (lo resuelve el servicio, igual que toProductResponseDTO); stock vía getAvailableStock()")
-        void imageUrlIsNull_stockViaAvailableStock() {
+        @DisplayName("imageUrl queda null (lo resuelve el servicio, igual que toProductResponseDTO); stock y comercio salen de los hechos")
+        void imageUrlIsNull_stockAndCommercialFromFacts() {
             Product product = baseProduct();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1.png").build();
             product.setImageAsset(asset);
             ProductStock available = ProductStock.builder().status(StockStatus.AVAILABLE).build();
             product.setStockItems(List.of(available));
 
-            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(product, FACTS);
 
             assertThat(dto.getImageUrl()).isNull();
-            assertThat(dto.getStock()).isEqualTo(1);
+            assertThat(dto.getStock()).isEqualTo(7);
             assertThat(dto.getCategoryName()).isEqualTo("Categoría A");
-            assertThat(dto.getCompanyName()).isEqualTo("Empresa A");
-            assertThat(dto.getCommercialPublicId()).isEqualTo(COMMERCIAL_PUBLIC_ID);
+            assertThat(dto.getCompanyName()).isEqualTo("Empresa Hechos");
+            assertThat(dto.getCommercialPublicId()).isEqualTo(FACTS_PUBLIC_ID);
+        }
+
+        @Test
+        @DisplayName("stockAndCommercialComeFromFacts: sin stockItems ni commercial no lanza NPE")
+        void stockAndCommercialComeFromFacts() {
+            Product product = baseProduct();
+            product.setStockItems(null);
+            product.setCommercial(null);
+
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(product, FACTS);
+
+            assertThat(dto.getStock()).isEqualTo(7);
+            assertThat(dto.getCompanyName()).isEqualTo("Empresa Hechos");
+            assertThat(dto.getCommercialPublicId()).isEqualTo(FACTS_PUBLIC_ID);
         }
     }
 
     @Nested
-    @DisplayName("toProductSummaryResponseDTO(FavoriteProduct)")
+    @DisplayName("toProductSummaryResponseDTO(FavoriteProduct, facts)")
     class ToProductSummaryResponseDTOFromFavoriteProduct {
 
         @Test
-        @DisplayName("aquí SÍ se llena imageUrl, desde favoriteProduct.getProduct().getImageUrl()")
-        void imageUrlIsFilledFromProduct() {
+        @DisplayName("aquí SÍ se llena imageUrl, desde el objectKey del asset con el dominio de CDN configurado")
+        void favoriteProductImageUrlUsesConfiguredCdn() {
             Product product = baseProduct();
             ProductImageAsset asset = ProductImageAsset.builder().objectKey("products/1.png").build();
             product.setImageAsset(asset);
             FavoriteProduct favoriteProduct = FavoriteProduct.builder().product(product).build();
 
-            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct);
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct, FACTS);
 
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/1.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/1.png");
             assertThat(dto.getName()).isEqualTo("Producto");
+        }
+
+        @Test
+        @DisplayName("sin imageAsset: imageUrl queda null")
+        void favoriteProductWithoutAssetHasNullUrl() {
+            Product product = baseProduct();
+            product.setImageAsset(null);
+            FavoriteProduct favoriteProduct = FavoriteProduct.builder().product(product).build();
+
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct, FACTS);
+
+            assertThat(dto.getImageUrl()).isNull();
+        }
+
+        @Test
+        @DisplayName("stockAndCommercialComeFromFacts: sin stockItems ni commercial no lanza NPE; reviewCount, maxKeysPct e isGameReward siguen nulos")
+        void favoriteStockAndCommercialComeFromFacts() {
+            Product product = baseProduct();
+            product.setStockItems(null);
+            product.setCommercial(null);
+            FavoriteProduct favoriteProduct = FavoriteProduct.builder().product(product).build();
+
+            ProductSummaryResponseDTO dto = mapper.toProductSummaryResponseDTO(favoriteProduct, FACTS);
+
+            assertThat(dto.getStock()).isEqualTo(7);
+            assertThat(dto.getCompanyName()).isEqualTo("Empresa Hechos");
+            assertThat(dto.getCommercialPublicId()).isEqualTo(FACTS_PUBLIC_ID);
+            assertThat(dto.getReviewCount()).isNull();
+            assertThat(dto.getMaxKeysPct()).isNull();
+            assertThat(dto.getIsGameReward()).isNull();
         }
 
     }

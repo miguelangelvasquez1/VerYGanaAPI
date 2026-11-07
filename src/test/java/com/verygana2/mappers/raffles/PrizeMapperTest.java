@@ -12,12 +12,22 @@ import com.verygana2.models.enums.raffles.PrizeType;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.models.raffles.PrizeImageAsset;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.verygana2.testsupport.PublicUrlBuilders;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("PrizeMapper")
 class PrizeMapperTest {
 
-    private final PrizeMapper prizeMapper = new PrizeMapperImpl();
+    private final PrizeMapper prizeMapper = newMapper();
+
+    private static PrizeMapper newMapper() {
+        PrizeMapperImpl impl = new PrizeMapperImpl();
+        ReflectionTestUtils.setField(impl, "publicUrlBuilder", PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+        return impl;
+    }
 
     @Nested
     @DisplayName("toPrize")
@@ -48,19 +58,19 @@ class PrizeMapperTest {
     class ToPrizeResponseDTO {
 
         @Test
-        @DisplayName("con imageAsset: imageUrl usa el prefijo CDN sobre el objectKey")
-        void withImageAsset_usesCdnPrefix() {
+        @DisplayName("con imageAsset: imageUrl usa el dominio de CDN configurado")
+        void imageUrlUsesConfiguredCdn() {
             Prize prize = new Prize();
             prize.setImageAsset(PrizeImageAsset.builder().objectKey("prizes/abc.png").build());
 
             PrizeResponseDTO dto = prizeMapper.toPrizeResponseDTO(prize);
 
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/prizes/abc.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/prizes/abc.png");
         }
 
         @Test
         @DisplayName("sin imageAsset: imageUrl es null (null-safe, a diferencia de RaffleResultMapper)")
-        void withoutImageAsset_imageUrlIsNull() {
+        void imageUrlNullWithoutAsset() {
             Prize prize = new Prize();
             prize.setImageAsset(null);
 

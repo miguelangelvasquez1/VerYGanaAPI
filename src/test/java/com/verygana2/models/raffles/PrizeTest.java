@@ -55,16 +55,6 @@ class PrizeTest {
     }
 
     @Test
-    @DisplayName("getImageUrl: sin imageAsset retorna null, con imageAsset arma la URL del CDN")
-    void getImageUrl_dependsOnImageAsset() {
-        Prize prize = new Prize();
-        assertThat(prize.getImageUrl()).isNull();
-
-        prize.setImageAsset(PrizeImageAsset.builder().objectKey("prizes/1/img.jpg").build());
-        assertThat(prize.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/prizes/1/img.jpg");
-    }
-
-    @Test
     @DisplayName("onCreate (hook @PrePersist): nace PENDING con claimedCount en cero")
     void onCreate_defaultsToPendingWithZeroClaims() {
         Prize prize = new Prize();

@@ -31,7 +31,9 @@ CREATE TEMPORARY TABLE tmp_seed_scene_objects (
     x            INT          NOT NULL,
     y            INT          NOT NULL,
     width        INT          NOT NULL,
-    height       INT          NOT NULL
+    height       INT          NOT NULL,
+    -- DigitalOcean exige sql_require_primary_key también en tablas temporales.
+    PRIMARY KEY (scene_number, object_id)
 );
 
 INSERT INTO tmp_seed_scene_objects (scene_number, object_id, type, object_key, x, y, width, height) VALUES

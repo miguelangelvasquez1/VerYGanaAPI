@@ -9,6 +9,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,11 +19,13 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.dao.DataIntegrityViolationException;
 
+import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.finance.plans.Plan.PlanCode;
 import com.verygana2.models.marketplace.AllyProductPromotion;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
+import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.testsupport.TestEntities;
 
@@ -38,7 +42,8 @@ import jakarta.persistence.PersistenceException;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DisplayName("AllyProductPromotionRepository (integración H2)")
@@ -53,6 +58,10 @@ class AllyProductPromotionRepositoryTest {
     private static final AtomicLong SEQ = new AtomicLong(1);
 
     // ==================== HELPERS ====================
+
+    private Statistics statistics() {
+        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    }
 
     private ProductCategory persistCategory() {
         long n = SEQ.getAndIncrement();
@@ -218,6 +227,35 @@ class AllyProductPromotionRepositoryTest {
             List<Product> found = allyProductPromotionRepository.findPromotedActiveProducts(premium.getId());
 
             assertThat(found).extracting(Product::getId).containsExactly(activeProduct.getId());
+        }
+
+        @Test
+        @DisplayName("promotedProductsFetchCategoryAndImage: categoría e imagen vienen en la misma consulta")
+        void promotedProductsFetchCategoryAndImage() {
+            CommercialDetails premium = TestEntities.persistCommercial(em, PlanCode.PREMIUM);
+            for (int i = 0; i < 3; i++) {
+                CommercialDetails ally = TestEntities.persistCommercial(em, PlanCode.BASIC);
+                Product product = persistProduct(ally, ProductStatus.ACTIVE);
+                ProductImageAsset asset = new ProductImageAsset();
+                asset.setObjectKey("img-aliado-" + i + ".png");
+                asset.setSizeBytes(1024L);
+                asset.setStatus(AssetStatus.VALIDATED);
+                asset.setProduct(product);
+                em.persist(asset);
+                persistPromotion(premium, product);
+            }
+            em.flush();
+            em.clear();
+            statistics().clear();
+
+            List<Product> found = allyProductPromotionRepository.findPromotedActiveProducts(premium.getId());
+            found.forEach(p -> {
+                assertThat(p.getProductCategory().getName()).startsWith("categoria-ally-");
+                assertThat(p.getImageAsset().getObjectKey()).startsWith("img-aliado-");
+            });
+
+            assertThat(found).hasSize(3);
+            assertThat(statistics().getPrepareStatementCount()).isEqualTo(1);
         }
     }
 

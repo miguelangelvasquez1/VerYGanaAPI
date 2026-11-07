@@ -1,2 +1,5 @@
-# Guardián de la prueba de carga: valida el entorno antes de crear el contexto (solo actúa con el perfil loadtest).
-org.springframework.boot.env.EnvironmentPostProcessor=com.verygana2.loadtest.LoadTestSafetyGuard
+# Guardianes de arranque: validan el entorno antes de crear el contexto.
+# - LoadTestSafetyGuard: solo actúa con el perfil loadtest (ningún tercero real).
+# - CdnDomainStartupGuard: solo actúa con el perfil prod (exige R2_CDN_DOMAIN; cubre beta y loadtest).
+org.springframework.boot.env.EnvironmentPostProcessor=com.verygana2.loadtest.LoadTestSafetyGuard,\
+com.verygana2.storage.config.CdnDomainStartupGuard

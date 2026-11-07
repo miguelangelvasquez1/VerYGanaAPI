@@ -169,3 +169,9 @@ loadtest:
 # Apagado por defecto; application-dev.yml lo enciende para pruebas.
 financial:
   allow-simulated-expiry: false
+
+# Reparación de un solo uso de las imágenes de producto ACTIVE que solo están en privado
+# (spec 014). Apagada por defecto; ver specs/014-cdn-public-urls-by-env/runbook-product-image-repair.md.
+maintenance:
+  product-image-repair:
+    enabled: ${PRODUCT_IMAGE_REPAIR_ENABLED:false}

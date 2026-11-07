@@ -61,7 +61,7 @@ class AllyPromotionServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new AllyPromotionServiceImpl(allyProductPromotionRepository, productRepository,
-                commercialDetailsRepository);
+                commercialDetailsRepository, com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
     }
 
     private static UUID publicIdOf(Long id) {
@@ -238,7 +238,7 @@ class AllyPromotionServiceImplTest {
             AllyPromotionResponseDTO dto = result.get(0);
             assertThat(dto.getProductId()).isEqualTo(10L);
             assertThat(dto.getProductName()).isEqualTo("Producto aliado");
-            assertThat(dto.getProductImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/10.png");
+            assertThat(dto.getProductImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/10.png");
             assertThat(dto.getAllyCommercialPublicId()).isEqualTo(publicIdOf(1L));
             assertThat(dto.getAllyCommercialName()).isEqualTo("Aliado");
             assertThat(dto.getPriceCents()).isEqualTo(100_000L);

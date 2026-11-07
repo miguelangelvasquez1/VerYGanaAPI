@@ -14,9 +14,10 @@ import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.pqrs.Pqrs;
 import com.verygana2.models.userDetails.CommercialDetails;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.utils.pqrs.RequesterNameResolver;
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring", uses = PublicUrlBuilder.class)
 public abstract class PqrsMapper {
 
     @Autowired
@@ -61,7 +62,7 @@ public abstract class PqrsMapper {
     }
 
     @Mapping(target = "categoryName", source = "productCategory.name")
-    @Mapping(target = "imageUrl", expression = "java(product.getImageUrl())")
+    @Mapping(target = "imageUrl", source = "imageAsset.objectKey", qualifiedByName = "publicUrl")
     protected abstract PqrsProductContextDTO toProductContext(Product product);
 
     @Mapping(target = "commercialPublicId", source = "user.publicId")

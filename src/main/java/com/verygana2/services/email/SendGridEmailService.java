@@ -26,6 +26,7 @@ import com.verygana2.models.marketplace.PurchaseItem;
 import com.verygana2.models.raffles.Prize;
 import com.verygana2.security.ProductCodeEncryptor;
 import com.verygana2.services.interfaces.EmailService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 import lombok.RequiredArgsConstructor;
 
@@ -55,6 +56,7 @@ public class SendGridEmailService implements EmailService {
     private final EmailTemplateLoader templateLoader;
 
     private final ProductCodeEncryptor productCodeEncryptor;
+    private final PublicUrlBuilder publicUrlBuilder;
 
     private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
@@ -194,10 +196,12 @@ public class SendGridEmailService implements EmailService {
     @Override
     @Async
     public void sendPrizeClaimConfirmation(Prize prize, String consumerEmail, String decryptedClaimCode) {
-        log.info("Sending prize claim confirmation to: {} for prize: {}", consumerEmail, prize.getId());
+        log.info("Sending prize claim confirmation for prize: {}", prize.getId());
         try {
-            String prizeImageSection = (prize.getImageUrl() != null)
-                    ? "<img class='prize-image' src='" + prize.getImageUrl() + "' alt='" + escapeHtml(prize.getTitle()) + "'>"
+            String prizeImageUrl = prize.getImageAsset() == null ? null
+                    : publicUrlBuilder.toPublicUrl(prize.getImageAsset().getObjectKey());
+            String prizeImageSection = (prizeImageUrl != null)
+                    ? "<img class='prize-image' src='" + prizeImageUrl + "' alt='" + escapeHtml(prize.getTitle()) + "'>"
                     : "";
             String prizeValueSection = (prize.getValue() != null)
                     ? "<div class='prize-value'>Valor: $" + String.format("%,.0f", prize.getValue()) + " COP</div>"
@@ -217,7 +221,7 @@ public class SendGridEmailService implements EmailService {
 
             sendEmail(consumerEmail, "🎉 ¡Código de reclamación de tu premio! - " + prize.getTitle(), html);
         } catch (Exception e) {
-            log.error("Error sending prize claim confirmation to: {}", consumerEmail, e);
+            log.error("Error sending prize claim confirmation for prize: {}", prize.getId(), e);
         }
     }
 
@@ -226,35 +230,35 @@ public class SendGridEmailService implements EmailService {
     @Override
     @Async
     public void sendVerificationCodeEmail(String toEmail, String code) {
-        log.info("Sending verification code email to: {}", toEmail);
+        log.info("Sending verification code email");
         try {
             String html = templateLoader.render("verification-code.html", Map.of(
                     "verificationCode", code,
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "✉️ Tu código de verificación - VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending verification code email to: {}", toEmail, e);
+            log.error("Error sending verification code email", e);
         }
     }
 
     @Override
     @Async
     public void sendPasswordResetEmail(String toEmail, String code) {
-        log.info("Sending password reset email to: {}", toEmail);
+        log.info("Sending password reset email");
         try {
             String html = templateLoader.render("password-reset.html", Map.of(
                     "resetCode", code,
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "🔑 Recupera tu cuenta - VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending password reset email to: {}", toEmail, e);
+            log.error("Error sending password reset email", e);
         }
     }
 
     @Override
     @Async
     public void sendDesignerPasswordSetupEmail(String toEmail, String designerName, String setupLink, String designerCode) {
-        log.info("Sending password setup email to designer: {}", toEmail);
+        log.info("Sending password setup email to designer");
         try {
             String html = templateLoader.render("designer-password-setup.html", Map.of(
                     "designerName", escapeHtml(designerName),
@@ -263,7 +267,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Configura tu contraseña - VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending password setup email to: {}", toEmail, e);
+            log.error("Error sending password setup email", e);
         }
     }
 
@@ -273,7 +277,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendBrandingDesignerAssignedEmail(String toEmail, String designerName, String brandName,
             String gameName, String adminNotes) {
-        log.info("Sending designer assigned email to: {}", toEmail);
+        log.info("Sending designer assigned email");
         try {
             String adminNotesSection = (adminNotes != null && !adminNotes.isBlank())
                     ? "<div class='notes-box'><strong>Notas del equipo VerYGana:</strong>"
@@ -288,7 +292,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Nuevo proyecto asignado: " + brandName + " — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending designer assigned email to: {}", toEmail, e);
+            log.error("Error sending designer assigned email", e);
         }
     }
 
@@ -296,7 +300,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendBrandingDesignSubmittedEmail(String toEmail, String commercialName, String brandName,
             String gameName) {
-        log.info("Sending design submitted email to: {}", toEmail);
+        log.info("Sending design submitted email");
         try {
             String html = templateLoader.render("branding-design-submitted.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -306,7 +310,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Tu juego está listo para revisar — " + brandName, html);
         } catch (Exception e) {
-            log.error("Error sending design submitted email to: {}", toEmail, e);
+            log.error("Error sending design submitted email", e);
         }
     }
 
@@ -314,7 +318,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendBrandingChangesRequestedEmail(String toEmail, String designerName, String brandName,
             String changeNotes) {
-        log.info("Sending changes requested email to: {}", toEmail);
+        log.info("Sending changes requested email");
         try {
             String html = templateLoader.render("branding-changes-requested.html", Map.of(
                     "designerName", escapeHtml(designerName),
@@ -324,14 +328,14 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Cambios solicitados en el diseño: " + brandName, html);
         } catch (Exception e) {
-            log.error("Error sending changes requested email to: {}", toEmail, e);
+            log.error("Error sending changes requested email", e);
         }
     }
 
     @Override
     @Async
     public void sendBrandingReadyToLaunchEmail(String toEmail, String brandName, String gameName) {
-        log.info("Sending ready to launch email to: {}", toEmail);
+        log.info("Sending ready to launch email");
         try {
             String html = templateLoader.render("branding-ready-to-launch.html", Map.of(
                     "brandName", escapeHtml(brandName),
@@ -340,7 +344,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Campaña lista para lanzar: " + brandName, html);
         } catch (Exception e) {
-            log.error("Error sending ready to launch email to: {}", toEmail, e);
+            log.error("Error sending ready to launch email", e);
         }
     }
 
@@ -348,7 +352,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendBrandingRejectedEmail(String toEmail, String commercialName, String brandName,
             String rejectionNotes) {
-        log.info("Sending branding rejected email to: {}", toEmail);
+        log.info("Sending branding rejected email");
         try {
             String html = templateLoader.render("branding-rejected.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -357,7 +361,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Solicitud de branding no aprobada — " + brandName, html);
         } catch (Exception e) {
-            log.error("Error sending branding rejected email to: {}", toEmail, e);
+            log.error("Error sending branding rejected email", e);
         }
     }
 
@@ -367,7 +371,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendCommercialContractApprovedEmail(String toEmail, String commercialName, int version,
             CommercialActivityType correctedActivityType) {
-        log.info("Sending commercial contract approved email to: {}", toEmail);
+        log.info("Sending commercial contract approved email");
         try {
             String activityTypeChangeSection = correctedActivityType != null
                     ? "<div class='notes-box'><strong>Actividad comercial actualizada</strong>"
@@ -383,7 +387,7 @@ public class SendGridEmailService implements EmailService {
 
             sendEmail(toEmail, "Tu Contrato Marco fue aprobado — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending commercial contract approved email to: {}", toEmail, e);
+            log.error("Error sending commercial contract approved email", e);
         }
     }
 
@@ -398,7 +402,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendCommercialContractRejectedEmail(String toEmail, String commercialName, String reason,
             boolean documentsIssue) {
-        log.info("Sending commercial contract rejected email to: {}", toEmail);
+        log.info("Sending commercial contract rejected email");
         try {
             String actionSection = documentsIssue
                     ? "<div class='action-box'>Ingresa a la plataforma para corregir tus documentos y "
@@ -416,7 +420,7 @@ public class SendGridEmailService implements EmailService {
 
             sendEmail(toEmail, "Tu Contrato Marco requiere ajustes — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending commercial contract rejected email to: {}", toEmail, e);
+            log.error("Error sending commercial contract rejected email", e);
         }
     }
 
@@ -425,7 +429,7 @@ public class SendGridEmailService implements EmailService {
     @Override
     @Async
     public void sendSubscriptionExpiredEmail(String toEmail, String commercialName) {
-        log.info("Sending subscription expired email to: {}", toEmail);
+        log.info("Sending subscription expired email");
         try {
             String html = templateLoader.render("subscription-expired.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -434,14 +438,14 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu suscripción venció — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending subscription expired email to: {}", toEmail, e);
+            log.error("Error sending subscription expired email", e);
         }
     }
 
     @Override
     @Async
     public void sendRenewalReminderEmail(String toEmail, String commercialName, long daysRemaining) {
-        log.info("Sending renewal reminder email to: {}", toEmail);
+        log.info("Sending renewal reminder email");
         try {
             String html = templateLoader.render("renewal-reminder.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -451,14 +455,14 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu suscripción vence en " + daysRemaining + " días — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending renewal reminder email to: {}", toEmail, e);
+            log.error("Error sending renewal reminder email", e);
         }
     }
 
     @Override
     @Async
     public void sendPlanPaymentFailedEmail(String toEmail, String commercialName) {
-        log.info("Sending plan payment failed email to: {}", toEmail);
+        log.info("Sending plan payment failed email");
         try {
             String html = templateLoader.render("plan-payment-failed.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -467,14 +471,14 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu pago no pudo procesarse — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending plan payment failed email to: {}", toEmail, e);
+            log.error("Error sending plan payment failed email", e);
         }
     }
 
     @Override
     @Async
     public void sendBudgetLowWarningEmail(String toEmail, String commercialName, boolean critical) {
-        log.info("Sending budget low warning email to: {} (critical={})", toEmail, critical);
+        log.info("Sending budget low warning email (critical={})", critical);
         try {
             String html = templateLoader.render("budget-low-warning.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -487,14 +491,14 @@ public class SendGridEmailService implements EmailService {
                     : "Tu saldo publicitario está bajando — VerYGana";
             sendEmail(toEmail, subject, html);
         } catch (Exception e) {
-            log.error("Error sending budget low warning email to: {}", toEmail, e);
+            log.error("Error sending budget low warning email", e);
         }
     }
 
     @Override
     @Async
     public void sendBudgetExhaustedEmail(String toEmail, String commercialName) {
-        log.info("Sending budget exhausted email to: {}", toEmail);
+        log.info("Sending budget exhausted email");
         try {
             String html = templateLoader.render("budget-exhausted.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -503,14 +507,14 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu saldo publicitario se agotó — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending budget exhausted email to: {}", toEmail, e);
+            log.error("Error sending budget exhausted email", e);
         }
     }
 
     @Override
     @Async
     public void sendBudgetDormantEmail(String toEmail, String commercialName) {
-        log.info("Sending budget dormant email to: {}", toEmail);
+        log.info("Sending budget dormant email");
         try {
             String html = templateLoader.render("budget-dormant.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -519,14 +523,14 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu cuenta está en pausa por saldo agotado — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending budget dormant email to: {}", toEmail, e);
+            log.error("Error sending budget dormant email", e);
         }
     }
 
     @Override
     @Async
     public void sendBudgetReplenishedEmail(String toEmail, String commercialName) {
-        log.info("Sending budget replenished email to: {}", toEmail);
+        log.info("Sending budget replenished email");
         try {
             String html = templateLoader.render("budget-replenished.html", Map.of(
                     "commercialName", escapeHtml(commercialName),
@@ -535,7 +539,7 @@ public class SendGridEmailService implements EmailService {
                     "sloganSection", SLOGAN_COMMERCIAL));
             sendEmail(toEmail, "Tu saldo publicitario fue recargado — VerYGana", html);
         } catch (Exception e) {
-            log.error("Error sending budget replenished email to: {}", toEmail, e);
+            log.error("Error sending budget replenished email", e);
         }
     }
 
@@ -545,7 +549,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendPqrsReceivedConfirmation(String toEmail, String requesterName, String based, PqrsType type,
             ZonedDateTime dueDate) {
-        log.info("Sending PQRS received confirmation to: {} for radicado: {}", toEmail, based);
+        log.info("Sending PQRS received confirmation for radicado: {}", based);
         try {
             String html = templateLoader.render("pqrs-received-confirmation.html", Map.of(
                     "requesterName", escapeHtml(requesterName),
@@ -555,7 +559,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Recibimos tu " + pqrsTypeLabel(type).toLowerCase() + " — Radicado " + based, html);
         } catch (Exception e) {
-            log.error("Error sending PQRS received confirmation to: {}", toEmail, e);
+            log.error("Error sending PQRS received confirmation", e);
         }
     }
 
@@ -563,7 +567,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendPqrsAssignedToAdmin(String adminEmail, String adminName, String based, String subject,
             ZonedDateTime dueDate) {
-        log.info("Sending PQRS assigned notification to admin: {} for radicado: {}", adminEmail, based);
+        log.info("Sending PQRS assigned notification to admin for radicado: {}", based);
         try {
             String html = templateLoader.render("pqrs-assigned-admin.html", Map.of(
                     "adminName", escapeHtml(adminName),
@@ -574,14 +578,14 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(adminEmail, "Nuevo PQRS asignado — Radicado " + based, html);
         } catch (Exception e) {
-            log.error("Error sending PQRS assigned notification to: {}", adminEmail, e);
+            log.error("Error sending PQRS assigned notification", e);
         }
     }
 
     @Override
     @Async
     public void sendPqrsResolved(String toEmail, String requesterName, String based, String response) {
-        log.info("Sending PQRS resolved notification to: {} for radicado: {}", toEmail, based);
+        log.info("Sending PQRS resolved notification for radicado: {}", based);
         try {
             String html = templateLoader.render("pqrs-resolved.html", Map.of(
                     "requesterName", escapeHtml(requesterName),
@@ -590,14 +594,14 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(toEmail, "Tu PQRS fue resuelto — Radicado " + based, html);
         } catch (Exception e) {
-            log.error("Error sending PQRS resolved notification to: {}", toEmail, e);
+            log.error("Error sending PQRS resolved notification", e);
         }
     }
 
     @Override
     @Async
     public void sendPqrsSlaAlert(String adminEmail, String adminName, String based, ZonedDateTime dueDate) {
-        log.info("Sending PQRS SLA alert to admin: {} for radicado: {}", adminEmail, based);
+        log.info("Sending PQRS SLA alert to admin for radicado: {}", based);
         try {
             String html = templateLoader.render("pqrs-sla-alert.html", Map.of(
                     "adminName", escapeHtml(adminName),
@@ -607,7 +611,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(adminEmail, "⚠️ PQRS próximo a vencer — Radicado " + based, html);
         } catch (Exception e) {
-            log.error("Error sending PQRS SLA alert to: {}", adminEmail, e);
+            log.error("Error sending PQRS SLA alert", e);
         }
     }
 
@@ -617,7 +621,7 @@ public class SendGridEmailService implements EmailService {
     @Async
     public void sendSecurityAlertEmail(String adminEmail, String alertType, String severity, String source,
                                         String description, ZonedDateTime detectedAt) {
-        log.info("Sending security alert email to: {} - type: {}", adminEmail, alertType);
+        log.info("Sending security alert email - type: {}", alertType);
         try {
             String html = templateLoader.render("security-alert.html", Map.of(
                     "alertType", escapeHtml(alertType),
@@ -629,7 +633,7 @@ public class SendGridEmailService implements EmailService {
                     "supportEmail", supportEmail));
             sendEmail(adminEmail, "🚨 Alerta de seguridad crítica — " + alertType, html);
         } catch (Exception e) {
-            log.error("Error sending security alert email to: {}", adminEmail, e);
+            log.error("Error sending security alert email", e);
         }
     }
 
@@ -660,14 +664,14 @@ public class SendGridEmailService implements EmailService {
             int statusCode = response.getStatusCode();
 
             if (statusCode >= 200 && statusCode < 300) {
-                log.debug("Email sent successfully to {}. Status: {}", toEmail, statusCode);
+                log.debug("Email sent successfully. Status: {}", statusCode);
                 return true;
             } else {
                 log.error("SendGrid returned error. Status: {}, Body: {}", statusCode, response.getBody());
                 return false;
             }
         } catch (IOException e) {
-            log.error("IOException while sending email to: {}", toEmail, e);
+            log.error("IOException while sending email", e);
             return false;
         }
     }
@@ -680,7 +684,8 @@ public class SendGridEmailService implements EmailService {
     private String buildItemsHtml(Purchase purchase, boolean showPrice) {
         StringBuilder sb = new StringBuilder();
         for (PurchaseItem item : purchase.getItems()) {
-            String imageUrl = item.getProduct().getImageUrl();
+            String imageUrl = item.getProduct().getImageAsset() == null ? null
+                    : publicUrlBuilder.toPublicUrl(item.getProduct().getImageAsset().getObjectKey());
             sb.append("<div class='product-item'>");
             sb.append("<div class='product-name'>").append(escapeHtml(item.getProduct().getName())).append("</div>");
             if (showPrice) {

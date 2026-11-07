@@ -202,13 +202,10 @@ WHERE NOT EXISTS (
 -- seleccionar el siguiente anuncio como al reanudar una visualización; sin esta
 -- fila GET /ads/next lanza NullPointerException para cualquier consumidor.
 --
--- Se usa IMAGE y no VIDEO (a diferencia de test-ads.sql) porque el archivo real
--- detrás de cada object_key lo genera BetaPlaceholderAssetSeeder como JPEG en
--- memoria con Java2D al arrancar el perfil beta/demo: no depende de ffmpeg ni de
--- binarios en el repo, así que no hay forma de producir un .mp4 real por esta vía.
--- MediaType.IMAGE es un formato de anuncio igual de válido (duration_seconds sigue
--- rigiendo el tiempo mínimo de visualización); mismo status ATTACHED que ya
--- usaba test-ads.sql para sus videos.
+-- Los videos reales (.mp4, 576x1024 h264/aac) viven en el bucket de beta
+-- (public/ads/beta/<slug>.mp4) y se subieron a mano: BetaPlaceholderAssetSeeder
+-- NO los genera. Si se resiembra contra un bucket sin esos archivos, el anuncio
+-- queda sin medio. Tamaño y duración son los reales de cada archivo.
 INSERT INTO ad_assets (
     object_key,
     size_bytes,
@@ -221,22 +218,22 @@ INSERT INTO ad_assets (
     version
 )
 SELECT
-    CONCAT('ads/beta/', seed.slug, '.jpg'),
-    20000,
-    'IMAGE',
-    'IMAGE_JPEG',
+    CONCAT('ads/beta/', seed.slug, '.mp4'),
+    seed.size_bytes,
+    'VIDEO',
+    'VIDEO_MP4',
     'ATTACHED',
-    5,
+    seed.duration_seconds,
     a.id,
     NOW(),
     0
 FROM (
-    SELECT 'Energía solar para tu hogar' AS ad_title, 'energia-solar-para-tu-hogar' AS slug
-    UNION ALL SELECT 'Conectividad rural sin interrupciones', 'conectividad-rural-sin-interrupciones'
-    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias'
-    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana'
-    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple'
-    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural'
+    SELECT 'Energía solar para tu hogar' AS ad_title, 'energia-solar-para-tu-hogar' AS slug, 27323382 AS size_bytes, 168 AS duration_seconds
+    UNION ALL SELECT 'Conectividad rural sin interrupciones', 'conectividad-rural-sin-interrupciones', 6019399, 30
+    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias', 1548438, 14
+    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana', 3070847, 16
+    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple', 2352529, 28
+    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural', 31522837, 87
 ) seed
 JOIN ads a ON a.title = seed.ad_title
 WHERE NOT EXISTS (
@@ -245,26 +242,27 @@ WHERE NOT EXISTS (
     WHERE existing_asset.ad_id = a.id
 );
 
--- Reparación de un arranque previo: una versión anterior de este seed insertó
--- el asset como VIDEO/.mp4 (nunca existió un archivo real detrás). El INSERT de
--- arriba es "solo si falta" y jamás pisa esa fila ya creada, así que sin este
--- UPDATE una base de beta que ya corrió esa versión se queda con el enlace roto
--- para siempre. No-op si nunca se tuvo esa versión (no hay filas que coincidan).
+-- Migración de un arranque previo: versiones anteriores de este seed insertaron
+-- el asset como IMAGE/.jpg de relleno. El INSERT de arriba es "solo si falta" y
+-- no pisa filas ya creadas, así que este UPDATE las pasa al video real.
+-- Idempotente: no-op si el asset ya está en .mp4/VIDEO.
 UPDATE ad_assets existing_asset
 JOIN ads a ON a.id = existing_asset.ad_id
 JOIN (
-    SELECT 'Energía solar para tu hogar' AS ad_title, 'energia-solar-para-tu-hogar' AS slug
-    UNION ALL SELECT 'Conectividad rural sin interrupciones', 'conectividad-rural-sin-interrupciones'
-    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias'
-    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana'
-    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple'
-    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural'
+    SELECT 'Energía solar para tu hogar' AS ad_title, 'energia-solar-para-tu-hogar' AS slug, 27323382 AS size_bytes, 168 AS duration_seconds
+    UNION ALL SELECT 'Conectividad rural sin interrupciones', 'conectividad-rural-sin-interrupciones', 6019399, 30
+    UNION ALL SELECT 'Estilo urbano para todos los días', 'estilo-urbano-para-todos-los-dias', 1548438, 14
+    UNION ALL SELECT 'Renueva tus básicos con Moda Urbana', 'renueva-tus-basicos-con-moda-urbana', 3070847, 16
+    UNION ALL SELECT 'Tecnología útil para una vida más simple', 'tecnologia-util-para-una-vida-mas-simple', 2352529, 28
+    UNION ALL SELECT 'Planea tu próxima escapada natural', 'planea-tu-proxima-escapada-natural', 31522837, 87
 ) seed ON seed.ad_title = a.title
-SET existing_asset.object_key = CONCAT('ads/beta/', seed.slug, '.jpg'),
-    existing_asset.media_type = 'IMAGE',
-    existing_asset.mime_type = 'IMAGE_JPEG'
-WHERE existing_asset.media_type = 'VIDEO'
-  AND existing_asset.object_key LIKE 'ads/beta/%.mp4';
+SET existing_asset.object_key = CONCAT('ads/beta/', seed.slug, '.mp4'),
+    existing_asset.media_type = 'VIDEO',
+    existing_asset.mime_type = 'VIDEO_MP4',
+    existing_asset.size_bytes = seed.size_bytes,
+    existing_asset.duration_seconds = seed.duration_seconds
+WHERE existing_asset.media_type = 'IMAGE'
+  AND existing_asset.object_key = CONCAT('ads/beta/', seed.slug, '.jpg');
 
 -- Visualizaciones de ejemplo sin duplicar la combinación anuncio-consumidor.
 INSERT INTO ad_watch_session (

@@ -27,6 +27,7 @@ import org.springframework.test.util.ReflectionTestUtils;
 import com.verygana2.exceptions.StorageException;
 import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.storage.config.R2Config;
+import com.verygana2.testsupport.PublicUrlBuilders;
 
 import jakarta.validation.ValidationException;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -62,6 +63,14 @@ class R2ServiceTest {
         ReflectionTestUtils.setField(service, "r2Client", r2Client);
         ReflectionTestUtils.setField(service, "r2Presigner", r2Presigner);
         ReflectionTestUtils.setField(service, "r2Config", config);
+        ReflectionTestUtils.setField(service, "publicUrlBuilder", PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+    }
+
+    @Test
+    @DisplayName("buildPublicUrl usa el dominio del CDN configurado")
+    void buildPublicUrlUsesConfiguredDomain() {
+        assertThat(service.buildPublicUrl("designer/a.png"))
+                .isEqualTo("https://cdn-beta.verygana.com/public/designer/a.png");
     }
 
     private static final Set<SupportedMimeType> IMAGES = Set.of(

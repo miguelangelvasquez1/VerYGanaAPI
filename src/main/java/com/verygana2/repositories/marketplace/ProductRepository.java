@@ -1,6 +1,7 @@
 package com.verygana2.repositories.marketplace;
 
 import java.time.ZonedDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -41,7 +42,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("""
                         SELECT p FROM Product p
                         JOIN FETCH p.productCategory pc
-                        JOIN FETCH p.commercial c
+                        LEFT JOIN FETCH pc.imageAsset pcia
+                        JOIN p.commercial c
                         LEFT JOIN FETCH p.imageAsset ia
                         LEFT JOIN p.targetAudience ta
                         WHERE p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
@@ -101,9 +103,15 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                 consumerAge, consumerGender, pageable);
         }
 
-        @Query("""
+        @Query(value = """
                         SELECT p FROM Product p
                         JOIN FETCH p.productCategory c
+                        LEFT JOIN FETCH c.imageAsset pcia
+                        LEFT JOIN FETCH p.imageAsset ia
+                        WHERE p.commercial.id = :commercialId AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+                        """,
+                        countQuery = """
+                        SELECT COUNT(p) FROM Product p
                         WHERE p.commercial.id = :commercialId AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
                         """)
         Page<Product> findByCommercialId(@Param("commercialId") Long commercialId, Pageable pageable);
@@ -117,6 +125,9 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
         @Query("""
                         SELECT p FROM Product p
+                        JOIN FETCH p.productCategory pc
+                        LEFT JOIN FETCH pc.imageAsset
+                        LEFT JOIN FETCH p.imageAsset
                         WHERE p.commercial.id = :commercialId
                         AND p.isGameReward = TRUE
                         AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
@@ -140,6 +151,7 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
         @Query("""
                         SELECT p FROM Product p
                         JOIN FETCH p.productCategory c
+                        LEFT JOIN FETCH c.imageAsset pcia
                         LEFT JOIN FETCH p.imageAsset ia
                         WHERE (:status IS NULL OR p.status = :status)
                         AND (:search IS NULL OR :search = ''
@@ -178,5 +190,27 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
                                 com.verygana2.models.enums.marketplace.ProductStatus.INACTIVE)
                                 """)
         long countSlotOccupyingByCommercialId(@Param("commercialId") Long commercialId);
+
+        /**
+         * Stock disponible y datos del comercio de varios productos en una sola consulta, para
+         * armar un listado sin una consulta por producto. Cuenta las unidades AVAILABLE que no
+         * están vencidas ({@code >= :now} replica {@code ProductStock.isExpired()}: una unidad que
+         * vence justo en {@code now} sigue disponible). Un producto sin unidades devuelve stock 0.
+         * No lee {@code code} ni {@code code_hash}.
+         */
+        @Query("""
+                        SELECT new com.verygana2.repositories.marketplace.ProductListingFacts(
+                                p.id, c.companyName, u.publicId, COUNT(ps))
+                        FROM Product p
+                        JOIN p.commercial c
+                        JOIN c.user u
+                        LEFT JOIN p.stockItems ps
+                                ON ps.status = com.verygana2.models.enums.marketplace.StockStatus.AVAILABLE
+                                AND (ps.expirationDate IS NULL OR ps.expirationDate >= :now)
+                        WHERE p.id IN :productIds
+                        GROUP BY p.id, c.companyName, u.publicId
+                        """)
+        List<ProductListingFacts> findListingFacts(@Param("productIds") Collection<Long> productIds,
+                        @Param("now") ZonedDateTime now);
 
 }

@@ -48,6 +48,7 @@ class PurchaseMapperTest {
         mapper = new PurchaseMapperImpl();
         productReviewService = mock(ProductReviewService.class);
         ReflectionTestUtils.setField(mapper, "productReviewService", productReviewService);
+        ReflectionTestUtils.setField(mapper, "publicUrlBuilder", com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
     }
 
     private Product product(Long id, String name) {
@@ -74,7 +75,7 @@ class PurchaseMapperTest {
 
         @Test
         @DisplayName("caso normal: productId/imageUrl/productName vienen del producto")
-        void normalCase_mapsFromProduct() {
+        void purchaseItemImageUrlUsesConfiguredCdn() {
             PurchaseItem item = PurchaseItem.builder()
                     .id(1L)
                     .product(product(10L, "Producto A"))
@@ -84,7 +85,7 @@ class PurchaseMapperTest {
 
             assertThat(dto.getProductId()).isEqualTo(10L);
             assertThat(dto.getProductName()).isEqualTo("Producto A");
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/10.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/10.png");
         }
 
         @Test
@@ -141,7 +142,7 @@ class PurchaseMapperTest {
 
             assertThat(dto.isCanBeReviewed()).isTrue();
             assertThat(dto.getProductId()).isEqualTo(10L);
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/10.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/10.png");
             verify(productReviewService).canBeReviewed(eq(10L), eq(5L));
         }
     }
@@ -209,7 +210,7 @@ class PurchaseMapperTest {
 
             assertThat(dto.getProductId()).isEqualTo(10L);
             assertThat(dto.getProductName()).isEqualTo("Producto A");
-            assertThat(dto.getImageUrl()).isEqualTo("https://cdn.verygana.com/public/products/10.png");
+            assertThat(dto.getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/10.png");
             assertThat(dto.getBuyerName()).isEqualTo("Juan Comprador");
             assertThat(dto.getDocumentType()).isEqualTo(DocumentType.CC);
             assertThat(dto.getDocumentNumber()).isEqualTo("123456789");

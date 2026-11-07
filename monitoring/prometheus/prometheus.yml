@@ -8,7 +8,9 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
-    # Distingue las series si algún día un Grafana lee varios Prometheus.
+    # Solo viaja hacia afuera (federación, remote write, Alertmanager): NO aparece
+    # en las consultas locales ni en las series guardadas. El `env` que ven los
+    # dashboards sale de la etiqueta del target (más abajo).
     env: dev
 
 rule_files:
@@ -38,6 +40,9 @@ scrape_configs:
       - targets: ["host.docker.internal:8080"]
         labels:
           service: verygana-api
+          # Los dashboards filtran por env="$env" (spec 011); en Grafana Cloud lo
+          # pone Alloy con DEPLOY_ENV, acá hace falta en el target.
+          env: dev
 
     # COLISIÓN DE ETIQUETAS. ScheduledJobMetrics emite el tag `job` con el
     # nombre del scheduler (OutboxServiceImpl.processOutboxEvents), pero `job`

@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -14,10 +16,12 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 
+import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.marketplace.ProductStatus;
 import com.verygana2.models.marketplace.FavoriteProduct;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
+import com.verygana2.models.marketplace.ProductImageAsset;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.testsupport.TestEntities;
@@ -34,7 +38,8 @@ import jakarta.persistence.EntityManager;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DisplayName("FavoriteProductRepository (integración H2)")
@@ -49,6 +54,10 @@ class FavoriteProductRepositoryTest {
     private static final AtomicLong SEQ = new AtomicLong(1);
 
     // ==================== HELPERS ====================
+
+    private Statistics statistics() {
+        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    }
 
     private ProductCategory persistCategory() {
         long n = SEQ.getAndIncrement();
@@ -120,6 +129,41 @@ class FavoriteProductRepositoryTest {
 
             assertThat(found.getContent()).extracting(FavoriteProduct::getId)
                     .containsExactly(favoriteTwo.getId(), favoriteOne.getId());
+        }
+
+        @Test
+        @DisplayName("fetchesCategoryAndImage: categoría e imagen vienen con la página; paginación y total siguen iguales")
+        void fetchesCategoryAndImage() {
+            ConsumerDetails consumer = TestEntities.persistConsumer(em);
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            for (int i = 0; i < 3; i++) {
+                Product product = persistProduct(commercial, persistCategory(), ProductStatus.ACTIVE);
+                ProductImageAsset asset = new ProductImageAsset();
+                asset.setObjectKey("img-fav-" + i + ".png");
+                asset.setSizeBytes(1024L);
+                asset.setStatus(AssetStatus.VALIDATED);
+                asset.setProduct(product);
+                em.persist(asset);
+                persistFavorite(consumer, product);
+            }
+            persistFavorite(consumer, persistProduct(commercial, persistCategory(), ProductStatus.INACTIVE));
+            em.flush();
+            em.clear();
+            statistics().clear();
+
+            Page<FavoriteProduct> found = favoriteProductRepository.findByConsumerIdWithActiveProducts(
+                    consumer.getId(), PageRequest.of(0, 2));
+            long afterQuery = statistics().getPrepareStatementCount();
+            found.getContent().forEach(fp -> {
+                assertThat(fp.getProduct().getProductCategory().getName()).startsWith("categoria-fav-");
+                assertThat(fp.getProduct().getImageAsset().getObjectKey()).startsWith("img-fav-");
+            });
+
+            assertThat(found.getContent()).hasSize(2);
+            assertThat(found.getTotalElements()).isEqualTo(3);
+            assertThat(found.getTotalPages()).isEqualTo(2);
+            assertThat(afterQuery).isEqualTo(2); // página + conteo
+            assertThat(statistics().getPrepareStatementCount()).isEqualTo(afterQuery);
         }
 
         @Test

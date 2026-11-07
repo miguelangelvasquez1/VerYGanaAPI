@@ -60,6 +60,9 @@ public class R2Service {
     @Autowired
     private R2Config r2Config;
 
+    @Autowired
+    private PublicUrlBuilder publicUrlBuilder;
+
     private static final String PRIVATE_PREFIX = "private/";
     private static final String PUBLIC_PREFIX = "public/";
 
@@ -564,23 +567,10 @@ public class R2Service {
     }
 
     /**
-     * Construye URL pública del CDN
+     * Construye URL pública del CDN (delega en {@link PublicUrlBuilder})
      */
     public String buildPublicUrl(String objectKey) {
-
-        // CDN custom (PRODUCCIÓN)
-        if (r2Config.getCdnDomain() != null && !r2Config.getCdnDomain().isBlank()) {
-            return String.format("https://%s/public/%s",
-                r2Config.getCdnDomain(),
-                objectKey
-            );
-        }
-
-        // Fallback controlado (DEV / STAGING)
-        return String.format("https://%s.r2.dev/public/%s",
-            r2Config.getAccountId(),
-            objectKey
-        );
+        return publicUrlBuilder.toPublicUrl(objectKey);
     }
 
     /**

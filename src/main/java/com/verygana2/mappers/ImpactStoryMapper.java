@@ -14,9 +14,11 @@ import com.verygana2.dtos.impactStory.StoryMediaResponseDTO;
 import com.verygana2.dtos.impactStory.UpdateImpactStoryRequestDTO;
 import com.verygana2.models.ImpactStory.ImpactStory;
 import com.verygana2.models.ImpactStory.StoryMediaAsset;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 @Mapper(
     componentModel = "spring",
+    uses = PublicUrlBuilder.class,
     nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
     unmappedTargetPolicy = ReportingPolicy.IGNORE
 )
@@ -54,6 +56,7 @@ public interface ImpactStoryMapper {
 
     // ── StoryMedia → StoryMediaResponseDTO ───────────────────────────────────
 
+    @Mapping(target = "publicUrl", source = "objectKey", qualifiedByName = "publicUrl")
     StoryMediaResponseDTO toMediaResponse(StoryMediaAsset media);
 
     List<StoryMediaResponseDTO> toMediaResponseList(List<StoryMediaAsset> mediaList);

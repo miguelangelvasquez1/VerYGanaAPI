@@ -1,0 +1,1030 @@
+{
+  "uid": "verygana-slo",
+  "title": "VERyGANA · SLO",
+  "description": "Objetivos de nivel de servicio por ambiente en ventana móvil de 7 días: disponibilidad (99,5 % sin 5xx) y latencia (95 % en 800 ms o menos). Las peticiones a /actuator/* no cuentan.",
+  "tags": [
+    "verygana",
+    "slo"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "timepicker": {},
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": false,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "name": "Alertas disparadas",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "step": "60s",
+        "expr": "max by (alertname, severity) ({__name__=~\"ALERTS|GRAFANA_ALERTS\", alertstate=\"firing\", env=\"$env\"})",
+        "titleFormat": "{{alertname}}",
+        "tagKeys": "alertname,severity"
+      }
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Datasource",
+        "multi": false,
+        "name": "DS_PROM",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "prod",
+          "value": "prod"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "definition": "label_values(up{job=\"verygana-api\"}, env)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Ambiente",
+        "multi": false,
+        "name": "env",
+        "options": [],
+        "query": {
+          "query": "label_values(up{job=\"verygana-api\"}, env)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
+  },
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "VERyGANA",
+      "type": "dashboards",
+      "tags": [
+        "verygana"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
+    }
+  ],
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Cómo leer este dashboard",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "**Qué cuenta:** peticiones HTTP del ambiente elegido, sin las de `/actuator/*`. Una petición falla en disponibilidad si responde 5xx (500-599) y en latencia si tarda más de 800 ms.\n\n**Objetivos (ventana móvil de 7 días):** disponibilidad 99,5 % sin 5xx; latencia 95 % de las peticiones en 800 ms o menos. Los cumplimientos y presupuestos son siempre de 7 días, sin importar el rango de tiempo elegido.\n\n**Burn rate:** 1 significa que el presupuesto de error se agota justo al terminar los 7 días; con burn rate B se agota en 168/B horas. Se muestra con ventanas de 1 h (reacciona rápido) y 6 h (confirma que no es un pico). Sin tráfico en la ventana, los paneles dicen 'Sin datos'."
+      }
+    },
+    {
+      "type": "row",
+      "title": "Disponibilidad (99,5 %)",
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Disponibilidad · Cumplimiento 7 días",
+      "description": "Proporción de peticiones HTTP que cumplen el objetivo (99,5 % sin respuesta 5xx) en los últimos 7 días. 'Sin datos' si no hubo tráfico en la ventana.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "1 - (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[7d])) or vector(0)) / (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.995
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Disponibilidad · Presupuesto restante",
+      "description": "Parte del presupuesto de error (0,5 %) que queda en la ventana de 7 días. 100 % = sin consumir; 0 % o menos = agotado.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 5,
+        "y": 6,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "1 - ((sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[7d])) or vector(0)) / (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0)) / 0.005",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1e-09
+              },
+              {
+                "color": "green",
+                "value": 0.25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Disponibilidad · Presupuesto restante (peticiones)",
+      "description": "Cuántas peticiones más podrían responder 5xx sin romper el objetivo en la ventana de 7 días. Negativo = presupuesto agotado.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 6,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "0.005 * (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0) - (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[7d])) or vector(0))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Disponibilidad · Burn rate 1 h",
+      "description": "Ritmo de consumo del presupuesto en la última 1 h. 1 = se agota justo al final de los 7 días; con burn rate B se agota en 168/B horas. Verde < 1, amarillo ≥ 1, rojo ≥ 6.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 15,
+        "y": 6,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "((sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[1h])) or vector(0)) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[1h])) > 0)) / 0.005",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Disponibilidad · Burn rate 6 h",
+      "description": "Ritmo de consumo del presupuesto en la última 6 h. 1 = se agota justo al final de los 7 días; con burn rate B se agota en 168/B horas. Verde < 1, amarillo ≥ 1, rojo ≥ 6.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 6,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "((sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[6h])) or vector(0)) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[6h])) > 0)) / 0.005",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Disponibilidad · Burn rate en el tiempo",
+      "description": "Burn rate con ventanas de 1 h y 6 h. Por encima de 1 el presupuesto de 7 días se agotaría antes de terminar la ventana. Sigue el rango de tiempo del dashboard.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "((sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[1h])) or vector(0)) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[1h])) > 0)) / 0.005",
+          "legendFormat": "1 h",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "((sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\", status=~\"5..\"}[6h])) or vector(0)) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[6h])) > 0)) / 0.005",
+          "legendFormat": "6 h",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Latencia (95 % ≤ 800 ms)",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Latencia · Cumplimiento 7 días",
+      "description": "Proporción de peticiones HTTP que cumplen el objetivo (95 % en 800 ms o menos) en los últimos 7 días. 'Sin datos' si no hubo tráfico en la ventana.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[7d])) / (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0)",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 3,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.95
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Latencia · Presupuesto restante",
+      "description": "Parte del presupuesto de error (5 %) que queda en la ventana de 7 días. 100 % = sin consumir; 0 % o menos = agotado.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 5,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "1 - (1 - sum(increase(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[7d])) / (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0)) / 0.05",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 1,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1e-09
+              },
+              {
+                "color": "green",
+                "value": 0.25
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Latencia · Presupuesto restante (peticiones)",
+      "description": "Cuántas peticiones más podrían tardar más de 800 ms sin romper el objetivo en la ventana de 7 días. Negativo = presupuesto agotado.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 10,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "0.05 * (sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0) - ((sum(increase(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[7d])) > 0) - sum(increase(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[7d])))",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Latencia · Burn rate 1 h",
+      "description": "Ritmo de consumo del presupuesto en la última 1 h. 1 = se agota justo al final de los 7 días; con burn rate B se agota en 168/B horas. Verde < 1, amarillo ≥ 1, rojo ≥ 6.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 15,
+        "y": 19,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "(1 - sum(rate(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[1h])) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[1h])) > 0)) / 0.05",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Latencia · Burn rate 6 h",
+      "description": "Ritmo de consumo del presupuesto en la última 6 h. 1 = se agota justo al final de los 7 días; con burn rate B se agota en 168/B horas. Verde < 1, amarillo ≥ 1, rojo ≥ 6.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 19,
+        "y": 19,
+        "w": 5,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "(1 - sum(rate(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[6h])) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[6h])) > 0)) / 0.05",
+          "legendFormat": "",
+          "range": false,
+          "instant": true,
+          "format": "time_series",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto"
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Latencia · Burn rate en el tiempo",
+      "description": "Burn rate con ventanas de 1 h y 6 h. Por encima de 1 el presupuesto de 7 días se agotaría antes de terminar la ventana. Sigue el rango de tiempo del dashboard.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_PROM}"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "(1 - sum(rate(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[1h])) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[1h])) > 0)) / 0.05",
+          "legendFormat": "1 h",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROM}"
+          },
+          "editorMode": "code",
+          "expr": "(1 - sum(rate(http_server_requests_seconds_bucket{env=\"$env\", uri!~\"/actuator/.*\", le=\"0.8\"}[6h])) / (sum(rate(http_server_requests_seconds_count{env=\"$env\", uri!~\"/actuator/.*\"}[6h])) > 0)) / 0.05",
+          "legendFormat": "6 h",
+          "range": true,
+          "instant": false,
+          "format": "time_series",
+          "refId": "B"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "noValue": "Sin datos",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "showPoints": "never",
+            "spanNulls": false,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    }
+  ]
+}

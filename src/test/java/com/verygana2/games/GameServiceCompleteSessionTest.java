@@ -332,4 +332,28 @@ class GameServiceCompleteSessionTest {
         verify(keyWalletService, never()).getByConsumerId(any());
         verify(keyLedgerService, never()).issue(any(), any());
     }
+
+    @Test
+    @DisplayName("el log del cobro no contiene el session_token")
+    void chargeLogDoesNotContainSessionToken() {
+        ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger)
+                org.slf4j.LoggerFactory.getLogger(GameServiceImpl.class);
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        logger.addAppender(appender);
+        try {
+            session.setId(99L);
+            givenSessionOf(campaignWith(CampaignStatus.ACTIVE, 10_000L));
+            givenKeyWalletAndMultiplier(1.0);
+
+            service.completeSession(event);
+
+            assertThat(appender.list).isNotEmpty();
+            assertThat(appender.list).allSatisfy(logged ->
+                    assertThat(logged.getFormattedMessage()).doesNotContain("token-1"));
+        } finally {
+            logger.detachAppender(appender);
+        }
+    }
 }

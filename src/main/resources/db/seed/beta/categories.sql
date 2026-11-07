@@ -1,0 +1,10 @@
+INSERT INTO categories (name) VALUES ('Moda')           ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Tecnología')     ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Deportes')       ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Videojuegos')    ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Música')         ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Cine y Series')  ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Viajes')         ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Gastronomía')    ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Arte y Diseño')  ON DUPLICATE KEY UPDATE name = name;
+INSERT INTO categories (name) VALUES ('Educación')      ON DUPLICATE KEY UPDATE name = name;

@@ -52,6 +52,7 @@ import com.verygana2.repositories.recognitions.RecognitionCandidateRepository;
 import com.verygana2.repositories.recognitions.RecognitionCandidateRepository.CandidateRow;
 import com.verygana2.repositories.recognitions.RecognitionRepository;
 import com.verygana2.security.ProductCodeEncryptor;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.services.UserIdResolver;
 import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.details.ConsumerDetailsService;
@@ -94,6 +95,7 @@ public class RecognitionServiceImpl implements RecognitionService {
     private final EmailService emailService;
     private final UserIdResolver userIdResolver;
     private final ProductCodeEncryptor productCodeEncryptor;
+    private final PublicUrlBuilder publicUrlBuilder;
     private final long keyValueCents;
 
     public RecognitionServiceImpl(RecognitionRepository recognitionRepository,
@@ -105,7 +107,7 @@ public class RecognitionServiceImpl implements RecognitionService {
             PurchaseDeliverer purchaseDeliverer, SaleComponentRecorder saleComponentRecorder,
             ProsperityService prosperityService, TreasuryService treasuryService,
             InstitutionalPurchaseReverser reverser, EmailService emailService, UserIdResolver userIdResolver,
-            ProductCodeEncryptor productCodeEncryptor,
+            ProductCodeEncryptor productCodeEncryptor, PublicUrlBuilder publicUrlBuilder,
             @Value("${financial.key-value-cents}") long keyValueCents) {
         this.recognitionRepository = recognitionRepository;
         this.candidateRepository = candidateRepository;
@@ -126,6 +128,7 @@ public class RecognitionServiceImpl implements RecognitionService {
         this.emailService = emailService;
         this.userIdResolver = userIdResolver;
         this.productCodeEncryptor = productCodeEncryptor;
+        this.publicUrlBuilder = publicUrlBuilder;
         this.keyValueCents = keyValueCents;
     }
 
@@ -534,7 +537,8 @@ public class RecognitionServiceImpl implements RecognitionService {
                 r.getStatus(),
                 r.getReason(),
                 productName(first),
-                first.getProduct() != null ? first.getProduct().getImageUrl() : null,
+                first.getProduct() != null && first.getProduct().getImageAsset() != null
+                        ? publicUrlBuilder.toPublicUrl(first.getProduct().getImageAsset().getObjectKey()) : null,
                 commercialName(first),
                 r.getCreatedAt(),
                 r.getDeliveredAt(),

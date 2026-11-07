@@ -33,7 +33,7 @@ PMD (`pmd-ruleset.xml`, solo reglas de código muerto) es puerta bloqueante en C
 Si se corre como `./mvnw compile pmd:check` en una sola invocación, reporta falsos
 positivos porque el auxclasspath se resuelve antes de compilar.
 
-Ningún test toca base de datos ni usa `@SpringBootTest`. Hay dos estilos:
+Ningún test toca la base de producción (ni la de beta o dev) ni usa `@SpringBootTest`. Hay tres estilos:
 
 - Unitarios con Mockito. Los de controller usan `MockMvcBuilders.standaloneSetup`:
   hay que fijar `MappingJackson2HttpMessageConverter` con un `ObjectMapper` de
@@ -43,6 +43,11 @@ Ningún test toca base de datos ni usa `@SpringBootTest`. Hay dos estilos:
   con la cadena de seguridad real y JWT firmados en el test, para probar los
   `@PreAuthorize` rol por rol. Un endpoint nuevo con restricción de rol va aquí.
   Pese al nombre, corren con surefire (`-Dtest` funciona igual).
+- `@DataJpaTest` sobre H2 en memoria (p. ej. `ProductRepositoryTest`,
+  `RecognitionServiceIntegrationTest`), solo cuando lo que se prueba es el
+  comportamiento de JPA que un mock no ve: consultas, cargas perezosas, número de
+  sentencias (spec 016). H2 no es MySQL: lo específico de MySQL (triggers,
+  `sql_require_primary_key`, sintaxis propia) se comprueba aparte contra la base de dev.
 
 Fixtures compartidos en `src/test/java/com/verygana2/testsupport`.
 
@@ -120,6 +125,28 @@ Piezas transversales que no se ven desde un solo archivo:
   contenido y calidad, los publica como assets. Lo que el anunciante *escribe*
   (preguntas, palabras, pistas) sí va a la configuración. No es un hueco: no
   agregar endpoints para que el comercial suba assets públicos.
+
+## Specs que tocan al front
+
+Una funcionalidad que agrega o cambia algo que el front consume (endpoint, DTO, error, rol o
+flujo) no se da por cerrada sin una spec en el repo del front que diga qué se espera de él
+(RN-9 de la spec 010). Toda spec de la API trae la sección "Impacto en el front" con "Sí" o "No"
+y su motivo; la plantilla lista los seis criterios.
+
+- Si es "Sí", el coordinator escribe en el cierre `specs/<NNN>-<slug>/spec.md` en el repo del
+  front, con `Estado: Borrador` y su propia numeración (la aprueba quien trabaje el front), y la
+  referencia en "Spec del front". Si es "No", no se crea nada en el front.
+- El repo del front se localiza con la variable de entorno `VERYGANA_FRONT_DIR` o, si no,
+  con los directorios hermanos `../VerYGana-frontend` y `../VerYganar-frontend`; vale solo si su
+  `package.json` tiene `"name": "rifacel-app-nextjs"` y existe `specs/_template/spec.md`.
+- Si el repo del front no está, el borrador queda en `front-spec.md` dentro de la carpeta de la
+  spec de la API, marcado `PENDIENTE DE TRASLADAR`, y la spec queda "Implementada · pendiente la
+  spec del front".
+- `scripts/check-front-impact.sh specs/<NNN>-<slug>` comprueba la sección (0 correcto, 1 incumple,
+  2 mal uso). Con "Sí" exige que la referencia sea un `specs/<NNN>-<slug>/spec.md` dentro de un
+  repo con `package.json` `rifacel-app-nextjs`, con `Estado` de un solo valor y `Origen` que nombre
+  la carpeta de la spec de la API; la sección no puede repetirse. Lo corre el reviewer. Nadie hace git en el repo del front: el archivo nuevo queda
+  sin seguimiento y lo commitea el usuario.
 
 ## Qué revisar en cada PR
 

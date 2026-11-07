@@ -44,9 +44,4 @@ public class ProductCategory {
         createdAt = ZonedDateTime.now(ZoneOffset.UTC);
         isActive = true;
     }
-
-    public String getImageUrl () {
-        if (this.imageAsset == null) return null;
-        return "https://cdn.verygana.com/public/" + this.imageAsset.getObjectKey();
-    }
 }

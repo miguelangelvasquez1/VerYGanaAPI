@@ -527,3 +527,8 @@ loadtest:
   seed:
     users: 0          # 0 = no siembra
     password: ""
+
+# Reparación de un solo uso de imágenes de producto (spec 014). Apagada por defecto.
+maintenance:
+  product-image-repair:
+    enabled: ${PRODUCT_IMAGE_REPAIR_ENABLED:false}

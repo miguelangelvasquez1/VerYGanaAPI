@@ -36,7 +36,29 @@ class RaffleEventPublisherServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new RaffleEventPublisherServiceImpl(messagingTemplate, new RaffleDrawStateCache());
+        service = new RaffleEventPublisherServiceImpl(messagingTemplate, new RaffleDrawStateCache(),
+                com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+    }
+
+    @Test
+    @DisplayName("el payload de revelación del ganador usa el CDN configurado para la imagen del premio")
+    void winnerReveal_usesConfiguredCdn() {
+        com.verygana2.models.raffles.Prize prize = new com.verygana2.models.raffles.Prize();
+        prize.setPosition(1);
+        prize.setImageAsset(com.verygana2.models.raffles.PrizeImageAsset.builder().objectKey("prizes/p.png").build());
+        com.verygana2.models.raffles.RaffleTicket ticket = new com.verygana2.models.raffles.RaffleTicket();
+        ticket.setTicketNumber("000001");
+        com.verygana2.models.userDetails.ConsumerDetails consumer = new com.verygana2.models.userDetails.ConsumerDetails();
+        consumer.setUserName("ana");
+        com.verygana2.models.raffles.RaffleWinner winner = new com.verygana2.models.raffles.RaffleWinner();
+        winner.setPrize(prize);
+        winner.setWinningTicket(ticket);
+        winner.setWinner(consumer);
+        consumer.setAvatar(new com.verygana2.models.Avatar());
+
+        var payload = service.buildRevealPayload(winner, 1);
+
+        assertThat(payload.getPrizeImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/prizes/p.png");
     }
 
     @Test

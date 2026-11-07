@@ -17,6 +17,7 @@ import com.verygana2.dtos.raffle.websocket.WinnerRevealPayloadDTO;
 import com.verygana2.models.enums.raffles.DrawEventType;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.services.interfaces.raffles.RaffleEventPublisherService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
     private final SimpMessagingTemplate messagingTemplate;
     private final RaffleDrawStateCache drawStateCache;
+    private final PublicUrlBuilder publicUrlBuilder;
 
     private static final String RAFFLE_TOPIC = "/topic/raffle/";
     private static final int REVEAL_DELAY_MS = 15000; // 15 segundos entre ganadores
@@ -60,17 +62,7 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
             sleep(REVEAL_DELAY_MS);
 
-            WinnerRevealPayloadDTO payload = WinnerRevealPayloadDTO.builder()
-                    .position(w.getPrize().getPosition())
-                    .ticketNumber(w.getWinningTicket().getTicketNumber())
-                    .userName(w.getWinner().getUserName())
-                    .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
-                    .prizeTitle(w.getPrize().getTitle())
-                    .prizeImageUrl(w.getPrize().getImageUrl())
-                    .prizeValue(w.getPrize().getValue())
-                    .prizeType(w.getPrize().getPrizeType())
-                    .revealOrder(i + 1)
-                    .build();
+            WinnerRevealPayloadDTO payload = buildRevealPayload(w, i + 1);
 
             RaffleDrawEventDTO event = RaffleDrawEventDTO.builder()
                     .type(DrawEventType.WINNER_REVEALED)
@@ -89,6 +81,23 @@ public class RaffleEventPublisherServiceImpl implements RaffleEventPublisherServ
 
         publishDrawCompleted(raffleId, winners, raffleTitle, total);
 
+    }
+
+    /** Arma el payload de un ganador; la imagen del premio sale del builder de URLs públicas. */
+    WinnerRevealPayloadDTO buildRevealPayload(RaffleWinner w, int revealOrder) {
+        String prizeObjectKey = w.getPrize().getImageAsset() == null ? null
+                : w.getPrize().getImageAsset().getObjectKey();
+        return WinnerRevealPayloadDTO.builder()
+                .position(w.getPrize().getPosition())
+                .ticketNumber(w.getWinningTicket().getTicketNumber())
+                .userName(w.getWinner().getUserName())
+                .userAvatarUrl(w.getWinner().getAvatar().getImageUrl())
+                .prizeTitle(w.getPrize().getTitle())
+                .prizeImageUrl(publicUrlBuilder.toPublicUrl(prizeObjectKey))
+                .prizeValue(w.getPrize().getValue())
+                .prizeType(w.getPrize().getPrizeType())
+                .revealOrder(revealOrder)
+                .build();
     }
 
     @Override

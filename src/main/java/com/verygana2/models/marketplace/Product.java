@@ -204,12 +204,6 @@ public class Product {
         updatedAt = ZonedDateTime.now(ZoneOffset.UTC);
     }
 
-    public String getImageUrl() {
-        if (this.imageAsset == null)
-            return null;
-        return "https://cdn.verygana.com/public/" + this.imageAsset.getObjectKey();
-    }
-
     public Integer getAvailableStock() {
         return (int) stockItems.stream()
                 .filter(stock -> stock.getStatus() == StockStatus.AVAILABLE && !stock.isExpired()).count();

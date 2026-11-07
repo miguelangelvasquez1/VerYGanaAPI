@@ -25,7 +25,12 @@ public interface GameService {
     String initGameSponsored(InitGameRequestDTO request, Long userId);
     String initGameNotSponsored(InitGameRequestDTO request, Long userId);
     Map<String,Object> getGameAssets(GameEventDTO<Void> req);
+    /**
+     * Cierra la partida y la paga (cobro a la campaña, llaves, XP) con el puntaje de la métrica
+     * {@code performance}. Una sesión ya cerrada no hace nada (idempotente, sin pagar de nuevo).
+     */
     void submitGameMetrics(GameEventDTO<List<GameMetricDTO>> event);
+    /** Lo usa el endpoint obsoleto {@code /games/end-session}; un segundo cierre responde 422. */
     EndSessionResponseDTO completeSession(GameEventDTO<EndSessionDTO> event);
     PagedResponse<GameDTO> getAvailableGamesPage (Pageable pageable);
 }

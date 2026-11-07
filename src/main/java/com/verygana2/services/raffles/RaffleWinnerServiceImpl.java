@@ -28,6 +28,7 @@ import com.verygana2.services.interfaces.EmailService;
 import com.verygana2.services.interfaces.EmailVerificationService;
 import com.verygana2.services.interfaces.TwilioSmsService;
 import com.verygana2.services.interfaces.raffles.RaffleWinnerService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -46,7 +47,7 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
     private final EmailVerificationService emailVerificationService;
     private final TwilioSmsService twilioSmsService;
     private final ClaimCodeEncryptor claimCodeEncryptor;
-    private static final String domain = "https://cdn.verygana.com/public/";
+    private final PublicUrlBuilder publicUrlBuilder;
 
     @Transactional(readOnly = true)
     @Override
@@ -61,7 +62,8 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
                     .description(prize.getDescription())
                     .brand(prize.getBrand())
                     .value(prize.getValue())
-                    .imageUrl(domain + prize.getImageAsset().getObjectKey())
+                    .imageUrl(prize.getImageAsset() == null ? null
+                            : publicUrlBuilder.toPublicUrl(prize.getImageAsset().getObjectKey()))
                     .prizeType(prize.getPrizeType())
                     .position(prize.getPosition())
                     .quantity(prize.getQuantity())
@@ -121,8 +123,8 @@ public class RaffleWinnerServiceImpl implements RaffleWinnerService {
         prize.incrementClaimedCount();
         prizeRepository.save(prize);
 
-        log.info("Prize claimed. consumer={}, prize={}, method={}, ref={}",
-                consumerId, prize.getId(), request.getDeliveryMethod(), deliveryRef);
+        log.info("Prize claimed. consumer={}, prize={}, method={}",
+                consumerId, prize.getId(), request.getDeliveryMethod());
     }
 
     @Override

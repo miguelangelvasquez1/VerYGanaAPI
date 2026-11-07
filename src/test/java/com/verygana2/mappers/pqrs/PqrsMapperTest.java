@@ -54,6 +54,7 @@ class PqrsMapperTest {
     void setUp() {
         mapper = new PqrsMapperImpl();
         mapper.requesterNameResolver = requesterNameResolver;
+        org.springframework.test.util.ReflectionTestUtils.setField(mapper, "publicUrlBuilder", com.verygana2.testsupport.PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
     }
 
     private Pqrs samplePqrs() {
@@ -128,7 +129,7 @@ class PqrsMapperTest {
 
     @Test
     @DisplayName("toAdminDetailDTO: PQRS de marketplace — mapea el contexto completo de producto y comercial")
-    void toAdminDetailDTO_withPurchaseItem_mapsProductAndCommercialContext() {
+    void productContextImageUrlUsesConfiguredCdn() {
         User commercialUser = new User();
         commercialUser.setId(50L);
         commercialUser.setPublicId(COMMERCIAL_PUBLIC_ID);
@@ -159,6 +160,7 @@ class PqrsMapperTest {
         product.setProductCategory(category);
         product.setPriceCents(50000L);
         product.setCommercial(commercial);
+        product.setImageAsset(com.verygana2.models.marketplace.ProductImageAsset.builder().objectKey("products/7.png").build());
 
         Purchase purchase = Purchase.builder().id(200L).build();
         PurchaseItem item = new PurchaseItem();
@@ -179,6 +181,7 @@ class PqrsMapperTest {
         assertThat(dto.getProduct().getDescription()).isEqualTo("Audífonos inalámbricos");
         assertThat(dto.getProduct().getCategoryName()).isEqualTo("Tecnología");
         assertThat(dto.getProduct().getPriceCents()).isEqualTo(50000L);
+        assertThat(dto.getProduct().getImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/products/7.png");
 
         assertThat(dto.getCommercial()).isNotNull();
         assertThat(dto.getCommercial().getCommercialPublicId()).isEqualTo(COMMERCIAL_PUBLIC_ID);

@@ -66,7 +66,9 @@ CREATE TEMPORARY TABLE tmp_seed_pet_items (
     humor           INT          NOT NULL,
     body_fat        INT          NOT NULL,
     pending         BOOLEAN      NOT NULL DEFAULT FALSE,
-    external_id     INT          NULL
+    external_id     INT          NULL,
+    -- DigitalOcean exige sql_require_primary_key también en tablas temporales; ord es único por fila.
+    PRIMARY KEY (ord)
 );
 
 -- Precios en llaves, en la escala del catálogo del build (1–100).

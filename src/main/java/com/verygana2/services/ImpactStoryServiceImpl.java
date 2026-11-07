@@ -23,6 +23,7 @@ import com.verygana2.models.enums.SupportedMimeType;
 import com.verygana2.repositories.ImpactStoryRepository;
 import com.verygana2.services.interfaces.ImpactStoryService;
 import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.storage.service.R2Service;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -40,6 +41,7 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
     private final ImpactStoryMapper mapper;
     private final R2Service r2Service;
     private final AssetOrphanedService assetOrphanedService;
+    private final PublicUrlBuilder publicUrlBuilder;
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -113,7 +115,7 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
 
                     // Si el publicUrl aún no estaba seteado, construirlo desde el objectKey
                     if (asset.getPublicUrl() == null) {
-                        asset.setPublicUrl(buildPublicUrl(asset.getObjectKey()));
+                        asset.setPublicUrl(publicUrlBuilder.toPublicUrl(asset.getObjectKey()));
                     }
 
                     story.addMedia(asset);
@@ -209,8 +211,4 @@ public class ImpactStoryServiceImpl implements ImpactStoryService {
             .orElseThrow(() -> new EntityNotFoundException("ImpactStory not found: " + id));
     }
 
-    private String buildPublicUrl(String objectKey) {
-        return "https://cdn.verygana.com/public/" + objectKey;
-
-    }
 }

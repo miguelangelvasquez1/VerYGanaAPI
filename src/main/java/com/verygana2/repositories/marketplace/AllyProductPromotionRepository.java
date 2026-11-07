@@ -27,9 +27,13 @@ public interface AllyProductPromotionRepository extends JpaRepository<AllyProduc
             @Param("premiumCommercialId") Long premiumCommercialId);
 
     @Query("""
-            SELECT a.product FROM AllyProductPromotion a
+            SELECT p FROM AllyProductPromotion a
+            JOIN a.product p
+            JOIN FETCH p.productCategory pc
+            LEFT JOIN FETCH pc.imageAsset
+            LEFT JOIN FETCH p.imageAsset
             WHERE a.premiumCommercial.id = :premiumCommercialId
-            AND a.product.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
+            AND p.status = com.verygana2.models.enums.marketplace.ProductStatus.ACTIVE
             """)
     List<Product> findPromotedActiveProducts(@Param("premiumCommercialId") Long premiumCommercialId);
 

@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -56,6 +57,7 @@ import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.models.userDetails.ConsumerDetails;
 import com.verygana2.repositories.marketplace.FavoriteProductRepository;
 import com.verygana2.repositories.marketplace.ProductImageAssetRepository;
+import com.verygana2.repositories.marketplace.ProductListingFacts;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.repositories.marketplace.ProductStockRepository;
 import com.verygana2.repositories.marketplace.PurchaseItemRepository;
@@ -67,6 +69,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.marketplace.ProductCategoryService;
 import com.verygana2.services.interfaces.marketplace.ProductService;
 import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.AssetDurationService;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
@@ -116,6 +119,10 @@ public class ProductServiceImpl implements ProductService {
     private final AssetDurationService assetDurationService;
 
     private final ProductKeyPromotionResolver keyPromotionResolver;
+
+    private final ProductListingFactsResolver listingFactsResolver;
+
+    private final PublicUrlBuilder publicUrlBuilder;
 
     @Value("${marketplace.max-product-price-cents:50000000}")
     private long maxProductPriceCents; // default $500.000 COP
@@ -444,12 +451,23 @@ public class ProductServiceImpl implements ProductService {
             newAsset.setMimeType(realMimeType);
             newAsset.setStatus(AssetStatus.VALIDATED);
 
-            // Marcar el asset viejo como huérfano para que el job de limpieza lo elimine
+            // Un producto aprobado publica el cambio de imagen al confirmar (RN-1). Va antes de
+            // tocar el asset anterior: si falla, el anterior sigue asociado y visible (RN-4).
+            // PENDING/REJECTED/INACTIVE conservan la imagen privada.
+            if (product.getStatus() == ProductStatus.ACTIVE) {
+                publishProductImage(newAsset.getObjectKey());
+            }
+
+            // El asset viejo se marca huérfano dentro de esta transacción: si algo falla después,
+            // el rollback lo deja asociado y VALIDATED. Misma guarda que markProductImageAssetsAsOrphanedByIds.
             productImageAssetRepository.findByProductId(productId)
                     .ifPresent(oldAsset -> {
                         oldAsset.setProduct(null);
+                        if (oldAsset.getStatus() == AssetStatus.VALIDATED
+                                || oldAsset.getStatus() == AssetStatus.PENDING) {
+                            oldAsset.setStatus(AssetStatus.ORPHANED);
+                        }
                         productImageAssetRepository.save(oldAsset);
-                        assetOrphanedService.markProductImageAssetsAsOrphanedByIds(List.of(oldAsset.getId()));
                     });
 
             newAsset.setProduct(product);
@@ -508,12 +526,18 @@ public class ProductServiceImpl implements ProductService {
                 .from(productRepository.searchProducts(searchQuery, categoryId, minRating, maxPriceCents,
                         municipality, consumerAge, consumerGender, pageable));
 
+        Map<Long, ProductListingFacts> facts = factsFor(productPage.getData());
         return withKeyPromotions(productPage.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));
 
+    }
+
+    /** Stock y datos del comercio de los productos de la página, en una sola consulta. */
+    private Map<Long, ProductListingFacts> factsFor(List<Product> products) {
+        return listingFactsResolver.resolve(products.stream().map(Product::getId).toList());
     }
 
     /** Marca los productos de la página que hoy tienen promoción especial de llaves (una consulta por página). */
@@ -567,8 +591,9 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(pageIndex, 20, Sort.Direction.DESC, "createdAt");
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findByCommercialId(commercialId, pageable));
+        Map<Long, ProductListingFacts> facts = factsFor(products.getData());
         return withKeyPromotions(products.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));
@@ -585,7 +610,10 @@ public class ProductServiceImpl implements ProductService {
         Pageable pageable = PageRequest.of(page, 10, Sort.Direction.DESC, "createdAt");
         PagedResponse<FavoriteProduct> favorites = PagedResponse
                 .from(favoriteProductRepository.findByConsumerIdWithActiveProducts(consumerId, pageable));
-        return withKeyPromotions(favorites.map(productMapper::toProductSummaryResponseDTO));
+        Map<Long, ProductListingFacts> facts = factsFor(
+                favorites.getData().stream().map(FavoriteProduct::getProduct).toList());
+        return withKeyPromotions(favorites
+                .map(fp -> productMapper.toProductSummaryResponseDTO(fp, facts.get(fp.getProduct().getId()))));
     }
 
     @Override
@@ -659,8 +687,9 @@ public class ProductServiceImpl implements ProductService {
     public PagedResponse<ProductSummaryResponseDTO> getAllProductsForAdmin(ProductStatus status, String search, Pageable pageable) {
         PagedResponse<Product> products = PagedResponse
                 .from(productRepository.findAllProductsForAdmin(status, search, pageable));
+        Map<Long, ProductListingFacts> facts = factsFor(products.getData());
         return withKeyPromotions(products.map(product -> {
-            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product);
+            ProductSummaryResponseDTO dto = productMapper.toProductSummaryResponseDTO(product, facts.get(product.getId()));
             dto.setImageUrl(resolveImageUrl(product));
             return dto;
         }));
@@ -680,18 +709,7 @@ public class ProductServiceImpl implements ProductService {
                 .findByProductId(productId)
                 .orElseThrow(() -> new ValidationException("Product has no image asset"));
 
-        String privateKey = "private/" + imageAsset.getObjectKey();
-        String publicKey = "public/" + imageAsset.getObjectKey();
-
-        r2Service.copyObject(privateKey, publicKey);
-
-        try {
-            r2Service.deleteObject(privateKey);
-
-        } catch (Exception e) {
-            log.warn("couldn't eliminate private object {}, it requires manual clean", privateKey);
-            r2Service.markAsOrphan(privateKey);
-        }
+        publishProductImage(imageAsset.getObjectKey());
 
         AdminDetails admin = adminDetailsService.getById(adminId);
         product.setApprovedBy(admin);
@@ -706,6 +724,25 @@ public class ProductServiceImpl implements ProductService {
         ProductResponseDTO response = productMapper.toProductResponseDTO(product);
         response.setImageUrl(resolveImageUrl(product));
         return response;
+    }
+
+    /**
+     * Publica la imagen de un producto: copia {@code private/k} a {@code public/k} (lanza si falla)
+     * y borra la copia privada; si el borrado falla, la marca para limpieza manual.
+     */
+    private void publishProductImage(String objectKey) {
+        String privateKey = "private/" + objectKey;
+        String publicKey = "public/" + objectKey;
+
+        r2Service.copyObject(privateKey, publicKey);
+
+        try {
+            r2Service.deleteObject(privateKey);
+
+        } catch (Exception e) {
+            log.warn("couldn't eliminate private object {}, it requires manual clean", privateKey);
+            r2Service.markAsOrphan(privateKey);
+        }
     }
 
     @Override
@@ -779,7 +816,7 @@ public class ProductServiceImpl implements ProductService {
             return appBaseUrl + "/products/" + product.getId() + "/private-image";
         }
 
-        return product.getImageUrl();
+        return publicUrlBuilder.toPublicUrl(product.getImageAsset().getObjectKey());
     }
 
     @Override

@@ -131,6 +131,7 @@ class RecognitionServiceIntegrationTest {
     @MockitoBean private EmailService emailService;
     @MockitoBean private PasswordEncoder passwordEncoder;
     @MockitoBean private ProductCodeEncryptor productCodeEncryptor;
+    @MockitoBean private com.verygana2.storage.service.PublicUrlBuilder publicUrlBuilder;
 
     private ConsumerDetails beneficiary;
 

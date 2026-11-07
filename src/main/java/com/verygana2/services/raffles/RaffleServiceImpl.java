@@ -70,6 +70,7 @@ import com.verygana2.services.interfaces.details.ConsumerDetailsService;
 import com.verygana2.services.interfaces.raffles.RaffleService;
 import com.verygana2.security.ClaimCodeEncryptor;
 import com.verygana2.storage.service.AssetOrphanedService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 import com.verygana2.storage.service.R2Service;
 import com.verygana2.utils.validators.TargetAudienceAssembler;
 
@@ -96,8 +97,8 @@ public class RaffleServiceImpl implements RaffleService {
     private final ClaimCodeEncryptor claimCodeEncryptor;
     private final ObjectMapper objectMapper;
     private final AssetOrphanedService assetOrphanedService;
+    private final PublicUrlBuilder publicUrlBuilder;
 
-    private static final String domain = "https://cdn.verygana.com/public/";
 
     /**
      * Estados visibles para consumers no-admin en consultas públicas de rifas.
@@ -624,9 +625,9 @@ public class RaffleServiceImpl implements RaffleService {
                         RaffleImageAsset.class));
 
         RaffleResponseDTO response = raffleMapper.toRaffleResponseDTO(raffle);
-        response.setImageUrl(domain + asset.getObjectKey());
+        response.setImageUrl(publicUrlBuilder.toPublicUrl(asset.getObjectKey()));
         for (PrizeResponseDTO p : response.getPrizes()) {
-            p.setImageUrl(domain + p.getImageUrl());
+            p.setImageUrl(publicUrlBuilder.toPublicUrl(p.getImageUrl()));
         }
         return response;
     }
@@ -644,7 +645,7 @@ public class RaffleServiceImpl implements RaffleService {
 
         Page<RaffleSummaryResponseDTO> rafflesFound = raffleRepository.findByFilters(status, search, drawDateStart,
                 drawDateEnd, type, pageable);
-        rafflesFound.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        rafflesFound.forEach(r -> r.setImageUrl(publicUrlBuilder.toPublicUrl(r.getImageUrl())));
         return PagedResponse.from(rafflesFound);
     }
 
@@ -748,7 +749,7 @@ public class RaffleServiceImpl implements RaffleService {
 
         List<RaffleSummaryResponseDTO> lives = raffleRepository.findLiveRaffles(municipality, consumerAge,
                 consumerGender);
-        lives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        lives.forEach(r -> r.setImageUrl(publicUrlBuilder.toPublicUrl(r.getImageUrl())));
         return lives;
     }
 
@@ -766,7 +767,7 @@ public class RaffleServiceImpl implements RaffleService {
 
         Page<RaffleSummaryResponseDTO> actives = raffleRepository.findActiveRaffles(type, municipality, consumerAge,
                 consumerGender, pageable);
-        actives.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        actives.forEach(r -> r.setImageUrl(publicUrlBuilder.toPublicUrl(r.getImageUrl())));
         return PagedResponse.from(actives);
     }
 
@@ -790,7 +791,7 @@ public class RaffleServiceImpl implements RaffleService {
         }
 
         Page<UserRaffleSummaryResponseDTO> raffles = raffleRepository.findMyRafflesByStatus(consumerId, status, pageable);
-        raffles.forEach(r -> r.setImageUrl(domain + r.getImageUrl()));
+        raffles.forEach(r -> r.setImageUrl(publicUrlBuilder.toPublicUrl(r.getImageUrl())));
         return PagedResponse.from(raffles);
     }
 

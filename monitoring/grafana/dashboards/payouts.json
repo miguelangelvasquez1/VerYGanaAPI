@@ -13,12 +13,38 @@
   "editable": true,
   "refresh": "30s",
   "time": {
-    "from": "now-6h",
+    "from": "now-7d",
     "to": "now"
   },
   "timepicker": {},
   "annotations": {
-    "list": []
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": false,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "name": "Alertas disparadas",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "enable": true,
+        "iconColor": "red",
+        "step": "60s",
+        "expr": "max by (alertname, severity) ({__name__=~\"ALERTS|GRAFANA_ALERTS\", alertstate=\"firing\", env=\"$env\"})",
+        "titleFormat": "{{alertname}}",
+        "tagKeys": "alertname,severity"
+      }
+    ]
   },
   "templating": {
     "list": [
@@ -35,6 +61,33 @@
         "regex": "",
         "skipUrlSync": false,
         "type": "datasource"
+      },
+      {
+        "current": {
+          "selected": false,
+          "text": "prod",
+          "value": "prod"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_PROM}"
+        },
+        "definition": "label_values(up{job=\"verygana-api\"}, env)",
+        "hide": 0,
+        "includeAll": false,
+        "label": "Ambiente",
+        "multi": false,
+        "name": "env",
+        "options": [],
+        "query": {
+          "query": "label_values(up{job=\"verygana-api\"}, env)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
       }
     ]
   },
@@ -72,7 +125,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "payout_pending_amount_cents{status=\"SCHEDULED\"} / 100",
+          "expr": "payout_pending_amount_cents{env=\"$env\", status=\"SCHEDULED\"} / 100",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -83,7 +136,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyCOP",
-          "decimals": 0,
+          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -139,7 +192,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "payout_pending_amount_cents{status=\"PROCESSING\"} / 100",
+          "expr": "payout_pending_amount_cents{env=\"$env\", status=\"PROCESSING\"} / 100",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -150,7 +203,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyCOP",
-          "decimals": 0,
+          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -202,7 +255,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "payout_pending_amount_cents{status=\"FAILED\"} / 100",
+          "expr": "payout_pending_amount_cents{env=\"$env\", status=\"FAILED\"} / 100",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -213,7 +266,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyCOP",
-          "decimals": 0,
+          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -269,7 +322,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "max(payout_oldest_age_seconds{status=~\"SCHEDULED|FAILED\"})",
+          "expr": "max(payout_oldest_age_seconds{env=\"$env\", status=~\"SCHEDULED|FAILED\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -344,7 +397,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "max(payout_oldest_age_seconds{status=\"PROCESSING\"})",
+          "expr": "max(payout_oldest_age_seconds{env=\"$env\", status=\"PROCESSING\"})",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -431,7 +484,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "wompi_payout_balance_cents / 100",
+          "expr": "wompi_payout_balance_cents{env=\"$env\"} / 100",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -442,7 +495,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "currencyCOP",
-          "decimals": 0,
+          "decimals": 2,
           "color": {
             "mode": "thresholds"
           },
@@ -498,7 +551,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "wompi_payout_balance_age_seconds",
+          "expr": "wompi_payout_balance_age_seconds{env=\"$env\"}",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -569,7 +622,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "wompi_payout_balance_cents / 100",
+          "expr": "wompi_payout_balance_cents{env=\"$env\"} / 100",
           "legendFormat": "balance",
           "range": true,
           "instant": false,
@@ -604,7 +657,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 2
         },
         "overrides": []
       },
@@ -636,7 +690,7 @@
     {
       "type": "timeseries",
       "title": "Payouts por fase",
-      "description": "Las tres primeras líneas deberían converger. Un hueco entre 'creados' y 'aceptados' es plata que no salió; entre 'aceptados' y 'confirmados', webhooks que no llegaron.",
+      "description": "Las tres primeras líneas deberían converger. Un hueco entre 'creados' y 'aceptados' es plata que no salió; entre 'aceptados' y 'confirmados', webhooks que no llegaron. Cada barra es un día UTC (19:00 a 19:00, hora de Colombia); el día en curso aparece al cerrarse.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROM}"
@@ -654,7 +708,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_scheduled_total[$__rate_interval])",
+          "expr": "round(increase(payout_scheduled_total{env=\"$env\"}[1d]))",
           "legendFormat": "creados",
           "range": true,
           "instant": false,
@@ -667,7 +721,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_sent_total{outcome=\"ACCEPTED\"}[$__rate_interval])",
+          "expr": "round(increase(payout_sent_total{env=\"$env\", outcome=\"ACCEPTED\"}[1d]))",
           "legendFormat": "aceptados por Wompi",
           "range": true,
           "instant": false,
@@ -680,7 +734,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_confirmed_total{outcome=\"PAID\"}[$__rate_interval])",
+          "expr": "round(increase(payout_confirmed_total{env=\"$env\", outcome=\"PAID\"}[1d]))",
           "legendFormat": "confirmados PAID",
           "range": true,
           "instant": false,
@@ -693,7 +747,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_retried_total[$__rate_interval])",
+          "expr": "round(increase(payout_retried_total{env=\"$env\"}[1d]))",
           "legendFormat": "reintentados",
           "range": true,
           "instant": false,
@@ -705,11 +759,10 @@
         "defaults": {
           "unit": "none",
           "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "gradientMode": "opacity",
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
             "stacking": {
@@ -728,7 +781,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
       },
@@ -746,12 +800,14 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "interval": "1d",
+      "maxDataPoints": 1000
     },
     {
       "type": "timeseries",
       "title": "Dinero dispersado vs. programado",
-      "description": "La diferencia acumulada entre las dos curvas es lo que se prometió y no se pagó.",
+      "description": "La diferencia acumulada entre las dos curvas es lo que se prometió y no se pagó. Montos en pesos colombianos, con centavos. Cada barra es un día UTC (19:00 a 19:00, hora de Colombia); el día en curso aparece al cerrarse.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROM}"
@@ -769,7 +825,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_scheduled_amount_cents_total[$__rate_interval]) / 100",
+          "expr": "round(increase(payout_scheduled_amount_cents_total{env=\"$env\"}[1d])) / 100",
           "legendFormat": "programado",
           "range": true,
           "instant": false,
@@ -782,7 +838,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_paid_amount_cents_total[$__rate_interval]) / 100",
+          "expr": "round(increase(payout_paid_amount_cents_total{env=\"$env\"}[1d])) / 100",
           "legendFormat": "efectivamente pagado",
           "range": true,
           "instant": false,
@@ -794,11 +850,10 @@
         "defaults": {
           "unit": "currencyCOP",
           "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "gradientMode": "opacity",
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
             "stacking": {
@@ -817,7 +872,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 2
         },
         "overrides": []
       },
@@ -832,7 +888,9 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "interval": "1d",
+      "maxDataPoints": 1000
     },
     {
       "type": "row",
@@ -867,7 +925,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "sum by (phase, exception) (increase(payout_processing_errors_total[24h])) > 0",
+          "expr": "sum by (phase, exception) (round(increase(payout_processing_errors_total{env=\"$env\"}[24h]))) > 0",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -929,7 +987,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": [
           {
@@ -976,7 +1035,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "sum by (outcome, reason) (increase(payout_confirmed_total[24h])) > 0",
+          "expr": "sum by (outcome, reason) (round(increase(payout_confirmed_total{env=\"$env\"}[24h]))) > 0",
           "legendFormat": "",
           "range": false,
           "instant": true,
@@ -1038,7 +1097,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": [
           {
@@ -1067,7 +1127,7 @@
     {
       "type": "timeseries",
       "title": "Rechazos de Wompi y payouts sin método de pago",
-      "description": "'sin método verificado' son payouts que se crean igual y quedan en SCHEDULED sin transferencia posible: hay que pedirle al empresario que verifique su cuenta.",
+      "description": "'sin método verificado' son payouts que se crean igual y quedan en SCHEDULED sin transferencia posible: hay que pedirle al empresario que verifique su cuenta. Cada barra es un día UTC (19:00 a 19:00, hora de Colombia); el día en curso aparece al cerrarse.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_PROM}"
@@ -1085,7 +1145,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_sent_total{outcome=\"REJECTED\"}[$__rate_interval])",
+          "expr": "round(increase(payout_sent_total{env=\"$env\", outcome=\"REJECTED\"}[1d]))",
           "legendFormat": "rechazados por Wompi",
           "range": true,
           "instant": false,
@@ -1098,7 +1158,7 @@
             "uid": "${DS_PROM}"
           },
           "editorMode": "code",
-          "expr": "increase(payout_without_method_total[$__rate_interval])",
+          "expr": "round(increase(payout_without_method_total{env=\"$env\"}[1d]))",
           "legendFormat": "sin método verificado",
           "range": true,
           "instant": false,
@@ -1110,11 +1170,10 @@
         "defaults": {
           "unit": "none",
           "custom": {
-            "drawStyle": "line",
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "fillOpacity": 8,
-            "gradientMode": "opacity",
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "gradientMode": "none",
             "showPoints": "never",
             "spanNulls": true,
             "stacking": {
@@ -1133,7 +1192,8 @@
                 "value": null
               }
             ]
-          }
+          },
+          "decimals": 0
         },
         "overrides": []
       },
@@ -1148,7 +1208,22 @@
           "mode": "multi",
           "sort": "desc"
         }
-      }
+      },
+      "interval": "1d",
+      "maxDataPoints": 1000
+    }
+  ],
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "VERyGANA",
+      "type": "dashboards",
+      "tags": [
+        "verygana"
+      ],
+      "asDropdown": false,
+      "includeVars": true,
+      "keepTime": true
     }
   ]
 }

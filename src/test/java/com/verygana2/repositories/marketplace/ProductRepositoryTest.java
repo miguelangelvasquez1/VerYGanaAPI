@@ -6,8 +6,14 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.hibernate.SessionFactory;
+import org.hibernate.stat.Statistics;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -22,9 +28,11 @@ import com.verygana2.models.Municipality;
 import com.verygana2.models.TargetAudience;
 import com.verygana2.models.enums.AssetStatus;
 import com.verygana2.models.enums.marketplace.ProductStatus;
+import com.verygana2.models.enums.marketplace.StockStatus;
 import com.verygana2.models.marketplace.Product;
 import com.verygana2.models.marketplace.ProductCategory;
 import com.verygana2.models.marketplace.ProductImageAsset;
+import com.verygana2.models.marketplace.ProductStock;
 import com.verygana2.models.userDetails.CommercialDetails;
 import com.verygana2.testsupport.TestEntities;
 
@@ -44,7 +52,8 @@ import jakarta.persistence.EntityManager;
         "spring.datasource.driver-class-name=org.h2.Driver",
         "spring.datasource.username=sa",
         "spring.datasource.password=",
-        "spring.jpa.hibernate.ddl-auto=create-drop"
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.properties.hibernate.generate_statistics=true"
 })
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @DisplayName("ProductRepository (integración H2)")
@@ -57,6 +66,10 @@ class ProductRepositoryTest {
     private ProductRepository productRepository;
 
     // ==================== HELPERS ====================
+
+    private Statistics statistics() {
+        return em.getEntityManagerFactory().unwrap(SessionFactory.class).getStatistics();
+    }
 
     private static ZonedDateTime now() {
         return ZonedDateTime.now(ZoneOffset.UTC);
@@ -530,6 +543,33 @@ class ProductRepositoryTest {
             assertThat(list).hasSize(2);
             assertThat(list).extracting(Product::getStatus).containsOnly(ProductStatus.ACTIVE);
         }
+
+        @Test
+        @DisplayName("findByCommercialIdFetchesImage: la página trae categoría e imagen sin consultas extra y el total no cambia")
+        void findByCommercialIdFetchesImage() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            for (int i = 0; i < 3; i++) {
+                Product product = persistProduct(commercial, persistCategory("Categoria imagen " + i),
+                        "Con imagen " + i, 10000, ProductStatus.ACTIVE);
+                persistImageAsset(product, "img-comercio-" + i + ".png");
+            }
+            em.flush();
+            em.clear();
+            statistics().clear();
+
+            Page<Product> page = productRepository.findByCommercialId(commercial.getId(), PageRequest.of(0, 2));
+            long afterQuery = statistics().getPrepareStatementCount();
+            page.getContent().forEach(p -> {
+                assertThat(p.getProductCategory().getName()).startsWith("Categoria imagen");
+                assertThat(p.getImageAsset().getObjectKey()).startsWith("img-comercio-");
+            });
+
+            assertThat(page.getTotalElements()).isEqualTo(3);
+            assertThat(page.getContent()).hasSize(2);
+            // Página + conteo; leer categoría e imagen no agrega nada.
+            assertThat(afterQuery).isEqualTo(2);
+            assertThat(statistics().getPrepareStatementCount()).isEqualTo(afterQuery);
+        }
     }
 
     // ==================== findGameRewardsProducts / countGameRewards ====================
@@ -562,6 +602,31 @@ class ProductRepositoryTest {
                     .containsExactly("Reward D", "Reward C", "Reward B");
             // El pendiente no cuenta: solo ACTIVE + isGameReward=true (4 en total).
             assertThat(count).isEqualTo(4);
+        }
+
+        @Test
+        @DisplayName("gameRewardsFetchCategoryAndImage: categoría e imagen vienen en la misma consulta y se conserva el LIMIT 3")
+        void gameRewardsFetchCategoryAndImage() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            for (String name : List.of("Premio A", "Premio B", "Premio C", "Premio D")) {
+                Product reward = persistProduct(commercial, persistCategory("Categoria " + name), name, 10000,
+                        ProductStatus.ACTIVE);
+                reward.setIsGameReward(true);
+                em.flush();
+                persistImageAsset(reward, "img-" + name + ".png");
+            }
+            em.flush();
+            em.clear();
+            statistics().clear();
+
+            List<Product> rewards = productRepository.findGameRewardsProducts(commercial.getId());
+            rewards.forEach(p -> {
+                assertThat(p.getProductCategory().getName()).startsWith("Categoria Premio");
+                assertThat(p.getImageAsset().getObjectKey()).startsWith("img-Premio");
+            });
+
+            assertThat(rewards).extracting(Product::getName).containsExactly("Premio D", "Premio C", "Premio B");
+            assertThat(statistics().getPrepareStatementCount()).isEqualTo(1);
         }
     }
 
@@ -680,6 +745,120 @@ class ProductRepositoryTest {
 
             assertThat(purgeable).extracting(Product::getId)
                     .containsExactlyInAnyOrder(oldRejected.getId(), oldInactive.getId());
+        }
+    }
+
+    // ==================== findListingFacts ====================
+
+    @Nested
+    @DisplayName("findListingFacts")
+    class FindListingFacts {
+
+        private ProductStock persistStock(Product product, StockStatus status, ZonedDateTime expirationDate) {
+            ProductStock stock = new ProductStock();
+            stock.setProduct(product);
+            String hash = "hash-" + UUID.randomUUID();
+            stock.setCode("cipher-" + hash);
+            stock.setCodeHash(hash);
+            stock.setStatus(status);
+            stock.setExpirationDate(expirationDate);
+            em.persist(stock);
+            em.flush();
+            return stock;
+        }
+
+        private Map<Long, ProductListingFacts> facts(ZonedDateTime at, Product... products) {
+            em.flush();
+            em.clear();
+            List<Long> ids = java.util.Arrays.stream(products).map(Product::getId).toList();
+            return productRepository.findListingFacts(ids, at).stream()
+                    .collect(Collectors.toMap(ProductListingFacts::productId, Function.identity()));
+        }
+
+        @Test
+        @DisplayName("cuenta solo las unidades AVAILABLE no vencidas (excluye SOLD, RESERVED, INVALID y vencidas)")
+        void countsOnlyAvailableNotExpired() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Product product = persistProduct(commercial, persistCategory("Cat facts 1"), "Producto mixto", 10000,
+                    ProductStatus.ACTIVE);
+            ZonedDateTime at = now();
+            persistStock(product, StockStatus.AVAILABLE, null);
+            persistStock(product, StockStatus.AVAILABLE, at.plusDays(5));
+            persistStock(product, StockStatus.SOLD, null);
+            persistStock(product, StockStatus.RESERVED, null);
+            persistStock(product, StockStatus.INVALID, null);
+            persistStock(product, StockStatus.AVAILABLE, at.minusDays(1));
+
+            assertThat(facts(at, product).get(product.getId()).availableStock()).isEqualTo(2L);
+        }
+
+        @Test
+        @DisplayName("una unidad que vence exactamente en 'now' sigue contando (mismo criterio que ProductStock.isExpired)")
+        void unitExpiringExactlyNowStillCounts() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Product product = persistProduct(commercial, persistCategory("Cat facts 2"), "Producto borde", 10000,
+                    ProductStatus.ACTIVE);
+            ZonedDateTime at = now().withNano(0);
+            persistStock(product, StockStatus.AVAILABLE, at);
+            persistStock(product, StockStatus.AVAILABLE, at.minusSeconds(1));
+
+            assertThat(facts(at, product).get(product.getId()).availableStock()).isEqualTo(1L);
+        }
+
+        @Test
+        @DisplayName("un producto sin unidades devuelve una fila con stock 0, no una fila ausente")
+        void productWithoutStockHasZero() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Product product = persistProduct(commercial, persistCategory("Cat facts 3"), "Producto vacio", 10000,
+                    ProductStatus.ACTIVE);
+
+            Map<Long, ProductListingFacts> found = facts(now(), product);
+
+            assertThat(found).containsKey(product.getId());
+            assertThat(found.get(product.getId()).availableStock()).isZero();
+        }
+
+        @Test
+        @DisplayName("cuenta unidades agregadas sin ninguna compra (como los seeds)")
+        void countsUnitsAddedWithoutPurchases() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Product product = persistProduct(commercial, persistCategory("Cat facts 4"), "Producto seed", 10000,
+                    ProductStatus.ACTIVE);
+            for (int i = 0; i < 3; i++) {
+                persistStock(product, StockStatus.AVAILABLE, null);
+            }
+
+            assertThat(facts(now(), product).get(product.getId()).availableStock()).isEqualTo(3L);
+        }
+
+        @Test
+        @DisplayName("devuelve el nombre del comercio y el publicId de su usuario")
+        void returnsCompanyNameAndCommercialPublicId() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            Product product = persistProduct(commercial, persistCategory("Cat facts 5"), "Producto comercio", 10000,
+                    ProductStatus.ACTIVE);
+            String companyName = commercial.getCompanyName();
+            UUID publicId = commercial.getUser().getPublicId();
+
+            ProductListingFacts row = facts(now(), product).get(product.getId());
+
+            assertThat(row.companyName()).isEqualTo(companyName);
+            assertThat(row.commercialPublicId()).isEqualTo(publicId);
+        }
+
+        @Test
+        @DisplayName("solo devuelve los ids pedidos")
+        void onlyRequestedIds() {
+            CommercialDetails commercial = TestEntities.persistCommercial(em);
+            ProductCategory category = persistCategory("Cat facts 6");
+            Product asked = persistProduct(commercial, category, "Pedido", 10000, ProductStatus.ACTIVE);
+            Product other = persistProduct(commercial, category, "Otro", 10000, ProductStatus.ACTIVE);
+            persistStock(asked, StockStatus.AVAILABLE, null);
+            persistStock(other, StockStatus.AVAILABLE, null);
+
+            Map<Long, ProductListingFacts> found = facts(now(), asked);
+
+            assertThat(found).containsOnlyKeys(asked.getId());
         }
     }
 }

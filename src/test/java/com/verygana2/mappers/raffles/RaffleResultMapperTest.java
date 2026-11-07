@@ -22,12 +22,22 @@ import com.verygana2.models.raffles.RaffleTicket;
 import com.verygana2.models.raffles.RaffleWinner;
 import com.verygana2.models.userDetails.ConsumerDetails;
 
+import org.springframework.test.util.ReflectionTestUtils;
+
+import com.verygana2.testsupport.PublicUrlBuilders;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 @DisplayName("RaffleResultMapper")
 class RaffleResultMapperTest {
 
-    private final RaffleResultMapper raffleResultMapper = new RaffleResultMapperImpl();
+    private final RaffleResultMapper raffleResultMapper = newMapper();
+
+    private static RaffleResultMapper newMapper() {
+        RaffleResultMapperImpl impl = new RaffleResultMapperImpl();
+        ReflectionTestUtils.setField(impl, "publicUrlBuilder", PublicUrlBuilders.forDomain("cdn-beta.verygana.com"));
+        return impl;
+    }
 
     @Nested
     @DisplayName("toRaffleSummaryResultResponseDTO")
@@ -60,7 +70,7 @@ class RaffleResultMapperTest {
 
         @Test
         @DisplayName("raffle con imageAsset: raffleImageUrl usa el prefijo CDN sobre el objectKey")
-        void withImageAsset_usesCdnPrefix() {
+        void raffleAndPrizeImageUrlsUseConfiguredCdn() {
             Raffle raffle = new Raffle();
             raffle.setId(1L);
             raffle.setImageAsset(RaffleImageAsset.builder().objectKey("raffles/abc.png").build());
@@ -69,12 +79,12 @@ class RaffleResultMapperTest {
 
             RaffleResultResponseDTO dto = raffleResultMapper.toRaffleResultDTO(result);
 
-            assertThat(dto.getRaffleImageUrl()).isEqualTo("https://cdn.verygana.com/public/raffles/abc.png");
+            assertThat(dto.getRaffleImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/raffles/abc.png");
         }
 
         @Test
-        @DisplayName("raffle sin imageAsset: buildImageUrl es null-safe, raffleImageUrl queda null")
-        void withoutImageAsset_raffleImageUrlIsNull() {
+        @DisplayName("raffle sin imageAsset: el builder es null-safe, raffleImageUrl queda null")
+        void nullObjectKeyGivesNullUrl() {
             Raffle raffle = new Raffle();
             raffle.setId(1L);
             raffle.setImageAsset(null);
@@ -133,11 +143,11 @@ class RaffleResultMapperTest {
 
             assertThat(dto.getUserName()).isEqualTo("juan");
             assertThat(dto.getTicketNumber()).isEqualTo("000123");
-            assertThat(dto.getPrizeImageUrl()).isEqualTo("https://cdn.verygana.com/public/prizes/xyz.png");
+            assertThat(dto.getPrizeImageUrl()).isEqualTo("https://cdn-beta.verygana.com/public/prizes/xyz.png");
         }
 
         @Test
-        @DisplayName("prize sin imageAsset: prizeImageUrl queda null (buildImageUrl es null-safe)")
+        @DisplayName("prize sin imageAsset: prizeImageUrl queda null (el builder es null-safe)")
         void withoutImageAsset_prizeImageUrlIsNull() {
             Prize prize = new Prize();
             prize.setImageAsset(null);

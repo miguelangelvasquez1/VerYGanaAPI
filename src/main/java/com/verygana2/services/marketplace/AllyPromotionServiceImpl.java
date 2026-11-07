@@ -21,6 +21,7 @@ import com.verygana2.repositories.details.CommercialDetailsRepository;
 import com.verygana2.repositories.marketplace.AllyProductPromotionRepository;
 import com.verygana2.repositories.marketplace.ProductRepository;
 import com.verygana2.services.interfaces.marketplace.AllyPromotionService;
+import com.verygana2.storage.service.PublicUrlBuilder;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -36,6 +37,7 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
     private final AllyProductPromotionRepository allyProductPromotionRepository;
     private final ProductRepository productRepository;
     private final CommercialDetailsRepository commercialDetailsRepository;
+    private final PublicUrlBuilder publicUrlBuilder;
 
     @Override
     @RequirePlanCapability(value = RequirePlanCapability.Capability.CAN_PROMOTE_ALLY_PRODUCTS,
@@ -88,7 +90,8 @@ public class AllyPromotionServiceImpl implements AllyPromotionService {
                     return AllyPromotionResponseDTO.builder()
                             .productId(p.getId())
                             .productName(p.getName())
-                            .productImageUrl(p.getImageUrl())
+                            .productImageUrl(p.getImageAsset() == null ? null
+                                    : publicUrlBuilder.toPublicUrl(p.getImageAsset().getObjectKey()))
                             .allyCommercialPublicId(p.getCommercial().getUser().getPublicId())
                             .allyCommercialName(p.getCommercial().getCompanyName())
                             .priceCents(p.getPriceCents())
